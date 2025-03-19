@@ -36,6 +36,9 @@ public-hoist-pattern[]=*prettier*
 </picture>
 ```
 
-## NextJS <Image>
+## Astro
 
-It can only be used at request time, not build time.
+I found out that NextJS <Image> optimization can only be used at request time, not build time.
+I got the feeling that NextJS was fine for SSG but not ideal, most of the docs is written for SSR/RSC stuff.
+Astro uses zod to generate typings for all my content which I liked (have to run `pnpm dev`).
+It also had SSG Image optimization and more docs written for SSG which I liked.

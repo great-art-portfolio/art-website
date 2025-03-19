@@ -1,0 +1,17 @@
+---
+import { Image } from "astro:assets";
+import { getCollection } from "astro:content";
+
+const paintings = await getCollection("paintings");
+// need to filter out the sold paintings
+// need to pass this in as a boolean prop
+---
+
+{
+  paintings.map((painting) => (
+    <div class="painting">
+      <Image src={painting.data.image} alt={painting.data.alt} />
+      <h2>{painting.data.title}</h2>
+    </div>
+  ))
+}
