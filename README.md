@@ -31,13 +31,9 @@ The SVG signature should animate with strokes from ltr.
 
 ## Github
 
-To create a new painting, I'll use a Github OAuth login where only my mom is authorized.
+To create new paintings, the owner logs into Github OAuth.
 Should take her to the admin page after where she can do stuff with the OAuth token.
 
-## Images
+## Selling
 
-image: "930x941.jpg"
-image: "1943x1967.jpg"
-image: "2122x2118.jpg"
-image: "2510x2478.jpg"
-image: "2584x2663.jpg"
+Payments handled with [Stripe](https://stripe.com/en-ca) and shipping with [shippo](https://goshippo.com/)
