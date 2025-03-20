@@ -33,3 +33,11 @@ The SVG signature should animate with strokes from ltr.
 
 To create a new painting, I'll use a Github OAuth login where only my mom is authorized.
 Should take her to the admin page after where she can do stuff with the OAuth token.
+
+## Images
+
+image: "930x941.jpg"
+image: "1943x1967.jpg"
+image: "2122x2118.jpg"
+image: "2510x2478.jpg"
+image: "2584x2663.jpg"

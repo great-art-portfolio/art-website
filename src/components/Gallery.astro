@@ -3,15 +3,48 @@ import { Image } from "astro:assets";
 import { getCollection } from "astro:content";
 
 const paintings = await getCollection("paintings");
-// need to filter out the sold paintings
-// need to pass this in as a boolean prop
 ---
 
-{
-  paintings.map((painting) => (
-    <div class="painting">
-      <Image src={painting.data.image} alt={painting.data.alt} />
-      <h2>{painting.data.title}</h2>
-    </div>
-  ))
-}
+<div class="gallery">
+  {
+    paintings.map((painting) => (
+      <div class="thumbnail">
+        <a href={`/paintings/${painting.id}`}>
+          <Image
+            src={painting.data.image}
+            alt={painting.data.alt}
+            width={600}
+          />
+        </a>
+      </div>
+    ))
+  }
+</div>
+
+<style>
+  .gallery {
+    columns: 450px;
+    padding-inline: 3em;
+    padding-bottom: 3em;
+  }
+
+  .thumbnail {
+    position: relative;
+    padding-top: 100%;
+    margin-bottom: 1.2em;
+  }
+
+  img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  img {
+    width: 100%;
+    height: 100%;
+    margin-bottom: 1.2em;
+  }
+</style>

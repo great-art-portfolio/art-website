@@ -1,0 +1,18 @@
+---
+import { Image } from "astro:assets";
+import { getCollection, render } from "astro:content";
+
+export async function getStaticPaths() {
+  const paintings = await getCollection("paintings");
+  return paintings.map((painting) => ({
+    params: { id: painting.id },
+    props: { painting },
+  }));
+}
+
+const { painting } = Astro.props;
+---
+
+<Image src={painting.data.image} alt={painting.data.alt} width={600} />
+<p>{painting.body}</p>
+<button>Add to Cart 🛒</button>
