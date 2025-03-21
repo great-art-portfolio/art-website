@@ -35,7 +35,8 @@ The SVG signature should animate with strokes from ltr.
 
 ## Github
 
-To create new paintings, the owner logs into Github OAuth.
+To create/delete/edit paintings, an owner logs into their Github account with OAuth.
+They then install my "Github App" on their Github account, and they
 Should take her to the admin page after where she can do stuff with the OAuth token.
 
 ## Selling

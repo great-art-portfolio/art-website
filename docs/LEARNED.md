@@ -42,3 +42,13 @@ I found out that NextJS <Image> optimization can only be used at request time, n
 I got the feeling that NextJS was fine for SSG but not ideal, most of the docs is written for SSR/RSC stuff.
 Astro uses zod to generate typings for all my content which I liked (have to run `pnpm dev`).
 It also had SSG Image optimization and more docs written for SSG which I liked.
+
+## OAuth 2.0
+
+A github login is not enough, it only verifies the user's identity, not the frontend's identity (1).
+Assuming my app is a client-side SSG website with no server, a malicious actor can copy my entire frontend and host it on their own domain.
+The user could get tricked into signing into github legitimately, and the imposter website can steal their token.
+That's why I need to add my own server that I trust on MY domain's url so I can give it the client secret (which identifies my app).
+I can't trust the client secret on my frontend because it's public, but I can trust my domain url, which has my private server.
+
+Summary: The reason why I need to pay for my own server and can't rely on Github login is because of (1), it doesn't verify my website, only the user.

@@ -1,15 +1,14 @@
 ---
-import { isLoggedIn } from "../helper";
-import { GITHUB_OAUTH_CLIENT_ID } from "../content.config";
+// import { isLoggedIn } from "../helper";
+// import { GITHUB_OAUTH_CLIENT_ID } from "../content.config";
 
-const cookie = Astro.request.headers.get("art-website_githubOAUTH");
-// const code = Astro.url.searchParams.get('code');
-// const token = Astro.locals.token 
+// const cookie = Astro.request.headers.get("art-website_githubOAUTH");
+// // const code = Astro.url.searchParams.get('code');
+// // const token = Astro.locals.token
 
+// const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_OAUTH_CLIENT_ID}&redirect_uri=${redirectUri}`;
 
-const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_OAUTH_CLIENT_ID}&redirect_uri=${redirectUri}`;
-
-if (!cookie) {
-  return Astro.redirect(githubAuthUrl);
-}
+// if (!cookie) {
+//   return Astro.redirect(githubAuthUrl);
+// }
 ---
