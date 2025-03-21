@@ -1,5 +1,6 @@
 ---
 import Signature from "../components/Signature.astro";
+import background from "../assets/background.svg";
 ---
 
 <!doctype html>
@@ -21,6 +22,8 @@ import Signature from "../components/Signature.astro";
         <a href="/" id="signature"><Signature /></a>
       </nav>
     </header>
+
+    <img id="background" src={background.src} alt="" fetchpriority="high" />
     <slot />
   </body>
 </html>
@@ -37,5 +40,13 @@ import Signature from "../components/Signature.astro";
     padding-inline: 3em;
     padding-block: 2em;
   }
-</style>
 
+  #background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+  }
+</style>

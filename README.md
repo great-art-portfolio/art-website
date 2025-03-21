@@ -1,8 +1,12 @@
 # [Art Portfolio](https://github.com/great-art-portfolio/art-website)
 
+[Cloudflare Hosted](https://dash.cloudflare.com/ee6937662d7aeda01d2a6f1f49a1168a/pages/new/provider/github)
+
 [Deployed here](https://art-website-cm4.pages.dev/)
 
 [Astro](https://docs.astro.build)
+
+[OAuth](https://github.com/settings/applications/2929504)
 
 ```sh
 pnpm install
