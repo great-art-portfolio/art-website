@@ -51,4 +51,8 @@ The user could get tricked into signing into github legitimately, and the impost
 That's why I need to add my own server that I trust on MY domain's url so I can give it the client secret (which identifies my app).
 I can't trust the client secret on my frontend because it's public, but I can trust my domain url, which has my private server.
 
-Summary: The reason why I need to pay for my own server and can't rely on Github login is because of (1), it doesn't verify my website, only the user.
+I.e. the reason why I need to pay for my own server and can't rely on Github login is because of (1), it doesn't verify my website, only the user.
+
+## Github
+
+

@@ -1,8 +1,8 @@
 # [Art Portfolio](https://github.com/great-art-portfolio/art-website)
 
-[Cloudflare Hosted](https://dash.cloudflare.com/ee6937662d7aeda01d2a6f1f49a1168a/pages/new/provider/github)
-
 [Deployed here](https://art-website-cm4.pages.dev/)
+
+[Cloudflare](https://dash.cloudflare.com/ee6937662d7aeda01d2a6f1f49a1168a/pages/new/provider/github)
 
 [Astro](https://docs.astro.build)
 
@@ -35,9 +35,9 @@ The SVG signature should animate with strokes from ltr.
 
 ## Github
 
-To create/delete/edit paintings, an owner logs into their Github account with OAuth.
-They then install my "Github App" on their Github account, and they
-Should take her to the admin page after where she can do stuff with the OAuth token.
+To create/delete/edit paintings, the site owner visits /admin where they'll be redirected to the Github login. 
+They'll sign into Github, and then install my "Github App" to their account (authorize my app to access their account).
+They can then get an Authz token from the Github App that they can then use to make changes to the github repository (REST API).
 
 ## Selling
 
