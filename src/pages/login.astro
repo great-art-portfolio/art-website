@@ -1,0 +1,23 @@
+<h1>Login</h1>
+<script>
+  // /login -> github login -> /admin-oauth -> /admin (with token)
+
+  import { isLoggedIn } from "../utils";
+
+  // I can't use Astro.redirect() because it's build time only
+  if (isLoggedIn()) window.location.href = "/admin";
+
+  // GITHUB_OAUTH_CLIENT_ID
+  // https://github.com/settings/apps/art-website-oauth
+  const client_id = "Iv23liPOccG81ylXeot0";
+  const redirect_uri = "https://art-website-cm4.pages.dev/admin-oauth";
+  const state = crypto.randomUUID();
+  sessionStorage.setItem("GITHUB_APP_AUTH_HASH", state);
+  const githubAuthUrl = `https://github.com/login/oauth/authorize?
+    client_id=${client_id}&
+    redirect_uri=${redirect_uri}&
+    state=${state}`;
+
+  // I can't use SSG
+  window.location.href = githubAuthUrl; // Redirects to GitHub
+</script>

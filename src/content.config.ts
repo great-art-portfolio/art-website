@@ -15,7 +15,5 @@ const paintings = defineCollection({
   }),
 });
 
-// https://github.com/settings/applications/2929504
-export const GITHUB_OAUTH_CLIENT_ID = "Ov23liJJKymVyVYsF8RX"
 
 export const collections = { paintings };

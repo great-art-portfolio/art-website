@@ -45,14 +45,19 @@ It also had SSG Image optimization and more docs written for SSG which I liked.
 
 ## OAuth 2.0
 
-A github login is not enough, it only verifies the user's identity, not the frontend's identity (1).
-Assuming my app is a client-side SSG website with no server, a malicious actor can copy my entire frontend and host it on their own domain.
-The user could get tricked into signing into github legitimately, and the imposter website can steal their token.
-That's why I need to add my own server that I trust on MY domain's url so I can give it the client secret (which identifies my app).
-I can't trust the client secret on my frontend because it's public, but I can trust my domain url, which has my private server.
+A github login alone only verifies the user's identity, not the frontend's identity.
+A bad actor can copy my entire frontend and host it on their own domain.
+If the user signs into Github on the imposter site and redirects back, the imposter site gets the OAuth token.
+I need my own server with a `client_secret` (identifying my app) that github redirects to instead.
 
-I.e. the reason why I need to pay for my own server and can't rely on Github login is because of (1), it doesn't verify my website, only the user.
+The URL for requesting a Github token can also be forged by a bad actor (user can be tricked into calling it).
+To make sure it's an authentic request, I attach a nonce/state to the request.
+When my server gets a callback from the Github server, it will check if the response nonce matches the client nonce.
 
-## Github
+CSRF isn't just about cookies.
 
+### OAuth 2.0 Flow
 
+/login -> github login -> /admin-oauth -> /admin -> /admin-oauth -> /admin (now with token)
+
+After a successful login, it redirects the browser to /admin-oauth, then it redirects the browser to /admin-callback with `code` and `state` to check if the state is a match, then it makes a post request to `/admin-oauth` to get the token, then it redirects again to /admin with the token.
