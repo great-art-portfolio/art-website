@@ -1,21 +1,20 @@
-<h1>Login</h1>
 <script>
   // /login -> github login -> /admin-oauth -> /login-callback -> /admin (with token)
   // I can't use Astro.redirect() because Astro is for build time only
 
   import { isLoggedIn } from "../utils";
+  import { clientId, workerUrl } from "../content.config";
 
-  if (isLoggedIn()) window.location.href = "/admin";
+  // if the user is logged in, redirect them
+  if (isLoggedIn()) return (window.location.href = "/admin");
 
-  // GITHUB_OAUTH_CLIENT_ID
-  // https://github.com/settings/apps/art-website-oauth
-  const client_id = "Iv23liPOccG81ylXeot0";
-  const redirect_uri = "https://art-website-cm4.pages.dev/admin-oauth";
+  // state to prevent CSRF attacks (validated later in login-callback.astro)
   const state = crypto.randomUUID();
-  sessionStorage.setItem("GITHUB_APP_AUTH_HASH", state);
+  sessionStorage.setItem("GITHUB_OAUTH_CSRF_HASH", state);
+
   const githubAuthUrl = `https://github.com/login/oauth/authorize?
-    client_id=${client_id}&
-    redirect_uri=${redirect_uri}&
+    client_id=${clientId}&
+    redirect_uri=${workerUrl}&
     state=${state}`;
 
   window.location.href = githubAuthUrl; // Redirects to GitHub

@@ -16,4 +16,13 @@ const paintings = defineCollection({
 });
 
 
+// GITHUB_OAUTH_CLIENT_ID
+// https://github.com/settings/apps/art-website-oauth
+export const clientId = "Iv23liPOccG81ylXeot0";
+
+// My backend worker
+export const workerUrl = "https://art-website-cm4.pages.dev/admin-oauth";
+
+export const repositoryUrl = "https://github.com/great-art-portfolio/art-website"
+
 export const collections = { paintings };

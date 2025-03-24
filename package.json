@@ -6,7 +6,9 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "gen": "wrangler types --path='./functions/types.d.ts'",
+    "down": "pnpm wrangler pages download config --project-name=art-website"
   },
   "dependencies": {
     "@astrojs/react": "^4.2.1",

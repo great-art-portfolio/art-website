@@ -1,19 +1,22 @@
----
-const state = Astro.params.state
-const code = Astro.params.code
----
 <script>
+  import { workerUrl } from "../content.config";
+
   // /login -> github login -> /admin-oauth -> /login-callback -> /admin (with token)
   const urlParams = new URLSearchParams(window.location.search);
   const state = urlParams.get("state");
   const code = urlParams.get("code");
-  const storedState = sessionStorage.getItem("GITHUB_APP_AUTH_HASH");
+  const storedState = sessionStorage.getItem("GITHUB_OAUTH_CSRF_HASH");
 
   if (state !== storedState) {
     console.error("State mismatch - possible CSRF");
-    window.location.href = "/login"; // Or handle error
-  } else {
-    // State matches, proceed with code (POST to /admin-oauth later)
-    console.log("State validated, code:", code);
+    return (window.location.href = "/login");
   }
+
+  fetch(workerUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      code,
+    }),
+  });
 </script>

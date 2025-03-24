@@ -63,14 +63,13 @@ CSRF isn't just about cookies.
 
 After a successful login, it redirects the browser to /admin-oauth, then it redirects the browser to /admin-callback with `code` and `state` to check if the state is a match, then it makes a post request to `/admin-oauth` to get the token, then it redirects again to /admin with the token.
 
-## Web Redirect Stuff
+## Redirects
 
-You can make a GET request using an API call via fetch()/xhr() or you can make one using a redirect `window.location.href = newURL`.
-A redirect is visible in the browser history, an API call has customizable headers you can use.
+Redirects can be server-driven (e.g., 302 with Location header) or client-driven `window.location.href = newURL`
+Redirects are common for OAuth flows, page moves, and routing users post-action (login -> dashboard)
+300 codes are mostly redirects
 
-Iframes allow the insertion of a document from an entirely different domain.
-
-## Window opener 
+## Window opener
 
 https://developer.mozilla.org/en-US/docs/Glossary/Browsing_context
 https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/rel#nofollow
@@ -91,3 +90,5 @@ You can have a chain of openers A -> B -> C in a parent-child hierarchy
 window.alert(), window.prompt(), window.confirm() are all dialogues, not contexts.
 
 `target=""` specifies where to open the new tab https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a#target
+
+Iframes allow the insertion of a document from an entirely different domain.
