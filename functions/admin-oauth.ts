@@ -3,6 +3,7 @@
  * @param {*} context 
  * @returns 
  */
-export const onRequest: PagesFunction<Env> = async (context) => {
-  return new Response("Hello, from Admin OAuth!")
+export const onRequestGet: PagesFunction<Env> = async (context) => {
+  const { state, code } = context.params
+  return Response.redirect(`/admin?code=${code}&state=${state}`, 302);
 }

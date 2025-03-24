@@ -13,7 +13,7 @@ https://github.com/pnpm/pnpm/releases/tag/v10.0.0-rc.0
 https://github.com/pnpm/pnpm/issues/8378
 https://pnpm.io/npmrc
 
-Unlike npm/yarn, pnpm can hoist dependencies to the root of `node_modules` using public-hoist where the dependency will be available to every package, or you can hoist to `node_modules/.pnpm/node_modules` (the default) to benefit from the file/installation benefits of pnpm. Dependencies installed with pnpm are saved once in a store on your computer and away from your project. This means dependencies of dependencies (like `eslint-plugin-react-hooks`, which `eslint-config-next` relies on) aren’t automatically available at the root of `node_modules` unless explicitly hoisted with public-hoist. ESLint assumes plugins like `eslint-plugin-react-hooks` are globally accessible in `node_modules`, when they're not found you can get the error "failed to load plugin". 
+Unlike npm/yarn, pnpm can hoist dependencies to the root of `node_modules` using public-hoist where the dependency will be available to every package, or you can hoist to `node_modules/.pnpm/node_modules` (the default) to benefit from the file/installation benefits of pnpm. Dependencies installed with pnpm are saved once in a store on your computer and away from your project. This means dependencies of dependencies (like `eslint-plugin-react-hooks`, which `eslint-config-next` relies on) aren’t automatically available at the root of `node_modules` unless explicitly hoisted with public-hoist. ESLint assumes plugins like `eslint-plugin-react-hooks` are globally accessible in `node_modules`, when they're not found you can get the error "failed to load plugin".
 
 Historically, public-hoist defaulted to ['*eslint*', '*prettier*'] (up to pnpm v9), but now in version 10 it's [].
 
@@ -28,11 +28,14 @@ public-hoist-pattern[]=*prettier*
 
 ```html
 <picture>
-  <source media="(max-width: 600px)" srcset="image-small.jpg">
-  <source media="(min-width: 601px) and (max-width: 1200px)" srcset="image-medium.jpg">
-  <source media="(min-width: 1201px)" srcset="image-large.jpg">
-  <source media="(min-resolution: 192dpi)" srcset="image-large-3x.jpg">
-  <img src="image-default.jpg" alt="Example Image">
+  <source media="(max-width: 600px)" srcset="image-small.jpg" />
+  <source
+    media="(min-width: 601px) and (max-width: 1200px)"
+    srcset="image-medium.jpg"
+  />
+  <source media="(min-width: 1201px)" srcset="image-large.jpg" />
+  <source media="(min-resolution: 192dpi)" srcset="image-large-3x.jpg" />
+  <img src="image-default.jpg" alt="Example Image" />
 </picture>
 ```
 
@@ -56,8 +59,35 @@ When my server gets a callback from the Github server, it will check if the resp
 
 CSRF isn't just about cookies.
 
-### OAuth 2.0 Flow
-
 /login -> github login -> /admin-oauth -> /admin -> /admin-oauth -> /admin (now with token)
 
 After a successful login, it redirects the browser to /admin-oauth, then it redirects the browser to /admin-callback with `code` and `state` to check if the state is a match, then it makes a post request to `/admin-oauth` to get the token, then it redirects again to /admin with the token.
+
+## Web Redirect Stuff
+
+You can make a GET request using an API call via fetch()/xhr() or you can make one using a redirect `window.location.href = newURL`.
+A redirect is visible in the browser history, an API call has customizable headers you can use.
+
+Iframes allow the insertion of a document from an entirely different domain.
+
+## Window opener 
+
+https://developer.mozilla.org/en-US/docs/Glossary/Browsing_context
+https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/rel#nofollow
+
+`rel=noreferrer` drops my website from being associated with the user's next navigation (appears as new traffic)
+`rel=nofollow` my site doesn't endorse this link (could be user generated content) and the search engine will ignore the link relationship.
+`rel=noopener` makes sure the new tab/window isn't connected to the original page.
+
+A browsing context is an environment in which a browser displays a document (tab, window, iframe).
+You can create an auxiliary browsing context using `window.open()` and `window.opener` will have the original window that opened it.
+You can also use `target=""` to create a browsing context
+
+window.open() was originally used for opening help pages, external tools, multi-window apps but it's rare.
+You may see window.open() for multi-window OAuth workflows though not mine (github OAuth doesn't do that).
+window.opener lets you control the original window that opened this one (closing it, redirecting it)
+You can have a chain of openers A -> B -> C in a parent-child hierarchy
+
+window.alert(), window.prompt(), window.confirm() are all dialogues, not contexts.
+
+`target=""` specifies where to open the new tab https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a#target
