@@ -1,0 +1,12 @@
+{
+  "name": "Art Gallery",
+  "short_name": "Gallery",
+  "description": "Original Calgary and abstract paintings from the artist's studio.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#faf7f1",
+  "theme_color": "#faf7f1",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

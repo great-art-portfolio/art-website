@@ -3,48 +3,134 @@ import { Image } from "astro:assets";
 import { getCollection } from "astro:content";
 
 const paintings = await getCollection("paintings");
+const available = paintings.filter((p) => !p.data.sold);
+const sold = paintings.filter((p) => p.data.sold);
+const ordered = [...available, ...sold];
+const NEW_MS = 21 * 24 * 60 * 60 * 1000;
+const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
 ---
 
-<div class="gallery">
+<p id="announce-bar" class="announce" hidden></p>
+
+<div class="gallery" id="gallery-static">
   {
-    paintings.map((painting) => (
-      <div class="thumbnail">
-        <a href={`/paintings/${painting.id}`}>
+    ordered.map((painting) => (
+      <a class="card" href={`/paintings/${painting.id}`}>
+        <span class="thumb">
           <Image
             src={painting.data.image}
             alt={painting.data.alt}
-            width={600}
+            width={800}
+            loading="lazy"
           />
-        </a>
-      </div>
+          {painting.data.sold ? (
+            <span class="badge sold">Sold</span>
+          ) : (
+            <span class="badge price">${painting.data.price.toFixed(2)}</span>
+          )}
+          {!painting.data.sold && isNewStatic(painting.data.dateAdded) && (
+            <span class="badge new">New</span>
+          )}
+        </span>
+        <span class="meta">
+          <strong>{painting.data.title}</strong>
+        </span>
+      </a>
     ))
   }
 </div>
 
+<div class="gallery" id="gallery-new" hidden></div>
+
+<script>
+  // Paintings added from the phone (D1/R2) render here; static ones above.
+  async function loadNew() {
+    try {
+      const res = await fetch("/api/settings");
+      if (res.ok) {
+        const text = ((await res.json()) as { announcement: string }).announcement.trim();
+        if (text !== "") {
+          const bar = document.getElementById("announce-bar");
+          if (bar !== null) {
+            bar.textContent = text;
+            bar.hidden = false;
+          }
+        }
+      }
+    } catch {
+      // Announcement is decoration — the gallery works without it.
+    }
+    let paintings: Array<{
+      slug: string; title: string; price_cents: number;
+      alt: string; image_url: string; status: string; created_at: string;
+    }>;
+    try {
+      const res = await fetch("/api/paintings");
+      if (!res.ok) return;
+      paintings = ((await res.json()) as { paintings: typeof paintings }).paintings;
+    } catch {
+      return;
+    }
+    if (paintings.length === 0) return;
+    const wrap = document.getElementById("gallery-new");
+    if (wrap === null) return;
+    wrap.hidden = false;
+    const fresh = Date.now() - 21 * 24 * 60 * 60 * 1000;
+    wrap.innerHTML = paintings
+      .map(
+        (p) => `<a class="card" href="/art?slug=${encodeURIComponent(p.slug)}">
+          <span class="thumb">
+            <img src="${encodeURI(p.image_url)}" alt="${p.alt.replace(/"/g, "&quot;")}" loading="lazy" />
+            ${p.status === "sold"
+              ? `<span class="badge sold">Sold</span>`
+              : `<span class="badge price">$${(p.price_cents / 100).toFixed(2)}</span>`}
+            ${p.status !== "sold" && Date.parse(p.created_at) > fresh ? `<span class="badge new">New</span>` : ""}
+          </span>
+          <span class="meta"><strong>${p.title.replace(/</g, "&lt;")}</strong></span>
+        </a>`,
+      )
+      .join("");
+  }
+  void loadNew();
+</script>
+
 <style>
   .gallery {
-    columns: 450px;
-    padding-inline: 3em;
-    padding-bottom: 3em;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+    gap: 1rem;
+    padding: 0 1.25rem 2.5rem;
+    max-width: 72rem;
+    margin: 0 auto;
   }
-
-  .thumbnail {
-    position: relative;
-    padding-top: 100%;
-    margin-bottom: 1.2em;
+  @media (min-width: 48rem) {
+    .gallery { grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 1.4rem; }
   }
-
-  img {
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    object-fit: cover;
+  .card {
+    text-decoration: none; color: inherit;
+    border-radius: 1rem; overflow: hidden;
+    background: color-mix(in srgb, Canvas 90%, transparent);
+    border: 1px solid color-mix(in srgb, CanvasText 14%, transparent);
+    animation: rise 0.5s ease both;
   }
-
-  img {
-    width: 100%;
-    height: 100%;
-    margin-bottom: 1.2em;
+  .thumb { position: relative; display: block; aspect-ratio: 1; overflow: hidden; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .badge {
+    position: absolute; top: 0.6rem; right: 0.6rem;
+    padding: 0.3rem 0.7rem; border-radius: 999px;
+    font-size: 0.85rem; font-weight: 700;
+    background: #1a1a1a; color: #fff;
+  }
+  .badge.sold { background: #8c1d18; }
+  .badge.new { top: auto; bottom: 0.6rem; right: 0.6rem; background: #2e6e5e; }
+  .announce {
+    max-width: 72rem; margin: 0 auto 1rem; padding: 0.8rem 1.25rem;
+    text-align: center; font-weight: 600;
+    background: #fff8e7; border-block: 1px solid #e5cf8f; border-radius: 0;
+  }
+  .meta { display: block; padding: 0.7rem 0.9rem 0.9rem; }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
   }
 </style>

@@ -1,6 +1,7 @@
 ---
 import { Image } from "astro:assets";
 import { getCollection, render } from "astro:content";
+import Layout from "../../layouts/Layout.astro";
 
 export async function getStaticPaths() {
   const paintings = await getCollection("paintings");
@@ -11,8 +12,109 @@ export async function getStaticPaths() {
 }
 
 const { painting } = Astro.props;
+const { Content } = await render(painting);
+const price = `$${painting.data.price.toFixed(2)} CAD`;
+const paintingJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Product",
+  name: painting.data.title,
+  image: Astro.url.href,
+  description: painting.data.alt,
+  offers: {
+    "@type": "Offer",
+    priceCurrency: "CAD",
+    price: painting.data.price.toFixed(2),
+    availability: painting.data.sold
+      ? "https://schema.org/SoldOut"
+      : "https://schema.org/InStock",
+  },
+};
 ---
 
-<Image src={painting.data.image} alt={painting.data.alt} width={600} />
-<p>{painting.body}</p>
-<button>Add to Cart 🛒</button>
+<Layout
+  title={`${painting.data.title} — ${price}`}
+  description={painting.data.alt}
+>
+  <main class="detail">
+    <div id="photo-wrap" title="Tap to view fullscreen">
+      <Image src={painting.data.image} alt={painting.data.alt} width={1200} />
+    </div>
+    <div id="lightbox" hidden><img id="lightbox-img" alt="" /></div>
+    <div class="info">
+      <h1>{painting.data.title}</h1>
+      <p class="price">{painting.data.sold ? "Sold" : price}</p>
+      <Content />
+      {
+        !painting.data.sold && (
+          <form id="inquiry-form" data-static="true">
+            <h2>Ask to buy this painting</h2>
+            <label>Name <input name="name" type="text" required autocomplete="name" /></label>
+            <label>Email <input name="email" type="email" required autocomplete="email" /></label>
+            <label>Message <textarea name="message" rows="3" placeholder="Hi, I love this piece…" /></label>
+            <input type="text" name="website" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true" />
+            <button type="submit" class="primary">Send inquiry</button>
+            <p id="inquiry-status" role="status"></p>
+          </form>
+        )
+      }
+    </div>
+  </main>
+  <script type="application/ld+json" is:inline set:html={JSON.stringify(paintingJsonLd)} />
+</Layout>
+
+<script>
+  // Static (git-era) paintings inquire by email until they are migrated to D1.
+  const form = document.getElementById("inquiry-form") as HTMLFormElement | null;
+  form?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const status = document.getElementById("inquiry-status");
+    if (status !== null) {
+      status.textContent = "Thanks! Email the artist to complete your inquiry — online checkout for these pieces is coming soon.";
+    }
+  });
+
+  // Tap photo → fullscreen overlay.
+  const wrap = document.getElementById("photo-wrap");
+  const box = document.getElementById("lightbox") as HTMLElement | null;
+  const full = document.getElementById("lightbox-img") as HTMLImageElement | null;
+  const photo = wrap?.querySelector("img") as HTMLImageElement | null | undefined;
+  if (wrap !== null && box !== null && full !== null && photo != null) {
+    const close = (): void => {
+      if (document.fullscreenElement !== null) {
+        document.exitFullscreen().catch(() => undefined);
+      }
+      box.hidden = true;
+    };
+    wrap.addEventListener("click", () => {
+      full.src = photo.currentSrc === "" ? photo.src : photo.currentSrc;
+      full.alt = photo.alt;
+      box.hidden = false;
+      if (typeof box.requestFullscreen === "function" && document.fullscreenEnabled) {
+        box.requestFullscreen().catch(() => undefined);
+      }
+    });
+    box.addEventListener("click", close);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !box.hidden) close();
+    });
+    document.addEventListener("fullscreenchange", () => {
+      if (document.fullscreenElement === null) box.hidden = true;
+    });
+  }
+</script>
+
+<style>
+  .detail { max-width: 60rem; margin: 0 auto; padding: 1rem 1.25rem 3rem; display: grid; gap: 1.25rem; }
+  @media (min-width: 48rem) { .detail { grid-template-columns: 1.2fr 1fr; align-items: start; } }
+  .detail img { width: 100%; height: auto; border-radius: 1rem; }
+  #photo-wrap { cursor: zoom-in; }
+  #lightbox { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.94); display: grid; place-items: center; z-index: 50; cursor: zoom-out; }
+  #lightbox[hidden] { display: none; }
+  #lightbox img { max-width: 100vw; max-height: 100vh; object-fit: contain; border-radius: 0; }
+  .price { font-size: 1.4rem; font-weight: 800; }
+  form { display: grid; gap: 0.7rem; margin-top: 1rem; }
+  label { display: grid; gap: 0.3rem; font-weight: 600; }
+  input, textarea { font: inherit; font-weight: 400; padding: 0.7rem 0.8rem; border-radius: 0.6rem; border: 1px solid #999; min-height: 3rem; width: 100%; }
+  .hp { position: absolute; left: -9999px; }
+  button.primary { min-height: 3rem; border-radius: 0.75rem; border: 0; background: #1a1a1a; color: #fff; font: inherit; cursor: pointer; }
+</style>

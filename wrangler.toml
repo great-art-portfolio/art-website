@@ -5,6 +5,39 @@ compatibility_date = "2025-03-20"
 
 [vars]
 NODE_VERSION = "22.12.0"
+# Feature flags. Keep "false" until ready to enable each one.
+ENABLE_STRIPE = "false"
+ENABLE_SHIPPO = "false"
+ENABLE_SOCIAL_POST = "false"
+# Free push channel: create a private topic in the ntfy iOS app, then set it here.
+NTFY_TOPIC = "art-gallery-inquiries"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "art-gallery-db"
+# TODO: run `pnpm wrangler d1 create art-gallery-db` and paste the id here.
+database_id = "00000000-0000-0000-0000-000000000000"
+
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "art-gallery-images"
 
 [env.production.vars]
 NODE_VERSION = "22.12.0"
+ENABLE_STRIPE = "false"
+ENABLE_SHIPPO = "false"
+ENABLE_SOCIAL_POST = "false"
+NTFY_TOPIC = "art-gallery-inquiries"
+
+# Secrets (set in the Cloudflare dashboard, never committed):
+#   VAPID_PUBLIC_KEY    - actually public: also served via GET /api/push
+#   VAPID_PRIVATE_JWK   - secret JSON from `node scripts/gen-vapid.mjs`
+#   VAPID_CONTACT       - plain var, e.g. mailto:you@example.com
+#   RESEND_API_KEY      - Resend API key for buyer-inquiry emails
+#   NOTIFY_EMAIL_FROM   - e.g. "Gallery <hello@yourdomain.ca>"
+#   NOTIFY_EMAIL_TO     - your mom's email address
+#   ADMIN_API_TOKEN     - shared secret for /admin API calls (defense in depth behind Access)
+#   PUSHOVER_APP_TOKEN / PUSHOVER_USER_KEY - optional, if she prefers Pushover over ntfy
+#   STRIPE_SECRET_KEY   - only when ENABLE_STRIPE = "true"
+#   SHIPPO_API_TOKEN    - only when ENABLE_SHIPPO = "true"
+#   AYRSHARE_API_KEY    - only when ENABLE_SOCIAL_POST = "true"

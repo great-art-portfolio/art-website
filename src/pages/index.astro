@@ -6,5 +6,69 @@ import Gallery from "../components/Gallery.astro";
 <Layout>
   <main>
     <Gallery />
+    <section class="notify" id="notify-card" hidden>
+      <h2>Never miss a new painting</h2>
+      <p>One tap — your browser tells you when something new is hung.</p>
+      <button type="button" id="notify-btn" class="primary">Notify me</button>
+      <p class="hint" id="notify-hint"></p>
+    </section>
   </main>
 </Layout>
+
+<script>
+  import { pushState, subscribePush, unsubscribePush } from "../lib/push";
+
+  async function paint(): Promise<void> {
+    const card = document.getElementById("notify-card") as HTMLElement;
+    const btn = document.getElementById("notify-btn") as HTMLButtonElement;
+    const hint = document.getElementById("notify-hint") as HTMLElement;
+    const state = await pushState();
+    if (state === "unsupported") return; // Older browser — stay invisible.
+    card.hidden = false;
+    if (state === "subscribed") {
+      btn.textContent = "You're on the list — turn off";
+      hint.textContent = "";
+    } else if (state === "denied") {
+      btn.textContent = "Notifications blocked";
+      btn.disabled = true;
+      hint.textContent = "You blocked notifications for this site in your browser settings.";
+    } else {
+      btn.textContent = "Notify me";
+      hint.textContent = "";
+    }
+  }
+
+  (document.getElementById("notify-btn") as HTMLButtonElement).addEventListener("click", () => {
+    const hint = document.getElementById("notify-hint") as HTMLElement;
+    void pushState().then((state) => {
+      if (state === "subscribed") {
+        void unsubscribePush().then(() => void paint());
+      } else {
+        hint.textContent = "Waiting for your browser…";
+        void subscribePush().then((ok) => {
+          hint.textContent = ok
+            ? "You're on the list."
+            : "That didn't work — push alerts aren't set up on the server yet.";
+          void paint();
+        });
+      }
+    });
+  });
+
+  void paint();
+</script>
+
+<style>
+  .notify {
+    max-width: 36rem; margin: 0 auto 3rem; padding: 1.5rem;
+    text-align: center; border-radius: 1rem;
+    border: 1px solid color-mix(in srgb, CanvasText 14%, transparent);
+    background: color-mix(in srgb, Canvas 90%, transparent);
+  }
+  .notify button.primary {
+    min-height: 3rem; border-radius: 0.75rem; border: 0;
+    background: #1a1a1a; color: #fff; font: inherit;
+    padding: 0.6rem 1.6rem; cursor: pointer;
+  }
+  .notify .hint { font-size: 0.9rem; opacity: 0.8; }
+</style>

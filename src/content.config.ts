@@ -1,5 +1,6 @@
-import { defineCollection, z } from 'astro:content';
+import { defineCollection } from 'astro:content';
 import { glob } from 'astro/loaders';
+import { z } from 'astro/zod';
 
 const paintings = defineCollection({
   // Load all .md files in src/content/paintings/
@@ -14,15 +15,5 @@ const paintings = defineCollection({
     price: z.number().positive()
   }),
 });
-
-
-// GITHUB_OAUTH_CLIENT_ID
-// https://github.com/settings/apps/art-website-oauth
-export const clientId = "Iv23liPOccG81ylXeot0";
-
-// My backend worker
-export const workerUrl = "https://art-website-cm4.pages.dev/admin-oauth";
-
-export const repositoryUrl = "https://github.com/great-art-portfolio/art-website"
 
 export const collections = { paintings };

@@ -1,0 +1,15 @@
+---
+// Cloudflare Web Analytics beacon. Renders only when PUBLIC_CF_BEACON_TOKEN
+// is set (dashboard: Web Analytics → Add site → copy token).
+// The beacon is cookieless and fingerprint-free, so no consent banner is
+// needed — see /privacy for the full statement.
+const token = import.meta.env.PUBLIC_CF_BEACON_TOKEN as string | undefined;
+---
+{token !== undefined && token !== "" && (
+  <script
+    is:inline
+    defer
+    src="https://static.cloudflareinsights.com/beacon.min.js"
+    data-cf-beacon={`{"token": "${token}"}`}
+  />
+)}
