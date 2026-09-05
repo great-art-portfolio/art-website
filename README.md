@@ -1,6 +1,8 @@
 # [Art Portfolio](https://github.com/great-art-portfolio/art-website)
 
-Deployed: `https://art-website-cm4.pages.dev/` · [Cloudflare Settings](https://dash.cloudflare.com/ee6937662d7aeda01d2a6f1f49a1168a/pages/new/provider/github)
+https://art-website-cm4.pages.dev/
+
+[Cloudflare](https://dash.cloudflare.com/ee6937662d7aeda01d2a6f1f49a1168a/pages/view/art-website)
 
 ## Stack (all free tier)
 
