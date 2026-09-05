@@ -85,6 +85,19 @@ export const api = {
       body: JSON.stringify(input),
     });
   },
+  async paintingViews(): Promise<
+    { views: Array<{ slug: string; views: number }>; unconfigured: boolean }
+  > {
+    try {
+      const data = await request<{
+        views: Array<{ slug: string; views: number }>;
+        unconfigured?: boolean;
+      }>("/api/analytics", { headers: adminHeaders() });
+      return { views: data.views, unconfigured: data.unconfigured === true };
+    } catch {
+      return { views: [], unconfigured: true };
+    }
+  },
   async collectorCount(): Promise<number> {
     try {
       const data = await request<{ total: number }>("/api/notify", {

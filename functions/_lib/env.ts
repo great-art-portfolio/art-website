@@ -12,6 +12,9 @@ export interface AppEnv {
   VAPID_CONTACT?: string;
   TURNSTILE_SITE_KEY?: string;
   TURNSTILE_SECRET_KEY?: string;
+  CF_ACCOUNT_ID?: string;
+  CF_ANALYTICS_TOKEN?: string;
+  CF_ANALYTICS_SITE?: string;
   RESEND_API_KEY?: string;
   NOTIFY_EMAIL_FROM?: string;
   NOTIFY_EMAIL_TO?: string;

@@ -87,7 +87,13 @@ import Layout from "../layouts/Layout.astro";
     </section>
 
     <section class="card">
-      <h2><span class="step">5</span> Ship it</h2>
+      <h2><span class="step">5</span> Most viewed <button type="button" id="views-refresh">Refresh</button></h2>
+      <p class="hint">Past 30 days, from Cloudflare Analytics.</p>
+      <ul id="views-list"><li>Loading…</li></ul>
+    </section>
+
+    <section class="card">
+      <h2><span class="step">6</span> Ship it</h2>
       <ul>
         <li><a href="https://chitchats.com/" rel="noopener">Chit Chats</a> — cheapest tracked Canada/US shipping from Calgary.</li>
         <li><a href="https://www.pirateship.com/" rel="noopener">Pirate Ship</a> — backup for US labels.</li>
@@ -195,6 +201,12 @@ import Layout from "../layouts/Layout.astro";
   .check { display: flex; gap: 0.6rem; align-items: center; font-weight: 600; }
   .check input { width: auto; min-height: 1.4rem; accent-color: var(--accent); }
   #ar-preview { margin-top: 0.75rem; }
+  #views-list { list-style: none; padding: 0; margin: 0.75rem 0 0; display: grid; gap: 0.5rem; }
+  #views-list li {
+    list-style: none; background: var(--paper);
+    border: 1px solid var(--line); border-radius: 0.75rem;
+    padding: 0.7rem 1rem; font-size: 0.92rem;
+  }
   .card ul a { color: var(--accent); }
   .card code {
     font-size: 0.85em; background: var(--paper);

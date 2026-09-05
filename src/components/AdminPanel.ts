@@ -128,6 +128,31 @@ function showArPreview(glbUrl: string, usdzUrl: string): void {
     });
 }
 
+async function refreshViews(): Promise<void> {
+  const list = $("views-list");
+  try {
+    const { views, unconfigured } = await api.paintingViews();
+    if (unconfigured) {
+      list.innerHTML =
+        "<li>Analytics isn't wired up yet — add the site in Cloudflare Web Analytics, " +
+        "then set the beacon token + API vars (see README).</li>";
+      return;
+    }
+    if (views.length === 0) {
+      list.innerHTML = "<li>No views yet.</li>";
+      return;
+    }
+    list.innerHTML = views
+      .map((v) => {
+        const slug = v.slug.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+        return `<li><em>${slug}</em> — ${v.views} views</li>`;
+      })
+      .join("");
+  } catch (err) {
+    list.innerHTML = `<li>Could not load views: ${(err as Error).message}</li>`;
+  }
+}
+
 /** Tell her what this browser can do (Safari vs Chrome, online vs offline). */
 async function refreshCapabilities(): Promise<void> {
   const sw = "serviceWorker" in navigator ? "on" : "unavailable";
@@ -406,6 +431,9 @@ function init(): void {
       .catch((err: unknown) => setStatus((err as Error).message, true));
   });
 
+  $("views-refresh").addEventListener("click", () => void refreshViews());
+
+  void refreshViews();
   void refreshFlags();
   void refreshCapabilities();
 }
