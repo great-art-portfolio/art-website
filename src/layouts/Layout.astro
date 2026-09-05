@@ -2,7 +2,7 @@
 import ClientRouter from "astro/components/ClientRouter.astro";
 import Analytics from "../components/Analytics.astro";
 import Signature from "../components/Signature.astro";
-import background from "../assets/background.svg";
+import background from "../assets/background-warm.svg";
 import { ARTIST_LOCATION, ARTIST_NAME, siteTitle } from "../lib/site";
 
 interface Props {
@@ -66,7 +66,7 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
 
     <footer class="site-footer">
       <p class="footer-mark">{artistLabel} · {ARTIST_LOCATION}</p>
-      <p class="footer-sub">Every work is a one-of-a-kind original — no prints, no reproductions.</p>
+      <p class="footer-sub">Originals are one of a kind — prints of most pieces available on request.</p>
       <p class="footer-sub"><a href="/privacy">Privacy</a> — no cookies, no trackers</p>
       <p class="footer-sub">© {year} {artistLabel}</p>
     </footer>
@@ -99,6 +99,10 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
     --radius: 0.6rem;
   }
   html { scroll-behavior: smooth; }
+  /* Reserve the scrollbar gutter on every page: the gallery scrolls (gutter
+     present) while a short painting page may not (gutter absent), and that
+     appear/disappear is what nudges the centered header + footer sideways. */
+  html { scrollbar-gutter: stable; }
   html, body { margin: 0; width: 100%; min-height: 100%; }
   body {
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -132,11 +136,14 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
     border-bottom: 1px solid var(--line);
   }
   .site-nav {
-    max-width: 72rem; margin: 0 auto;
+    max-width: 76rem; margin: 0 auto;
     padding: 0.8rem 1.5rem;
     display: flex; align-items: center; justify-content: space-between; gap: 1rem;
   }
-  #signature { display: inline-flex; color: var(--ink); }
+  /* Optical left-align: the script's hairline lead-in sits ~5px inboard of
+     the SVG edge at rendered size, so the heavy stroke starts right of the
+     content edge. This pulls the visual weight back onto it. */
+  #signature { display: inline-flex; color: var(--ink); margin-left: -0.25rem; }
   /* Logo sizing lives in Signature.astro (scoped CSS here can't reach it). */
   .nav-links { display: flex; align-items: center; gap: 1.25rem; font-size: 0.92rem; }
   .nav-links a {
@@ -170,7 +177,7 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
 
   #background {
     position: fixed; inset: 0; width: 100%; height: 100%;
-    z-index: -1; object-fit: cover; opacity: 0.55; pointer-events: none;
+    z-index: -1; object-fit: cover; opacity: 0.35; pointer-events: none;
     /* Slow ambient drift — transform-only, so it never triggers repaints.
        prefers-reduced-motion switches it off (see below). */
     animation: blob-drift 42s ease-in-out infinite alternate;
@@ -206,7 +213,7 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
       --wash: radial-gradient(120% 60% at 50% -10%, #2a241d 0%, transparent 60%);
       --shadow: 0 24px 60px -30px rgb(0 0 0 / 0.8);
     }
-    #background { opacity: 0.35; }
+    #background { opacity: 0.22; }
   }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }

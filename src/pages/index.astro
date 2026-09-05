@@ -15,16 +15,16 @@ const headlineHtml = "Original paintings, from the studio";
       <h1 set:html={headlineHtml}></h1>
       <p class="lede">
         Nature and abstract originals, painted by hand and sold directly from the studio.
-        What you see is the actual painting — and when it's gone, it's gone.
+        What you see is the actual painting — and when an original sells, only its prints remain.
       </p>
       <div class="hero-ctas">
         <a href="#collection" class="btn-primary">Browse the collection</a>
         <a href="#notify" class="btn-ghost">Get notified of new work</a>
       </div>
       <dl class="hero-meta">
-        <div><dt>Originals only</dt><dd>no prints, ever</dd></div>
-        <div><dt>Direct</dt><dd>from the artist</dd></div>
-        <div><dt>One of a kind</dt><dd>each piece unique</dd></div>
+        <div><dt>Originals &amp; prints</dt><dd>painted once, printed to order</dd></div>
+        <div><dt>Direct</dt><dd>from the studio, no gallery markup</dd></div>
+        <div><dt>Shipped with care</dt><dd>arranged together after purchase</dd></div>
       </dl>
     </section>
 
@@ -33,16 +33,17 @@ const headlineHtml = "Original paintings, from the studio";
     <section class="about" id="about">
       <div class="about-inner">
         <p class="eyebrow">From the studio</p>
-        <h2>Painted slowly, in {ARTIST_LOCATION}</h2>
+        <h2>Painted in {ARTIST_LOCATION}</h2>
         <p>
           {ARTIST_NAME} paints nature and abstraction from her Calgary studio —
           prairie light, quiet water, and colour studies that sit somewhere
-          between landscape and feeling. Every piece here is an original;
-          when it's gone, it's gone.
+          between landscape and feeling. Every piece here starts as an original —
+          most are also available as prints. When an original sells, it's gone
+          for good — though its prints live on.
         </p>
         <p>
           See something you love? Open the painting and tap <strong>Interested?</strong> —
-          your note goes straight to {ARTIST_NAME}. Pieces are sold directly, so the
+          your note goes straight to the artist. Pieces are sold directly, so the
           price you see is the price — shipping is arranged together after purchase.
         </p>
         <div class="notify-inline" id="notify-card" hidden>

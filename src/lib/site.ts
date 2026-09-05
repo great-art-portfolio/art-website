@@ -24,6 +24,16 @@ export function siteTitle(): string {
   return ARTIST_NAME !== null ? `${ARTIST_NAME} — Original Paintings` : "Calgary & Abstract Original Paintings";
 }
 
+/** URL slug from a painting title: "Night Reeds" → "night-reeds". */
+export function slugifyTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 /** "5 works" / "1 work" helper for section headings. */
 export function workCount(n: number): string {
   return `${n} ${n === 1 ? "work" : "works"}`;

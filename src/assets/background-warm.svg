@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1024" viewBox="0 0 1440 1024" fill="none">
+  <!-- Warm gallery wash: paper-toned light pools + faint contour lines + paper grain.
+       Palette pulled from Layout.astro vars: #faf7f1 / #f1e7d4 / #e5dccb / #a44a24 / #756a5c.
+       No neon, no purple/blue — stays quiet behind the paintings. -->
+  <defs>
+    <radialGradient id="pool-top" cx="0.5" cy="0.5" r="0.5" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#E9DBC0" stop-opacity="0.55"/>
+      <stop offset="0.6" stop-color="#EFE3CC" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#EFE3CC" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="pool-low" cx="0.5" cy="0.5" r="0.5" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#A44A24" stop-opacity="0.10"/>
+      <stop offset="0.55" stop-color="#A44A24" stop-opacity="0.05"/>
+      <stop offset="1" stop-color="#A44A24" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="drift" x1="0" y1="0" x2="1440" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F1E7D4" stop-opacity="0.5"/>
+      <stop offset="0.5" stop-color="#F1E7D4" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#E5DCCB" stop-opacity="0.3"/>
+    </linearGradient>
+    <filter id="grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.45  0 0 0 0 0.41  0 0 0 0 0.35  0 0 0 0.05 0"/>
+      <feComposite operator="over" in2="SourceGraphic"/>
+    </filter>
+  </defs>
+
+  <!-- Broad warm light, top-center fading down -->
+  <rect x="0" y="0" width="1440" height="1024" fill="url(#drift)"/>
+  <ellipse cx="720" cy="120" rx="780" ry="380" fill="url(#pool-top)"/>
+  <ellipse cx="300" cy="880" rx="520" ry="340" fill="url(#pool-low)"/>
+  <ellipse cx="1220" cy="830" rx="460" ry="300" fill="url(#pool-top)" opacity="0.7"/>
+
+  <!-- Faint flowing contours — prairie / brushstroke hint, hairlines only -->
+  <g stroke="#756A5C" fill="none" stroke-linecap="round">
+    <path d="M-40 300 C 260 260, 480 360, 760 310 S 1240 220, 1500 300" stroke-width="1.2" stroke-opacity="0.14"/>
+    <path d="M-40 360 C 280 320, 500 420, 780 368 S 1250 282, 1500 360" stroke-width="1" stroke-opacity="0.10"/>
+    <path d="M-40 430 C 300 390, 520 490, 800 436 S 1260 352, 1500 428" stroke-width="1" stroke-opacity="0.08"/>
+    <path d="M-40 760 C 300 710, 560 820, 880 762 S 1280 690, 1500 760" stroke-width="1.2" stroke-opacity="0.10"/>
+    <path d="M-40 830 C 320 780, 580 890, 900 830 S 1290 760, 1500 828" stroke-width="1" stroke-opacity="0.07"/>
+  </g>
+
+  <!-- Paper grain over everything, very faint -->
+  <rect x="0" y="0" width="1440" height="1024" filter="url(#grain)" opacity="0.5"/>
+</svg>

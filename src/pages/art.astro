@@ -29,6 +29,7 @@ import { SHOW_PRICES } from "../lib/site";
         <button type="button" id="inquiry-reveal" class="btn-primary" hidden>Interested?</button>
         <form id="inquiry-form">
           <h2>Ask about this painting</h2>
+          <p class="ship-note">Shipping arranged with the artist after purchase.</p>
           <label>Name <input name="name" type="text" required autocomplete="name" /></label>
           <label>Email <input name="email" type="email" required autocomplete="email" /></label>
           <label>Message <textarea name="message" rows="3" placeholder="Hi, I love this piece…"></textarea></label>
@@ -126,7 +127,7 @@ import { SHOW_PRICES } from "../lib/site";
         priceNote.textContent = "This piece has found a home.";
       } else if (showPrices) {
         priceEl.textContent = `${formatCAD(painting.price_cents)} CAD`;
-        priceNote.textContent = "Shipping arranged with the artist after purchase.";
+        priceNote.textContent = ""; // Shipping lives inside the inquiry form now.
       } else {
         priceEl.textContent = "";
         priceNote.textContent = "Price on request — send a note below and the artist will reply.";
@@ -294,7 +295,7 @@ import { SHOW_PRICES } from "../lib/site";
 </script>
 
 <style>
-  .detail { max-width: 72rem; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+  .detail { max-width: 76rem; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
   .detail[hidden] { display: none; }
   .crumbs { margin: 0 0 1.5rem; font-size: 0.92rem; }
   .crumbs a {
@@ -342,6 +343,7 @@ import { SHOW_PRICES } from "../lib/site";
   form[hidden] { display: none; }
   #inquiry-reveal { margin-top: 1.75rem; width: 100%; }
   form h2 { font-size: 1.25rem; font-weight: 500; margin: 0 0 0.25rem; }
+  .ship-note { font-size: 0.88rem; color: var(--muted); margin: 0 0 0.5rem; }
   label { display: grid; gap: 0.3rem; font-size: 0.88rem; font-weight: 600; }
   input, textarea {
     font: inherit; font-weight: 400; font-size: 0.95rem;

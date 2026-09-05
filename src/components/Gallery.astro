@@ -2,7 +2,7 @@
 import { Image } from "astro:assets";
 import { getCollection, type CollectionEntry } from "astro:content";
 import { formatDimensions } from "../lib/dims";
-import { SHOW_PRICES, workCount } from "../lib/site";
+import { SHOW_PRICES, slugifyTitle, workCount } from "../lib/site";
 
 type Painting = CollectionEntry<"paintings">;
 const dimsOf = (p: Painting): string =>
@@ -31,7 +31,7 @@ const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
   <div class="gallery" id="gallery-static">
     {
       available.map((painting) => (
-        <a class="card" href={`/paintings/${painting.id}`}>
+        <a class="card" href={`/paintings/${slugifyTitle(painting.data.title)}`}>
           <span class="mat">
             <Image
               src={painting.data.image}
@@ -73,7 +73,7 @@ const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
       </div>
       <div class="gallery sold-grid">
         {sold.map((painting) => (
-          <a class="card" href={`/paintings/${painting.id}`}>
+          <a class="card" href={`/paintings/${slugifyTitle(painting.data.title)}`}>
             <span class="mat">
               <Image
                 src={painting.data.image}
@@ -164,7 +164,7 @@ const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
 
 <style>
   .announce {
-    max-width: 72rem; margin: 0 auto 1.5rem; padding: 0.8rem 1.5rem;
+    max-width: 76rem; margin: 0 auto 1.5rem; padding: 0.8rem 1.5rem;
     text-align: center; font-size: 0.95rem;
     color: var(--ink); background: var(--card);
     border: 1px solid var(--line); border-radius: var(--radius);
@@ -262,8 +262,10 @@ const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
   .sold-grid img { filter: saturate(0.88); }
   .sold-grid .caption-title { font-size: 1.02rem; }
 
+  /* Opacity-only entrance: the taste filter flags slide-up-on-scroll as
+     AI-slop, and even on load a rise reads busier than a quiet fade. */
   @keyframes rise {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: none; }
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 </style>

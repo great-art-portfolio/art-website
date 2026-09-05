@@ -3,12 +3,12 @@ import { Image } from "astro:assets";
 import { getCollection, render } from "astro:content";
 import Layout from "../../layouts/Layout.astro";
 import { formatDimensions } from "../../lib/dims";
-import { SHOW_PRICES } from "../../lib/site";
+import { SHOW_PRICES, slugifyTitle } from "../../lib/site";
 
 export async function getStaticPaths() {
   const paintings = await getCollection("paintings");
   return paintings.map((painting) => ({
-    params: { id: painting.id },
+    params: { id: slugifyTitle(painting.data.title) },
     props: { painting },
   }));
 }
@@ -63,10 +63,7 @@ const paintingJsonLd = {
           painting.data.sold ? (
             <p class="sold-note">This piece has found a home.</p>
           ) : SHOW_PRICES ? (
-            <>
-              <p class="price">{price}</p>
-              <p class="price-note">Shipping arranged with the artist after purchase.</p>
-            </>
+            <p class="price">{price}</p>
           ) : (
             <p class="price-note">Price on request — send a note below and the artist will reply.</p>
           )
@@ -81,6 +78,7 @@ const paintingJsonLd = {
               <button type="button" id="inquiry-reveal" class="btn-primary" hidden>Interested?</button>
               <form id="inquiry-form" data-static="true">
                 <h2>Ask about this painting</h2>
+                <p class="ship-note">Shipping arranged with the artist after purchase.</p>
                 <label>Name <input name="name" type="text" required autocomplete="name" /></label>
                 <label>Email <input name="email" type="email" required autocomplete="email" /></label>
                 <label>Message <textarea name="message" rows="3" placeholder="Hi, I love this piece…" /></label>
@@ -183,7 +181,7 @@ const paintingJsonLd = {
 </script>
 
 <style>
-  .detail { max-width: 72rem; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+  .detail { max-width: 76rem; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
   .crumbs { margin: 0 0 1.5rem; font-size: 0.92rem; }
   .crumbs a {
     color: var(--muted); text-decoration: underline transparent;
@@ -235,6 +233,7 @@ const paintingJsonLd = {
   form { display: grid; gap: 0.65rem; margin-top: 1.75rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
   form[hidden] { display: none; }
   form h2 { font-size: 1.25rem; font-weight: 500; margin: 0 0 0.25rem; }
+  .ship-note { font-size: 0.88rem; color: var(--muted); margin: 0 0 0.5rem; }
   label { display: grid; gap: 0.3rem; font-size: 0.88rem; font-weight: 600; }
   input, textarea {
     font: inherit; font-weight: 400; font-size: 0.95rem;
