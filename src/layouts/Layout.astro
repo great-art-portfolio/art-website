@@ -153,7 +153,10 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
   }
   .nav-links .nav-cta:hover {
     background-color: var(--accent); border-color: var(--accent); color: var(--accent-ink);
-    text-decoration-color: transparent; opacity: 1; transform: translateY(-1px);
+    text-decoration-color: transparent; opacity: 1;
+  }
+  @media (hover: hover) {
+    .nav-links .nav-cta:hover { transform: translateY(-1px); }
   }
   .nav-links .nav-cta:active { transform: none; }
   .nav-links .nav-cta { white-space: nowrap; flex-shrink: 0; }

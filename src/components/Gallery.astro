@@ -223,7 +223,9 @@ const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
     box-shadow: var(--shadow);
     transition: transform 0.35s ease, box-shadow 0.35s ease;
   }
-  .card:hover .mat { transform: translateY(-4px); }
+  @media (hover: hover) {
+    .card:hover .mat { transform: translateY(-4px); }
+  }
   .mat img {
     width: 100%; height: auto; display: block; border-radius: 0.25rem;
     background: #eee;
