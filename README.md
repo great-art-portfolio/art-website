@@ -6,7 +6,7 @@ https://art-website-cm4.pages.dev/
 
 ## Stack (all free tier)
 
-Astro 5 (static gallery) + Cloudflare Pages Functions (API) + D1 (paintings,
+Astro 7 (static gallery) + Cloudflare Pages Functions (API) + D1 (paintings,
 inquiries) + R2 (photos). Admin at `/admin`, protected by Cloudflare Access
 (email OTP). Buyer inquiries email via Resend + iOS push via ntfy.
 
