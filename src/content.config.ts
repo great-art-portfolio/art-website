@@ -12,7 +12,13 @@ const paintings = defineCollection({
     image: image(), // Validates and imports the image as an asset
     alt: z.string(),
     sold: z.boolean(),
-    price: z.number().positive()
+    price: z.number().positive(),
+    // Physical measurements in inches — optional until Barbara measures each
+    // piece. Powers the "24 × 36 in" labels, grid scale cues, and AR true-size.
+    widthIn: z.number().positive().optional(),
+    heightIn: z.number().positive().optional(),
+    depthIn: z.number().positive().optional(),
+    medium: z.string().optional(),
   }),
 });
 
