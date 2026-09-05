@@ -124,13 +124,22 @@ const paintingJsonLd = {
   // NOTE: no define:vars on this block — with it, Astro emits the script
   // raw (dynamic imports stay relative URLs and 404). Page data comes
   // from #main data-* attributes instead, and Vite bundles this properly.
-  const pageData = document.getElementById("main").dataset;
-  const paintingTitle = pageData.title ?? "";
-  const paintingPriceCents = Number(pageData.priceCents ?? "0");
-  const paintingArGlb = pageData.glb ?? "";
-  const paintingArUsdz = pageData.usdz ?? "";
-  const paintingAlt = pageData.alt ?? "";
-  const paintingMdPath = pageData.mdPath ?? "";
+  // View Transitions keep this module alive across gallery → painting
+  // navigations (it runs once per document, not once per page), so page
+  // data must be read live from #main on every use — eval-time consts go
+  // stale and the next painting inherits the previous one's 3D model,
+  // inquiry title, and edit path.
+  function readPageData() {
+    const pageData = document.getElementById("main").dataset;
+    return {
+      title: pageData.title ?? "",
+      priceCents: Number(pageData.priceCents ?? "0"),
+      glb: pageData.glb ?? "",
+      usdz: pageData.usdz ?? "",
+      alt: pageData.alt ?? "",
+      mdPath: pageData.mdPath ?? "",
+    };
+  }
   let turnstileToken = "";
 
   /** Invisible-ish spam check, loaded only if the site key is configured. */
@@ -166,20 +175,24 @@ const paintingJsonLd = {
   /** "View on your wall" AR viewer (only rendered when models exist). */
   function initAr() {
     const mount = document.getElementById("ar-mount");
-    if (mount === null || mount.dataset.wired === "1") return;
-    mount.dataset.wired = "1";
+    if (mount === null) return;
+    const { glb, usdz, alt, title } = readPageData();
+    if (glb === "" || mount.dataset.wiredSrc === glb) return;
+    mount.dataset.wiredSrc = glb;
     void import("@google/model-viewer")
       .then(() => {
         const stage = document.getElementById("ar-stage");
+        if (stage === null) return;
+        stage.replaceChildren();
         const el = document.createElement("model-viewer");
-        el.setAttribute("src", paintingArGlb);
-        if (paintingArUsdz !== "") el.setAttribute("ios-src", paintingArUsdz);
+        el.setAttribute("src", glb);
+        if (usdz !== "") el.setAttribute("ios-src", usdz);
         el.setAttribute("ar", "");
         el.setAttribute("ar-modes", "webxr scene-viewer quick-look");
         el.setAttribute("ar-scale", "fixed");
         el.setAttribute("ar-placement", "wall");
         el.setAttribute("camera-controls", "");
-        el.setAttribute("alt", paintingAlt === "" ? paintingTitle : paintingAlt);
+        el.setAttribute("alt", alt === "" ? title : alt);
         el.style.width = "100%";
         el.style.height = "20rem";
         el.style.borderRadius = "1rem";
@@ -219,9 +232,10 @@ const paintingJsonLd = {
       }
       toggle.textContent = "Close";
       toggle.disabled = true;
+      const liveMdPath = readPageData().mdPath;
       Promise.all([import("../../lib/api"), import("../../lib/painting-edit")])
         .then(([apiMod, editMod]) =>
-          apiMod.api.getPaintingFile(paintingMdPath).then((content) => {
+          apiMod.api.getPaintingFile(liveMdPath).then((content) => {
             toggle.disabled = false;
             if (content === null) {
               panel.innerHTML = "<p>Couldn't load this painting's file.</p>";
@@ -234,7 +248,7 @@ const paintingJsonLd = {
               panel.hidden = false;
               return;
             }
-            renderAdminEdit(apiMod.api, editMod, panel, toggle, paintingMdPath, content, p);
+            renderAdminEdit(apiMod.api, editMod, panel, toggle, liveMdPath, content, p);
           }),
         )
         .catch(() => {
@@ -288,7 +302,7 @@ const paintingJsonLd = {
       // from the repo photo in the same commit.
       void import("../../lib/ar")
         .then((arMod) =>
-          arMod.rebuildForDimFix(api.getPhoto, paintingMdPath, p, baseEdits, () => {
+          arMod.rebuildForDimFix(api.getPhoto, path, p, baseEdits, () => {
             status.textContent = "Rebuilding AR preview… (true size, takes a few seconds)";
           }),
         )
@@ -322,10 +336,11 @@ const paintingJsonLd = {
         if ((data.get("website") ?? "") !== "") return; // honeypot
         const status = document.getElementById("inquiry-status");
         status.textContent = "Sending…";
+        const live = readPageData();
         void import("../../lib/queue").then(({ queuePost }) =>
           queuePost("/api/inquiries", {
-            paintingTitle,
-            priceCents: paintingPriceCents,
+            paintingTitle: live.title,
+            priceCents: live.priceCents,
             name: String(data.get("name") ?? ""),
             email: String(data.get("email") ?? ""),
             message: String(data.get("message") ?? ""),
@@ -496,6 +511,12 @@ const paintingJsonLd = {
   #ar-mount { margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
   #ar-mount h2 { font-size: 1.25rem; font-weight: 500; margin: 0 0 0.25rem; }
   #ar-mount .hint { margin: 0 0 0.75rem; }
+  /* The viewer is focusable (keyboard orbit) — keep an accent ring for
+     keyboard users, not the browser's default blue after a mouse tap. */
+  #ar-stage model-viewer:focus { outline: none; }
+  #ar-stage model-viewer:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 3px;
+  }
   .hint { font-size: 0.85rem; color: var(--muted); }
   #inquiry-reveal { margin-top: 1.75rem; width: 100%; }
   /* .btn-primary sets display:inline-flex, which beats the UA [hidden] rule —

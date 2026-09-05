@@ -139,6 +139,47 @@ for (const p of paintings) {
   });
 }
 
+test("viewing one painting after another shows each painting's own 3D model", async ({
+  page,
+}) => {
+  // View Transitions keep the page script alive across navigations — the
+  // viewer must follow the painting, not stick to the first one visited.
+  const withModels = available.filter((p) => p.modelGlb !== "");
+  expect(withModels.length).toBeGreaterThan(1);
+  const [first, second] = withModels as [Painting, Painting];
+  await page.goto(`/paintings/${first.slug}`);
+  await expect(page.locator("#ar-stage model-viewer")).toHaveAttribute(
+    "src",
+    first.modelGlb,
+    { timeout: 15_000 },
+  );
+  await page.locator('.crumbs a[href="/"]').click();
+  await expect(page).toHaveURL(/\/$/);
+  await page.locator(`#gallery-static .card[href="/paintings/${second.slug}"]`).click();
+  await expect(page).toHaveURL(new RegExp(`/paintings/${second.slug}/?$`));
+  await expect(page.locator("#ar-stage model-viewer")).toHaveAttribute(
+    "src",
+    second.modelGlb,
+    { timeout: 15_000 },
+  );
+});
+
+test("install option stays hidden until the browser offers it", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.locator("#install-app")).toBeHidden();
+  await page.evaluate(() => {
+    const e = new Event("beforeinstallprompt");
+    (e as unknown as { prompt: () => void }).prompt = () => undefined;
+    window.dispatchEvent(e);
+  });
+  const install = page.locator("#install-app");
+  await expect(install).toBeVisible();
+  await install.click();
+  await expect(install).toBeHidden();
+});
+
 test("photo lightbox opens on tap and closes on Escape", async ({
   page,
 }) => {

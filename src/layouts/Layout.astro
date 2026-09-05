@@ -68,7 +68,9 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
     <footer class="site-footer">
       <p class="footer-mark">{artistLabel} · {ARTIST_LOCATION}</p>
       <p class="footer-sub">Originals are one of a kind — prints of most pieces available on request.</p>
-      <p class="footer-sub"><a href="/privacy">Privacy</a> — no cookies, no trackers</p>
+      <p class="footer-sub"><a href="/privacy">Privacy</a> — no cookies, no trackers
+        <button type="button" id="install-app" hidden>Install the gallery app</button>
+      </p>
       <p class="footer-sub">© {year} {artistLabel}</p>
     </footer>
 
@@ -81,6 +83,24 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
           });
         });
       }
+      // Optional install: never prompts on its own. Only when the browser
+      // offers installation does a quiet footer button appear — one tap
+      // there shows the browser's own install dialog.
+      var deferredInstall = null;
+      window.addEventListener("beforeinstallprompt", (e) => {
+        e.preventDefault();
+        deferredInstall = e;
+        var btn = document.getElementById("install-app");
+        if (btn !== null) btn.hidden = false;
+      });
+      document.addEventListener("click", (e) => {
+        var t = e.target;
+        if (t === null || t.id !== "install-app" || deferredInstall === null) return;
+        var ask = deferredInstall;
+        deferredInstall = null;
+        t.hidden = true;
+        ask.prompt();
+      });
     </script>
   </body>
 </html>
@@ -202,6 +222,15 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
   }
   .footer-sub a:hover { text-decoration-color: currentColor; }
   .footer-sub a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 0.25rem; }
+  /* Quiet install option: reads as footer text until tapped. */
+  #install-app {
+    font: inherit; color: var(--accent); background: none; border: 0; padding: 0;
+    text-decoration: underline transparent; text-underline-offset: 3px; cursor: pointer;
+  }
+  #install-app::before { content: "· "; color: var(--muted); }
+  #install-app:hover { text-decoration-color: currentColor; }
+  #install-app:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 0.25rem; }
+  #install-app[hidden] { display: none; }
 
   @media (prefers-color-scheme: dark) {
     :root {
