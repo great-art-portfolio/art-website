@@ -1,16 +1,56 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import Gallery from "../components/Gallery.astro";
+import { ARTIST_LOCATION, ARTIST_NAME, TAGLINE } from "../lib/site";
+
+const headline =
+  ARTIST_NAME !== null ? `Original paintings by ${ARTIST_NAME}` : "Original paintings, from the studio";
 ---
 
 <Layout>
   <main>
+    <section class="hero">
+      <p class="eyebrow">{TAGLINE} · {ARTIST_LOCATION}</p>
+      <h1>{headline}</h1>
+      <p class="lede">
+        Nature and abstract originals, painted by hand and sold directly from the studio.
+        What you see is the actual painting — and when it's gone, it's gone.
+      </p>
+      <div class="hero-ctas">
+        <a href="#collection" class="btn-primary">Browse the collection</a>
+        <a href="#notify" class="btn-ghost">Get notified of new work</a>
+      </div>
+      <dl class="hero-meta">
+        <div><dt>Originals only</dt><dd>no prints, ever</dd></div>
+        <div><dt>Direct</dt><dd>from the artist</dd></div>
+        <div><dt>One of a kind</dt><dd>each piece unique</dd></div>
+      </dl>
+    </section>
+
     <Gallery />
-    <section class="notify" id="notify-card" hidden>
-      <h2>Never miss a new painting</h2>
-      <p>One tap — your browser tells you when something new is hung.</p>
-      <button type="button" id="notify-btn" class="primary">Notify me</button>
-      <p class="hint" id="notify-hint"></p>
+
+    <section class="about" id="about">
+      <div class="about-inner">
+        <p class="eyebrow">From the studio</p>
+        <h2>Painted slowly, in {ARTIST_LOCATION}</h2>
+        <p>
+          {ARTIST_NAME} paints nature and abstraction from her Calgary studio —
+          prairie light, quiet water, and colour studies that sit somewhere
+          between landscape and feeling. Every piece here is an original;
+          when it's gone, it's gone.
+        </p>
+        <p>
+          See something you love? Open the painting and tap <strong>Interested?</strong> —
+          your note goes straight to {ARTIST_NAME}. Pieces are sold directly, so the
+          price you see is the price — shipping is arranged together after purchase.
+        </p>
+        <div class="notify-inline" id="notify-card" hidden>
+          <h3>Never miss a new painting</h3>
+          <p>One tap — your browser tells you when something new is hung.</p>
+          <button type="button" id="notify-btn" class="btn-primary">Notify me</button>
+          <p class="hint" id="notify-hint"></p>
+        </div>
+      </div>
     </section>
   </main>
 </Layout>
@@ -18,10 +58,41 @@ import Gallery from "../components/Gallery.astro";
 <script>
   import { pushState, subscribePush, unsubscribePush } from "../lib/push";
 
-  async function paint(): Promise<void> {
-    const card = document.getElementById("notify-card") as HTMLElement;
-    const btn = document.getElementById("notify-btn") as HTMLButtonElement;
-    const hint = document.getElementById("notify-hint") as HTMLElement;
+  // Runs on full loads AND View-Transitions navigations. The dataset flag
+  // keeps a double-fire on the same DOM from wiring the button twice.
+  async function initNotify(): Promise<void> {
+    const card = document.getElementById("notify-card") as HTMLElement | null;
+    const btn = document.getElementById("notify-btn") as HTMLButtonElement | null;
+    const hint = document.getElementById("notify-hint") as HTMLElement | null;
+    if (card === null || btn === null || hint === null) return;
+
+    if (btn.dataset.wired !== "1") {
+      btn.dataset.wired = "1";
+      btn.addEventListener("click", () => {
+        const hintEl = document.getElementById("notify-hint") as HTMLElement;
+        void pushState().then((state) => {
+          if (state === "subscribed") {
+            void unsubscribePush().then(() => void paintNotify());
+          } else {
+            hintEl.textContent = "Waiting for your browser…";
+            void subscribePush().then((ok) => {
+              hintEl.textContent = ok
+                ? "You're on the list."
+                : "That didn't work — push alerts aren't set up on the server yet.";
+              void paintNotify();
+            });
+          }
+        });
+      });
+    }
+    await paintNotify();
+  }
+
+  async function paintNotify(): Promise<void> {
+    const card = document.getElementById("notify-card") as HTMLElement | null;
+    const btn = document.getElementById("notify-btn") as HTMLButtonElement | null;
+    const hint = document.getElementById("notify-hint") as HTMLElement | null;
+    if (card === null || btn === null || hint === null) return;
     const state = await pushState();
     if (state === "unsupported") return; // Older browser — stay invisible.
     card.hidden = false;
@@ -34,41 +105,70 @@ import Gallery from "../components/Gallery.astro";
       hint.textContent = "You blocked notifications for this site in your browser settings.";
     } else {
       btn.textContent = "Notify me";
+      btn.disabled = false;
       hint.textContent = "";
     }
   }
 
-  (document.getElementById("notify-btn") as HTMLButtonElement).addEventListener("click", () => {
-    const hint = document.getElementById("notify-hint") as HTMLElement;
-    void pushState().then((state) => {
-      if (state === "subscribed") {
-        void unsubscribePush().then(() => void paint());
-      } else {
-        hint.textContent = "Waiting for your browser…";
-        void subscribePush().then((ok) => {
-          hint.textContent = ok
-            ? "You're on the list."
-            : "That didn't work — push alerts aren't set up on the server yet.";
-          void paint();
-        });
-      }
-    });
-  });
-
-  void paint();
+  void initNotify();
+  document.addEventListener("astro:page-load", () => void initNotify());
 </script>
 
 <style>
-  .notify {
-    max-width: 36rem; margin: 0 auto 3rem; padding: 1.5rem;
-    text-align: center; border-radius: 1rem;
-    border: 1px solid color-mix(in srgb, CanvasText 14%, transparent);
-    background: color-mix(in srgb, Canvas 90%, transparent);
+  .hero {
+    max-width: 76rem; margin: 0 auto;
+    padding: clamp(3.5rem, 8vw, 6.5rem) 1.5rem 3rem;
   }
-  .notify button.primary {
-    min-height: 3rem; border-radius: 0.75rem; border: 0;
-    background: #1a1a1a; color: #fff; font: inherit;
-    padding: 0.6rem 1.6rem; cursor: pointer;
+  .eyebrow {
+    margin: 0 0 1rem; font-size: 0.8rem; font-weight: 700;
+    letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent);
   }
-  .notify .hint { font-size: 0.9rem; opacity: 0.8; }
+  .hero h1 {
+    margin: 0 0 1.25rem; font-weight: 500;
+    font-size: clamp(2.4rem, 6vw, 4.25rem);
+    max-width: 14ch; text-wrap: balance;
+  }
+  .lede { margin: 0 0 2rem; font-size: 1.15rem; color: var(--muted); max-width: 38rem; }
+  .hero-ctas { display: flex; flex-wrap: wrap; gap: 0.9rem; margin-bottom: 3rem; }
+  .btn-primary, .btn-ghost {
+    display: inline-block; text-decoration: none;
+    min-height: 3rem; border-radius: 0.75rem;
+    padding: 0.75rem 1.7rem; font-weight: 600; font-size: 1rem; cursor: pointer;
+  }
+  .btn-primary { background: var(--ink); color: var(--paper); border: 1px solid var(--ink); }
+  .btn-primary:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn-ghost { border: 1px solid var(--line); color: var(--ink); background: transparent; }
+  .btn-ghost:hover { border-color: var(--ink); }
+  button.btn-primary { font: inherit; font-weight: 600; }
+  .hero-meta {
+    display: flex; flex-wrap: wrap; gap: 0.75rem 2.5rem; margin: 0;
+    padding-top: 1.5rem; border-top: 1px solid var(--line);
+  }
+  .hero-meta div { display: flex; gap: 0.5rem; align-items: baseline; margin: 0; }
+  .hero-meta dt { font-weight: 700; font-size: 0.9rem; }
+  .hero-meta dd { margin: 0; font-size: 0.9rem; color: var(--muted); }
+
+  .about {
+    max-width: 76rem; margin: 1rem auto 0; padding: 0 1.5rem 3rem;
+    scroll-margin-top: 5rem;
+  }
+  .about-inner {
+    background: var(--card); border: 1px solid var(--line); border-radius: 1rem;
+    padding: clamp(1.75rem, 4vw, 3rem);
+    max-width: 44rem;
+  }
+  .about-inner h2 { margin: 0 0 1rem; font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 500; }
+  .about-inner p { margin: 0 0 1rem; color: var(--muted); }
+  .about-inner p:last-child { margin-bottom: 0; }
+  .about-inner strong { color: var(--ink); }
+
+  .notify-inline {
+    margin-top: 1.75rem; padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+    scroll-margin-top: 5rem;
+  }
+  .notify-inline[hidden] { display: none; }
+  .notify-inline h3 { margin: 0 0 0.4rem; font-size: 1.2rem; font-weight: 500; }
+  .notify-inline p { margin: 0 0 1rem; }
+  .notify-inline .hint { font-size: 0.9rem; margin: 0.8rem 0 0; min-height: 1.2em; }
 </style>

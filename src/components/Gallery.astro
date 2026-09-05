@@ -1,58 +1,120 @@
 ---
 import { Image } from "astro:assets";
 import { getCollection } from "astro:content";
+import { SHOW_PRICES, workCount } from "../lib/site";
 
 const paintings = await getCollection("paintings");
 const available = paintings.filter((p) => !p.data.sold);
 const sold = paintings.filter((p) => p.data.sold);
-const ordered = [...available, ...sold];
 const NEW_MS = 21 * 24 * 60 * 60 * 1000;
 const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
+
+const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
 ---
 
 <p id="announce-bar" class="announce" hidden></p>
 
-<div class="gallery" id="gallery-static">
-  {
-    ordered.map((painting) => (
-      <a class="card" href={`/paintings/${painting.id}`} aria-label={painting.data.title}>
-        <span class="thumb">
-          <Image
-            src={painting.data.image}
-            alt={painting.data.alt}
-            width={900}
-            loading="lazy"
-          />
-          {painting.data.sold && <span class="badge sold">Sold</span>}
-          {!painting.data.sold && isNewStatic(painting.data.dateAdded) && (
-            <span class="badge new">New</span>
-          )}
-        </span>
-      </a>
-    ))
-  }
-</div>
+<section class="collection" id="collection" aria-label="Available paintings">
+  <div class="section-head">
+    <div>
+      <p class="eyebrow">The collection</p>
+      <h2>Available works</h2>
+    </div>
+    <p class="count">{workCount(available.length)} · each one of a kind</p>
+  </div>
 
-<div class="gallery" id="gallery-new" hidden></div>
+  <div class="gallery" id="gallery-static">
+    {
+      available.map((painting) => (
+        <a class="card" href={`/paintings/${painting.id}`}>
+          <span class="mat">
+            <Image
+              src={painting.data.image}
+              alt={painting.data.alt}
+              width={1000}
+              loading="lazy"
+              sizes="(min-width: 60rem) 42vw, (min-width: 40rem) 44vw, 92vw"
+            />
+            {isNewStatic(painting.data.dateAdded) && <span class="badge new">New</span>}
+          </span>
+          <span class="caption">
+            <span class="caption-title">{painting.data.title}</span>
+            <span class="caption-sub">
+              {SHOW_PRICES ? (
+                <span class="price">{priceLabel(painting.data.price)}</span>
+              ) : (
+                <span class="ask">Ask about this piece →</span>
+              )}
+            </span>
+          </span>
+        </a>
+      ))
+    }
+  </div>
+
+  <div class="gallery" id="gallery-new" data-show-prices={SHOW_PRICES ? "1" : "0"} hidden></div>
+</section>
+
+{
+  sold.length > 0 && (
+    <section class="collection collected" id="sold" aria-label="Sold paintings">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Collected</p>
+          <h2>Found their homes</h2>
+        </div>
+        <p class="count">{workCount(sold.length)} sold</p>
+      </div>
+      <div class="gallery sold-grid">
+        {sold.map((painting) => (
+          <a class="card" href={`/paintings/${painting.id}`}>
+            <span class="mat">
+              <Image
+                src={painting.data.image}
+                alt={painting.data.alt}
+                width={700}
+                loading="lazy"
+                sizes="(min-width: 60rem) 22vw, (min-width: 40rem) 44vw, 92vw"
+              />
+              <span class="badge sold">Sold</span>
+            </span>
+            <span class="caption">
+              <span class="caption-title">{painting.data.title}</span>
+            </span>
+          </a>
+        ))}
+      </div>
+    </section>
+  )
+}
 
 <script>
   // Paintings added from the phone (D1/R2) render here; static ones above.
-  async function loadNew() {
+  // Runs on full loads AND View-Transitions navigations (astro:page-load);
+  // the dataset flag keeps a double-fire on the same DOM from refetching.
+  function initGallery(): void {
+    void loadAnnouncement();
+    void loadNew();
+  }
+
+  async function loadAnnouncement(): Promise<void> {
     try {
       const res = await fetch("/api/settings");
-      if (res.ok) {
-        const text = ((await res.json()) as { announcement: string }).announcement.trim();
-        if (text !== "") {
-          const bar = document.getElementById("announce-bar");
-          if (bar !== null) {
-            bar.textContent = text;
-            bar.hidden = false;
-          }
-        }
-      }
+      if (!res.ok) return;
+      const text = ((await res.json()) as { announcement: string }).announcement.trim();
+      if (text === "") return;
+      const bar = document.getElementById("announce-bar");
+      if (bar === null) return;
+      bar.textContent = text;
+      bar.hidden = false;
     } catch {
       // Announcement is decoration — the gallery works without it.
     }
+  }
+
+  async function loadNew(): Promise<void> {
+    const wrap = document.getElementById("gallery-new");
+    if (wrap === null || wrap.dataset.loaded === "1") return;
     let paintings: Array<{
       slug: string; title: string; price_cents: number;
       alt: string; image_url: string; status: string; created_at: string;
@@ -65,66 +127,127 @@ const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
       return;
     }
     if (paintings.length === 0) return;
-    const wrap = document.getElementById("gallery-new");
-    if (wrap === null) return;
+    wrap.dataset.loaded = "1";
     wrap.hidden = false;
     const fresh = Date.now() - 21 * 24 * 60 * 60 * 1000;
+    const showPrices = wrap.dataset.showPrices !== "0";
+    const money = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" });
     wrap.innerHTML = paintings
-      .map(
-        (p) => `<a class="card" href="/art?slug=${encodeURIComponent(p.slug)}" aria-label="${p.title.replace(/"/g, "&quot;")}">
-          <span class="thumb">
+      .map((p) => {
+        const price = showPrices
+          ? `<span class="price">${money.format(p.price_cents / 100)} CAD</span>`
+          : `<span class="ask">Ask about this piece →</span>`;
+        return `<a class="card" href="/art?slug=${encodeURIComponent(p.slug)}">
+          <span class="mat">
             <img src="${encodeURI(p.image_url)}" alt="${p.alt.replace(/"/g, "&quot;")}" loading="lazy" />
             ${p.status === "sold" ? `<span class="badge sold">Sold</span>` : ""}
             ${p.status !== "sold" && Date.parse(p.created_at) > fresh ? `<span class="badge new">New</span>` : ""}
           </span>
-        </a>`,
-      )
+          <span class="caption">
+            <span class="caption-title">${p.title.replace(/</g, "&lt;")}</span>
+            <span class="caption-sub">${p.status === "sold" ? `<span class="muted">Sold</span>` : price}</span>
+          </span>
+        </a>`;
+      })
       .join("");
   }
-  void loadNew();
+
+  initGallery();
+  document.addEventListener("astro:page-load", initGallery);
 </script>
 
 <style>
   .announce {
-    max-width: 62rem; margin: 0 auto 1.25rem; padding: 0.7rem 1.25rem;
+    max-width: 72rem; margin: 0 auto 1.5rem; padding: 0.8rem 1.5rem;
     text-align: center; font-size: 0.95rem;
     color: var(--ink); background: var(--card);
-    border-block: 1px solid var(--line);
+    border: 1px solid var(--line); border-radius: var(--radius);
   }
-  .gallery {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
-    gap: 1.25rem;
-    padding: 0 1.25rem 3rem;
-    max-width: 64rem;
-    margin: 0 auto;
+  .collection {
+    max-width: 76rem; margin: 0 auto;
+    padding: 1rem 1.5rem 2rem;
+    scroll-margin-top: 5rem;
   }
+  .section-head {
+    display: flex; align-items: end; justify-content: space-between; gap: 1rem;
+    margin: 0 0 2.5rem; padding-bottom: 1rem;
+    border-bottom: 1px solid var(--line);
+  }
+  .eyebrow {
+    margin: 0 0 0.35rem; font-size: 0.78rem; font-weight: 700;
+    letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent);
+  }
+  .section-head h2 { margin: 0; font-size: clamp(1.6rem, 3vw, 2.2rem); font-weight: 500; }
+  .count { margin: 0; font-size: 0.9rem; color: var(--muted); white-space: nowrap; }
+
+  .gallery { display: grid; gap: 3rem 2.5rem; }
+  #gallery-static, #gallery-new {
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 40rem) {
+    #gallery-static, #gallery-new { grid-template-columns: repeat(2, 1fr); gap: 3.5rem 2.5rem; }
+  }
+  /* Desktop: editorial rhythm — a large feature, an offset companion, then trios. */
   @media (min-width: 60rem) {
-    .gallery { grid-template-columns: repeat(2, 1fr); gap: 1.75rem; }
+    #gallery-static, #gallery-new { grid-template-columns: repeat(12, 1fr); }
+    #gallery-static > .card:nth-child(1),
+    #gallery-new > .card:nth-child(1) { grid-column: span 7; }
+    #gallery-static > .card:nth-child(2),
+    #gallery-new > .card:nth-child(2) { grid-column: span 5; margin-top: 5rem; }
+    #gallery-static > .card:nth-child(n + 3),
+    #gallery-new > .card:nth-child(n + 3) { grid-column: span 4; }
+    #gallery-static > .card:nth-child(n + 6),
+    #gallery-new > .card:nth-child(n + 6) { margin-top: 2.5rem; }
   }
+
   .card {
-    display: block; border-radius: 0.35rem; overflow: hidden;
+    display: block; color: inherit; text-decoration: none;
+    animation: rise 0.5s ease both;
+  }
+  .card:nth-child(2) { animation-delay: 0.06s; }
+  .card:nth-child(3) { animation-delay: 0.12s; }
+  .card:nth-child(n + 4) { animation-delay: 0.18s; }
+  .mat {
+    position: relative; display: block;
     background: var(--card); border: 1px solid var(--line);
-    animation: rise 0.45s ease both;
-    transition: box-shadow 0.25s ease;
+    border-radius: var(--radius);
+    padding: clamp(0.6rem, 1.5vw, 0.9rem);
+    box-shadow: var(--shadow);
+    transition: transform 0.35s ease, box-shadow 0.35s ease;
   }
-  .card:hover { box-shadow: 0 14px 34px -18px rgb(0 0 0 / 0.45); }
-  .thumb { position: relative; display: block; aspect-ratio: 4 / 5; overflow: hidden; }
-  .thumb img {
-    width: 100%; height: 100%; object-fit: cover; display: block;
-    transition: transform 0.5s ease;
+  .card:hover .mat { transform: translateY(-4px); }
+  .mat img {
+    width: 100%; height: auto; display: block; border-radius: 0.25rem;
+    background: #eee;
   }
-  .card:hover .thumb img { transform: scale(1.03); }
+  .caption { display: flex; flex-direction: column; gap: 0.15rem; padding: 0.9rem 0.25rem 0; }
+  .caption-title { font-family: Georgia, serif; font-size: 1.2rem; }
+  .card:hover .caption-title { text-decoration: underline; text-underline-offset: 4px; }
+  .caption-sub { font-size: 0.95rem; }
+  .price { font-weight: 700; color: var(--accent); }
+  .ask { color: var(--accent); font-weight: 600; }
+  .muted { color: var(--muted); }
   .badge {
-    position: absolute; top: 0.7rem; right: 0.7rem;
-    padding: 0.28rem 0.7rem; border-radius: 999px;
-    font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em;
+    position: absolute; top: 1.1rem; right: 1.1rem;
+    padding: 0.3rem 0.8rem; border-radius: 999px;
+    font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em;
     background: rgb(20 18 15 / 0.82); color: #fff;
   }
-  .badge.sold { background: rgb(140 29 24 / 0.88); }
-  .badge.new { background: rgb(46 110 94 / 0.88); }
+  .badge.sold { background: rgb(140 29 24 / 0.9); }
+  .badge.new { background: rgb(46 110 94 / 0.9); }
+
+  /* Sold archive: smaller, quieter, uniform. */
+  .collected { margin-top: 1rem; }
+  .sold-grid { grid-template-columns: repeat(2, 1fr); gap: 2.5rem 2rem; }
+  @media (min-width: 60rem) {
+    .sold-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  .sold-grid .mat { box-shadow: none; }
+  .sold-grid img { filter: saturate(0.88); }
+  .sold-grid .caption-title { font-size: 1.02rem; }
+
   @keyframes rise {
-    from { opacity: 0; transform: translateY(8px); }
+    from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: none; }
   }
 </style>
