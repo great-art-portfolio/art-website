@@ -3,6 +3,7 @@ import { Image } from "astro:assets";
 import { getCollection, type CollectionEntry } from "astro:content";
 import { formatDimensions } from "../lib/dims";
 import { SHOW_PRICES, slugifyTitle, workCount } from "../lib/site";
+import bannerRaw from "../content/announcement.txt?raw";
 
 type Painting = CollectionEntry<"paintings">;
 const dimsOf = (p: Painting): string =>
@@ -11,13 +12,16 @@ const dimsOf = (p: Painting): string =>
 const paintings = await getCollection("paintings");
 const available = paintings.filter((p) => !p.data.sold);
 const sold = paintings.filter((p) => p.data.sold);
+
+// One-line homepage banner, edited from /admin (git). Empty = hidden.
+const announcement = bannerRaw.trim();
 const NEW_MS = 21 * 24 * 60 * 60 * 1000;
 const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
 
 const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
 ---
 
-<p id="announce-bar" class="announce" hidden></p>
+{announcement !== "" && <p class="announce">{announcement}</p>}
 
 <section class="collection" id="collection" aria-label="Available paintings">
   <div class="section-head">
@@ -57,8 +61,6 @@ const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
       ))
     }
   </div>
-
-  <div class="gallery" id="gallery-new" data-show-prices={SHOW_PRICES ? "1" : "0"} hidden></div>
 </section>
 
 {
@@ -94,74 +96,6 @@ const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
   )
 }
 
-<script>
-  // Paintings added from the phone (D1/R2) render here; static ones above.
-  // Runs on full loads AND View-Transitions navigations (astro:page-load);
-  // the dataset flag keeps a double-fire on the same DOM from refetching.
-  function initGallery(): void {
-    void loadAnnouncement();
-    void loadNew();
-  }
-
-  async function loadAnnouncement(): Promise<void> {
-    try {
-      const res = await fetch("/api/settings");
-      if (!res.ok) return;
-      const text = ((await res.json()) as { announcement: string }).announcement.trim();
-      if (text === "") return;
-      const bar = document.getElementById("announce-bar");
-      if (bar === null) return;
-      bar.textContent = text;
-      bar.hidden = false;
-    } catch {
-      // Announcement is decoration — the gallery works without it.
-    }
-  }
-
-  async function loadNew(): Promise<void> {
-    const wrap = document.getElementById("gallery-new");
-    if (wrap === null || wrap.dataset.loaded === "1") return;
-    let paintings: Array<{
-      slug: string; title: string; price_cents: number;
-      alt: string; image_url: string; status: string; created_at: string;
-    }>;
-    try {
-      const res = await fetch("/api/paintings");
-      if (!res.ok) return;
-      paintings = ((await res.json()) as { paintings: typeof paintings }).paintings;
-    } catch {
-      return;
-    }
-    if (paintings.length === 0) return;
-    wrap.dataset.loaded = "1";
-    wrap.hidden = false;
-    const fresh = Date.now() - 21 * 24 * 60 * 60 * 1000;
-    const showPrices = wrap.dataset.showPrices !== "0";
-    const money = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" });
-    wrap.innerHTML = paintings
-      .map((p) => {
-        const price = showPrices
-          ? `<span class="price">${money.format(p.price_cents / 100)} CAD</span>`
-          : `<span class="ask">Ask about this piece →</span>`;
-        return `<a class="card" href="/art?slug=${encodeURIComponent(p.slug)}">
-          <span class="mat">
-            <img src="${encodeURI(p.image_url)}" alt="${p.alt.replace(/"/g, "&quot;")}" loading="lazy" />
-            ${p.status === "sold" ? `<span class="badge sold">Sold</span>` : ""}
-            ${p.status !== "sold" && Date.parse(p.created_at) > fresh ? `<span class="badge new">New</span>` : ""}
-          </span>
-          <span class="caption">
-            <span class="caption-title">${p.title.replace(/</g, "&lt;")}</span>
-            <span class="caption-sub">${p.status === "sold" ? `<span class="muted">Sold</span>` : price}</span>
-          </span>
-        </a>`;
-      })
-      .join("");
-  }
-
-  initGallery();
-  document.addEventListener("astro:page-load", initGallery);
-</script>
-
 <style>
   .announce {
     max-width: 76rem; margin: 0 auto 1.5rem; padding: 0.8rem 1.5rem;
@@ -187,23 +121,19 @@ const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
   .count { margin: 0; font-size: 0.9rem; color: var(--muted); white-space: nowrap; }
 
   .gallery { display: grid; gap: 3rem 2.5rem; }
-  #gallery-static, #gallery-new {
+  #gallery-static {
     grid-template-columns: 1fr;
   }
   @media (min-width: 40rem) {
-    #gallery-static, #gallery-new { grid-template-columns: repeat(2, 1fr); gap: 3.5rem 2.5rem; }
+    #gallery-static { grid-template-columns: repeat(2, 1fr); gap: 3.5rem 2.5rem; }
   }
   /* Desktop: editorial rhythm — a large feature, an offset companion, then trios. */
   @media (min-width: 60rem) {
-    #gallery-static, #gallery-new { grid-template-columns: repeat(12, 1fr); }
-    #gallery-static > .card:nth-child(1),
-    #gallery-new > .card:nth-child(1) { grid-column: span 7; }
-    #gallery-static > .card:nth-child(2),
-    #gallery-new > .card:nth-child(2) { grid-column: span 5; margin-top: 5rem; }
-    #gallery-static > .card:nth-child(n + 3),
-    #gallery-new > .card:nth-child(n + 3) { grid-column: span 4; }
-    #gallery-static > .card:nth-child(n + 6),
-    #gallery-new > .card:nth-child(n + 6) { margin-top: 2.5rem; }
+    #gallery-static { grid-template-columns: repeat(12, 1fr); }
+    #gallery-static > .card:nth-child(1) { grid-column: span 7; }
+    #gallery-static > .card:nth-child(2) { grid-column: span 5; margin-top: 5rem; }
+    #gallery-static > .card:nth-child(n + 3) { grid-column: span 4; }
+    #gallery-static > .card:nth-child(n + 6) { margin-top: 2.5rem; }
   }
 
   .card {

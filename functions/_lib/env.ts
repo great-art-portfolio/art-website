@@ -1,9 +1,12 @@
 /** Shared Cloudflare Pages bindings for the gallery API. */
 
 export interface AppEnv {
+  /** One tiny table: push_subscriptions. Everything else lives in git. */
   DB: D1Database;
-  IMAGES: R2Bucket;
   ADMIN_API_TOKEN?: string;
+  GITHUB_TOKEN?: string;
+  GITHUB_REPO?: string;
+  GITHUB_BRANCH?: string;
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_JWK?: string;
   VAPID_CONTACT?: string;

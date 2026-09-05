@@ -6,9 +6,12 @@ https://art-website-cm4.pages.dev/
 
 ## Stack (all free tier)
 
-Astro 7 (static gallery) + Cloudflare Pages Functions (API) + D1 (paintings,
-inquiries) + R2 (photos). Admin at `/admin`, protected by Cloudflare Access
-(email OTP). Buyer inquiries email via Resend + iOS push via ntfy.
+Astro 7 (static gallery — paintings are markdown + photos in git) +
+Cloudflare Pages Functions (inquiry emails, git publishing, push fan-out)
++ D1 (one table: push subscriptions). Admin at `/admin`, protected by
+Cloudflare Access (email OTP). Saving publishes to git; the git-connected
+Pages project rebuilds (live in a few minutes). Buyer inquiries email via
+Resend, nothing stored.
 
 ## Setup
 
@@ -24,33 +27,40 @@ First-time Cloudflare provisioning:
 ```sh
 pnpm wrangler d1 create art-gallery-db   # paste id into wrangler.toml
 pnpm wrangler d1 execute art-gallery-db --file=./migrations/0001_init.sql
-pnpm wrangler r2 bucket create art-gallery-images
-pnpm db:seed > /tmp/seed.sql            # migrate legacy paintings into D1
-pnpm wrangler d1 execute art-gallery-db --file=/tmp/seed.sql
+pnpm wrangler d1 execute art-gallery-db --file=./migrations/0002_drop-unused-tables.sql
 ```
 
-Secrets (dashboard, never committed): `RESEND_API_KEY`, `NOTIFY_EMAIL_FROM`,
-`NOTIFY_EMAIL_TO`, `ADMIN_API_TOKEN`, optional `PUSHOVER_*`, and later
-`STRIPE_SECRET_KEY` / `SHIPPO_API_TOKEN` / `AYRSHARE_API_KEY` with their
-`ENABLE_*` flags.
+Git publishing (so `/admin` can save paintings + banner):
 
-Apply the schema once (`migrations/0001_init.sql` has all three tables).
+```sh
+# Dashboard vars/secrets, never committed:
+GITHUB_TOKEN    # classic PAT, Contents: read+write on this repo
+GITHUB_REPO     # e.g. great-art-portfolio/art-website
+GITHUB_BRANCH   # main (optional, defaults to main)
+```
+
+Secrets (dashboard, never committed): `RESEND_API_KEY`, `NOTIFY_EMAIL_FROM`
+(requires a verified sending domain), `NOTIFY_EMAIL_TO` (her private inbox,
+never shown on the site), `ADMIN_API_TOKEN`, `GITHUB_TOKEN` (+ repo/branch),
+optional `PUSHOVER_*`, and later `SHIPPO_API_TOKEN` / `AYRSHARE_API_KEY`
+with their `ENABLE_*` flags.
 
 ## Analytics & offline
 
 - Aggregate stats: Cloudflare Web Analytics. Dashboard → Web Analytics →
   Add site, then build with `PUBLIC_CF_BEACON_TOKEN=<token> pnpm build`.
-  Cookieless, so no banner (see `/privacy`).
-- Per-painting views: first-party counter (`/api/views`, shown in `/admin`).
+  Cookieless, so no banner (see `/privacy`). Per-painting views come from
+  the same dashboard (per-page stats) — no counter code.
 - Offline: `public/sw.js` caches the shell + artwork and replays queued
-  views/inquiries via Background Sync. Install the site to the iPhone/iPad
-  home screen for the app icon + inbox badge.
+  inquiries via Background Sync. Install the site to the iPhone/iPad
+  home screen for the app icon.
 - AR: upload with "view on your wall" checked generates GLB + USDZ models
-  (three.js, on-device) stored in R2; `/art` pages render them with
-  `<model-viewer>` (Scene Viewer on Android, Quick Look on iOS).
+  (three.js, on-device) committed to `public/models`; painting pages render
+  them with `<model-viewer>` (Scene Viewer on Android, Quick Look on iOS).
 - Collector push: `node scripts/gen-vapid.mjs`, set `VAPID_PUBLIC_KEY` /
   `VAPID_CONTACT` vars + `VAPID_PRIVATE_JWK` secret; homepage bell subscribes,
-  "Notify collectors" in `/admin` fans out.
+  "Notify collectors" in `/admin` fans out. The subscription table is the
+  only database the site keeps (disclosed on `/privacy`).
 - Spam: Security > Turnstile > Add site (managed widget), set
   `TURNSTILE_SITE_KEY` var + `TURNSTILE_SECRET_KEY` secret. Until then the
   honeypot guards the form.

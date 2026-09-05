@@ -19,6 +19,10 @@ const paintings = defineCollection({
     heightIn: z.number().positive().optional(),
     depthIn: z.number().positive().optional(),
     medium: z.string().optional(),
+    // "View on your wall" AR models, built once in /admin and committed to
+    // public/models. Absent = no AR section on the page.
+    modelGlb: z.string().optional(),
+    modelUsdz: z.string().optional(),
   }),
 });
 

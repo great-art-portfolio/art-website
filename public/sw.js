@@ -4,7 +4,7 @@
 const VERSION = "gallery-v1";
 const STATIC_CACHE = `${VERSION}-static`;
 const IMAGE_CACHE = `${VERSION}-images`;
-const PRECACHE = ["/", "/offline", "/manifest.webmanifest", "/icon.svg"];
+const PRECACHE = ["/", "/offline", "/manifest.webmanifest", "/favicon.png"];
 const IMAGE_LIMIT = 60;
 
 self.addEventListener("install", (event) => {
@@ -39,8 +39,9 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Artwork images: cache-first, so the gallery works with spotty signal.
-  if (url.pathname.startsWith("/api/images/") || url.pathname.startsWith("/_astro/")) {
+  // Artwork images (built _astro/ assets): cache-first, so the gallery
+  // works with spotty signal.
+  if (url.pathname.startsWith("/_astro/")) {
     event.respondWith(
       caches.match(request).then(
         (hit) =>
@@ -125,35 +126,17 @@ self.addEventListener("sync", (event) => {
   if (event.tag === "gallery-outbox") event.waitUntil(replayOutbox());
 });
 
-// Web Push "tickle": fetch the newest painting and announce it.
+// Web Push "tickle": the server sends no body, so announce generically
+// and let the gallery itself do the talking on tap.
 self.addEventListener("push", (event) => {
   event.waitUntil(
-    (async () => {
-      let title = "Something new in the gallery";
-      let url = "/";
-      let image;
-      try {
-        const res = await fetch("/api/paintings");
-        if (res.ok) {
-          const list = (await res.json()).paintings;
-          if (Array.isArray(list) && list.length > 0) {
-            title = `New painting: ${list[0].title}`;
-            url = `/art?slug=${list[0].slug}`;
-            image = list[0].image_url;
-          }
-        }
-      } catch {
-        // Offline — the generic message still works.
-      }
-      await self.registration.showNotification(title, {
-        body: "Tap to see it.",
-        icon: "/icon.svg",
-        badge: "/icon.svg",
-        image,
-        tag: "new-painting",
-        data: { url },
-      });
-    })(),
+    self.registration.showNotification("Something new in the gallery", {
+      body: "Tap to see it.",
+      icon: "/favicon.png",
+      badge: "/favicon.png",
+      tag: "new-painting",
+      data: { url: "/" },
+    }),
   );
 });
 

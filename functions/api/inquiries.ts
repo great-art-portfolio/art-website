@@ -1,6 +1,5 @@
-import { createInquiry, getPainting, listInquiries } from "../_lib/db";
 import type { AppEnv } from "../_lib/env";
-import { badRequest, json, requireAdmin, serverError } from "../_lib/http";
+import { badRequest, json, serverError } from "../_lib/http";
 import { sendInquiryNotifications } from "../_lib/notify";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -25,9 +24,14 @@ async function turnstileOk(env: AppEnv, token: unknown, ip: string | null): Prom
     console.error("turnstile verify failed", err);
     return false;
   }
-}
+};
 
-/** Public: a visitor asks to buy a painting. */
+/**
+ * Public: a visitor asks about a painting. Nothing is stored — the note is
+ * emailed straight to the artist (Resend) plus an ntfy/phone ping, with the
+ * buyer's address as reply-to. Paintings live in git, so the page sends its
+ * own title + price along; no database lookup involved.
+ */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   let body: Record<string, unknown>;
   try {
@@ -42,45 +46,33 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   if (!(await turnstileOk(context.env, body["turnstileToken"], context.request.headers.get("cf-connecting-ip")))) {
     return badRequest("Spam check failed — please try again.");
   }
-  const paintingId = typeof body["paintingId"] === "string" ? body["paintingId"] : "";
+  const paintingTitle =
+    typeof body["paintingTitle"] === "string" ? body["paintingTitle"].trim().slice(0, 120) : "";
+  const priceCents =
+    typeof body["priceCents"] === "number" && Number.isFinite(body["priceCents"]) && body["priceCents"] > 0
+      ? Math.round(body["priceCents"])
+      : 0;
   const buyerName = typeof body["name"] === "string" ? body["name"].trim().slice(0, 120) : "";
   const buyerEmail = typeof body["email"] === "string" ? body["email"].trim().slice(0, 160) : "";
   const message = typeof body["message"] === "string" ? body["message"].trim().slice(0, 2000) : "";
-  if (paintingId === "" || buyerName === "" || !EMAIL_RE.test(buyerEmail)) {
+  if (paintingTitle === "" || buyerName === "" || !EMAIL_RE.test(buyerEmail)) {
     return badRequest("Name, a valid email, and a painting are required");
   }
   try {
-    const painting = await getPainting(context.env, paintingId);
-    if (painting === null) return badRequest("Unknown painting");
-    if (painting.status === "sold") return badRequest("That painting is already sold");
-    const inquiry = await createInquiry(context.env, {
-      paintingId: painting.id,
+    // Awaited, not waitUntil: a lost inquiry is the worst outcome here, so
+    // the buyer only hears "thanks" when at least one channel delivered.
+    // (5xx makes the offline outbox hold it for retry instead of lying.)
+    const result = await sendInquiryNotifications(context.env, {
+      paintingTitle,
+      priceCents,
       buyerName,
       buyerEmail,
       message,
     });
-    context.waitUntil(
-      sendInquiryNotifications(context.env, {
-        paintingTitle: painting.title,
-        priceCents: painting.price_cents,
-        buyerName,
-        buyerEmail,
-        message,
-      }),
-    );
-    return json({ ok: true, inquiryId: inquiry.id }, { status: 201 });
-  } catch (err) {
-    console.error(err);
-    return serverError();
-  }
-};
-
-/** Admin: read the inquiry inbox. */
-export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
-  const denied = requireAdmin(context.request, context.env);
-  if (denied !== null) return denied;
-  try {
-    return json({ inquiries: await listInquiries(context.env) });
+    if (!result.emailed && !result.pushed) {
+      return serverError("Notifications are not configured — try again later.");
+    }
+    return json({ ok: true }, { status: 201 });
   } catch (err) {
     console.error(err);
     return serverError();

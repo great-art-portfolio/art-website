@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "gen": "wrangler types --path='./functions/types.d.ts'",
     "down": "pnpm wrangler pages download config --project-name=art-website",
-    "db:seed": "node scripts/seed-from-content.mjs"
+    "db:migrate": "pnpm wrangler d1 execute art-gallery-db --remote --file=./migrations/0001_init.sql && pnpm wrangler d1 execute art-gallery-db --remote --file=./migrations/0002_drop-unused-tables.sql"
   },
   "dependencies": {
     "@astrojs/react": "^6.0.5",

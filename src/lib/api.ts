@@ -1,35 +1,5 @@
 /** Typed client for the Pages Functions API. */
 
-export interface ApiPainting {
-  id: string;
-  slug: string;
-  title: string;
-  price_cents: number;
-  alt: string;
-  description: string;
-  image_key: string;
-  image_url: string;
-  status: "draft" | "available" | "reserved" | "sold";
-  width_in: number | null;
-  height_in: number | null;
-  depth_in: number | null;
-  model_glb_url: string;
-  model_usdz_url: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ApiInquiry {
-  id: string;
-  painting_id: string;
-  buyer_name: string;
-  buyer_email: string;
-  message: string;
-  status: "new" | "contacted" | "sold" | "closed";
-  created_at: string;
-  painting_title: string;
-}
-
 function adminHeaders(): HeadersInit {
   const token = sessionStorage.getItem("ADMIN_API_TOKEN") ?? "";
   return token === "" ? {} : { Authorization: `Bearer ${token}` };
@@ -42,123 +12,61 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return data;
 }
 
+function bytesToBase64(view: Uint8Array): string {
+  let bin = "";
+  const CHUNK = 0x8000;
+  for (let i = 0; i < view.length; i += CHUNK) {
+    bin += String.fromCharCode(...view.subarray(i, i + CHUNK));
+  }
+  return btoa(bin);
+}
+
+function textToBase64(text: string): string {
+  return bytesToBase64(new TextEncoder().encode(text));
+}
+
+async function blobToBase64(blob: Blob): Promise<string> {
+  return bytesToBase64(new Uint8Array(await blob.arrayBuffer()));
+}
+
 export const api = {
-  async listPaintings(): Promise<ApiPainting[]> {
-    // Admin view: ?all=1 includes drafts (token-gated server-side).
-    const data = await request<{ paintings: ApiPainting[] }>("/api/paintings?all=1", {
-      headers: adminHeaders(),
-    });
-    return data.paintings;
-  },
-  async createPainting(input: {
-    title: string;
-    priceCents: number;
-    alt: string;
-    description: string;
-    imageKey: string;
-    imageUrl: string;
-    widthIn: number | null;
-    heightIn: number | null;
-    depthIn: number | null;
-    modelGlbUrl: string;
-    modelUsdzUrl: string;
-  }): Promise<ApiPainting> {
-    const data = await request<{ painting: ApiPainting }>("/api/paintings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...adminHeaders() },
-      body: JSON.stringify(input),
-    });
-    return data.painting;
-  },
-  async updatePainting(
-    id: string,
-    patch: {
-      title?: string;
-      status?: ApiPainting["status"];
-      description?: string;
-      priceCents?: number;
-      widthIn?: number | null;
-      heightIn?: number | null;
-      depthIn?: number | null;
-    },
-  ): Promise<ApiPainting> {
-    const data = await request<{ painting: ApiPainting }>(
-      `/api/paintings/${encodeURIComponent(id)}`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", ...adminHeaders() },
-        body: JSON.stringify(patch),
-      },
-    );
-    return data.painting;
-  },
-  async deletePainting(id: string): Promise<void> {
-    await request(`/api/paintings/${encodeURIComponent(id)}`, {
-      method: "DELETE",
-      headers: adminHeaders(),
-    });
-  },
-  async uploadImage(blob: Blob): Promise<{ key: string; url: string }> {
-    const form = new FormData();
-    form.append("image", blob, "painting.jpg");
-    const res = await fetch("/api/uploads", {
-      method: "POST",
-      headers: adminHeaders(),
-      body: form,
-    });
-    const data = (await res.json()) as { key: string; url: string; error?: string };
-    if (!res.ok) throw new Error(data.error ?? "Upload failed");
-    return data;
-  },
-  async uploadModel(blob: Blob, filename: string): Promise<{ key: string; url: string }> {
-    const form = new FormData();
-    form.append("model", blob, filename);
-    const res = await fetch("/api/models", {
-      method: "POST",
-      headers: adminHeaders(),
-      body: form,
-    });
-    const data = (await res.json()) as { key: string; url: string; error?: string };
-    if (!res.ok) throw new Error(data.error ?? "Model upload failed");
-    return data;
-  },
-  async getAnnouncement(): Promise<string> {
+  /** Read a text file from the repo (banner) or list the paintings folder. */
+  async getBanner(): Promise<string> {
     try {
-      const data = await request<{ announcement: string }>("/api/settings");
+      const data = await request<{ announcement: string }>("/api/commit", {
+        headers: adminHeaders(),
+      });
       return data.announcement;
     } catch {
       return "";
     }
   },
-  async setAnnouncement(announcement: string): Promise<void> {
-    await request("/api/settings", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", ...adminHeaders() },
-      body: JSON.stringify({ announcement }),
-    });
-  },
-  async paintingViews(): Promise<Array<{ slug: string; views: number }>> {
-    const data = await request<{ views: Array<{ slug: string; views: number }> }>("/api/views", {
+  async listPaintingFiles(): Promise<string[]> {
+    const data = await request<{ files: string[] }>("/api/commit", {
+      method: "PUT",
       headers: adminHeaders(),
     });
-    return data.views;
+    return data.files;
   },
-  async listInquiries(): Promise<ApiInquiry[]> {
-    const data = await request<{ inquiries: ApiInquiry[] }>("/api/inquiries", {
-      headers: adminHeaders(),
-    });
-    return data.inquiries;
-  },
-  async submitInquiry(input: {
-    paintingId: string;
-    name: string;
-    email: string;
-    message: string;
-  }): Promise<void> {
-    await request("/api/inquiries", {
+  /**
+   * Publish files to the repo (painting .md + photo, banner text, AR
+   * models). Pages rebuilds on push — live a few minutes later.
+   */
+  async commitFiles(
+    message: string,
+    files: Array<{ path: string; blob: Blob | string }>,
+  ): Promise<void> {
+    const encoded = await Promise.all(
+      files.map(async (f) => ({
+        path: f.path,
+        contentBase64:
+          typeof f.blob === "string" ? textToBase64(f.blob) : await blobToBase64(f.blob),
+      })),
+    );
+    await request("/api/commit", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...input, website: "" }),
+      headers: { "Content-Type": "application/json", ...adminHeaders() },
+      body: JSON.stringify({ message, files: encoded }),
     });
   },
   async status(): Promise<{
@@ -193,13 +101,5 @@ export const api = {
       headers: adminHeaders(),
     });
     return data;
-  },
-  async checkout(paintingId: string): Promise<string> {
-    const data = await request<{ url: string }>("/api/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ paintingId }),
-    });
-    return data.url;
   },
 };

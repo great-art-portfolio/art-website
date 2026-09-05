@@ -9,6 +9,7 @@ import Layout from "../layouts/Layout.astro";
     <p id="admin-stats" class="stats" aria-live="polite"></p>
     <p id="admin-status" role="status" data-tone="ok">
       Sign in with your email link (Cloudflare Access), then add a painting below.
+      Saving publishes to the site — live in a few minutes.
     </p>
 
     <section class="card">
@@ -72,20 +73,7 @@ import Layout from "../layouts/Layout.astro";
     </section>
 
     <section class="card">
-      <h2><span class="step">3</span> Collection <button type="button" id="collection-refresh">Refresh</button></h2>
-      <p class="hint">New uploads start as drafts. Publish when ready; mark reserved the moment someone asks, sold the moment it ships.</p>
-      <ul id="collection-list"><li>Loading…</li></ul>
-    </section>
-
-    <section class="card">
-      <h2><span class="step">4</span> Inquiries <button type="button" id="inbox-refresh">Refresh</button></h2>
-      <ul id="inbox-list"><li>Loading…</li></ul>
-      <h3>Most viewed</h3>
-      <ul id="views-list"><li>Loading…</li></ul>
-    </section>
-
-    <section class="card">
-      <h2><span class="step">5</span> Homepage banner</h2>
+      <h2><span class="step">3</span> Homepage banner</h2>
       <p class="hint">One line under the gallery — markets, holidays, “studio open”. Empty hides it.</p>
       <label>Announcement
         <input id="f-announce" type="text" maxlength="280" placeholder="Find me at the Lilac Festival this Sunday!" />
@@ -94,7 +82,12 @@ import Layout from "../layouts/Layout.astro";
     </section>
 
     <section class="card">
-      <h2><span class="step">6</span> Ship it</h2>
+      <h2><span class="step">4</span> Inquiries</h2>
+      <p class="hint">Buyer notes arrive straight in your email (reply-to is the buyer) — nothing is stored on the site, so there is no inbox here. Mark a piece sold by flipping <code>sold: true</code> on its file after shipping.</p>
+    </section>
+
+    <section class="card">
+      <h2><span class="step">5</span> Ship it</h2>
       <ul>
         <li><a href="https://chitchats.com/" rel="noopener">Chit Chats</a> — cheapest tracked Canada/US shipping from Calgary.</li>
         <li><a href="https://www.pirateship.com/" rel="noopener">Pirate Ship</a> — backup for US labels.</li>
@@ -202,40 +195,10 @@ import Layout from "../layouts/Layout.astro";
   .check { display: flex; gap: 0.6rem; align-items: center; font-weight: 600; }
   .check input { width: auto; min-height: 1.4rem; accent-color: var(--accent); }
   #ar-preview { margin-top: 0.75rem; }
-  #collection-list, #inbox-list, #views-list {
-    list-style: none; padding: 0; margin: 0.75rem 0 0; display: grid; gap: 0.75rem;
-  }
-  /* Rows rendered by AdminPanel.ts arrive without Astro's scope attribute,
-     so they are styled through :global. */
-  #collection-list :global(li),
-  #inbox-list :global(li),
-  #views-list :global(li) {
-    list-style: none; background: var(--paper);
-    border: 1px solid var(--line); border-radius: 0.75rem;
-    padding: 0.9rem 1rem; font-size: 0.92rem;
-  }
-  #collection-list :global(.row),
-  #inbox-list :global(.row) {
-    display: flex; gap: 0.45rem; flex-wrap: wrap; margin: 0.6rem 0 0;
-  }
-  #collection-list :global(button),
-  #inbox-list :global(button) {
-    font: inherit; font-size: 0.82rem; font-weight: 600;
-    min-height: 2.2rem; padding: 0.25rem 0.85rem;
-    border-radius: 0.6rem; border: 1px solid var(--line);
-    background: var(--paper); color: var(--ink); cursor: pointer;
-    transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
-  }
-  #collection-list :global(button:hover),
-  #inbox-list :global(button:hover) { border-color: var(--ink); }
-  #collection-list :global(label) {
-    display: grid; gap: 0.3rem; margin-block: 0.6rem; font-size: 0.85rem; font-weight: 600;
-  }
-  #collection-list :global(input),
-  #collection-list :global(textarea) {
-    width: 100%; box-sizing: border-box; font: inherit; font-weight: 400; font-size: 0.9rem;
-    padding: 0.55rem 0.7rem; border-radius: 0.5rem;
-    border: 1px solid var(--line); background: var(--paper); color: var(--ink);
-  }
   .card ul a { color: var(--accent); }
+  .card code {
+    font-size: 0.85em; background: var(--paper);
+    border: 1px solid var(--line); border-radius: 0.35rem;
+    padding: 0.1em 0.35em;
+  }
 </style>

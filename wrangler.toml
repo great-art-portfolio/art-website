@@ -5,21 +5,29 @@ compatibility_date = "2025-03-20"
 
 [vars]
 NODE_VERSION = "22.12.0"
+# Git publishing: /admin commits paintings + banner to this repo (token itself
+# is a secret: `pnpm wrangler pages secret put GITHUB_TOKEN --project-name=art-website`).
+GITHUB_REPO = "great-art-portfolio/art-website"
+GITHUB_BRANCH = "main"
 # Feature flags. Keep "false" until ready to enable each one.
 ENABLE_STRIPE = "false"
 ENABLE_SHIPPO = "false"
 ENABLE_SOCIAL_POST = "false"
 # Free push channel: create a private topic in the ntfy iOS app, then set it here.
 NTFY_TOPIC = "art-gallery-inquiries"
+# Non-secret service config. Secrets (tokens, private inbox) stay in the
+# dashboard / `wrangler pages secret put` — never here, this file is git.
+VAPID_PUBLIC_KEY = "BLCBFf14oWxzjSGDFknG-5K8UvhbcUnw7-ewBy-rmVgS6ME9Z9KDkFJBBKW2C9EQAUlGNgy-H8TnMmA6GiDgBzY"
+# VAPID_CONTACT = "mailto:hello@yourdomain.ca"  # abuse contact for push services
+NOTIFY_EMAIL_FROM = "Gallery <onboarding@resend.dev>"  # free tier; switch to your own domain when you have one
+# TURNSTILE_SITE_KEY = ""  # public by design; empty = honeypot only
 
 [[d1_databases]]
 binding = "DB"
 database_name = "art-gallery-db"
 database_id = "108c5dee-b1a6-4837-8afb-6b2f0b4410ba"
-
-[[r2_buckets]]
-binding = "IMAGES"
-bucket_name = "art-gallery-images"
+# R2 is gone: painting photos live in git (responsive via astro:image),
+# AR models in public/models. The bucket can be deleted in the dashboard.
 
 [env.production.vars]
 NODE_VERSION = "22.12.0"
@@ -27,6 +35,12 @@ ENABLE_STRIPE = "false"
 ENABLE_SHIPPO = "false"
 ENABLE_SOCIAL_POST = "false"
 NTFY_TOPIC = "art-gallery-inquiries"
+# Non-secret service config. Secrets (tokens, private inbox) stay in the
+# dashboard / `wrangler pages secret put` — never here, this file is git.
+VAPID_PUBLIC_KEY = "BLCBFf14oWxzjSGDFknG-5K8UvhbcUnw7-ewBy-rmVgS6ME9Z9KDkFJBBKW2C9EQAUlGNgy-H8TnMmA6GiDgBzY"
+# VAPID_CONTACT = "mailto:hello@yourdomain.ca"  # abuse contact for push services
+NOTIFY_EMAIL_FROM = "Gallery <onboarding@resend.dev>"  # free tier; switch to your own domain when you have one
+# TURNSTILE_SITE_KEY = ""  # public by design; empty = honeypot only
 
 # Secrets (set in the Cloudflare dashboard, never committed):
 #   VAPID_PUBLIC_KEY    - actually public: also served via GET /api/push

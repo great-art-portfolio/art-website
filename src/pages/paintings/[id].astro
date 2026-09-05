@@ -40,7 +40,7 @@ const paintingJsonLd = {
 ---
 
 <Layout
-  title={`${painting.data.title} — ${SHOW_PRICES ? price : "original painting"}`}
+  title={`${painting.data.title} — ${painting.data.sold ? "Sold" : "original painting"}`}
   description={painting.data.alt}
 >
   <main class="detail" id="main">
@@ -73,16 +73,26 @@ const paintingJsonLd = {
           <Content />
         </div>
         {
+          !painting.data.sold && (painting.data.modelGlb ?? "") !== "" && (
+            <div id="ar-mount">
+              <h2>Try it on your wall</h2>
+              <p class="hint">True size — point your phone at the wall where it would hang.</p>
+              <div id="ar-stage"></div>
+            </div>
+          )
+        }
+        {
           !painting.data.sold && (
             <>
               <button type="button" id="inquiry-reveal" class="btn-primary" hidden>Interested?</button>
-              <form id="inquiry-form" data-static="true">
+              <form id="inquiry-form">
                 <h2>Ask about this painting</h2>
                 <p class="ship-note">Shipping arranged with the artist after purchase.</p>
                 <label>Name <input name="name" type="text" required autocomplete="name" /></label>
                 <label>Email <input name="email" type="email" required autocomplete="email" /></label>
                 <label>Message <textarea name="message" rows="3" placeholder="Hi, I love this piece…" /></label>
                 <input type="text" name="website" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true" />
+                <div id="turnstile-mount"></div>
                 <button type="submit" class="btn-primary">Send inquiry</button>
                 <p id="inquiry-status" role="status"></p>
               </form>
@@ -95,22 +105,119 @@ const paintingJsonLd = {
   <script type="application/ld+json" is:inline set:html={JSON.stringify(paintingJsonLd)} />
 </Layout>
 
-<script>
+<script define:vars={{
+  paintingTitle: painting.data.title,
+  paintingPriceCents: Math.round(painting.data.price * 100),
+  paintingArGlb: painting.data.modelGlb ?? "",
+  paintingArUsdz: painting.data.modelUsdz ?? "",
+  paintingAlt: painting.data.alt,
+}}>
+  import { queuePost } from "../../lib/queue";
+
+  declare const paintingTitle: string;
+  declare const paintingPriceCents: number;
+  declare const paintingArGlb: string;
+  declare const paintingArUsdz: string;
+  declare const paintingAlt: string;
+
+  let turnstileToken = "";
+
+  interface TurnstileApi {
+    render: (target: string, opts: { sitekey: string; callback: (t: string) => void }) => string;
+  }
+
+  /** Invisible-ish spam check, loaded only if the site key is configured. */
+  function loadTurnstile(): void {
+    if (document.getElementById("turnstile-script") !== null) return;
+    fetch("/api/status")
+      .then((res) => (res.ok ? (res.json() as Promise<{ turnstileSiteKey: string }>) : null))
+      .then((data) => {
+        if (data === null || data.turnstileSiteKey === "") return;
+        if (document.getElementById("turnstile-script") !== null) return;
+        const script = document.createElement("script");
+        script.id = "turnstile-script";
+        script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+        script.async = true;
+        script.defer = true;
+        script.onload = () => {
+          const tApi = (window as unknown as { turnstile?: TurnstileApi }).turnstile;
+          if (tApi === undefined) return;
+          tApi.render("#turnstile-mount", {
+            sitekey: data.turnstileSiteKey,
+            callback: (t: string) => {
+              turnstileToken = t;
+            },
+          });
+        };
+        document.head.appendChild(script);
+      })
+      .catch(() => {
+        // Spam check unavailable — the honeypot still guards the form.
+      });
+  }
+
+  /** "View on your wall" AR viewer (only rendered when models exist). */
+  function initAr(): void {
+    const mount = document.getElementById("ar-mount") as HTMLElement | null;
+    if (mount === null || mount.dataset.wired === "1") return;
+    mount.dataset.wired = "1";
+    void import("@google/model-viewer")
+      .then(() => {
+        const stage = document.getElementById("ar-stage") as HTMLElement;
+        const el = document.createElement("model-viewer") as unknown as HTMLElement;
+        el.setAttribute("src", paintingArGlb);
+        if (paintingArUsdz !== "") el.setAttribute("ios-src", paintingArUsdz);
+        el.setAttribute("ar", "");
+        el.setAttribute("ar-modes", "webxr scene-viewer quick-look");
+        el.setAttribute("ar-scale", "fixed");
+        el.setAttribute("ar-placement", "wall");
+        el.setAttribute("camera-controls", "");
+        el.setAttribute("alt", paintingAlt === "" ? paintingTitle : paintingAlt);
+        el.style.width = "100%";
+        el.style.height = "20rem";
+        el.style.borderRadius = "1rem";
+        stage.appendChild(el);
+      })
+      .catch(() => {
+        mount.hidden = true;
+      });
+  }
+
   // Page scripts only run on full loads — but this layout uses View Transitions,
   // so gallery → painting navigations never re-run them. Everything is wired in
   // initDetail(), called immediately AND on astro:page-load. Guards keep a
   // double-fire on the same DOM from wiring anything twice.
   function initDetail(): void {
-    // Static (git-era) paintings inquire by email until they are migrated to D1.
+    initAr();
+    // Inquiries go straight to the artist's email — nothing is stored.
+    // Spam: honeypot first, Cloudflare Turnstile when configured.
     const form = document.getElementById("inquiry-form") as HTMLFormElement | null;
     if (form !== null && form.dataset.wired !== "1") {
       form.dataset.wired = "1";
+      loadTurnstile();
       form.addEventListener("submit", (e) => {
         e.preventDefault();
-        const status = document.getElementById("inquiry-status");
-        if (status !== null) {
-          status.textContent = "Thanks! Email the artist to complete your inquiry — online checkout for these pieces is coming soon.";
-        }
+        const data = new FormData(form);
+        if (((data.get("website") as string) ?? "") !== "") return; // honeypot
+        const status = document.getElementById("inquiry-status") as HTMLElement;
+        status.textContent = "Sending…";
+        queuePost("/api/inquiries", {
+          paintingTitle,
+          priceCents: paintingPriceCents,
+          name: String(data.get("name") ?? ""),
+          email: String(data.get("email") ?? ""),
+          message: String(data.get("message") ?? ""),
+          website: "",
+          turnstileToken,
+        }).then((result) => {
+          status.textContent =
+            result === "sent"
+              ? "Thanks! The artist will reply by email."
+              : result === "queued"
+                ? "Saved — it will send automatically when you're back online."
+                : "That didn't go through — check your email address and try again.";
+          if (result === "sent") form.reset();
+        });
       });
     }
 
@@ -229,6 +336,10 @@ const paintingJsonLd = {
   }
   .desc { margin: 1.25rem 0 0; color: var(--muted); }
   .desc :global(p) { margin: 0 0 0.75rem; }
+  #ar-mount { margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
+  #ar-mount h2 { font-size: 1.25rem; font-weight: 500; margin: 0 0 0.25rem; }
+  #ar-mount .hint { margin: 0 0 0.75rem; }
+  .hint { font-size: 0.85rem; color: var(--muted); }
   #inquiry-reveal { margin-top: 1.75rem; width: 100%; }
   form { display: grid; gap: 0.65rem; margin-top: 1.75rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
   form[hidden] { display: none; }

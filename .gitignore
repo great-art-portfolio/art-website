@@ -9,6 +9,9 @@ node_modules/
 
 .pnpm-store
 
+# local wrangler state
+.wrangler/
+
 # logs
 npm-debug.log*
 yarn-debug.log*

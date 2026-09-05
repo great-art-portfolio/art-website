@@ -2,11 +2,11 @@
 
 ## Launch (do first)
 
-- [ ] Provision D1 (`art-gallery-db`) + R2 (`art-gallery-images`), apply `migrations/0001_init.sql`
-- [ ] Set secrets: `RESEND_API_KEY`, `NOTIFY_EMAIL_FROM`, `NOTIFY_EMAIL_TO`, `ADMIN_API_TOKEN`, `NTFY_TOPIC`
+- [ ] Provision D1 (`art-gallery-db`), apply `0001_init.sql` + `0002_drop-unused-tables.sql` (push table only)
+- [ ] Set secrets: `RESEND_API_KEY`, `NOTIFY_EMAIL_FROM` (verified domain), `NOTIFY_EMAIL_TO`, `ADMIN_API_TOKEN`, `GITHUB_TOKEN` + `GITHUB_REPO`
 - [ ] Put Cloudflare Access (email OTP) on `/admin/*`
-- [ ] Migrate the 5 legacy paintings (`pnpm db:seed`, re-upload photos via `/admin`)
-- [ ] Custom domain later (free on Cloudflare); set `PUBLIC_CF_BEACON_TOKEN` at build time (Web Analytics can wait for this — per-painting views already work)
+- [ ] Verify the 5 painting measurements with a tape (frontmatter is flagged GUESSED)
+- [ ] Custom domain + verify it in Resend (free on Cloudflare); set `PUBLIC_CF_BEACON_TOKEN` at build time
 - [ ] Turnstile deferred: Security > Turnstile > Add site (managed), then `TURNSTILE_SITE_KEY` var + `TURNSTILE_SECRET_KEY` secret — honeypot covers the form until then
 
 ## Sell more
@@ -20,8 +20,8 @@
 
 - [x] **AR "view on your wall"**: photo → true-scale framed GLB (Android)
   + USDZ (iOS, wall-anchored) generated on her phone at upload time via
-  three.js; buyers launch it from the painting page with `<model-viewer>`.
-- [ ] True headset VR: skip — buyer audience doesn't own headsets.
+  three.js, committed to `public/models`; buyers launch it from the
+  painting page with `<model-viewer>`.
 
 ## Growth
 
@@ -32,5 +32,5 @@
 ## Tech hygiene
 
 - [ ] Revisit TypeScript 7 once `astro check` supports it
-- [ ] D1/R2 backup routine (Cloudflare PitR / versioning)
-- [ ] Rotate `ADMIN_API_TOKEN` yearly
+- [ ] Rotate `ADMIN_API_TOKEN` + `GITHUB_TOKEN` yearly (least-privilege: Contents read+write on this repo only)
+- [ ] Delete the `art-gallery-images` R2 bucket in the dashboard (unbound, unused)
