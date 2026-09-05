@@ -58,44 +58,53 @@ const headlineHtml = "Original paintings, from the studio";
 </Layout>
 
 <script>
-  import { pushState, subscribePush, unsubscribePush } from "../lib/push";
+  // NOTE: no static imports here — inline page scripts ship as classic
+  // scripts, so `import` kills the whole block (see painting template).
+  // Dynamic import() is bundled fine.
+  let pushApi = null;
+  async function push() {
+    if (pushApi === null) pushApi = await import("../lib/push");
+    return pushApi;
+  }
 
   // Runs on full loads AND View-Transitions navigations. The dataset flag
   // keeps a double-fire on the same DOM from wiring the button twice.
-  async function initNotify(): Promise<void> {
-    const card = document.getElementById("notify-card") as HTMLElement | null;
-    const btn = document.getElementById("notify-btn") as HTMLButtonElement | null;
-    const hint = document.getElementById("notify-hint") as HTMLElement | null;
+  async function initNotify() {
+    const card = document.getElementById("notify-card");
+    const btn = document.getElementById("notify-btn");
+    const hint = document.getElementById("notify-hint");
     if (card === null || btn === null || hint === null) return;
 
     if (btn.dataset.wired !== "1") {
       btn.dataset.wired = "1";
       btn.addEventListener("click", () => {
-        const hintEl = document.getElementById("notify-hint") as HTMLElement;
-        void pushState().then((state) => {
-          if (state === "subscribed") {
-            void unsubscribePush().then(() => void paintNotify());
-          } else {
-            hintEl.textContent = "Waiting for your browser…";
-            void subscribePush().then((ok) => {
-              hintEl.textContent = ok
-                ? "You're on the list."
-                : "That didn't work — push alerts aren't set up on the server yet.";
-              void paintNotify();
-            });
-          }
-        });
+        const hintEl = document.getElementById("notify-hint");
+        void push().then((api) =>
+          api.pushState().then((state) => {
+            if (state === "subscribed") {
+              void api.unsubscribePush().then(() => void paintNotify());
+            } else {
+              hintEl.textContent = "Waiting for your browser…";
+              void api.subscribePush().then((ok) => {
+                hintEl.textContent = ok
+                  ? "You're on the list."
+                  : "That didn't work — push alerts aren't set up on the server yet.";
+                void paintNotify();
+              });
+            }
+          }),
+        );
       });
     }
     await paintNotify();
   }
 
-  async function paintNotify(): Promise<void> {
-    const card = document.getElementById("notify-card") as HTMLElement | null;
-    const btn = document.getElementById("notify-btn") as HTMLButtonElement | null;
-    const hint = document.getElementById("notify-hint") as HTMLElement | null;
+  async function paintNotify() {
+    const card = document.getElementById("notify-card");
+    const btn = document.getElementById("notify-btn");
+    const hint = document.getElementById("notify-hint");
     if (card === null || btn === null || hint === null) return;
-    const state = await pushState();
+    const state = await (await push()).pushState();
     if (state === "unsupported") return; // Older browser — stay invisible.
     card.hidden = false;
     if (state === "subscribed") {

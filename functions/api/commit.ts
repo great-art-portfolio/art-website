@@ -12,13 +12,23 @@ function gitConfig(env: AppEnv): GitHubConfig | null {
   return { token, repo, branch: env.GITHUB_BRANCH ?? "main" };
 }
 
-/** Admin: read the current banner text (lives in git). */
+const PAINTING_FILE = /^src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9_.-]*\.md$/;
+
+/** Admin: read the banner text, or one painting file (?path=…). Lives in git. */
 export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
   const denied = requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
   const config = gitConfig(context.env);
   if (config === null) return badRequest("GitHub publishing is not configured");
+  const url = new URL(context.request.url);
+  const path = url.searchParams.get("path");
   try {
+    if (path !== null) {
+      if (!PAINTING_FILE.test(path)) return badRequest("Unknown file");
+      const content = await readTextFile(config, path);
+      if (content === null) return badRequest("Unknown file");
+      return json({ content });
+    }
     return json({ announcement: (await readTextFile(config, BANNER_PATH)) ?? "" });
   } catch (err) {
     console.error(err);

@@ -73,6 +73,20 @@ export async function readTextFile(
   return new TextDecoder().decode(bytes);
 }
 
+/** Read a repo file as bytes (null when missing). */
+export async function readBinaryFile(
+  config: GitHubConfig,
+  path: string,
+): Promise<Uint8Array | null> {
+  const data = (await gh(
+    config,
+    `/repos/${config.repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(config.branch)}`,
+  )) as { content?: string; encoding?: string } | null;
+  if (data === null || data.content === undefined || data.encoding !== "base64") return null;
+  const bin = atob(data.content.replace(/\n/g, ""));
+  return Uint8Array.from(bin, (c) => c.charCodeAt(0));
+}
+
 /** List filenames directly inside a repo directory (empty when missing). */
 export async function listDir(config: GitHubConfig, path: string): Promise<string[]> {
   const data = (await gh(

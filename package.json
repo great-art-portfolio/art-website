@@ -8,6 +8,10 @@
     "preview": "astro preview",
     "astro": "astro",
     "check": "astro check",
+    "check:inline": "node scripts/check-inline-js.mjs",
+    "test:e2e": "playwright test",
+    "test:unit": "node --test \"tests/unit/**/*.test.mjs\"",
+    "ar:backfill": "node scripts/ar-backfill/run.mjs",
     "typecheck": "tsc --noEmit",
     "gen": "wrangler types --path='./functions/types.d.ts'",
     "down": "pnpm wrangler pages download config --project-name=art-website",
@@ -35,6 +39,7 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
     "@cloudflare/workers-types": "^5.20260904.1",
+    "@playwright/test": "^1.63.0",
     "@types/node": "^26.4.1",
     "@types/three": "^0.185.4",
     "typescript": "^5.9.3",

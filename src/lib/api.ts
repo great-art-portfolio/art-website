@@ -7,7 +7,16 @@ function adminHeaders(): HeadersInit {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, init);
-  const data = (await res.json()) as T & { error?: string };
+  let data: T & { error?: string };
+  try {
+    data = (await res.json()) as T & { error?: string };
+  } catch {
+    // No Functions runtime here (e.g. plain `astro dev`) — the dev server
+    // answers API routes with an HTML 404 page instead of JSON.
+    throw new Error(
+      `The site API isn't running here — use the live /admin to publish. (${res.status})`,
+    );
+  }
   if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);
   return data;
 }
@@ -39,6 +48,31 @@ export const api = {
       return data.announcement;
     } catch {
       return "";
+    }
+  },
+  async getPaintingFile(path: string): Promise<string | null> {
+    try {
+      const data = await request<{ content: string }>(
+        `/api/commit?path=${encodeURIComponent(path)}`,
+        { headers: adminHeaders() },
+      );
+      return data.content;
+    } catch {
+      return null;
+    }
+  },
+  /** Fetch a painting's repo photo (for AR rebuilds); null when unavailable. */
+  async getPhoto(path: string): Promise<Blob | null> {
+    try {
+      const token = sessionStorage.getItem("ADMIN_API_TOKEN") ?? "";
+      const headers: HeadersInit = token === "" ? {} : { Authorization: `Bearer ${token}` };
+      const res = await fetch(`/api/photo?path=${encodeURIComponent(path)}`, {
+        headers,
+      });
+      if (!res.ok) return null;
+      return await res.blob();
+    } catch {
+      return null;
     }
   },
   async listPaintingFiles(): Promise<string[]> {

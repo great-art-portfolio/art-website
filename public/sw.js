@@ -39,6 +39,15 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
+  // The studio and the API are never cached: admin must always reflect
+  // the live site, and API responses must never be served stale.
+  if (
+    url.pathname === "/admin" ||
+    url.pathname.startsWith("/admin/") ||
+    url.pathname.startsWith("/api/")
+  )
+    return;
+
   // Artwork images (built _astro/ assets): cache-first, so the gallery
   // works with spotty signal.
   if (url.pathname.startsWith("/_astro/")) {

@@ -37,7 +37,11 @@ on unsubscribe). This is disclosed on `/privacy` — it is the only
 personal information the site keeps. Views moved to Cloudflare Web
 Analytics (free, hosted, per-page); statuses moved to markdown
 (`sold: true`); the homepage banner is `src/content/announcement.txt`
-in git, editable from `/admin` (commits like a painting).
+in git, editable from `/admin` (commits like a painting). One banner at a
+time, usually with an end date (1/3/7/14 days, default 7) — an optional
+`expires:` first line, hidden automatically past that date (at build, plus
+a tiny client-side check for expiry between deploys), so a forgotten
+banner doesn't linger.
 
 ## Authentication
 

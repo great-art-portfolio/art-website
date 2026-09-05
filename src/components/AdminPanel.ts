@@ -3,6 +3,12 @@ import { loadImageFile, prepareImage } from "../lib/image";
 import { buildCaption, sharePainting } from "../lib/share";
 import { dollarsToCents, formatCAD } from "../lib/money";
 import { slugifyTitle } from "../lib/site";
+import {
+  parsePainting,
+  patchPainting,
+  yamlQuote,
+  type PaintingEdits,
+} from "../lib/painting-edit";
 
 /**
  * Admin island (client-only): publish paintings to git, share kit,
@@ -28,7 +34,7 @@ let lastShare: { title: string; caption: string; pageUrl: string } | null = null
 function greet(): void {
   const hour = new Date().getHours();
   const part = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
-  $("admin-greeting").textContent = `Good ${part} — here's your studio.`;
+  $("admin-greeting").textContent = `Good ${part}.`;
 }
 
 function setStatus(msg: string, isError = false): void {
@@ -47,11 +53,116 @@ async function refreshPreview(): Promise<void> {
   img.src = prepared.previewUrl;
   img.hidden = false;
   $("photo-meta").textContent = `${prepared.width} × ${prepared.height} px`;
+  refreshAddPreview();
 }
 
-/** Quote a one-line YAML string ("..." with escapes). */
-function yamlQuote(s: string): string {
-  return `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+async function refreshCollection(): Promise<void> {
+  const list = $("edit-list");
+  let files: string[];
+  try {
+    files = (await api.listPaintingFiles()).filter((f) => f.endsWith(".md"));
+  } catch {
+    list.innerHTML =
+      "<li>Publishing needs the live site — this preview can't reach it.</li>";
+    return;
+  }
+  if (files.length === 0) {
+    list.innerHTML = "<li>Nothing here yet — add your first painting above.</li>";
+    return;
+  }
+  const rows: Array<{ path: string; title: string; price: string; sold: boolean }> = [];
+  for (const f of files) {
+    const content = await api.getPaintingFile(`src/content/paintings/${f}`);
+    if (content === null) continue;
+    const p = parsePainting(content);
+    if (p === null || p.title === "") continue;
+    rows.push({ path: `src/content/paintings/${f}`, title: p.title, price: p.price, sold: p.sold });
+  }
+  rows.sort((a, b) => a.title.localeCompare(b.title));
+  list.innerHTML = rows
+    .map(
+      (r, i) =>
+        `<li><strong>${r.title.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)}</strong>` +
+        ` — $${r.price} — ${r.sold ? "sold" : "available"} ` +
+        `<span class="row"><button type="button" data-edit="${i}">Edit</button></span></li>`,
+    )
+    .join("");
+  list.querySelectorAll("button[data-edit]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const row = rows[Number((btn as HTMLElement).dataset["edit"])];
+      if (row !== undefined) void openEditForm(row.path);
+    });
+  });
+}
+
+async function openEditForm(path: string): Promise<void> {
+  const list = $("edit-list");
+  const content = await api.getPaintingFile(path);
+  if (content === null) {
+    setStatus("Couldn't load that painting.", true);
+    return;
+  }
+  const p = parsePainting(content);
+  if (p === null) {
+    setStatus("Couldn't read that painting's file.", true);
+    return;
+  }
+  const esc = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+  list.innerHTML =
+    `<li><label>Title <input id="ed-title" type="text" maxlength="120" value="${esc(p.title)}" /></label>` +
+    `<label>Price (CAD) <input id="ed-price" type="number" min="1" step="0.01" inputmode="decimal" value="${esc(p.price)}" /></label>` +
+    `<label>Alt text <input id="ed-alt" type="text" maxlength="200" value="${esc(p.alt)}" /></label>` +
+    `<label>Description <textarea id="ed-desc" rows="3" maxlength="2000">${esc(p.description)}</textarea></label>` +
+    `<div class="row">` +
+    `<label>W (in) <input id="ed-w" type="number" min="1" step="0.5" inputmode="decimal" value="${esc(p.widthIn)}" /></label>` +
+    `<label>H (in) <input id="ed-h" type="number" min="1" step="0.5" inputmode="decimal" value="${esc(p.heightIn)}" /></label>` +
+    `<label>D (in) <input id="ed-d" type="number" min="0.5" step="0.5" inputmode="decimal" value="${esc(p.depthIn)}" /></label>` +
+    `</div>` +
+    `<label class="check"><input id="ed-sold" type="checkbox"${p.sold ? " checked" : ""} /> Sold</label>` +
+    `<span class="row"><button type="button" id="ed-save" class="primary">Save</button> ` +
+    `<button type="button" id="ed-cancel">Cancel</button></span></li>`;
+  ($("ed-cancel") as HTMLButtonElement).addEventListener("click", () => void refreshCollection());
+  ($("ed-save") as HTMLButtonElement).addEventListener("click", () => {
+    const val = (id: string): string => ($(id) as HTMLInputElement).value.trim();
+    const title = val("ed-title");
+    const price = Number(val("ed-price"));
+    if (title === "" || !(Number.isFinite(price) && price > 0)) {
+      setStatus("Title and a valid price are required.", true);
+      return;
+    }
+    const edits: PaintingEdits = {
+      title,
+      price: price.toFixed(2),
+      alt: val("ed-alt"),
+      description: ($("ed-desc") as HTMLTextAreaElement).value,
+      widthIn: val("ed-w"),
+      heightIn: val("ed-h"),
+      depthIn: val("ed-d"),
+      sold: ($("ed-sold") as HTMLInputElement).checked,
+    };
+    void (async () => {
+      setStatus("Saving… (live in a few minutes)");
+      try {
+        // Dimension fixes (or a missing preview) rebuild the AR models
+        // from the repo photo in the same commit.
+        const arMod = await import("../lib/ar");
+        const fix = await arMod.rebuildForDimFix(api.getPhoto, path, p, edits, () =>
+          setStatus("Rebuilding AR preview… (true size, takes a few seconds)"),
+        );
+        await api.commitFiles(`Edit painting: ${title}`, [
+          { path, blob: patchPainting(content, fix.edits) },
+          ...fix.files,
+        ]);
+        setStatus(
+          fix.note === null ? `Saved "${title}".` : `Saved "${title}" — but ${fix.note}`,
+          fix.note !== null,
+        );
+        await refreshCollection();
+      } catch (err) {
+        setStatus((err as Error).message, true);
+      }
+    })();
+  });
 }
 
 function buildMarkdown(input: {
@@ -102,6 +213,34 @@ async function uniqueSlug(title: string): Promise<string> {
   return `${base}-${Date.now().toString(36)}`;
 }
 
+/** Live card preview while she types — roughly the gallery card. */
+function refreshAddPreview(): void {
+  const title = ($("f-title") as HTMLInputElement).value.trim();
+  const priceRaw = ($("f-price") as HTMLInputElement).value.trim();
+  const panel = $("add-preview");
+  const show = title !== "" || priceRaw !== "" || preparedBlob !== null;
+  panel.hidden = !show;
+  if (!show) return;
+  ($("pv-title") as HTMLElement).textContent = title === "" ? "Untitled" : title;
+  const cents = dollarsToCents(Number(priceRaw));
+  const dim = (id: string): string => {
+    const raw = ($(id) as HTMLInputElement).value.trim();
+    return raw === "" ? "" : raw;
+  };
+  const dims = [dim("f-w"), dim("f-h")]
+    .filter((d) => d !== "")
+    .join(" × ");
+  ($("pv-sub") as HTMLElement).textContent =
+    `${cents === null ? "Price?" : formatCAD(cents)}${dims === "" ? "" : ` · ${dims} in`}`;
+  const img = $("pv-img") as HTMLImageElement;
+  if (lastPreviewUrl !== null) {
+    img.src = lastPreviewUrl;
+    img.hidden = false;
+  } else {
+    img.hidden = true;
+  }
+}
+
 /** Inline <model-viewer> test so she can try AR before buyers do. */
 function showArPreview(glbUrl: string, usdzUrl: string): void {
   const mount = $("ar-preview");
@@ -148,8 +287,12 @@ async function refreshViews(): Promise<void> {
         return `<li><em>${slug}</em> — ${v.views} views</li>`;
       })
       .join("");
-  } catch (err) {
-    list.innerHTML = `<li>Could not load views: ${(err as Error).message}</li>`;
+  } catch {
+    const local =
+      window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+    list.innerHTML = local
+      ? "<li>Views only work on the live /admin — this is a local preview.</li>"
+      : "<li>Could not load views — try Refresh.</li>";
   }
 }
 
@@ -199,22 +342,63 @@ function init(): void {
 
   api
     .getBanner()
-    .then((text) => {
-      ($("f-announce") as HTMLTextAreaElement).value = text;
+    .then((raw) => {
+      void import("../lib/banner").then((bannerMod) => {
+        const banner = bannerMod.parseAnnouncement(raw);
+        ($("f-announce") as HTMLInputElement).value = banner.text;
+        const meta = $("announce-meta");
+        if (banner.text === "") {
+          meta.textContent = "No banner showing right now.";
+          return;
+        }
+        if (banner.expires === null) {
+          meta.textContent = "Showing now, with no end date.";
+          ($("f-duration") as unknown as HTMLSelectElement).value = "";
+          return;
+        }
+        const left = bannerMod.daysLeft(banner.expires);
+        meta.textContent =
+          left < 0
+            ? `Ended ${banner.expires} — hidden on the site.`
+            : `Showing now, ends ${banner.expires} (${left === 0 ? "last day" : `${left} days left`}).`;
+        // Preselect the lifetime closest to what's left, so saving
+        // without touching the dropdown roughly keeps the end date.
+        const select = ($("f-duration") as unknown as HTMLSelectElement);
+        let best = "";
+        let bestGap = Number.POSITIVE_INFINITY;
+        for (const opt of ["1", "3", "7", "14"]) {
+          const gap = Math.abs(Number(opt) - Math.max(0, left));
+          if (gap < bestGap) {
+            bestGap = gap;
+            best = opt;
+          }
+        }
+        select.value = best;
+      });
     })
     .catch(() => {
       // Publishing not configured yet — the editor still works once it is.
     });
 
   $("announce-save").addEventListener("click", () => {
-    const text = ($("f-announce") as HTMLTextAreaElement).value.trim().slice(0, 280);
+    const text = ($("f-announce") as HTMLInputElement).value.trim().slice(0, 280);
+    const durationRaw = ($("f-duration") as unknown as HTMLSelectElement).value;
     setStatus("Publishing banner… (live in a few minutes)");
-    api
-      .commitFiles("Update homepage banner", [
-        { path: "src/content/announcement.txt", blob: text },
-      ])
-      .then(() => setStatus(text === "" ? "Banner cleared." : "Banner updated on the homepage."))
-      .catch((err: unknown) => setStatus((err as Error).message, true));
+    void import("../lib/banner").then((bannerMod) => {
+      const days = durationRaw === "" ? null : Number(durationRaw);
+      const body = bannerMod.formatAnnouncement(
+        text,
+        days === null || !Number.isFinite(days) ? null : bannerMod.expiryForDuration(days),
+      );
+      api
+        .commitFiles("Update homepage banner", [
+          { path: "src/content/announcement.txt", blob: body },
+        ])
+        .then(() =>
+          setStatus(body === "" ? "Banner cleared." : "Banner updated on the homepage."),
+        )
+        .catch((err: unknown) => setStatus((err as Error).message, true));
+    });
   });
 
   const tokenInput = $("admin-token") as HTMLInputElement;
@@ -432,7 +616,12 @@ function init(): void {
   });
 
   $("views-refresh").addEventListener("click", () => void refreshViews());
+  $("collection-refresh").addEventListener("click", () => void refreshCollection());
+  for (const id of ["f-title", "f-price", "f-w", "f-h"]) {
+    $(id).addEventListener("input", () => refreshAddPreview());
+  }
 
+  void refreshCollection();
   void refreshViews();
   void refreshFlags();
   void refreshCapabilities();

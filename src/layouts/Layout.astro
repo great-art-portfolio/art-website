@@ -2,6 +2,7 @@
 import ClientRouter from "astro/components/ClientRouter.astro";
 import Analytics from "../components/Analytics.astro";
 import Signature from "../components/Signature.astro";
+import AdminWordmark from "../components/AdminWordmark.astro";
 import background from "../assets/background-warm.svg";
 import { ARTIST_LOCATION, ARTIST_NAME, siteTitle } from "../lib/site";
 
@@ -15,6 +16,8 @@ const {
   title = siteTitle(),
   description = "Original nature and abstract paintings, direct from the artist's studio.",
   image = "/apple-touch-icon.png",
+  // "signature" on public pages, "admin" on studio pages.
+  wordmark = "signature",
 } = Astro.props;
 
 const canonical = Astro.url.href;
@@ -48,7 +51,9 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
     <a class="skip" href="#main">Skip to content</a>
     <header class="site-header">
       <nav class="site-nav" aria-label="Main">
-        <a href="/" id="signature" aria-label="Home — back to the gallery"><Signature /></a>
+        <a href="/" id="signature" aria-label={wordmark === "admin" ? "Admin home" : "Home — back to the gallery"}>
+          {wordmark === "admin" ? <AdminWordmark /> : <Signature />}
+        </a>
         <div class="nav-links">
           <a href="/#collection">Collection</a>
           <a href="/#about">About</a>

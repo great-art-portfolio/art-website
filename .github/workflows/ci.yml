@@ -20,3 +20,19 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm astro check
       - run: pnpm build
+
+  # Smoke tests against the real Pages runtime (static + Functions,
+  # no secrets): regressions, validation paths, graceful fallbacks.
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec playwright test

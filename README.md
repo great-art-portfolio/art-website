@@ -20,7 +20,20 @@ pnpm install
 pnpm dev            # gallery
 pnpm check          # astro check
 pnpm build
+pnpm check:inline   # no raw TS/imports in inline page scripts (see below)
+pnpm test:e2e       # Playwright smoke suite (needs dist built)
 ```
+
+Page scripts (`.astro` `<script>` blocks) ship to the browser as classic
+scripts — a static `import` or any TypeScript syntax kills the whole
+handler with no error surfaced in CI. So: plain JavaScript plus dynamic
+`import()` in page scripts only (shared logic lives in `src/lib/*.ts`,
+imported dynamically), page data via `data-*` attributes instead of
+`define:vars` (which disables bundling), and `check:inline` fails the
+build if raw syntax slips into `dist/`. The smoke suite covers the
+reveal toggle, inquiry validation, and admin graceful fallbacks against
+the real Pages runtime; live-secret delivery stays a manual checklist
+(see the warning at the top of `tests/smoke.spec.ts`).
 
 First-time Cloudflare provisioning:
 

@@ -2,17 +2,23 @@
 import Layout from "../layouts/Layout.astro";
 ---
 
-<Layout title="Artist Studio — Admin">
+<Layout title="Artist Studio — Admin" wordmark="admin">
   <main class="admin" id="main">
     <p class="eyebrow">Artist studio</p>
     <h1 id="admin-greeting">Studio</h1>
-    <p id="admin-stats" class="stats" aria-live="polite"></p>
     <p id="admin-status" role="status" data-tone="ok">
-      Sign in with your email link (Cloudflare Access), then add a painting below.
-      Saving publishes to the site — live in a few minutes.
+      Add a painting below — saving publishes it to the site.
     </p>
 
-    <section class="card">
+    <nav class="subnav" aria-label="Studio sections">
+      <a href="#sec-add">Add</a>
+      <a href="#sec-collection">Collection</a>
+      <a href="#sec-banner">Banner</a>
+      <a href="#sec-views">Views</a>
+      <a href="#sec-ship">Ship it</a>
+    </nav>
+
+    <section class="card" id="sec-add">
       <h2><span class="step">1</span> Add a painting</h2>
       <form id="upload-form">
         <label>Title
@@ -52,6 +58,12 @@ import Layout from "../layouts/Layout.astro";
           <img id="photo-preview" alt="Photo preview" hidden />
           <figcaption id="photo-meta"></figcaption>
         </figure>
+        <div id="add-preview" hidden>
+          <p class="hint">Preview — roughly how the gallery card will look.</p>
+          <div class="pv-mat"><img id="pv-img" alt="" /></div>
+          <p class="pv-title" id="pv-title"></p>
+          <p class="pv-sub" id="pv-sub"></p>
+        </div>
         <button type="submit" class="primary">Save painting</button>
       </form>
     </section>
@@ -72,28 +84,44 @@ import Layout from "../layouts/Layout.astro";
       </p>
     </section>
 
-    <section class="card">
-      <h2><span class="step">3</span> Homepage banner</h2>
-      <p class="hint">One line under the gallery — markets, holidays, “studio open”. Empty hides it.</p>
+    <section class="card" id="sec-collection">
+      <h2><span class="step">3</span> Collection <button type="button" id="collection-refresh">Refresh</button></h2>
+      <p class="hint">Tap a painting to edit its text, price, or measurements — or mark it sold. Saving republishes the page (live in a few minutes).</p>
+      <ul id="edit-list"><li>Loading…</li></ul>
+    </section>
+
+    <section class="card" id="sec-banner">
+      <h2><span class="step">4</span> Homepage banner</h2>
+      <p class="hint">One banner at a time under the gallery — markets, holidays, “studio open”. Saving replaces it; empty hides it. Banners usually end on their own, so a forgotten one doesn't linger.</p>
       <label>Announcement
         <input id="f-announce" type="text" maxlength="280" placeholder="Find me at the Lilac Festival this Sunday!" />
       </label>
+      <label>Shows until
+        <select id="f-duration">
+          <option value="">No end date</option>
+          <option value="1">1 day</option>
+          <option value="3">3 days</option>
+          <option value="7" selected>7 days</option>
+          <option value="14">2 weeks</option>
+        </select>
+      </label>
+      <p class="hint" id="announce-meta"></p>
       <button type="button" id="announce-save" class="primary">Update banner</button>
     </section>
 
     <section class="card">
-      <h2><span class="step">4</span> Inquiries</h2>
-      <p class="hint">Buyer notes arrive straight in your email (reply-to is the buyer) — nothing is stored on the site, so there is no inbox here. Mark a piece sold by flipping <code>sold: true</code> on its file after shipping.</p>
+      <h2><span class="step">5</span> Inquiries</h2>
+      <p class="hint">Buyer notes arrive straight in your email (reply-to is the buyer) — nothing is stored on the site, so there is no inbox here. Mark a piece sold from the Collection section above after shipping.</p>
     </section>
 
-    <section class="card">
-      <h2><span class="step">5</span> Most viewed <button type="button" id="views-refresh">Refresh</button></h2>
+    <section class="card" id="sec-views">
+      <h2><span class="step">6</span> Most viewed <button type="button" id="views-refresh">Refresh</button></h2>
       <p class="hint">Past 30 days, from Cloudflare Analytics.</p>
       <ul id="views-list"><li>Loading…</li></ul>
     </section>
 
-    <section class="card">
-      <h2><span class="step">6</span> Ship it</h2>
+    <section class="card" id="sec-ship">
+      <h2><span class="step">7</span> Ship it</h2>
       <ul>
         <li><a href="https://chitchats.com/" rel="noopener">Chit Chats</a> — cheapest tracked Canada/US shipping from Calgary.</li>
         <li><a href="https://www.pirateship.com/" rel="noopener">Pirate Ship</a> — backup for US labels.</li>
@@ -201,16 +229,43 @@ import Layout from "../layouts/Layout.astro";
   .check { display: flex; gap: 0.6rem; align-items: center; font-weight: 600; }
   .check input { width: auto; min-height: 1.4rem; accent-color: var(--accent); }
   #ar-preview { margin-top: 0.75rem; }
-  #views-list { list-style: none; padding: 0; margin: 0.75rem 0 0; display: grid; gap: 0.5rem; }
-  #views-list li {
+  #views-list, #edit-list { list-style: none; padding: 0; margin: 0.75rem 0 0; display: grid; gap: 0.5rem; }
+  #views-list li, #edit-list li {
     list-style: none; background: var(--paper);
     border: 1px solid var(--line); border-radius: 0.75rem;
     padding: 0.7rem 1rem; font-size: 0.92rem;
   }
-  .card ul a { color: var(--accent); }
-  .card code {
-    font-size: 0.85em; background: var(--paper);
-    border: 1px solid var(--line); border-radius: 0.35rem;
-    padding: 0.1em 0.35em;
+  #edit-list label { display: grid; gap: 0.3rem; margin-block: 0.6rem; font-size: 0.85rem; font-weight: 600; }
+  #edit-list input, #edit-list textarea {
+    width: 100%; box-sizing: border-box; font: inherit; font-weight: 400; font-size: 0.9rem;
+    padding: 0.55rem 0.7rem; border-radius: 0.5rem;
+    border: 1px solid var(--line); background: var(--paper); color: var(--ink);
   }
+  #edit-list .row { display: flex; gap: 0.45rem; flex-wrap: wrap; margin: 0.6rem 0 0; }
+  #edit-list .row label { flex: 1 1 8rem; margin-block: 0; }
+  #edit-list .check { display: flex; gap: 0.6rem; align-items: center; font-weight: 600; }
+  #edit-list .check input { width: auto; accent-color: var(--accent); }
+  /* Add-form preview: quiet echo of the gallery card. */
+  #add-preview { margin: 0.75rem 0 0; max-width: 22rem; }
+  #add-preview .hint { margin: 0 0 0.5rem; }
+  #add-preview .pv-mat {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 0.5rem; padding: 0.75rem;
+  }
+  #add-preview .pv-mat img { display: block; width: 100%; height: auto; border-radius: 0.25rem; }
+  #add-preview .pv-title { margin: 0.6rem 0 0.15rem; font-size: 1.05rem; }
+  #add-preview .pv-sub { margin: 0; font-size: 0.85rem; color: var(--muted); }
+  .card ul a { color: var(--accent); }
+  /* Section sub-nav: same quiet link treatment as the site header. */
+  .subnav {
+    position: sticky; top: 3.75rem; z-index: 5;
+    display: flex; gap: 1.25rem; flex-wrap: wrap;
+    padding: 0.6rem 0; margin: 0 0 0.5rem;
+    background: color-mix(in srgb, var(--paper) 88%, transparent);
+    backdrop-filter: blur(0.6rem); -webkit-backdrop-filter: blur(0.6rem);
+    border-bottom: 1px solid var(--line); font-size: 0.9rem;
+  }
+  .subnav a { color: var(--muted); text-decoration: none; }
+  .subnav a:hover { color: var(--ink); text-decoration: underline; }
+  .card { scroll-margin-top: 7rem; }
 </style>
