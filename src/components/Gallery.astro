@@ -15,25 +15,18 @@ const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
 <div class="gallery" id="gallery-static">
   {
     ordered.map((painting) => (
-      <a class="card" href={`/paintings/${painting.id}`}>
+      <a class="card" href={`/paintings/${painting.id}`} aria-label={painting.data.title}>
         <span class="thumb">
           <Image
             src={painting.data.image}
             alt={painting.data.alt}
-            width={800}
+            width={900}
             loading="lazy"
           />
-          {painting.data.sold ? (
-            <span class="badge sold">Sold</span>
-          ) : (
-            <span class="badge price">${painting.data.price.toFixed(2)}</span>
-          )}
+          {painting.data.sold && <span class="badge sold">Sold</span>}
           {!painting.data.sold && isNewStatic(painting.data.dateAdded) && (
             <span class="badge new">New</span>
           )}
-        </span>
-        <span class="meta">
-          <strong>{painting.data.title}</strong>
         </span>
       </a>
     ))
@@ -78,15 +71,12 @@ const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
     const fresh = Date.now() - 21 * 24 * 60 * 60 * 1000;
     wrap.innerHTML = paintings
       .map(
-        (p) => `<a class="card" href="/art?slug=${encodeURIComponent(p.slug)}">
+        (p) => `<a class="card" href="/art?slug=${encodeURIComponent(p.slug)}" aria-label="${p.title.replace(/"/g, "&quot;")}">
           <span class="thumb">
             <img src="${encodeURI(p.image_url)}" alt="${p.alt.replace(/"/g, "&quot;")}" loading="lazy" />
-            ${p.status === "sold"
-              ? `<span class="badge sold">Sold</span>`
-              : `<span class="badge price">$${(p.price_cents / 100).toFixed(2)}</span>`}
+            ${p.status === "sold" ? `<span class="badge sold">Sold</span>` : ""}
             ${p.status !== "sold" && Date.parse(p.created_at) > fresh ? `<span class="badge new">New</span>` : ""}
           </span>
-          <span class="meta"><strong>${p.title.replace(/</g, "&lt;")}</strong></span>
         </a>`,
       )
       .join("");
@@ -95,42 +85,46 @@ const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
 </script>
 
 <style>
+  .announce {
+    max-width: 62rem; margin: 0 auto 1.25rem; padding: 0.7rem 1.25rem;
+    text-align: center; font-size: 0.95rem;
+    color: var(--ink); background: var(--card);
+    border-block: 1px solid var(--line);
+  }
   .gallery {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
-    gap: 1rem;
-    padding: 0 1.25rem 2.5rem;
-    max-width: 72rem;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
+    gap: 1.25rem;
+    padding: 0 1.25rem 3rem;
+    max-width: 64rem;
     margin: 0 auto;
   }
-  @media (min-width: 48rem) {
-    .gallery { grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 1.4rem; }
+  @media (min-width: 60rem) {
+    .gallery { grid-template-columns: repeat(2, 1fr); gap: 1.75rem; }
   }
   .card {
-    text-decoration: none; color: inherit;
-    border-radius: 1rem; overflow: hidden;
-    background: color-mix(in srgb, Canvas 90%, transparent);
-    border: 1px solid color-mix(in srgb, CanvasText 14%, transparent);
-    animation: rise 0.5s ease both;
+    display: block; border-radius: 0.35rem; overflow: hidden;
+    background: var(--card); border: 1px solid var(--line);
+    animation: rise 0.45s ease both;
+    transition: box-shadow 0.25s ease;
   }
-  .thumb { position: relative; display: block; aspect-ratio: 1; overflow: hidden; }
-  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .card:hover { box-shadow: 0 14px 34px -18px rgb(0 0 0 / 0.45); }
+  .thumb { position: relative; display: block; aspect-ratio: 4 / 5; overflow: hidden; }
+  .thumb img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+    transition: transform 0.5s ease;
+  }
+  .card:hover .thumb img { transform: scale(1.03); }
   .badge {
-    position: absolute; top: 0.6rem; right: 0.6rem;
-    padding: 0.3rem 0.7rem; border-radius: 999px;
-    font-size: 0.85rem; font-weight: 700;
-    background: #1a1a1a; color: #fff;
+    position: absolute; top: 0.7rem; right: 0.7rem;
+    padding: 0.28rem 0.7rem; border-radius: 999px;
+    font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em;
+    background: rgb(20 18 15 / 0.82); color: #fff;
   }
-  .badge.sold { background: #8c1d18; }
-  .badge.new { top: auto; bottom: 0.6rem; right: 0.6rem; background: #2e6e5e; }
-  .announce {
-    max-width: 72rem; margin: 0 auto 1rem; padding: 0.8rem 1.25rem;
-    text-align: center; font-weight: 600;
-    background: #fff8e7; border-block: 1px solid #e5cf8f; border-radius: 0;
-  }
-  .meta { display: block; padding: 0.7rem 0.9rem 0.9rem; }
+  .badge.sold { background: rgb(140 29 24 / 0.88); }
+  .badge.new { background: rgb(46 110 94 / 0.88); }
   @keyframes rise {
-    from { opacity: 0; transform: translateY(10px); }
+    from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: none; }
   }
 </style>

@@ -2,7 +2,6 @@
 import ClientRouter from "astro/components/ClientRouter.astro";
 import Analytics from "../components/Analytics.astro";
 import Signature from "../components/Signature.astro";
-import background from "../assets/background.svg";
 
 interface Props {
   title?: string;
@@ -24,8 +23,8 @@ const canonical = Astro.url.href;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#faf7f1" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#141210" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#171512" media="(prefers-color-scheme: dark)" />
     <meta name="description" content={description} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
@@ -52,7 +51,6 @@ const canonical = Astro.url.href;
       </nav>
     </header>
 
-    <img id="background" src={background.src} alt="" fetchpriority="high" />
     <slot />
 
     <footer>
@@ -74,20 +72,44 @@ const canonical = Astro.url.href;
 </html>
 
 <style>
-  :root { color-scheme: light dark; }
+  :root {
+    color-scheme: light dark;
+    --paper: #ffffff;
+    --ink: #211d18;
+    --muted: #6f675c;
+    --line: #e7e1d6;
+    --accent: #a44a24;
+    --accent-ink: #ffffff;
+    --card: #faf8f3;
+    --wash: radial-gradient(120% 60% at 50% -10%, #f3ece0 0%, transparent 60%);
+  }
   html, body { margin: 0; width: 100%; min-height: 100%; }
   body {
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-    background: #faf7f1;
-    color: #1c1a17;
+    background: var(--paper);
+    background-image: var(--wash);
+    background-attachment: fixed;
+    color: var(--ink);
     line-height: 1.5;
   }
-  nav { padding: 1.25rem 1.5rem 0.5rem; }
+  h1, h2, .serif {
+    font-family: Georgia, "Iowan Old Style", Charter, serif;
+    letter-spacing: 0.01em;
+  }
+  nav { padding: 1.25rem 1.5rem 0.25rem; color: var(--ink); }
   #signature svg { max-width: min(78vw, 20rem); height: auto; }
-  #background { position: fixed; inset: 0; width: 100%; height: 100%; z-index: -1; object-fit: cover; }
-  footer { text-align: center; padding: 2.5rem 1.5rem; font-size: 0.9rem; opacity: 0.75; }
+  footer { text-align: center; padding: 2.5rem 1.5rem; font-size: 0.9rem; color: var(--muted); }
+  footer a { color: var(--accent); }
   @media (prefers-color-scheme: dark) {
-    body { background: #141210; color: #f2ede4; }
+    :root {
+      --paper: #171512;
+      --ink: #ece5d8;
+      --muted: #a89e8e;
+      --line: #35302a;
+      --accent: #d08159;
+      --card: #201c17;
+      --wash: radial-gradient(120% 60% at 50% -10%, #2a241d 0%, transparent 60%);
+    }
   }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
