@@ -137,7 +137,7 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
     display: flex; align-items: center; justify-content: space-between; gap: 1rem;
   }
   #signature { display: inline-flex; color: var(--ink); }
-  #signature svg { max-width: min(44vw, 11rem); height: auto; }
+  /* Logo sizing lives in Signature.astro (scoped CSS here can't reach it). */
   .nav-links { display: flex; align-items: center; gap: 1.25rem; font-size: 0.92rem; }
   .nav-links a {
     color: var(--ink); opacity: 0.78;
@@ -164,7 +164,6 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
     .nav-links a:not(.nav-cta) { display: none; }
     .site-nav { padding: 0.7rem 1rem; gap: 0.5rem; }
     #signature { min-width: 0; }
-    #signature svg { max-width: 40vw; }
     .nav-links { gap: 0; }
     .nav-links .nav-cta { padding: 0.32rem 0.9rem; font-size: 0.85rem; }
   }

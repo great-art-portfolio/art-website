@@ -3,11 +3,9 @@ import Layout from "../layouts/Layout.astro";
 import Gallery from "../components/Gallery.astro";
 import { ARTIST_LOCATION, ARTIST_NAME, TAGLINE } from "../lib/site";
 
-// Keep "by Barbara Straka" glued together so the line never breaks after "by".
-const headlineHtml =
-  ARTIST_NAME !== null
-    ? `Original paintings <span class="nobr">by ${ARTIST_NAME}</span>`
-    : "Original paintings, from the studio";
+// The header wordmark already carries the artist's name, so the hero
+// headline stays generic instead of repeating "by …".
+const headlineHtml = "Original paintings, from the studio";
 ---
 
 <Layout>

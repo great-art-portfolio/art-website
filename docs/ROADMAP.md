@@ -18,10 +18,6 @@
 
 ## Wow (impress visitors)
 
-- [ ] **3D gallery room** (`/3d`, flag-gated): paintings are flat, so no
-  "3D scanning" is needed — each photo becomes a texture on a virtual wall.
-  Works in any phone browser (Android Chrome included), no headset.
-  three.js, lazy-loaded so the main gallery stays light.
 - [x] **AR "view on your wall"**: photo → true-scale framed GLB (Android)
   + USDZ (iOS, wall-anchored) generated on her phone at upload time via
   three.js; buyers launch it from the painting page with `<model-viewer>`.
