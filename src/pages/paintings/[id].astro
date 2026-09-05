@@ -46,7 +46,8 @@ const paintingJsonLd = {
       <Content />
       {
         !painting.data.sold && (
-          <form id="inquiry-form" data-static="true">
+          <button type="button" id="inquiry-reveal" class="primary" hidden>Interested?</button>
+      <form id="inquiry-form" data-static="true">
             <h2>Ask to buy this painting</h2>
             <label>Name <input name="name" type="text" required autocomplete="name" /></label>
             <label>Email <input name="email" type="email" required autocomplete="email" /></label>
@@ -72,6 +73,19 @@ const paintingJsonLd = {
       status.textContent = "Thanks! Email the artist to complete your inquiry — online checkout for these pieces is coming soon.";
     }
   });
+
+  // "Interested?" reveals the form (shown openly without JS).
+  const reveal = document.getElementById("inquiry-reveal") as HTMLButtonElement | null;
+  if (reveal !== null && form !== null) {
+    form.hidden = true;
+    reveal.hidden = false;
+    reveal.addEventListener("click", () => {
+      form.hidden = false;
+      reveal.hidden = true;
+      const name = form.querySelector('input[name="name"]') as HTMLInputElement | null;
+      name?.focus();
+    });
+  }
 
   // Tap photo → fullscreen overlay.
   const wrap = document.getElementById("photo-wrap");
@@ -114,6 +128,8 @@ const paintingJsonLd = {
   #lightbox img { max-width: 100vw; max-height: 100vh; object-fit: contain; border-radius: 0; }
   .price { font-size: 1.25rem; font-weight: 700; color: var(--accent); margin: 0 0 1rem; }
   form { display: grid; gap: 0.6rem; margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
+  form[hidden] { display: none; }
+  #inquiry-reveal { margin-top: 1.25rem; }
   form h2 { font-size: 1.2rem; margin: 0; }
   label { display: grid; gap: 0.25rem; font-size: 0.9rem; font-weight: 600; }
   input, textarea {

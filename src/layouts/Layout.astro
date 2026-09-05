@@ -2,6 +2,7 @@
 import ClientRouter from "astro/components/ClientRouter.astro";
 import Analytics from "../components/Analytics.astro";
 import Signature from "../components/Signature.astro";
+import background from "../assets/background.svg";
 
 interface Props {
   title?: string;
@@ -51,6 +52,7 @@ const canonical = Astro.url.href;
       </nav>
     </header>
 
+    <img id="background" src={background.src} alt="" fetchpriority="high" />
     <slot />
 
     <footer>
@@ -97,6 +99,7 @@ const canonical = Astro.url.href;
     letter-spacing: 0.01em;
   }
   nav { padding: 1.25rem 1.5rem 0.25rem; color: var(--ink); }
+  #background { position: fixed; inset: 0; width: 100%; height: 100%; z-index: -1; object-fit: cover; }
   #signature svg { max-width: min(78vw, 20rem); height: auto; }
   footer { text-align: center; padding: 2.5rem 1.5rem; font-size: 0.9rem; color: var(--muted); }
   footer a { color: var(--accent); }
