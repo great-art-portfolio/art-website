@@ -49,6 +49,9 @@ Apply the schema once (`migrations/0001_init.sql` has all three tables).
 - Collector push: `node scripts/gen-vapid.mjs`, set `VAPID_PUBLIC_KEY` /
   `VAPID_CONTACT` vars + `VAPID_PRIVATE_JWK` secret; homepage bell subscribes,
   "Notify collectors" in `/admin` fans out.
+- Spam: Security > Turnstile > Add site (managed widget), set
+  `TURNSTILE_SITE_KEY` var + `TURNSTILE_SECRET_KEY` secret. Until then the
+  honeypot guards the form.
 
 ## Docs
 

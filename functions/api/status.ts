@@ -7,6 +7,8 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
     stripe: flag(context.env.ENABLE_STRIPE),
     shippo: flag(context.env.ENABLE_SHIPPO),
     socialPost: flag(context.env.ENABLE_SOCIAL_POST),
+    // Site key is public by design (it ships in page HTML).
+    turnstileSiteKey: context.env.TURNSTILE_SITE_KEY ?? "",
     email: (context.env.RESEND_API_KEY ?? "") !== "",
     push:
       (context.env.NTFY_TOPIC ?? "") !== "" ||

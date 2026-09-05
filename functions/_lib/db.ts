@@ -1,6 +1,6 @@
 import type { AppEnv } from "./env";
 
-export type PaintingStatus = "available" | "reserved" | "sold";
+export type PaintingStatus = "draft" | "available" | "reserved" | "sold";
 export type InquiryStatus = "new" | "contacted" | "sold" | "closed";
 
 export interface PaintingRow {
@@ -59,9 +59,14 @@ export function slugify(title: string): string {
   return base === "" ? `painting-${Date.now().toString(36)}` : base;
 }
 
-export async function listPaintings(env: AppEnv): Promise<PaintingRow[]> {
+export async function listPaintings(
+  env: AppEnv,
+  includeDrafts = false,
+): Promise<PaintingRow[]> {
   const res = await env.DB.prepare(
-    "SELECT * FROM paintings ORDER BY created_at DESC",
+    includeDrafts
+      ? "SELECT * FROM paintings ORDER BY created_at DESC"
+      : "SELECT * FROM paintings WHERE status != 'draft' ORDER BY created_at DESC",
   ).all<PaintingRow>();
   return res.results ?? [];
 }

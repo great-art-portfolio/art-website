@@ -96,6 +96,7 @@ export async function buildArModels(
 
   return {
     glb: new Blob([glbBuf], { type: "model/gltf-binary" }),
-    usdz: new Blob([usdzBuf.buffer as ArrayBuffer], { type: "model/vnd.usdz" }),
+    // Exact-length copy: the exporter's view may sit in a larger buffer.
+    usdz: new Blob([usdzBuf.slice()], { type: "model/vnd.usdz" }),
   };
 }

@@ -6,7 +6,8 @@
 - [ ] Set secrets: `RESEND_API_KEY`, `NOTIFY_EMAIL_FROM`, `NOTIFY_EMAIL_TO`, `ADMIN_API_TOKEN`, `NTFY_TOPIC`
 - [ ] Put Cloudflare Access (email OTP) on `/admin/*`
 - [ ] Migrate the 5 legacy paintings (`pnpm db:seed`, re-upload photos via `/admin`)
-- [ ] Custom domain later (free on Cloudflare); set `PUBLIC_CF_BEACON_TOKEN` at build time
+- [ ] Custom domain later (free on Cloudflare); set `PUBLIC_CF_BEACON_TOKEN` at build time (Web Analytics can wait for this — per-painting views already work)
+- [ ] Turnstile deferred: Security > Turnstile > Add site (managed), then `TURNSTILE_SITE_KEY` var + `TURNSTILE_SECRET_KEY` secret — honeypot covers the form until then
 
 ## Sell more
 

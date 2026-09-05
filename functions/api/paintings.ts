@@ -18,7 +18,16 @@ function inches(value: unknown): number | null {
 
 export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
   try {
-    return json({ paintings: await listPaintings(context.env) });
+    // Drafts stay invisible until she publishes. ?all=1 (admin UI) needs
+    // the API token when one is configured; otherwise Access is the gate.
+    const url = new URL(context.request.url);
+    let includeDrafts = false;
+    if (url.searchParams.get("all") === "1") {
+      const expected = context.env.ADMIN_API_TOKEN ?? "";
+      const header = context.request.headers.get("authorization") ?? "";
+      if (expected === "" || header === `Bearer ${expected}`) includeDrafts = true;
+    }
+    return json({ paintings: await listPaintings(context.env, includeDrafts) });
   } catch (err) {
     console.error(err);
     return serverError();

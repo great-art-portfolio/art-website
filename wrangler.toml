@@ -15,8 +15,7 @@ NTFY_TOPIC = "art-gallery-inquiries"
 [[d1_databases]]
 binding = "DB"
 database_name = "art-gallery-db"
-# TODO: run `pnpm wrangler d1 create art-gallery-db` and paste the id here.
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "108c5dee-b1a6-4837-8afb-6b2f0b4410ba"
 
 [[r2_buckets]]
 binding = "IMAGES"
@@ -33,6 +32,8 @@ NTFY_TOPIC = "art-gallery-inquiries"
 #   VAPID_PUBLIC_KEY    - actually public: also served via GET /api/push
 #   VAPID_PRIVATE_JWK   - secret JSON from `node scripts/gen-vapid.mjs`
 #   VAPID_CONTACT       - plain var, e.g. mailto:you@example.com
+#   TURNSTILE_SITE_KEY  - plain var from Security > Turnstile > Add site
+#   TURNSTILE_SECRET_KEY - secret from the same Turnstile widget
 #   RESEND_API_KEY      - Resend API key for buyer-inquiry emails
 #   NOTIFY_EMAIL_FROM   - e.g. "Gallery <hello@yourdomain.ca>"
 #   NOTIFY_EMAIL_TO     - your mom's email address

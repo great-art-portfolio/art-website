@@ -120,9 +120,11 @@ async function refreshCollection(): Promise<void> {
             : ` — ${escapeHtml(formatDimensions(p.width_in, p.height_in, p.depth_in))}`) +
           `<br>` +
           `<span class="row">` +
-          `<button type="button" data-status="available">Available</button>` +
+          `<button type="button" data-status="draft">Draft</button>` +
+          `<button type="button" data-status="available">Publish</button>` +
           `<button type="button" data-status="reserved">Reserved</button>` +
           `<button type="button" data-status="sold">Sold</button>` +
+          `<button type="button" data-edit="1">Edit</button>` +
           `<button type="button" data-copy="1">Copy link</button>` +
           `<button type="button" data-delete="1">Delete</button>` +
           `</span></li>`,
@@ -159,16 +161,77 @@ function armCollectionActions(): void {
       return;
     }
     const status = btn.dataset["status"];
-    if (status === "available" || status === "reserved" || status === "sold") {
+    if (
+      status === "draft" ||
+      status === "available" ||
+      status === "reserved" ||
+      status === "sold"
+    ) {
       api
         .updatePainting(id, { status })
         .then(() => {
-          setStatus(`Marked as ${status}.`);
+          setStatus(
+            status === "available" ? "Published — it's live on the site." : `Marked as ${status}.`,
+          );
           return refreshCollection();
         })
         .catch((err: unknown) => setStatus((err as Error).message, true));
+      return;
+    }
+    if (btn.dataset["edit"] === "1") {
+      openEditForm(item as HTMLElement, id);
+      return;
+    }
+    if (btn.dataset["save"] === "1") {
+      saveEditForm(id);
     }
   });
+}
+
+function openEditForm(item: HTMLElement, id: string): void {
+  const p = cachePaintings.find((x) => x.id === id);
+  if (p === undefined) return;
+  const dims = (n: number | null): string => (n === null ? "" : String(n));
+  item.innerHTML =
+    `<label>Title <input id="ed-title" type="text" maxlength="120" value="${escapeHtml(p.title)}" /></label>` +
+    `<label>Price (CAD) <input id="ed-price" type="number" min="1" step="0.01" inputmode="decimal" value="${(p.price_cents / 100).toFixed(2)}" /></label>` +
+    `<label>Description <textarea id="ed-desc" rows="3" maxlength="2000">${escapeHtml(p.description)}</textarea></label>` +
+    `<div class="row">` +
+    `<label>W (in) <input id="ed-w" type="number" min="1" step="0.5" inputmode="decimal" value="${dims(p.width_in)}" /></label>` +
+    `<label>H (in) <input id="ed-h" type="number" min="1" step="0.5" inputmode="decimal" value="${dims(p.height_in)}" /></label>` +
+    `<label>D (in) <input id="ed-d" type="number" min="0.5" step="0.5" inputmode="decimal" value="${dims(p.depth_in)}" /></label>` +
+    `</div>` +
+    `<span class="row"><button type="button" data-save="1">Save</button></span>`;
+}
+
+function saveEditForm(id: string): void {
+  const title = ($("ed-title") as HTMLInputElement).value.trim();
+  const price = Number(($("ed-price") as HTMLInputElement).value);
+  const priceCents = dollarsToCents(price);
+  if (title === "" || priceCents === null) {
+    setStatus("Title and a valid price are required.", true);
+    return;
+  }
+  const dim = (eid: string): number | null => {
+    const raw = ($(eid) as HTMLInputElement).value.trim();
+    if (raw === "") return null; // blank keeps the old value server-side
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+  api
+    .updatePainting(id, {
+      title,
+      priceCents,
+      description: ($("ed-desc") as HTMLTextAreaElement).value.trim(),
+      widthIn: dim("ed-w"),
+      heightIn: dim("ed-h"),
+      depthIn: dim("ed-d"),
+    })
+    .then(() => {
+      setStatus("Saved.");
+      return refreshCollection();
+    })
+    .catch((err: unknown) => setStatus((err as Error).message, true));
 }
 
 /** Inline <model-viewer> test so she can try AR before buyers do. */
@@ -184,6 +247,7 @@ function showArPreview(glbUrl: string, usdzUrl: string): void {
       el.setAttribute("ar", "");
       el.setAttribute("ar-modes", "webxr scene-viewer quick-look");
       el.setAttribute("ar-scale", "fixed");
+      el.setAttribute("ar-placement", "wall");
       el.setAttribute("camera-controls", "");
       el.setAttribute("alt", "AR preview");
       el.style.width = "100%";
@@ -384,7 +448,9 @@ function init(): void {
         }
         ($("share-caption") as HTMLTextAreaElement).value = caption;
         $("share-panel").hidden = false;
-        setStatus(`Saved "${painting.title}" (${formatCAD(painting.price_cents)}). Now share it below.`);
+        setStatus(
+          `Saved "${painting.title}" (${formatCAD(painting.price_cents)}) as a draft — check the AR preview, then Publish.`,
+        );
         (e.target as HTMLFormElement).reset();
       } catch (err) {
         setStatus((err as Error).message, true);

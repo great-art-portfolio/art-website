@@ -7,6 +7,8 @@ export interface AppEnv {
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_JWK?: string;
   VAPID_CONTACT?: string;
+  TURNSTILE_SITE_KEY?: string;
+  TURNSTILE_SECRET_KEY?: string;
   RESEND_API_KEY?: string;
   NOTIFY_EMAIL_FROM?: string;
   NOTIFY_EMAIL_TO?: string;

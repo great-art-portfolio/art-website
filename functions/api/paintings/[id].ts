@@ -2,12 +2,14 @@ import { deletePainting, getPainting, updatePainting, type PaintingRow } from ".
 import type { AppEnv } from "../../_lib/env";
 import { badRequest, json, requireAdmin, serverError } from "../../_lib/http";
 
-const STATUSES = new Set(["available", "reserved", "sold"]);
+const STATUSES = new Set(["draft", "available", "reserved", "sold"]);
 
 export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
   try {
     const painting = await getPainting(context.env, context.params["id"] as string);
-    if (painting === null) return json({ error: "Not found" }, { status: 404 });
+    if (painting === null || painting.status === "draft") {
+      return json({ error: "Not found" }, { status: 404 });
+    }
     return json({ painting });
   } catch (err) {
     console.error(err);

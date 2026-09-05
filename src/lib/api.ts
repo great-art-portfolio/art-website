@@ -9,7 +9,7 @@ export interface ApiPainting {
   description: string;
   image_key: string;
   image_url: string;
-  status: "available" | "reserved" | "sold";
+  status: "draft" | "available" | "reserved" | "sold";
   width_in: number | null;
   height_in: number | null;
   depth_in: number | null;
@@ -44,7 +44,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   async listPaintings(): Promise<ApiPainting[]> {
-    const data = await request<{ paintings: ApiPainting[] }>("/api/paintings");
+    // Admin view: ?all=1 includes drafts (token-gated server-side).
+    const data = await request<{ paintings: ApiPainting[] }>("/api/paintings?all=1", {
+      headers: adminHeaders(),
+    });
     return data.paintings;
   },
   async createPainting(input: {
@@ -69,7 +72,15 @@ export const api = {
   },
   async updatePainting(
     id: string,
-    patch: Partial<Pick<ApiPainting, "title" | "status">> & { priceCents?: number },
+    patch: {
+      title?: string;
+      status?: ApiPainting["status"];
+      description?: string;
+      priceCents?: number;
+      widthIn?: number | null;
+      heightIn?: number | null;
+      depthIn?: number | null;
+    },
   ): Promise<ApiPainting> {
     const data = await request<{ painting: ApiPainting }>(
       `/api/paintings/${encodeURIComponent(id)}`,

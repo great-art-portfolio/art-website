@@ -5,6 +5,28 @@ import { sendInquiryNotifications } from "../_lib/notify";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+async function turnstileOk(env: AppEnv, token: unknown, ip: string | null): Promise<boolean> {
+  const secret = env.TURNSTILE_SECRET_KEY ?? "";
+  // Keys arrive with the dashboard setup; until then the honeypot covers us.
+  if (secret === "") return true;
+  if (typeof token !== "string" || token === "") return false;
+  try {
+    const form = new FormData();
+    form.set("secret", secret);
+    form.set("response", token);
+    if (ip !== null) form.set("remoteip", ip);
+    const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      body: form,
+    });
+    const data = (await res.json()) as { success?: boolean };
+    return data.success === true;
+  } catch (err) {
+    console.error("turnstile verify failed", err);
+    return false;
+  }
+}
+
 /** Public: a visitor asks to buy a painting. */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   let body: Record<string, unknown>;
@@ -16,6 +38,9 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   // Honeypot: bots fill it, humans never see it.
   if (typeof body["website"] === "string" && body["website"] !== "") {
     return json({ ok: true });
+  }
+  if (!(await turnstileOk(context.env, body["turnstileToken"], context.request.headers.get("cf-connecting-ip")))) {
+    return badRequest("Spam check failed — please try again.");
   }
   const paintingId = typeof body["paintingId"] === "string" ? body["paintingId"] : "";
   const buyerName = typeof body["name"] === "string" ? body["name"].trim().slice(0, 120) : "";

@@ -62,6 +62,14 @@ export async function flushOutbox(): Promise<void> {
     req.onsuccess = () => resolve(req.result as QueuedPost[]);
     req.onerror = () => reject(req.error);
   });
+  const drop = async (id: string): Promise<void> => {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE, "readwrite");
+      tx.objectStore(STORE).delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  };
   for (const post of posts) {
     try {
       const res = await fetch(post.path, {
@@ -69,16 +77,16 @@ export async function flushOutbox(): Promise<void> {
         headers: { "Content-Type": "application/json" },
         body: post.body,
       });
-      if (!res.ok) continue; // Server said no — keep it for a later retry.
+      if (res.status >= 400 && res.status < 500) {
+        // Server rejected it (bad input, expired spam check) — retrying can't help.
+        await drop(post.id);
+        continue;
+      }
+      if (!res.ok) continue; // Server trouble — keep it for a later retry.
     } catch {
       break; // Still offline — stop, try again next time.
     }
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE, "readwrite");
-      tx.objectStore(STORE).delete(post.id);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
+    await drop(post.id);
   }
   db.close();
 }
