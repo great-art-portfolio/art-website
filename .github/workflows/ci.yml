@@ -19,6 +19,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm astro check
+      - run: pnpm typecheck
+      - run: pnpm test:unit
+      - run: pnpm check:inline
       - run: pnpm build
 
   # Smoke tests against the real Pages runtime (static + Functions,
