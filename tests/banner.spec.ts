@@ -92,7 +92,7 @@ test("empty banner text clears the file", async ({ page }) => {
 
 test("active banner shows above the collection", async ({ page }) => {
   const text = "Lilac Festival this Sunday!";
-  await page.route("http://127.0.0.1:4321/", async (route) => {
+  await page.route("http://127.0.0.1:4331/", async (route) => {
     const res = await route.fetch();
     const html = (await res.text()).replace(
       '<section class="collection" id="collection"',
@@ -112,7 +112,7 @@ test("active banner shows above the collection", async ({ page }) => {
 });
 
 test("forgotten banner hides itself past its end date", async ({ page }) => {
-  await page.route("http://127.0.0.1:4321/", async (route) => {
+  await page.route("http://127.0.0.1:4331/", async (route) => {
     const res = await route.fetch();
     const html = (await res.text()).replace(
       '<section class="collection" id="collection"',
