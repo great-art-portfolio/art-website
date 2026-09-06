@@ -39,6 +39,12 @@ export function workCount(n: number): string {
   return `${n} ${n === 1 ? "work" : "works"}`;
 }
 
+/** Drafts never reach buyers: gallery, painting pages, and sitemap only
+ * ever see entries where the draft flag is absent or false. */
+export function isPublished(data: { draft?: boolean }): boolean {
+  return data.draft !== true;
+}
+
 /** Studio collection groups: available first, then sold. Order kept. */
 export function groupByAvailability<T extends { sold: boolean }>(
   rows: T[],

@@ -4,10 +4,10 @@ import { getCollection, render } from "astro:content";
 import Layout from "../../layouts/Layout.astro";
 import { formatDimensions } from "../../lib/dims";
 import { PHOTO_WIDTHS, photoSizes } from "../../lib/responsive-images";
-import { SHOW_PRICES, slugifyTitle } from "../../lib/site";
+import { SHOW_PRICES, isPublished, slugifyTitle } from "../../lib/site";
 
 export async function getStaticPaths() {
-  const paintings = await getCollection("paintings");
+  const paintings = (await getCollection("paintings")).filter((p) => isPublished(p.data));
   return paintings.map((painting) => ({
     params: { id: slugifyTitle(painting.data.title) },
     props: { painting },

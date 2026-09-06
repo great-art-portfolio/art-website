@@ -8,7 +8,7 @@ import {
   gallerySizes,
   soldSizes,
 } from "../lib/responsive-images";
-import { SHOW_PRICES, slugifyTitle, workCount } from "../lib/site";
+import { SHOW_PRICES, isPublished, slugifyTitle, workCount } from "../lib/site";
 import { isExpired, localToday, parseAnnouncement } from "../lib/banner";
 import bannerRaw from "../content/announcement.txt?raw";
 
@@ -16,7 +16,7 @@ type Painting = CollectionEntry<"paintings">;
 const dimsOf = (p: Painting): string =>
   formatDimensions(p.data.widthIn ?? null, p.data.heightIn ?? null, p.data.depthIn ?? null);
 
-const paintings = await getCollection("paintings");
+const paintings = (await getCollection("paintings")).filter((p) => isPublished(p.data));
 const available = paintings.filter((p) => !p.data.sold);
 const sold = paintings.filter((p) => p.data.sold);
 

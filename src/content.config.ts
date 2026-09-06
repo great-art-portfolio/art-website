@@ -18,6 +18,9 @@ const paintings = defineCollection({
     widthIn: z.number().positive().optional(),
     heightIn: z.number().positive().optional(),
     depthIn: z.number().positive().optional(),
+    // Studio drafts: saved but not yet published. Hidden from the gallery,
+    // painting pages, and search engines until the draft flag comes off.
+    draft: z.boolean().optional(),
     medium: z.string().optional(),
     // "View on your wall" AR models, built once in /admin and committed to
     // public/models. Absent = no AR section on the page.

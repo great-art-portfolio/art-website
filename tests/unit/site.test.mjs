@@ -1,6 +1,17 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { groupByAvailability } from "../../src/lib/site.ts";
+import { groupByAvailability, isPublished } from "../../src/lib/site.ts";
+
+describe("isPublished", () => {
+  it("treats missing or false draft as published", () => {
+    assert.equal(isPublished({}), true);
+    assert.equal(isPublished({ draft: false }), true);
+  });
+
+  it("hides drafts from buyers", () => {
+    assert.equal(isPublished({ draft: true }), false);
+  });
+});
 
 describe("groupByAvailability", () => {
   it("puts available first, sold after, keeping order", () => {

@@ -16,6 +16,8 @@ const localCollection = (await getCollection("paintings")).map((p) => ({
   widthIn: p.data.widthIn ?? null,
   heightIn: p.data.heightIn ?? null,
   depthIn: p.data.depthIn ?? null,
+  draft: p.data.draft === true,
+  image: p.data.image.src,
 }));
 const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
 ---
