@@ -35,9 +35,9 @@ with zero prior context.
   `src/pages/index.astro:145-164`); section-head is eyebrow + h2 + count
   (`Gallery.astro:143-153`).
 - AR models (`src/lib/ar.ts`): texture capped at 1024px (`MAX_TEX_SIDE`),
-  `texture.userData.mimeType = "image/jpeg"` with the comment "the default PNG
-  is ~4× the bytes". Measured this session: committed GLBs are 228–330KB.
-  The ~4× ratio itself was never measured — it is folklore until U1 checks it.
+  `texture.userData.mimeType = "image/jpeg"`. U1 measured a committed GLB:
+  267KB JPEG of 271KB total at 1012×1024; same pixels as PNG = 1.9MB
+  (~7×) — the old "~4×" comment was wrong in magnitude, fixed in b848c18.
 - Admin is `src/pages/admin.astro` + `src/components/AdminPanel.ts`. Exact
   strings confirmed: status blurb "Add a painting below — saving publishes it
   to the site." (`admin.astro:9-11`); collection hint "Open the gallery …"
@@ -72,16 +72,17 @@ with zero prior context.
   while longer terms wrap into a ragged two-column look — inconsistent.
   Fix in U2: a real two-column grid (term column + description column) at
   narrow widths.
-- Committed: ab53b65, 4cbc7cc, 6d97446, fe9bb85, baa70d6. Uncommitted:
-  hover-prefetch (`Gallery.astro`, `tests/gallery.spec.ts`), README (user's
-  edit), `foo.md` (user's convo copy — recoverable, deletable after approval).
+- Committed: ab53b65, 4cbc7cc, 6d97446, fe9bb85, baa70d6, 966f57e
+  (planning round), b848c18 (U1). Uncommitted: hover-prefetch
+  (`Gallery.astro`, `tests/gallery.spec.ts`) and README (user's edit).
+  Deleted as agreed: `foo.md`, `.agents/plans/2026-09-06-admin-studio.md`.
 - Architecture (do not "fix" this): each painting has ONE public URL
   (`/paintings/<slug>`) for buyers and mom alike — there are no
   `/admin/paintings/*` routes and none are planned. Admin mode is a toolbar
-  overlay on the public page, shown iff `sessionStorage` holds a token;
-  visitors never have one. API writes are gated by Access (+ env token when
-  set). So "only mom can edit" = toolbar hidden + API gated, never a secret
-  URL.
+  overlay on the public page, shown iff this browser holds the token
+  (`localStorage` after U5; `sessionStorage` today); visitors never have one.
+  API writes are gated by Access + the env Bearer. So "only mom can edit" =
+  toolbar hidden + API gated, never a secret URL.
 - CI (`.github/workflows/ci.yml`) runs `astro check` + `build` + full e2e,
   but NOT `typecheck` (tsc), `test:unit`, or `check:inline` — all three exist
   and pass locally. U9 adds them.
@@ -158,9 +159,9 @@ Each unit below is independently committable in order.
 
 ## Work Plan
 
-- **U1. Comment audit** (`src/lib/ar.ts`): parse a committed `.glb`'s JSON
-  chunk, confirm embedded texture `mimeType` + byte sizes; reword the "~4×"
-  comment to the measured numbers (or the verified ratio). No behavior change.
+- **U1. Comment audit** — DONE (b848c18): parsed a committed `.glb`
+  (JPEG, 267KB of 271KB at 1012×1024; PNG equivalent 1.9MB, ~7×); comment
+  reworded to measured numbers. Bundle deliberately not rebuilt (comment-only).
 - **U2. Public polish** (`Gallery.astro`, `index.astro`, `[id].astro`):
   device-neutral AR sentence; `NEW_MS` to 7 days (agreed 2026-09-06);
   eyebrow `white-space:
@@ -197,8 +198,8 @@ Each unit below is independently committable in order.
 - **U6. Notify-collectors copy**: rewrite `collectors-hint` text to name
   subscribed-collector push vs inbox email in her words.
 - **U7. Full validation** (see Validation Plan) + screenshots (390px, 1440px).
-- **U8. Housekeeping**: commit the pending hover-prefetch; delete `foo.md`
-  after approval; this file supersedes `.agents/plans/2026-09-06-admin-studio.md`.
+- **U8. Housekeeping**: commit the pending hover-prefetch (verified 18/18
+  on 4331); `foo.md` and the old `.agents` plan already deleted.
 - **U9. CI gates** (`.github/workflows/ci.yml`): add `pnpm typecheck`,
   `pnpm test:unit`, `pnpm check:inline` to the check job. No workflow
   redesign; e2e already runs the full suite on the committed 4331 config.
