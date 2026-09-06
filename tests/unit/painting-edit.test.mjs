@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { resolveDims, stemOf } from "../../src/lib/ar.ts";
 import {
+  buildMarkdown,
   paintingFilePaths,
   parsePainting,
   patchPainting,
@@ -82,6 +83,8 @@ describe("patchPainting model refs", () => {
     widthIn: "24",
     heightIn: "24",
     depthIn: "24",
+    medium: "",
+    draft: false,
     sold: false,
   };
 
@@ -113,6 +116,69 @@ describe("patchPainting model refs", () => {
   it("updates dimensions like before", () => {
     const next = patchPainting(SAMPLE, { ...edits, widthIn: "30" });
     assert.match(next, /^widthIn: 30$/m);
+  });
+
+  it("writes the medium key when set", () => {
+    const next = patchPainting(SAMPLE, { ...edits, medium: "Oil on canvas" });
+    assert.match(next, /^medium: "Oil on canvas"$/m);
+  });
+
+  it("removes the medium key when emptied", () => {
+    const withMedium = patchPainting(SAMPLE, { ...edits, medium: "Oil" });
+    assert.match(withMedium, /^medium: "Oil"$/m);
+    const next = patchPainting(withMedium, edits);
+    assert.doesNotMatch(next, /^medium:/m);
+  });
+
+  it("flips the draft flag both ways", () => {
+    assert.match(patchPainting(SAMPLE, { ...edits, draft: true }), /^draft: true$/m);
+    const back = patchPainting(SAMPLE, { ...edits, draft: true });
+    assert.match(patchPainting(back, edits), /^draft: false$/m);
+  });
+
+  it("reads medium and draft back", () => {
+    const p = parsePainting(patchPainting(SAMPLE, { ...edits, medium: "Oil", draft: true }));
+    assert.equal(p.medium, "Oil");
+    assert.equal(p.draft, true);
+    const plain = parsePainting(SAMPLE);
+    assert.equal(plain.medium, "");
+    assert.equal(plain.draft, false);
+  });
+});
+
+describe("buildMarkdown", () => {
+  const input = {
+    title: "First Thaw",
+    price: 125,
+    alt: "Pale winter abstract",
+    description: "Late snow.",
+    imageFile: "first-thaw.jpg",
+    widthIn: 24,
+    heightIn: 36,
+    depthIn: 1.5,
+    medium: "Oil on canvas",
+    draft: true,
+    modelGlb: "",
+    modelUsdz: "",
+  };
+
+  it("writes a complete draft file", () => {
+    const md = buildMarkdown(input);
+    assert.match(md, /^title: "First Thaw"$/m);
+    assert.match(md, /^draft: true$/m);
+    assert.match(md, /^medium: "Oil on canvas"$/m);
+    assert.match(md, /^price: 125\.00$/m);
+    const round = parsePainting(md);
+    assert.equal(round.title, "First Thaw");
+    assert.equal(round.draft, true);
+    assert.equal(round.medium, "Oil on canvas");
+    assert.equal(round.description, "Late snow.");
+  });
+
+  it("omits medium when blank, publishes when not a draft", () => {
+    const md = buildMarkdown({ ...input, medium: "  ", draft: false });
+    assert.doesNotMatch(md, /^medium:/m);
+    assert.match(md, /^draft: false$/m);
   });
 });
 

@@ -1,0 +1,30 @@
+---
+import Layout from "../../../layouts/Layout.astro";
+import PaintingDetail, { type PaintingDetailData } from "../../../components/PaintingDetail.astro";
+
+// An empty painting: every field starts blank, the photo tile waits for an
+// upload, and the wall preview holds its "about 5 seconds" note.
+const data: PaintingDetailData = {
+  title: "",
+  price: 0,
+  sold: false,
+  medium: "",
+  meta: "",
+  alt: "",
+  description: "",
+  widthIn: "",
+  heightIn: "",
+  depthIn: "",
+  modelGlb: "",
+  modelUsdz: "",
+  mdPath: "",
+  slug: "",
+  draft: true,
+};
+---
+
+<Layout title="New painting — Studio" wordmark="admin" description="Add a painting to the collection.">
+  <PaintingDetail mode="draft" data={data} backHref="/admin" backLabel="← Back to the studio" />
+</Layout>
+
+<script src="../../../components/StudioPainting.ts"></script>

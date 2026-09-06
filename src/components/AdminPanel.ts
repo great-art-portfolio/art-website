@@ -1,25 +1,21 @@
 import { api, ApiError, getApiToken, setApiToken } from "../lib/api";
-import { loadImageFile, prepareImage } from "../lib/image";
-import { buildCaption, sharePainting } from "../lib/share";
+import { sharePainting } from "../lib/share";
 import { dollarsToCents, formatCAD } from "../lib/money";
 import { groupByAvailability, slugifyTitle } from "../lib/site";
+import { parsePainting } from "../lib/painting-edit";
 import {
-  paintingFilePaths,
-  parsePainting,
-  patchPainting,
-  yamlQuote,
-  type PaintingEdits,
-} from "../lib/painting-edit";
-
-import { loadArTooling, loadModelViewer } from "../lib/vendor-loader";
+  clearPracticeOverlay,
+  loadPracticeOverlay,
+  practiceCount,
+  type PracticeOverlay,
+} from "../lib/practice";
 
 /**
- * Admin island (client-only): publish paintings to git, share kit,
- * homepage banner, collector push. Protected in production by
- * Cloudflare Access; ADMIN_API_TOKEN is local backup.
- *
- * Paintings live in git: saving commits a .md + photo (+ AR models) to
- * the repo; Pages rebuilds on push — live a few minutes later.
+ * Admin island (client-only): studio dashboard — collection index with
+ * thumbnails, share kit, homepage banner, collector push. Painting rooms
+ * (new + edit) live on their own routes; saving happens there and lands
+ * back here. Protected in production by Cloudflare Access;
+ * ADMIN_API_TOKEN is local backup.
  */
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T => {
@@ -28,16 +24,7 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string): T => {
   return el as T;
 };
 
-let loadedImage: HTMLImageElement | null = null;
-let preparedBlob: Blob | null = null;
-let lastPreviewUrl: string | null = null;
-let rotation: 0 | 90 | 180 | 270 = 0;
 let lastShare: { title: string; caption: string; pageUrl: string } | null = null;
-// Preview models: photo generation (bumped on every new/rotated photo),
-// built blobs, and their object URLs for cleanup.
-let photoGen = 0;
-let previewModels: { sig: string; glb: Blob; usdz: Blob } | null = null;
-let arPreviewUrls: string[] = [];
 
 /** Toasts clear themselves after a few seconds — errors included, so a
  * stale complaint never sits over the page. Each new message restarts the
@@ -78,48 +65,25 @@ async function apiReachable(): Promise<boolean> {
   }
 }
 
-async function refreshPreview(): Promise<void> {
-  if (loadedImage === null) return;
-  const prepared = await prepareImage(loadedImage, rotation);
-  if (lastPreviewUrl !== null) URL.revokeObjectURL(lastPreviewUrl);
-  preparedBlob = prepared.blob;
-  // New pixels invalidate any models built before — and hide them until
-  // the rebuild lands, so she never sees a wrong-size preview.
-  photoGen += 1;
-  previewModels = null;
-  const arMount = $("ar-preview") as HTMLElement;
-  arMount.hidden = true;
-  arMount.classList.remove("live");
-  arMount.innerHTML = "";
-  ($("photo-tools") as HTMLDivElement).hidden = false;
-  lastPreviewUrl = prepared.previewUrl;
-  const img = $<HTMLImageElement>("photo-preview");
-  img.src = prepared.previewUrl;
-  img.hidden = false;
-  ($("photo-empty") as HTMLElement).hidden = true;
-  const mb = prepared.blob.size / 1048576;
-  const size = mb >= 1 ? `${mb.toFixed(1)} MB` : `${Math.max(1, Math.round(prepared.blob.size / 1024))} KB`;
-  $("photo-meta").textContent = `${prepared.width} × ${prepared.height} px · ${size} upload`;
-  refreshAddPreview();
-  // Photo (or rotation) changed — rebuild the 3D preview to match.
-  void autoBuildAr();
-}
-
 interface LocalPainting {
   slug: string;
   title: string;
   price: number;
   sold: boolean;
+  draft: boolean;
+  image: string;
   alt: string;
   description: string;
   widthIn: string;
   heightIn: string;
   depthIn: string;
+  medium: string;
 }
 
-/** Dev working copy: practice edits and deletes land here, never in git.
- * Seeded once from the baked-in list; a reload restores the repo state. */
+/** Baked-in list, seeded once per visit (dev practice merges over it). */
 let localRows: LocalPainting[] | null = null;
+/** Built thumbnail URLs by slug, parsed once from the baked-in list. */
+let thumbBySlug: Record<string, string> | null = null;
 
 function seedLocalRows(raw: unknown): LocalPainting[] | null {
   if (!Array.isArray(raw)) return null;
@@ -137,22 +101,43 @@ function seedLocalRows(raw: unknown): LocalPainting[] | null {
       title: row["title"] as string,
       price: typeof row["price"] === "number" ? (row["price"] as number) : Number(row["price"]),
       sold: row["sold"] === true,
+      draft: row["draft"] === true,
+      image: str(row["image"]),
       alt: str(row["alt"]),
       description: str(row["description"]),
       widthIn: dim(row["widthIn"]),
       heightIn: dim(row["heightIn"]),
       depthIn: dim(row["depthIn"]),
+      medium: str(row["medium"]),
     });
   }
   return clean;
 }
 
+/** Dev practice overlay over the baked list: deletes drop rows, upserts
+ * replace same-slug rows or append new ones. */
+function mergePractice(rows: LocalPainting[], overlay: PracticeOverlay): LocalPainting[] {
+  const gone = new Set(overlay.deletes);
+  const kept = rows.filter((r) => !gone.has(r.slug));
+  for (const p of Object.values(overlay.upserts)) {
+    const at = kept.findIndex((r) => r.slug === p.slug);
+    const row: LocalPainting = { ...p, image: "" };
+    if (at >= 0) {
+      const thumb = kept[at]?.image ?? "";
+      kept[at] = { ...row, image: thumb };
+    } else {
+      kept.push(row);
+    }
+  }
+  return kept;
+}
+
 /**
  * Dev fallback: the page baked the collection in at build time, so the
- * list works with no API at all — including practice edits and deletes
- * against an in-memory copy (a reload restores the repo state). True only
- * when the embedded list parses — otherwise the caller falls through to
- * the error branches.
+ * index works with no API at all — merged with the practice overlay, so
+ * studio-room saves made in this browser show up here. True only when the
+ * embedded list parses — otherwise the caller falls through to the error
+ * branches.
  */
 function renderLocalCollection(): boolean {
   if (localRows === null) {
@@ -168,111 +153,72 @@ function renderLocalCollection(): boolean {
     if (seeded === null) return false;
     localRows = seeded;
   }
-  const list = $("edit-list");
-  ($("collection-refresh") as HTMLButtonElement).hidden = true;
-  if (localRows.length === 0) {
-    list.innerHTML = "<li>Nothing here yet — add your first painting above.</li>";
-    return true;
-  }
-  const esc = (s: string): string =>
-    s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-  const flat = [...localRows].sort((a, b) => a.title.localeCompare(b.title));
-  const localRow = (r: LocalPainting): string => {
-    const cents = dollarsToCents(Number(r.price));
-    const price = cents === null ? "Price?" : formatCAD(cents);
-    return (
-      `<li><a href="/paintings/${esc(r.slug)}"><strong>${esc(r.title)}</strong></a>` +
-      ` — ${price} ` +
-      `<span class="row"><button type="button" data-local-edit="${localRows?.indexOf(r) ?? -1}">Edit here</button></span></li>`
-    );
-  };
-  const groups = groupByAvailability(flat);
-  let html = `<li class="list-sub"><h3>Available</h3></li>`;
-  html +=
-    groups.available.length === 0
-      ? `<li class="list-plain">Nothing available right now.</li>`
-      : groups.available.map(localRow).join("");
-  if (groups.sold.length > 0) {
-    html += `<li class="list-sub"><h3>Sold</h3></li>` + groups.sold.map(localRow).join("");
-  }
-  list.innerHTML = html;
+  const overlay = loadPracticeOverlay();
+  renderRows(mergePractice(localRows, overlay));
   ($("collection-hint") as HTMLParagraphElement).innerHTML =
-    '<a href="/#collection">Open the collection</a> to see what buyers see — then come back here and tap Edit here on any piece below.';
-  // Practice list: edits and deletes stay in this tab and vanish on reload.
-  // The note lives in the Collection card, next to the list it describes.
+    '<a href="/#collection">Open the collection</a> to see what buyers see — tap any piece below to open its studio page.';
+  // Practice mode: saves from the studio rooms land in this browser, and
+  // clear out with one tap. The note lives in the Collection card, next
+  // to the list it describes.
   const note = $("collection-note");
   note.textContent =
-    "Practice list — edits and deletes here stay in this tab and vanish on reload. Real publishing happens on the live site.";
+    "Practice list — studio saves in this browser show up here. Real publishing happens on the live site.";
   (note as HTMLParagraphElement).hidden = false;
-  list.querySelectorAll("button[data-local-edit]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      openLocalEditForm(Number((btn as HTMLElement).dataset["localEdit"]));
+  const reset = $("practice-reset") as HTMLButtonElement;
+  reset.hidden = practiceCount(overlay) === 0;
+  if (reset.dataset.wired !== "1") {
+    reset.dataset.wired = "1";
+    reset.addEventListener("click", () => {
+      clearPracticeOverlay();
+      setStatus("Practice changes cleared — back to the repo list.");
+      renderLocalCollection();
     });
-  });
+  }
   return true;
 }
 
-/** Dev edit form: same fields as the live one, saving to the in-memory copy. */
-function openLocalEditForm(index: number): void {
-  const rows = localRows;
-  if (rows === null) {
-    setStatus("Couldn't load that painting.", true);
-    return;
-  }
-  const row = rows[index];
-  if (row === undefined) {
-    setStatus("Couldn't load that painting.", true);
-    return;
-  }
+/** One row: thumbnail, buyer link, price, and the door to its studio page. */
+function rowHtml(r: LocalPainting): string {
+  const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  const cents = dollarsToCents(Number(r.price));
+  const price = cents === null ? "Price?" : formatCAD(cents);
+  const thumb =
+    r.image === ""
+      ? ""
+      : `<img class="thumb" src="${esc(r.image)}" alt="" loading="lazy" />`;
+  return (
+    `<li class="row-card">${thumb}<span class="row-body">` +
+    `<a href="/paintings/${esc(r.slug)}"><strong>${esc(r.title)}</strong></a>` +
+    `<span> — ${price}</span>` +
+    `<a class="row-edit" href="/admin/paintings/${esc(r.slug)}">Edit here</a>` +
+    `</span></li>`
+  );
+}
+
+/** Drafts first (only when they exist), then available, then sold. */
+function renderRows(rows: LocalPainting[]): void {
   const list = $("edit-list");
-  const esc = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
-  list.innerHTML =
-    `<li><label>Title <input id="ed-title" type="text" maxlength="120" value="${esc(row.title)}" /></label>` +
-    `<label>Price (CAD) <input id="ed-price" type="number" min="1" step="0.01" inputmode="decimal" value="${esc(String(row.price))}" /></label>` +
-    `<label>Alt text <input id="ed-alt" type="text" maxlength="200" value="${esc(row.alt)}" /></label>` +
-    `<label>Description <textarea id="ed-desc" rows="3" maxlength="2000">${esc(row.description)}</textarea></label>` +
-    `<div class="row">` +
-    `<label>W (in) <input id="ed-w" type="number" min="1" step="0.5" inputmode="decimal" value="${esc(row.widthIn)}" /></label>` +
-    `<label>H (in) <input id="ed-h" type="number" min="1" step="0.5" inputmode="decimal" value="${esc(row.heightIn)}" /></label>` +
-    `<label>D (in) <input id="ed-d" type="number" min="0.5" step="0.5" inputmode="decimal" value="${esc(row.depthIn)}" /></label>` +
-    `</div>` +
-    `<label class="check"><input id="ed-sold" type="checkbox"${row.sold ? " checked" : ""} /> Sold</label>` +
-    `<span class="row"><button type="button" id="ed-save" class="primary">Save</button> ` +
-    `<button type="button" id="ed-cancel">Cancel</button> ` +
-    `<button type="button" id="ed-del">Delete…</button></span></li>`;
-  ($("ed-cancel") as HTMLButtonElement).addEventListener("click", () => void renderLocalCollection());
-  ($("ed-del") as HTMLButtonElement).addEventListener("click", (e) => {
-    const btn = e.currentTarget as HTMLButtonElement;
-    if (btn.dataset.armed !== "1") {
-      btn.dataset.armed = "1";
-      btn.textContent = "Tap again to delete";
-      setStatus(`This removes "${row.title}" from this practice list only. Tap again to confirm.`, true);
-      return;
-    }
-    rows.splice(index, 1);
-    setStatus(`Deleted "${row.title}" from this practice list — the real file is untouched.`);
-    renderLocalCollection();
-  });
-  ($("ed-save") as HTMLButtonElement).addEventListener("click", () => {
-    const val = (id: string): string => ($(id) as HTMLInputElement).value.trim();
-    const title = val("ed-title");
-    const price = Number(val("ed-price"));
-    if (title === "" || !(Number.isFinite(price) && price > 0)) {
-      setStatus("Title and a valid price are required.", true);
-      return;
-    }
-    row.title = title;
-    row.slug = slugifyTitle(title);
-    row.price = Math.round(price * 100) / 100;
-    row.alt = val("ed-alt");
-    row.description = ($("ed-desc") as HTMLTextAreaElement).value;
-    row.widthIn = val("ed-w");
-    row.heightIn = val("ed-h");
-    row.depthIn = val("ed-d");
-    row.sold = ($("ed-sold") as HTMLInputElement).checked;
-    setStatus(`Saved "${title}" — practice only, gone on reload.`);
-    renderLocalCollection();
-  });
+  ($("collection-refresh") as HTMLButtonElement).hidden = true;
+  if (rows.length === 0) {
+    list.innerHTML = '<li class="list-plain">Nothing here yet — start a new painting above.</li>';
+    return;
+  }
+  const flat = [...rows].sort((a, b) => a.title.localeCompare(b.title));
+  const drafts = flat.filter((r) => r.draft);
+  const groups = groupByAvailability(flat.filter((r) => !r.draft));
+  let html =
+    drafts.length === 0
+      ? ""
+      : `<li class="list-sub"><h3>Drafts</h3></li>` + drafts.map(rowHtml).join("");
+  html += `<li class="list-sub"><h3>Available</h3></li>`;
+  html +=
+    groups.available.length === 0
+      ? `<li class="list-plain">Nothing available right now.</li>`
+      : groups.available.map(rowHtml).join("");
+  if (groups.sold.length > 0) {
+    html += `<li class="list-sub"><h3>Sold</h3></li>` + groups.sold.map(rowHtml).join("");
+  }
+  list.innerHTML = html;
 }
 
 async function refreshCollection(): Promise<void> {
@@ -306,313 +252,60 @@ async function refreshCollection(): Promise<void> {
     return;
   }
   if (files.length === 0) {
-    list.innerHTML = "<li>Nothing here yet — add your first painting above.</li>";
+    list.innerHTML =
+      '<li class="list-plain">Nothing here yet — start a new painting above.</li>';
     return;
   }
-  const rows: Array<{ path: string; title: string; price: string; sold: boolean; slug: string }> = [];
+  // Thumbnails come from the page's baked-in list (built image URLs the
+  // API can't hand out) — matched by slug, missing ones simply unshown.
+  if (thumbBySlug === null) {
+    thumbBySlug = {};
+    const el = document.getElementById("local-collection");
+    if (el !== null) {
+      try {
+        const baked = JSON.parse(el.textContent ?? "") as unknown;
+        if (Array.isArray(baked)) {
+          for (const r of baked) {
+            if (
+              typeof r === "object" &&
+              r !== null &&
+              typeof (r as { slug?: unknown }).slug === "string" &&
+              typeof (r as { image?: unknown }).image === "string"
+            ) {
+              thumbBySlug[(r as { slug: string }).slug] = (r as { image: string }).image;
+            }
+          }
+        }
+      } catch {
+        // No thumbnails — rows still render with links and prices.
+      }
+    }
+  }
+  const rows: LocalPainting[] = [];
   for (const f of files) {
     const content = await api.getPaintingFile(`src/content/paintings/${f}`);
     if (content === null) continue;
     const p = parsePainting(content);
     if (p === null || p.title === "") continue;
+    const slug = slugifyTitle(p.title);
     rows.push({
-      path: `src/content/paintings/${f}`,
+      slug,
       title: p.title,
-      price: p.price,
+      price: Number(p.price),
       sold: p.sold,
-      slug: slugifyTitle(p.title),
+      draft: p.draft,
+      image: thumbBySlug[slug] ?? "",
+      alt: p.alt,
+      description: p.description,
+      widthIn: p.widthIn,
+      heightIn: p.heightIn,
+      depthIn: p.depthIn,
+      medium: p.medium,
     });
   }
-  rows.sort((a, b) => a.title.localeCompare(b.title));
-  // Available under its own subheading (with a plain note when empty),
-  // then sold. Edit buttons point back at the flat rows by index.
-  const esc = (s: string): string =>
-    s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-  const liveRow = (r: (typeof rows)[number]): string =>
-    `<li><a href="/paintings/${r.slug}"><strong>${esc(r.title)}</strong></a>` +
-    ` — $${r.price} ` +
-    `<span class="row"><button type="button" data-edit="${rows.indexOf(r)}">Edit here</button></span></li>`;
-  const groups = groupByAvailability(rows);
-  let html = `<li class="list-sub"><h3>Available</h3></li>`;
-  html +=
-    groups.available.length === 0
-      ? `<li class="list-plain">Nothing available right now.</li>`
-      : groups.available.map(liveRow).join("");
-  if (groups.sold.length > 0) {
-    html += `<li class="list-sub"><h3>Sold</h3></li>` + groups.sold.map(liveRow).join("");
-  }
-  list.innerHTML = html;
+  renderRows(rows);
   ($("collection-hint") as HTMLParagraphElement).innerHTML =
-    '<a href="/#collection">Open the collection</a> to see what buyers see — then come back here and tap Edit here on any piece below.';
-  list.querySelectorAll("button[data-edit]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const row = rows[Number((btn as HTMLElement).dataset["edit"])];
-      if (row !== undefined) void openEditForm(row.path);
-    });
-  });
-}
-
-async function openEditForm(path: string): Promise<void> {
-  const list = $("edit-list");
-  const content = await api.getPaintingFile(path);
-  if (content === null) {
-    setStatus("Couldn't load that painting.", true);
-    return;
-  }
-  const p = parsePainting(content);
-  if (p === null) {
-    setStatus("Couldn't read that painting's file.", true);
-    return;
-  }
-  const esc = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
-  list.innerHTML =
-    `<li><label>Title <input id="ed-title" type="text" maxlength="120" value="${esc(p.title)}" /></label>` +
-    `<label>Price (CAD) <input id="ed-price" type="number" min="1" step="0.01" inputmode="decimal" value="${esc(p.price)}" /></label>` +
-    `<label>Alt text <input id="ed-alt" type="text" maxlength="200" value="${esc(p.alt)}" /></label>` +
-    `<label>Description <textarea id="ed-desc" rows="3" maxlength="2000">${esc(p.description)}</textarea></label>` +
-    `<div class="row">` +
-    `<label>W (in) <input id="ed-w" type="number" min="1" step="0.5" inputmode="decimal" value="${esc(p.widthIn)}" /></label>` +
-    `<label>H (in) <input id="ed-h" type="number" min="1" step="0.5" inputmode="decimal" value="${esc(p.heightIn)}" /></label>` +
-    `<label>D (in) <input id="ed-d" type="number" min="0.5" step="0.5" inputmode="decimal" value="${esc(p.depthIn)}" /></label>` +
-    `</div>` +
-    `<label class="check"><input id="ed-sold" type="checkbox"${p.sold ? " checked" : ""} /> Sold</label>` +
-    `<span class="row"><button type="button" id="ed-save" class="primary">Save</button> ` +
-    `<button type="button" id="ed-cancel">Cancel</button> ` +
-    `<button type="button" id="ed-del">Delete…</button></span></li>`;
-  ($("ed-cancel") as HTMLButtonElement).addEventListener("click", () => void refreshCollection());
-  ($("ed-del") as HTMLButtonElement).addEventListener("click", (e) => {
-    const btn = e.currentTarget as HTMLButtonElement;
-    if (btn.dataset.armed !== "1") {
-      btn.dataset.armed = "1";
-      btn.textContent = "Tap again to delete";
-      setStatus(`This removes "${p.title}" from the site. Tap again to confirm.`, true);
-      return;
-    }
-    btn.disabled = true;
-    setStatus(`Deleting "${p.title}"… (gone in a few minutes)`);
-    api
-      .deleteFiles(`Delete painting: ${p.title}`, paintingFilePaths(path, p))
-      .then(() => {
-        setStatus(`Deleted "${p.title}" — recoverable from repo history.`);
-        return refreshCollection();
-      })
-      .catch((err: unknown) => {
-        btn.disabled = false;
-        btn.dataset.armed = "";
-        btn.textContent = "Delete…";
-        setStatus((err as Error).message, true);
-      });
-  });
-  ($("ed-save") as HTMLButtonElement).addEventListener("click", () => {
-    const val = (id: string): string => ($(id) as HTMLInputElement).value.trim();
-    const title = val("ed-title");
-    const price = Number(val("ed-price"));
-    if (title === "" || !(Number.isFinite(price) && price > 0)) {
-      setStatus("Title and a valid price are required.", true);
-      return;
-    }
-    const edits: PaintingEdits = {
-      title,
-      price: price.toFixed(2),
-      alt: val("ed-alt"),
-      description: ($("ed-desc") as HTMLTextAreaElement).value,
-      widthIn: val("ed-w"),
-      heightIn: val("ed-h"),
-      depthIn: val("ed-d"),
-      sold: ($("ed-sold") as HTMLInputElement).checked,
-    };
-    void (async () => {
-      setStatus("Saving… (live in a few minutes)");
-      try {
-        // Dimension fixes (or a missing preview) rebuild the AR models
-        // from the repo photo in the same commit.
-        const arMod = await loadArTooling();
-        const fix = await arMod.rebuildForDimFix(api.getPhoto, path, p, edits, () =>
-          setStatus("Rebuilding wall preview… (true size, takes a few seconds)"),
-        );
-        await api.commitFiles(`Edit painting: ${title}`, [
-          { path, blob: patchPainting(content, fix.edits) },
-          ...fix.files,
-        ]);
-        setStatus(
-          fix.note === null ? `Saved "${title}".` : `Saved "${title}" — but ${fix.note}`,
-          fix.note !== null,
-        );
-        await refreshCollection();
-      } catch (err) {
-        setStatus((err as Error).message, true);
-      }
-    })();
-  });
-}
-
-function buildMarkdown(input: {
-  title: string;
-  price: number;
-  alt: string;
-  description: string;
-  imageFile: string;
-  widthIn: number | null;
-  heightIn: number | null;
-  depthIn: number | null;
-  modelGlb: string;
-  modelUsdz: string;
-}): string {
-  const today = new Date().toISOString().slice(0, 10);
-  const lines = [
-    "---",
-    `title: ${yamlQuote(input.title)}`,
-    `dateAdded: ${today}`,
-    `image: ${yamlQuote(input.imageFile)}`,
-    `alt: ${yamlQuote(input.alt)}`,
-    "sold: false",
-    `price: ${input.price.toFixed(2)}`,
-  ];
-  if (input.widthIn !== null) lines.push(`widthIn: ${input.widthIn}`);
-  if (input.heightIn !== null) lines.push(`heightIn: ${input.heightIn}`);
-  if (input.depthIn !== null) lines.push(`depthIn: ${input.depthIn}`);
-  if (input.modelGlb !== "") lines.push(`modelGlb: ${yamlQuote(input.modelGlb)}`);
-  if (input.modelUsdz !== "") lines.push(`modelUsdz: ${yamlQuote(input.modelUsdz)}`);
-  lines.push("---", input.description === "" ? "Fresh from the studio." : input.description, "");
-  return lines.join("\n");
-}
-
-/** Unique slug for a new painting, checking the repo's paintings folder. */
-async function uniqueSlug(title: string): Promise<string> {
-  const base = slugifyTitle(title) === "" ? "untitled" : slugifyTitle(title);
-  let files: string[] = [];
-  try {
-    files = await api.listPaintingFiles();
-  } catch {
-    // Offline or unconfigured — proceed; the commit may still land.
-  }
-  const taken = new Set(files);
-  if (!taken.has(`${base}.md`)) return base;
-  for (let n = 2; n < 100; n += 1) {
-    if (!taken.has(`${base}-${n}.md`)) return `${base}-${n}`;
-  }
-  return `${base}-${Date.now().toString(36)}`;
-}
-
-/** Live card preview while she types — roughly the gallery card. */
-function refreshAddPreview(): void {
-  const title = ($("f-title") as HTMLInputElement).value.trim();
-  const priceRaw = ($("f-price") as HTMLInputElement).value.trim();
-  const panel = $("add-preview");
-  const show = title !== "" || priceRaw !== "" || preparedBlob !== null;
-  panel.hidden = !show;
-  if (!show) return;
-  ($("pv-title") as HTMLElement).textContent = title === "" ? "Untitled" : title;
-  const cents = dollarsToCents(Number(priceRaw));
-  const dim = (id: string): string => {
-    const raw = ($(id) as HTMLInputElement).value.trim();
-    return raw === "" ? "" : raw;
-  };
-  const dims = [dim("f-w"), dim("f-h")]
-    .filter((d) => d !== "")
-    .join(" × ");
-  ($("pv-sub") as HTMLElement).textContent =
-    `${cents === null ? "Price?" : formatCAD(cents)}${dims === "" ? "" : ` · ${dims} in`}`;
-  const img = $("pv-img") as HTMLImageElement;
-  if (lastPreviewUrl !== null) {
-    img.src = lastPreviewUrl;
-    img.hidden = false;
-  } else {
-    img.hidden = true;
-  }
-}
-
-/** What the in-memory preview models were built from — photo, rotation,
- * tape numbers. Save reuses them only on an exact match. */
-function modelSig(): string | null {
-  if (preparedBlob === null) return null;
-  const { widthIn, heightIn, depthIn } = readDims();
-  return [photoGen, rotation, widthIn, heightIn, depthIn].map(String).join("|");
-}
-
-/**
- * Build the true-size models the moment a photo exists (rebuilding when
- * the photo, rotation, or tape numbers change), so the 3D + AR preview
- * sits under the photo before Save. Stale runs bail; failures degrade to
- * a models-free save and never block publishing.
- */
-async function autoBuildAr(): Promise<void> {
-  if (preparedBlob === null) return;
-  if (!($("f-ar") as HTMLInputElement).checked) return;
-  const want = modelSig();
-  if (want !== null && previewModels !== null && previewModels.sig === want) return;
-  const source = preparedBlob;
-  const gen = photoGen;
-  setStatus("Building wall preview… (true size, takes a few seconds)");
-  showArBuilding();
-  try {
-    const { buildArModels, estimateDims } = await loadArTooling();
-    if (gen !== photoGen || preparedBlob !== source) return;
-    // Decode the prepared photo so the preview matches the card.
-    const arImg = await loadImageFile(blobToFile(source, "ar-source.jpg", "image/jpeg"));
-    const { widthIn, heightIn, depthIn } = readDims();
-    const dims = estimateDims(arImg, widthIn, heightIn, depthIn);
-    const models = await buildArModels(arImg, dims.w, dims.h, dims.d);
-    if (gen !== photoGen || preparedBlob !== source) return;
-    const sig = modelSig();
-    previewModels = sig === null ? null : { sig, glb: models.glb, usdz: models.usdz };
-    for (const url of arPreviewUrls) URL.revokeObjectURL(url);
-    const urls = [URL.createObjectURL(models.glb), URL.createObjectURL(models.usdz)];
-    arPreviewUrls = urls;
-    showArPreview(urls[0] as string, urls[1] as string);
-    setStatus("Wall preview below — preview only, nothing published yet.");
-  } catch (err) {
-    if (gen !== photoGen || preparedBlob !== source) return;
-    // No box reserved for a failure — just the note in the toast.
-    const failed = $("ar-preview");
-    failed.classList.remove("live");
-    failed.innerHTML = "";
-    setStatus(
-      `Wall preview build failed — you can still save without it. (${(err as Error).message})`,
-      true,
-    );
-  }
-}
-
-/**
- * Placeholder that reserves the viewer's exact box while the models build,
- * so the page never jumps when they land. Includes the wait, honestly.
- */
-function showArBuilding(): void {
-  const mount = $("ar-preview");
-  mount.hidden = false;
-  mount.classList.add("live");
-  mount.innerHTML =
-    '<p class="ar-placeholder">Building the 3D preview — usually a few seconds…</p>';
-}
-
-/** Inline <model-viewer> test so she can try AR before buyers do. */
-function showArPreview(glbUrl: string, usdzUrl: string): void {
-  const mount = $("ar-preview");
-  mount.hidden = false;
-  mount.classList.add("live");
-  mount.innerHTML = "";
-  // Script tag, not import(): Vite dev won't serve /public files as
-  // modules. See src/lib/vendor-loader.ts.
-  void loadModelViewer().then(() => {
-      const el = document.createElement("model-viewer") as unknown as HTMLElement;
-      el.setAttribute("src", glbUrl);
-      el.setAttribute("ios-src", usdzUrl);
-      el.setAttribute("ar", "");
-      el.setAttribute("ar-modes", "webxr scene-viewer quick-look");
-      el.setAttribute("ar-scale", "fixed");
-      el.setAttribute("ar-placement", "wall");
-      el.setAttribute("camera-controls", "");
-      el.setAttribute("alt", "Wall preview");
-      el.style.width = "100%";
-      el.style.height = "22rem";
-      el.style.borderRadius = "0.6rem";
-      mount.appendChild(el);
-    })
-    .catch(() => {
-      mount.classList.remove("live");
-      mount.textContent = "Wall preview unavailable in this browser.";
-    });
+    '<a href="/#collection">Open the collection</a> to see what buyers see — tap any piece below to open its studio page.';
 }
 
 async function refreshViews(): Promise<void> {
@@ -707,28 +400,7 @@ async function refreshFlags(): Promise<void> {
     for (const id of ["flag-email", "flag-push", "flag-stripe", "flag-shippo", "flag-social"]) {
       $(id).textContent = "unavailable in this preview";
     }
-    if (isLocalPreview()) {
-      const note = $("add-preview-note");
-      note.textContent =
-        "Saving needs the live site — everything else here works in this preview.";
-      (note as HTMLParagraphElement).hidden = false;
-    }
   }
-}
-
-function blobToFile(blob: Blob, name: string, type: string): File {
-  return new File([blob], name, { type });
-}
-
-/** Tape measurements from the Add form (null = unmeasured, AR falls back). */
-function readDims(): { widthIn: number | null; heightIn: number | null; depthIn: number | null } {
-  const numOrNull = (id: string): number | null => {
-    const raw = ($(id) as HTMLInputElement).value.trim();
-    if (raw === "") return null;
-    const n = Number(raw);
-    return Number.isFinite(n) && n > 0 && n <= 240 ? Math.round(n * 10) / 10 : null;
-  };
-  return { widthIn: numOrNull("f-w"), heightIn: numOrNull("f-h"), depthIn: numOrNull("f-d") };
 }
 
 function init(): void {
@@ -806,250 +478,6 @@ function init(): void {
     window.location.href = "/";
   });
 
-  // The working form stays out of sight until she means it — opening
-  // animates the card wider (fields left, tall photo column right).
-  const addToggle = $("add-toggle") as HTMLButtonElement;
-  const uploadForm = $("upload-form") as HTMLFormElement;
-  const addPhoto = $("add-photo");
-  const addCard = $("sec-add");
-  let addAnim = 0;
-  let addOpen = false;
-  addToggle.addEventListener("click", () => {
-    addAnim += 1;
-    const turn = addAnim;
-    if (!addOpen) {
-      addOpen = true;
-      uploadForm.hidden = false;
-      addPhoto.hidden = false;
-      addToggle.textContent = "Close";
-      // Next frame so the expand animates instead of snapping in.
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => {
-          if (turn !== addAnim) return;
-          addCard.classList.add("open");
-          ($("f-title") as HTMLInputElement).focus();
-        }),
-      );
-    } else {
-      addOpen = false;
-      addCard.classList.remove("open");
-      addToggle.textContent = "Add new painting";
-      const hide = (): void => {
-        if (turn !== addAnim) return;
-        uploadForm.hidden = true;
-        addPhoto.hidden = true;
-      };
-      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) hide();
-      else window.setTimeout(hide, 480);
-    }
-  });
-
-  // The navbar "Add painting" button opens the working form (or just
-  // scrolls to it when already open) — the href alone only scrolled to a
-  // closed card, which read as doing nothing.
-  document.getElementById("nav-add")?.addEventListener("click", (e) => {
-    e.preventDefault();
-    if (!addOpen) addToggle.click();
-    addCard.scrollIntoView({
-      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-      block: "start",
-    });
-  });
-
-  const fileInput = $("photo-file") as HTMLInputElement;
-  fileInput.addEventListener("change", () => {
-    const file = fileInput.files?.[0];
-    if (file === undefined) return;
-    rotation = 0;
-    loadImageFile(file)
-      .then(async (img) => {
-        loadedImage = img;
-        await refreshPreview();
-      })
-      .catch((err: unknown) => {
-        const name = (file.name ?? "").toLowerCase();
-        const heic =
-          file.type === "image/heic" ||
-          file.type === "image/heif" ||
-          name.endsWith(".heic") ||
-          name.endsWith(".heif");
-        setStatus(
-          `${(err as Error).message}.${heic ? " This looks like HEIC — iPhones read it, but desktop browsers often don't. Re-upload from the phone or export as JPEG first." : ""}`,
-          true,
-        );
-      });
-  });
-
-  for (const deg of [90, 270] as const) {
-    $(`rotate-${deg}`).addEventListener("click", () => {
-      rotation = ((rotation + deg) % 360) as 0 | 90 | 180 | 270;
-      void refreshPreview().catch((err: unknown) => setStatus((err as Error).message, true));
-    });
-  }
-
-  // Tape numbers or the wall-preview checkbox changed — rebuild to match.
-  for (const id of ["f-w", "f-h", "f-d"]) {
-    $(id).addEventListener("change", () => {
-      void autoBuildAr();
-    });
-  }
-  $("f-ar").addEventListener("change", (e) => {
-    const ar = $("ar-preview") as HTMLElement;
-    if ((e.target as HTMLInputElement).checked) {
-      // No photo yet: the placeholder slot is still inside, just unhide it.
-      if (preparedBlob === null) ar.hidden = false;
-      else void autoBuildAr();
-    } else ar.hidden = true;
-  });
-
-  $("upload-form").addEventListener("submit", (e) => {
-    e.preventDefault();
-    void (async () => {
-      const title = ($("f-title") as HTMLInputElement).value.trim();
-      const price = Number(($("f-price") as HTMLInputElement).value);
-      const priceCents = dollarsToCents(price);
-      if (title === "" || priceCents === null) {
-        setStatus("Title and a valid price are required.", true);
-        return;
-      }
-      if (preparedBlob === null) {
-        setStatus("Choose a photo first.", true);
-        return;
-      }
-      const { widthIn, heightIn, depthIn } = readDims();
-      const alt = ($("f-alt") as HTMLInputElement).value.trim();
-      const description = ($("f-desc") as HTMLTextAreaElement).value.trim();
-
-      setStatus("Publishing… (photo, page, and preview in one commit)");
-      try {
-        const slug = await uniqueSlug(title);
-        const imageFile = `${slug}.jpg`;
-        const pageUrl = `${window.location.origin}/paintings/${slug}`;
-        const files: Array<{ path: string; blob: Blob | string }> = [
-          // Placeholder markdown first so every path below is complete even
-          // if AR fails halfway — the AR retry overwrites the same files.
-          {
-            path: `src/content/paintings/${slug}.md`,
-            blob: buildMarkdown({
-              title,
-              price,
-              alt,
-              description,
-              imageFile,
-              widthIn,
-              heightIn,
-              depthIn,
-              modelGlb: "",
-              modelUsdz: "",
-            }),
-          },
-          { path: `src/content/paintings/${imageFile}`, blob: preparedBlob },
-        ];
-        let modelGlb = "";
-        let modelUsdz = "";
-        let glbBlob: Blob | null = null;
-        let usdzBlob: Blob | null = null;
-        if (($("f-ar") as HTMLInputElement).checked) {
-          // The preview models are already built (same photo + tape
-          // numbers) — reuse them instead of building twice.
-          const want = modelSig();
-          if (want !== null && previewModels !== null && previewModels.sig === want) {
-            glbBlob = previewModels.glb;
-            usdzBlob = previewModels.usdz;
-          } else {
-            setStatus("Building wall preview… (true size, takes a few seconds)");
-            try {
-              const { buildArModels, estimateDims } = await loadArTooling();
-              // Decode the prepared (rotated/cropped) photo so the model
-              // matches exactly what buyers see.
-              const arImg = await loadImageFile(
-                blobToFile(preparedBlob, "ar-source.jpg", "image/jpeg"),
-              );
-              const dims = estimateDims(arImg, widthIn, heightIn, depthIn);
-              const models = await buildArModels(arImg, dims.w, dims.h, dims.d);
-              glbBlob = models.glb;
-              usdzBlob = models.usdz;
-              const sig = modelSig();
-              previewModels = sig === null ? null : { sig, glb: models.glb, usdz: models.usdz };
-            } catch (err) {
-              console.error(err);
-              setStatus("Wall preview build failed — publishing without it. Uncheck the wall preview next time to skip the wait.");
-            }
-          }
-          if (glbBlob !== null && usdzBlob !== null) {
-            modelGlb = `/models/${slug}.glb`;
-            modelUsdz = `/models/${slug}.usdz`;
-            files.push(
-              { path: `public/models/${slug}.glb`, blob: glbBlob },
-              { path: `public/models/${slug}.usdz`, blob: usdzBlob },
-            );
-            // Rebuild the markdown with the model URLs in.
-            files[0] = {
-              path: `src/content/paintings/${slug}.md`,
-              blob: buildMarkdown({
-                title,
-                price,
-                alt,
-                description,
-                imageFile,
-                widthIn,
-                heightIn,
-                depthIn,
-                modelGlb,
-                modelUsdz,
-              }),
-            };
-          }
-        }
-        await api.commitFiles(`Add painting: ${title}`, files);
-        if (glbBlob !== null && usdzBlob !== null) {
-          // Preview from memory — the committed files go live after rebuild.
-          for (const url of arPreviewUrls) URL.revokeObjectURL(url);
-          const urls = [URL.createObjectURL(glbBlob), URL.createObjectURL(usdzBlob)];
-          arPreviewUrls = urls;
-          showArPreview(urls[0] as string, urls[1] as string);
-        }
-        const caption = buildCaption({
-          title,
-          priceCents,
-          alt,
-          description,
-          pageUrl,
-          widthIn,
-          heightIn,
-          depthIn,
-        });
-        lastShare = { title, caption, pageUrl };
-        // Subtle confirmation buzz on phones (no-op where unsupported).
-        try {
-          if (typeof navigator.vibrate === "function") navigator.vibrate(10);
-        } catch {
-          // ignore
-        }
-        ($("share-caption") as HTMLTextAreaElement).value = caption;
-        $("share-panel").hidden = false;
-        setStatus(
-          `Published "${title}" (${formatCAD(priceCents)}) — live in a few minutes at ${pageUrl}.`,
-        );
-        (e.target as HTMLFormElement).reset();
-        loadedImage = null;
-        // The form is empty again — drop the published photo from memory
-        // too, or the next Save would silently reuse it.
-        if (lastPreviewUrl !== null) URL.revokeObjectURL(lastPreviewUrl);
-        lastPreviewUrl = null;
-        preparedBlob = null;
-        rotation = 0;
-        ($("photo-preview") as HTMLImageElement).hidden = true;
-        ($("photo-empty") as HTMLElement).hidden = false;
-        previewModels = null;
-        ($("photo-tools") as HTMLDivElement).hidden = true;
-        $("photo-meta").textContent = "";
-        refreshAddPreview();
-      } catch (err) {
-        setStatus((err as Error).message, true);
-      }
-    })();
-  });
 
   $("share-native").addEventListener("click", () => {
     if (lastShare === null) return;
@@ -1058,7 +486,6 @@ function init(): void {
       title: lastShare.title,
       caption,
       pageUrl: lastShare.pageUrl,
-      imageBlob: preparedBlob ?? undefined,
     }).then((result) => {
       setStatus(
         result === "shared"
@@ -1099,8 +526,25 @@ function init(): void {
 
   $("views-refresh").addEventListener("click", () => void refreshViews());
   $("collection-refresh").addEventListener("click", () => void refreshCollection());
-  for (const id of ["f-title", "f-price", "f-w", "f-h"]) {
-    $(id).addEventListener("input", () => refreshAddPreview());
+
+  // Landing here from a painting room: its confirmation toast and, after
+  // a publish, a ready-made share caption ride along in session storage.
+  try {
+    const flash = window.sessionStorage.getItem("studio-flash");
+    if (flash !== null) {
+      window.sessionStorage.removeItem("studio-flash");
+      setStatus(flash);
+    }
+    const shareRaw = window.sessionStorage.getItem("studio-share");
+    if (shareRaw !== null) {
+      window.sessionStorage.removeItem("studio-share");
+      const share = JSON.parse(shareRaw) as { title: string; caption: string; pageUrl: string };
+      lastShare = share;
+      ($("share-caption") as HTMLTextAreaElement).value = share.caption;
+      ($("share-panel") as HTMLElement).hidden = false;
+    }
+  } catch {
+    // Browsers without session storage just miss the handoff.
   }
 
   void refreshCollection();

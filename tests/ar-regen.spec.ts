@@ -4,9 +4,11 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /**
- * Dimension-fix regeneration e2e: editing W/H/D rebuilds the AR models
- * from the repo photo inside the same commit. The commit POST is
- * intercepted and its payload asserted — nothing here can publish.
+ * Dimension-fix regeneration e2e: editing W/H/D in a painting's studio
+ * room rebuilds the AR models from the repo photo inside the same commit.
+ * The commit POST is intercepted and its payload asserted — nothing here
+ * can publish. Saving lands back on /admin, so assertions run after the
+ * redirect.
  */
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -62,23 +64,20 @@ async function stubApi(page: Page): Promise<{ posted: () => Posted | null }> {
   return { posted: () => posted };
 }
 
-test("in-context dimension fix rebuilds AR in the same commit", async ({
+test("studio room dimension fix rebuilds AR in the same commit", async ({
   browser,
 }) => {
   const page = await authedPage(browser);
   const api = await stubApi(page);
 
-  await page.goto("/paintings/first-thaw");
-  await page.locator("#admin-edit-toggle").click();
-  const panel = page.locator("#admin-edit");
-  await expect(panel.locator("#ae-title")).toHaveValue("First Thaw", {
+  await page.goto("/admin/paintings/first-thaw");
+  await expect(page.locator("#de-title")).toHaveValue("First Thaw", {
     timeout: 15_000,
   });
-  await panel.locator("#ae-w").fill("21");
-  await panel.locator("#ae-save").click();
-  await expect(panel.locator("#ae-status")).toHaveText("Saved.", {
-    timeout: 30_000,
-  });
+  await page.locator("#de-w").fill("21");
+  await page.locator("#de-save").click();
+  // Saving lands back on the dashboard; the payload proves the rebuild.
+  await expect(page).toHaveURL(/\/admin\/?$/, { timeout: 30_000 });
 
   const posted = api.posted();
   expect(posted?.message).toBe("Edit painting: First Thaw");
@@ -98,29 +97,25 @@ test("in-context dimension fix rebuilds AR in the same commit", async ({
   await page.context().close();
 });
 
-test("in-context save without dimension changes commits only the .md", async ({
+test("studio room save without dimension changes commits only the .md", async ({
   browser,
 }) => {
   const page = await authedPage(browser);
   const api = await stubApi(page);
 
-  await page.goto("/paintings/first-thaw");
-  await page.locator("#admin-edit-toggle").click();
-  const panel = page.locator("#admin-edit");
-  await expect(panel.locator("#ae-title")).toHaveValue("First Thaw", {
+  await page.goto("/admin/paintings/first-thaw");
+  await expect(page.locator("#de-title")).toHaveValue("First Thaw", {
     timeout: 15_000,
   });
-  await panel.locator("#ae-save").click();
-  await expect(panel.locator("#ae-status")).toHaveText("Saved.", {
-    timeout: 30_000,
-  });
+  await page.locator("#de-save").click();
+  await expect(page).toHaveURL(/\/admin\/?$/, { timeout: 30_000 });
 
   const posted = api.posted();
   expect(posted?.files.map((f) => f.path)).toEqual([mdPath]);
   await page.context().close();
 });
 
-test("studio collection dimension fix rebuilds AR in the same commit", async ({
+test("dashboard row opens the studio room, which saves home", async ({
   browser,
 }) => {
   const page = await authedPage(browser);
@@ -129,12 +124,12 @@ test("studio collection dimension fix rebuilds AR in the same commit", async ({
   await page.goto("/admin");
   const row = page.locator("#edit-list li", { hasText: "First Thaw" });
   await expect(row).toBeVisible({ timeout: 15_000 });
-  await row.locator('button[data-edit]').click();
-  const list = page.locator("#edit-list");
-  await expect(list.locator("#ed-w")).toBeVisible({ timeout: 15_000 });
-  await list.locator("#ed-w").fill("22");
-  await list.locator("#ed-save").click();
-  await expect(page.locator("#admin-status")).toContainText('Saved "First Thaw".', {
+  await row.locator('a[href="/admin/paintings/first-thaw"]').click();
+  await expect(page.locator("#de-w")).toBeVisible({ timeout: 15_000 });
+  await page.locator("#de-w").fill("22");
+  await page.locator("#de-save").click();
+  await expect(page).toHaveURL(/\/admin\/?$/, { timeout: 30_000 });
+  await expect(page.locator("#admin-status")).toContainText('Saved "First Thaw" — live in a few minutes.', {
     timeout: 30_000,
   });
 

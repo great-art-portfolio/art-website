@@ -52,7 +52,9 @@ test("admin mode toolbar appears only with a stored token", async ({
   const adminPage = await authed.newPage();
   await adminPage.goto("/paintings/night-reeds");
   await expect(adminPage.locator("#admin-bar")).toBeVisible();
-  await expect(adminPage.locator("#admin-edit")).toBeHidden();
+  await expect(adminPage.locator('#admin-bar a[href^="/admin/paintings/"]')).toHaveText(
+    "Edit in the studio",
+  );
   await authed.close();
 });
 
@@ -118,13 +120,16 @@ test("admin explains itself gracefully without a publishing backend", async ({
   page,
 }) => {
   await page.goto("/admin");
-  // No GitHub behind the dev API: the baked-in list renders with practice
-  // edits — rows and links work, real publishing stays live-only.
+  // No GitHub behind the dev API: the baked-in index renders with practice
+  // merges — thumbnails, buyer links, and studio doors work, real
+  // publishing stays live-only.
   const rows = page.locator('#edit-list a[href^="/paintings/"]');
   await expect(rows.first()).toBeVisible({ timeout: 15_000 });
   expect(await rows.count()).toBeGreaterThan(0);
   await expect(page.locator(".list-sub h3").first()).toHaveText("Available");
-  await expect(page.locator("#edit-list button[data-local-edit]")).toHaveCount(await rows.count());
+  await expect(page.locator("#edit-list img.thumb").first()).toBeVisible();
+  const doors = page.locator('#edit-list a[href^="/admin/paintings/"]');
+  await expect(doors).toHaveCount(await rows.count());
   await expect(page.locator("#collection-refresh")).toBeHidden();
   await expect(page.locator("#collection-note")).toContainText("Practice list");
   await expect(page.locator("#collection-note")).toBeVisible();

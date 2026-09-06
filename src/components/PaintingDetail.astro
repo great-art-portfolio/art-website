@@ -41,9 +41,11 @@ interface Props {
   data: PaintingDetailData;
   backHref: string;
   backLabel: string;
+  /** Buyer pages only: door to this painting's studio room. */
+  editHref?: string;
 }
 
-const { mode, data, backHref, backLabel } = Astro.props;
+const { mode, data, backHref, backLabel, editHref = "" } = Astro.props;
 const studio = mode !== "buy";
 const priceLabel = `$${data.price.toFixed(2)} CAD`;
 const eyebrow = data.draft ? "Draft · only you can see this" : "Original painting · one of a kind";
@@ -67,11 +69,10 @@ const eyebrow = data.draft ? "Draft · only you can see this" : "Original painti
   {mode === "buy" && (
     <div id="admin-bar" hidden>
       <span>Admin mode</span>
-      <button type="button" id="admin-edit-toggle">Edit this painting</button>
+      <a href={editHref}>Edit in the studio</a>
       <a href="/admin#sec-collection">Studio</a>
     </div>
   )}
-  {mode === "buy" && <div id="admin-edit" hidden></div>}
   <div class="detail-grid">
     {studio && mode === "draft" ? (
       <div>
@@ -88,21 +89,29 @@ const eyebrow = data.draft ? "Draft · only you can see this" : "Original painti
         <p class="hint" id="de-photo-meta"></p>
       </div>
     ) : (
-      <div class="frame" id="photo-wrap" title="Tap to view fullscreen">
-        {data.image !== undefined && (
-          <Image
-            src={data.image}
-            alt={data.alt}
-            width={1200}
-            widths={PHOTO_WIDTHS}
-            sizes={photoSizes()}
-            format="webp"
-            loading="eager"
-            fetchpriority="high"
-            decoding="async"
-          />
+      <div>
+        <div class="frame" id="photo-wrap" title="Tap to view fullscreen">
+          {data.image !== undefined && (
+            <Image
+              src={data.image}
+              alt={data.alt}
+              width={1200}
+              widths={PHOTO_WIDTHS}
+              sizes={photoSizes()}
+              format="webp"
+              loading="eager"
+              fetchpriority="high"
+              decoding="async"
+            />
+          )}
+          {data.sold && <span class="badge sold">Sold</span>}
+        </div>
+        {studio && (
+          <div class="tile-row">
+            <button type="button" id="de-replace">Replace photo</button>
+            <input id="de-replace-file" type="file" accept="image/jpeg,image/png,image/webp,image/heic" capture="environment" aria-label="Replace photo" hidden />
+          </div>
         )}
-        {data.sold && <span class="badge sold">Sold</span>}
       </div>
     )}
     <div id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Painting fullscreen view"><img id="lightbox-img" alt="" /></div>
@@ -348,8 +357,8 @@ const eyebrow = data.draft ? "Draft · only you can see this" : "Original painti
   // so gallery → painting navigations never re-run them. Everything is wired in
   // initDetail(), called immediately AND on astro:page-load. Guards keep a
   // double-fire on the same DOM from wiring anything twice.
-  /** Admin mode: token set in /admin Settings reveals an edit toolbar
-      so paintings are edited in context while browsing. */
+  /** Admin mode: token set in /admin Settings reveals the studio door —
+      editing itself happens in the painting's studio room. */
   function initAdmin() {
     const bar = document.getElementById("admin-bar");
     if (bar === null || bar.dataset.wired === "1") return;
@@ -366,144 +375,6 @@ const eyebrow = data.draft ? "Draft · only you can see this" : "Original painti
     if (token === null || token === "") return;
     bar.dataset.wired = "1";
     bar.hidden = false;
-    const toggle = document.getElementById("admin-edit-toggle");
-    const panel = document.getElementById("admin-edit");
-    if (toggle === null || panel === null) return;
-    toggle.addEventListener("click", () => {
-      if (!panel.hidden) {
-        panel.hidden = true;
-        toggle.textContent = "Edit this painting";
-        return;
-      }
-      toggle.disabled = true;
-      const liveMdPath = readPageData().mdPath;
-      Promise.all([import("../lib/api"), import("../lib/painting-edit")])
-        .then(([apiMod, editMod]) =>
-          apiMod.api.getPaintingFile(liveMdPath).then((content) => {
-            toggle.disabled = false;
-            if (content === null) {
-              panel.innerHTML = "<p>Couldn't load this painting's file.</p>";
-              panel.hidden = false;
-              return;
-            }
-            const p = editMod.parsePainting(content);
-            if (p === null) {
-              panel.innerHTML = "<p>Couldn't read this painting's file.</p>";
-              panel.hidden = false;
-              return;
-            }
-            renderAdminEdit(apiMod.api, editMod, panel, toggle, liveMdPath, content, p);
-          }),
-        )
-        .catch(() => {
-          toggle.disabled = false;
-          panel.innerHTML = "<p>Editing needs the live site — this is a preview.</p>";
-          panel.hidden = false;
-        });
-    });
-  }
-
-  function escHtml(s) {
-    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
-  }
-
-  // Edit-panel notes clear themselves like the studio toasts — errors
-  // included — so a stale complaint never sits over the form.
-  let aeStatusTimer = 0;
-  function setAeStatus(el, msg) {
-    if (el === null) return;
-    el.textContent = msg;
-    window.clearTimeout(aeStatusTimer);
-    aeStatusTimer = window.setTimeout(() => {
-      const live = document.getElementById("ae-status");
-      if (live !== null) live.textContent = "";
-    }, 6000);
-  }
-
-  function renderAdminEdit(api, editMod, panel, toggle, path, content, p) {
-    panel.innerHTML =
-      `<label>Title <input id="ae-title" type="text" maxlength="120" value="${escHtml(p.title)}" /></label>` +
-      `<label>Price (CAD) <input id="ae-price" type="number" min="1" step="0.01" inputmode="decimal" value="${escHtml(p.price)}" /></label>` +
-      `<label>Alt text <input id="ae-alt" type="text" maxlength="200" value="${escHtml(p.alt)}" /></label>` +
-      `<label>Description <textarea id="ae-desc" rows="3" maxlength="2000">${escHtml(p.description)}</textarea></label>` +
-      `<div class="ae-row">` +
-      `<label>W (in) <input id="ae-w" type="number" min="1" step="0.5" inputmode="decimal" value="${escHtml(p.widthIn)}" /></label>` +
-      `<label>H (in) <input id="ae-h" type="number" min="1" step="0.5" inputmode="decimal" value="${escHtml(p.heightIn)}" /></label>` +
-      `<label>D (in) <input id="ae-d" type="number" min="0.5" step="0.5" inputmode="decimal" value="${escHtml(p.depthIn)}" /></label>` +
-      `</div>` +
-      `<label class="ae-check"><input id="ae-sold" type="checkbox"${p.sold ? " checked" : ""} /> Sold</label>` +
-      `<div class="ae-row"><button type="button" id="ae-save" class="btn-primary">Save</button> ` +
-      `<button type="button" id="ae-del">Delete…</button> ` +
-      `<span id="ae-status" role="status"></span></div>`;
-    panel.hidden = false;
-    const val = (id) => document.getElementById(id).value.trim();
-    document.getElementById("ae-save").addEventListener("click", () => {
-      const title = val("ae-title");
-      const price = Number(val("ae-price"));
-      const status = document.getElementById("ae-status");
-      if (title === "" || !(Number.isFinite(price) && price > 0)) {
-        setAeStatus(status, "Title and a valid price are required.");
-        return;
-      }
-      setAeStatus(status, "Saving… (live in a few minutes)");
-      const baseEdits = {
-        title,
-        price: price.toFixed(2),
-        alt: val("ae-alt"),
-        description: document.getElementById("ae-desc").value,
-        widthIn: val("ae-w"),
-        heightIn: val("ae-h"),
-        depthIn: val("ae-d"),
-        sold: document.getElementById("ae-sold").checked,
-      };
-      // Dimension fixes (or a missing preview) rebuild the AR models
-      // from the repo photo in the same commit.
-      void import("../lib/vendor-loader")
-        .then(({ loadArTooling }) => loadArTooling())
-        .then((arMod) =>
-          arMod.rebuildForDimFix(api.getPhoto, path, p, baseEdits, () => {
-            setAeStatus(status, "Rebuilding AR preview… (true size, takes a few seconds)");
-          }),
-        )
-        .then((fix) => {
-          const next = editMod.patchPainting(content, fix.edits);
-          return api
-            .commitFiles(`Edit painting: ${title}`, [{ path, blob: next }, ...fix.files])
-            .then(() => {
-              setAeStatus(status, fix.note === null ? "Saved." : `Saved — but ${fix.note}`);
-            });
-        })
-        .catch((err) => {
-          setAeStatus(status, err instanceof Error ? err.message : "Save failed.");
-        });
-    });
-    document.getElementById("ae-del").addEventListener("click", (e) => {
-      const btn = e.currentTarget;
-      const status = document.getElementById("ae-status");
-      if (!(btn instanceof HTMLButtonElement) || status === null) return;
-      if (btn.dataset.armed !== "1") {
-        btn.dataset.armed = "1";
-        btn.textContent = "Tap again to delete";
-        setAeStatus(status, `This removes "${p.title}" from the site. Tap again to confirm.`);
-        return;
-      }
-      btn.disabled = true;
-      setAeStatus(status, `Deleting "${p.title}"… (gone in a few minutes)`);
-      const livePath = readPageData().mdPath;
-      void import("../lib/painting-edit")
-        .then((editMod) =>
-          api.deleteFiles(`Delete painting: ${p.title}`, editMod.paintingFilePaths(livePath, p)),
-        )
-        .then(() => {
-          setAeStatus(status, `Deleted "${p.title}" — recoverable from repo history.`);
-        })
-        .catch((err) => {
-          btn.disabled = false;
-          btn.dataset.armed = "";
-          btn.textContent = "Delete…";
-          setAeStatus(status, err instanceof Error ? err.message : "Delete failed.");
-        });
-    });
   }
 
   function initDetail() {
@@ -632,34 +503,7 @@ const eyebrow = data.draft ? "Draft · only you can see this" : "Original painti
   }
   #admin-bar[hidden] { display: none; }
   #admin-bar span { font-weight: 600; }
-  #admin-bar button {
-    font: inherit; font-size: 0.85rem; font-weight: 600;
-    padding: 0.35rem 0.8rem; border-radius: 0.6rem;
-    border: 1px solid var(--line); background: var(--paper); color: var(--ink);
-    cursor: pointer;
-  }
-  #admin-bar button:hover { border-color: var(--ink); }
   #admin-bar a { color: var(--muted); }
-  #admin-edit {
-    display: grid; gap: 0.6rem; margin: 0 0 1.5rem; padding: 1rem;
-    border: 1px solid var(--line); border-radius: 0.75rem; background: var(--card);
-  }
-  #admin-edit[hidden] { display: none; }
-  /* The edit panel is built by script after load, so its nodes never
-     carry the scope attribute — whole-selector :global keeps them styled. */
-  :global(#admin-edit label) { display: grid; gap: 0.3rem; font-size: 0.85rem; font-weight: 600; }
-  :global(#admin-edit input),
-  :global(#admin-edit textarea) {
-    width: 100%; box-sizing: border-box; font: inherit; font-weight: 400; font-size: 0.9rem;
-    padding: 0.55rem 0.7rem; border-radius: 0.5rem;
-    border: 1px solid var(--line); background: var(--paper); color: var(--ink);
-  }
-  :global(#admin-edit .ae-row) { display: flex; gap: 0.45rem; flex-wrap: wrap; align-items: end; }
-  :global(#admin-edit .ae-row label) { flex: 1 1 8rem; }
-  :global(#admin-edit .ae-check) { display: flex; gap: 0.6rem; align-items: center; }
-  :global(#admin-edit .ae-check input) { width: auto; accent-color: var(--accent); }
-  :global(#admin-edit .btn-primary) { width: auto; margin-top: 0; }
-  :global(#ae-status) { font-size: 0.85rem; color: var(--muted); align-self: center; }
   .detail-grid { display: grid; gap: 2.5rem; align-items: start; }
   @media (min-width: 48rem) {
     .detail-grid { grid-template-columns: 1.15fr 1fr; }
@@ -724,13 +568,14 @@ const eyebrow = data.draft ? "Draft · only you can see this" : "Original painti
     color: var(--muted); font-size: 0.92rem; padding: 1.5rem; margin: 0;
   }
   #ar-stage[hidden] { display: none; }
+  /* Author display beats the UA [hidden] rule — re-hide the waiting box. */
+  .ar-waiting[hidden] { display: none; }
   /* Reduced motion kills movement (skeleton, reveal slide, lifts);
      the lightbox fade still transitions. */
   @media (prefers-reduced-motion: reduce) {
     .ar-skeleton { animation: none; }
     #inquiry-form.revealed { animation: none; }
-    .btn-primary:hover,
-    :global(#admin-edit .btn-primary:hover) { transform: none; }
+    .btn-primary:hover { transform: none; }
   }
   /* The viewer is focusable (keyboard orbit) — keep an accent ring for
      keyboard users, not the browser's default blue after a mouse tap. */
@@ -762,38 +607,21 @@ const eyebrow = data.draft ? "Draft · only you can see this" : "Original painti
   input:focus, textarea:focus,
   input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .hp { position: absolute; left: -9999px; }
-  /* The :global twins cover the script-built edit panel, whose nodes
-     never carry the scope attribute. */
-  .btn-primary,
-  :global(#admin-edit .btn-primary) {
+  .btn-primary {
     display: inline-flex; align-items: center; justify-content: center;
     min-height: 3rem; border-radius: 0.75rem; border: 0;
     background: var(--ink); color: var(--paper);
     font: inherit; font-weight: 600; cursor: pointer; padding: 0.7rem 1.5rem;
     transition: background-color 0.25s ease, color 0.25s ease, transform 0.2s ease;
   }
-  .btn-primary:hover,
-  :global(#admin-edit .btn-primary:hover) { background: var(--accent); color: var(--accent-ink); }
+  .btn-primary:hover { background: var(--accent); color: var(--accent-ink); }
   .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
   .btn-primary:disabled:hover { background: var(--ink); color: var(--paper); transform: none; }
-  :global(#admin-edit .btn-primary) { width: auto; margin-top: 0; }
-  :global(#admin-edit button) {
-    font: inherit; font-size: 0.9rem; font-weight: 600; min-height: 3rem;
-    padding: 0.7rem 1.2rem; border-radius: 0.75rem; cursor: pointer;
-    border: 1px solid var(--line); background: var(--paper); color: var(--ink);
-  }
-  :global(#admin-edit button:hover) { border-color: var(--ink); }
-  :global(#admin-edit button:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; }
-  :global(#admin-edit input:focus-visible),
-  :global(#admin-edit textarea:focus-visible),
-  :global(#admin-edit input:focus),
-  :global(#admin-edit textarea:focus) { outline: 2px solid var(--accent); outline-offset: 1px; }
   @media (hover: hover) {
     .btn-primary:hover { transform: translateY(-1px); }
   }
   .btn-primary:active { transform: none; }
-  .btn-primary:focus-visible,
-  :global(#admin-edit .btn-primary:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn-primary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   #inquiry-status { font-size: 0.92rem; color: var(--muted); margin: 0.25rem 0 0; min-height: 1.2em; }
   /* Studio rooms: the details read as a second section under the live
      preview, and the toolbar pins the save actions beside a status line. */

@@ -1,4 +1,5 @@
 /** Typed client for the Pages Functions API. */
+import { slugifyTitle } from "./site";
 
 /**
  * Studio token, remembered per browser ("remember this browser"): local
@@ -201,3 +202,20 @@ export const api = {
     return data;
   },
 };
+
+/** Unique slug for a new painting, checking the repo's paintings folder. */
+export async function uniqueSlug(title: string): Promise<string> {
+  const base = slugifyTitle(title) === "" ? "untitled" : slugifyTitle(title);
+  let files: string[] = [];
+  try {
+    files = await api.listPaintingFiles();
+  } catch {
+    // Offline or unconfigured — proceed; the commit may still land.
+  }
+  const taken = new Set(files);
+  if (!taken.has(`${base}.md`)) return base;
+  for (let n = 2; n < 100; n += 1) {
+    if (!taken.has(`${base}-${n}.md`)) return `${base}-${n}`;
+  }
+  return `${base}-${Date.now().toString(36)}`;
+}

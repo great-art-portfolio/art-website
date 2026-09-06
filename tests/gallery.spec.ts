@@ -297,18 +297,17 @@ test("unknown painting slug is a real 404 with a way back", async ({
   await expect(page.locator('.missing a[href="/#collection"]')).toBeVisible();
 });
 
-test("admin page renders the studio sections and upload form", async ({
+test("admin page renders the studio sections and new-painting door", async ({
   page,
 }) => {
   await page.goto("/admin");
   for (const id of ["#sec-add", "#sec-collection", "#sec-banner", "#sec-views", "#sec-info"]) {
     await expect(page.locator(id)).toBeAttached();
   }
-  // Grid dashboard, no anchor strip; the working form waits for its button.
+  // Grid dashboard, no anchor strip; new paintings start in their own room.
   await expect(page.locator(".subnav")).toHaveCount(0);
   await expect(page.locator(".admin-grid")).toBeVisible();
-  await expect(page.locator("#upload-form")).toBeHidden();
-  await expect(page.locator("#f-title")).toBeHidden();
+  await expect(page.locator('#sec-add a[href="/admin/paintings/new"]')).toBeVisible();
   await expect(page.locator("#admin-token")).toBeAttached();
 });
 
@@ -329,7 +328,7 @@ test("admin mode keeps painting-to-painting navigation in reach", async ({
   await authed.close();
 });
 
-test("admin mode edit opens in context: real form or a graceful message", async ({
+test("admin mode opens the painting's studio room from the buyer page", async ({
   browser,
 }) => {
   const authed = await browser.newContext();
@@ -338,45 +337,24 @@ test("admin mode edit opens in context: real form or a graceful message", async 
   );
   const adminPage = await authed.newPage();
   await adminPage.goto(`/paintings/${available[0].slug}`);
-  await adminPage.locator("#admin-edit-toggle").click();
-  const panel = adminPage.locator("#admin-edit");
-  await expect(panel).toBeVisible({ timeout: 15_000 });
-  // Locally the API allows (Access is the gate in production), so the
-  // form loads for real; where a token gate refuses, it must explain.
-  const text = (await panel.textContent()) ?? "";
-  if (/Couldn't load|Couldn't read|live site|preview/.test(text)) {
-    expect(text.trim() !== "").toBe(true);
-  } else {
-    await expect(panel.locator("#ae-title")).toHaveValue(available[0].title);
-  }
+  const door = adminPage.locator(`#admin-bar a[href="/admin/paintings/${available[0].slug}"]`);
+  await expect(door).toHaveText("Edit in the studio");
+  await door.click();
+  await expect(adminPage.locator("#de-title")).toHaveValue(available[0].title);
   await authed.close();
 });
 
-test("in-context edit buttons wear the studio styling", async ({ browser }) => {
+test("studio room toolbar wears the studio styling", async ({ browser }) => {
   const authed = await browser.newContext();
   await authed.addInitScript(() =>
     sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
   );
   const adminPage = await authed.newPage();
-  await adminPage.route("**/api/commit*", async (route) => {
-    const name =
-      new URL(route.request().url()).searchParams.get("path")?.split("/").pop() ?? "";
-    const content = readFileSync(
-      join(dirname(fileURLToPath(import.meta.url)), "..", "src", "content", "paintings", name),
-      "utf8",
-    );
-    return route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ content }),
-    });
-  });
-  await adminPage.goto(`/paintings/${available[0].slug}`);
-  await adminPage.locator("#admin-edit-toggle").click();
+  await adminPage.goto(`/admin/paintings/${available[0].slug}`);
   // Primary Save and plain Delete both styled, not browser defaults.
-  await expect(adminPage.locator("#ae-save")).toHaveCSS("border-radius", "12px");
-  await expect(adminPage.locator("#ae-save")).toHaveCSS("background-color", "rgb(35, 32, 27)");
-  await expect(adminPage.locator("#ae-del")).toHaveCSS("border-radius", "12px");
+  await expect(adminPage.locator("#de-save")).toHaveCSS("border-radius", "12px");
+  await expect(adminPage.locator("#de-save")).toHaveCSS("background-color", "rgb(35, 32, 27)");
+  await expect(adminPage.locator("#de-del")).toHaveCSS("border-radius", "12px");
   await authed.close();
 });
 
@@ -413,11 +391,13 @@ test("service worker serves the worker script but never caches admin", async ({
   });
   expect(homeCached).toBe(true);
 
-  // …while the studio never is.
+  // …while the studio never is — dashboard or painting rooms.
   await page.goto("/admin");
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.goto("/admin");
-  await expect(page.locator("#add-toggle")).toBeVisible();
+  await expect(page.locator('#sec-add a[href="/admin/paintings/new"]')).toBeVisible();
+  expect(await adminCached()).toBe(false);
+  await page.goto("/admin/paintings/new");
   expect(await adminCached()).toBe(false);
 });
 

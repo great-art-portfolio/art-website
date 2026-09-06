@@ -86,6 +86,7 @@ test("studio header links home, never to visitor funnels", async ({ page }) => {
   await page.goto("/admin");
   // ← Gallery, Add painting. Gallery doubles as leave (clears the token).
   await expect(page.locator(".site-nav .nav-links a")).toHaveCount(2);
+  await expect(page.locator('nav a.nav-cta[href="/admin/paintings/new"]')).toHaveText("Add painting");
   await expect(page.locator('nav a[href="/#notify"]')).toHaveCount(0);
   await expect(page.locator(".card .step")).toHaveCount(0);
   // Retry buttons stay hidden while sections load on their own.
@@ -106,40 +107,6 @@ test("collection rows link to their painting pages", async ({ page }) => {
   }
   await page.locator(`#edit-list a[href="/paintings/${paintings[0].slug}"]`).click();
   await expect(page).toHaveURL(new RegExp(`/paintings/${paintings[0].slug}/?$`));
-});
-
-test("wall preview builds itself once the photo lands", async ({ page }) => {
-  await page.goto("/admin");
-  await expect(page.locator("#photo-tools")).toBeHidden();
-  await expect(page.locator("#ar-preview")).toBeHidden();
-  await page.locator("#add-toggle").click();
-  await page.locator("#photo-file").setInputFiles("src/content/paintings/1943x1967.jpg");
-  await expect(page.locator("#photo-tools")).toBeVisible();
-  // The photo lands in the square; the Choose-file prompt steps aside.
-  await expect(page.locator("#photo-preview")).toBeVisible();
-  await expect(page.locator("#photo-empty")).toBeHidden();
-  // No button to press: the true-size 3D + AR preview builds on its own
-  // (wall-preview checkbox is on by default) before Save is ever hit.
-  await expect(page.locator("#ar-try-row")).toHaveCount(0);
-  const viewer = page.locator("#ar-preview model-viewer");
-  await expect(viewer).toBeAttached({ timeout: 30_000 });
-  await expect(page.locator("#admin-status")).toContainText("Wall preview below");
-});
-
-test("wall preview reserves its space while building", async ({ page }) => {
-  await page.goto("/admin");
-  await page.locator("#add-toggle").click();
-  // Stall the 3D builder so the placeholder holds the stage.
-  await page.route("**/js/ar-tooling.js", async () => {
-    await new Promise(() => undefined);
-  });
-  await page.locator("#photo-file").setInputFiles("src/content/paintings/1943x1967.jpg");
-  await expect(page.locator("#ar-preview .ar-placeholder")).toContainText(
-    "usually a few seconds",
-  );
-  // Reserved box, not a collapsed line: the model lands without a jump.
-  const box = await page.locator("#ar-preview").boundingBox();
-  expect(box !== null && box.height >= 300).toBe(true);
 });
 
 test("admin links wear the accent, never browser blue", async ({ page }) => {
@@ -174,22 +141,15 @@ test("reduced motion kills movement, keeps gentle fades", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await mockCommitApi(page);
   await page.goto("/admin");
-  // Slides, lifts, expands go instant …
-  await expect(page.locator("#upload-form")).toHaveCSS("transition-duration", "0s");
   // … while color and underline fades still transition.
   await expect(page.locator("#sec-collection .hint a")).toHaveCSS(
     "transition-duration",
     "0.12s",
   );
-  // Buttons never lift — static or script-built.
-  await page.locator("#add-toggle").hover();
-  await expect(page.locator("#add-toggle")).toHaveCSS("transform", "none");
-  const edit = page.locator("#edit-list button").first();
-  await expect(edit).toBeVisible();
-  // Script-built buttons wear the studio styling, not browser defaults.
-  await expect(edit).toHaveCSS("border-radius", "12px");
-  await edit.hover();
-  await expect(edit).toHaveCSS("transform", "none");
+  // Buttons never lift; skeletons hold still.
+  await page.locator("#sec-add .btn-link").hover();
+  await expect(page.locator("#sec-add .btn-link")).toHaveCSS("transform", "none");
+  await expect(page.locator("#edit-list .row-edit").first()).toHaveCSS("color", "rgb(164, 74, 36)");
 });
 
 test("collection rows stop well short of the card edge on desktop", async ({ page }) => {
@@ -216,12 +176,10 @@ test("info links list plainly, and Advanced eases open", async ({ page }) => {
 
 test("errors toast over the page wherever she is scrolled", async ({ page }) => {
   await page.goto("/admin");
-  await page.locator("#add-toggle").click();
-  // Title + price filled (past native validation) but no photo: a panel error.
-  await page.locator("#f-title").fill("Toast Test");
-  await page.locator("#f-price").fill("250");
-  await page.locator('#upload-form button[type="submit"]').click();
-  await expect(page.locator("#admin-status")).toContainText("Choose a photo first.");
+  // Saving an empty banner with no backend behind it: a panel error.
+  await page.locator("#f-announce").fill("");
+  await page.locator("#announce-save").click();
+  await expect(page.locator("#admin-status")).not.toBeEmpty({ timeout: 15_000 });
   // Every message re-rises the toast.
   await expect(page.locator("#admin-status.toast-in")).toHaveCount(1);
   const pos = await page
@@ -238,29 +196,6 @@ test("errors toast over the page wherever she is scrolled", async ({ page }) => 
     expect(box.y).toBeGreaterThanOrEqual(0);
     expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
   }
-});
-
-test("add form waits behind its button", async ({ page }) => {
-  await page.goto("/admin");
-  await expect(page.locator("#upload-form")).toBeHidden();
-  await page.locator("#add-toggle").click();
-  await expect(page.locator("#upload-form")).toBeVisible();
-  await expect(page.locator("#add-toggle")).toHaveText("Close");
-  // Opening widens the card (fields left, photo square right).
-  await expect(page.locator("#sec-add")).toHaveClass(/open/);
-  await expect(page.locator("#photo-caption")).toHaveText("Upload photo");
-  await expect(page.locator(".photo-square")).toBeVisible();
-  await expect(page.locator("#photo-empty")).toBeVisible();
-  // Photo column shows with the form; its picker still belongs to it.
-  await expect(page.locator("#add-photo")).toBeVisible();
-  await expect(page.locator("#photo-file")).toHaveAttribute("form", "upload-form");
-  // The focus ring fades (box-shadow), never snaps.
-  const transition = await page
-    .locator(".photo-square")
-    .evaluate((el) => getComputedStyle(el).transition);
-  expect(transition).toContain("box-shadow");
-  const body = (await page.locator("#main").textContent()) ?? "";
-  expect(body).not.toContain("Photo from your phone");
 });
 
 test("collection names the missing API token when the API refuses", async ({ page }) => {
@@ -336,21 +271,15 @@ test("admin mode follows her through the whole gallery", async ({ browser }) => 
   }
   await cards.first().click();
   await expect(page.locator("#admin-bar")).toBeVisible();
-  await page.locator("#admin-edit-toggle").click();
-  const panel = page.locator("#admin-edit");
-  await expect(panel).toBeVisible({ timeout: 15_000 });
-  // Edit surface with delete tucked behind a confirm arm — never fired here.
-  await expect(panel.locator("#ae-del")).toBeVisible();
-  await panel.locator("#ae-del").click();
-  await expect(panel.locator("#ae-status")).toContainText("Tap again to confirm");
+  // The studio door carries the painting's own room.
+  const href = await page.locator("#admin-bar a").first().getAttribute("href");
+  expect(href?.startsWith("/admin/paintings/")).toBe(true);
   await authed.close();
 });
 
 test("visitors see zero admin chrome", async ({ page }) => {
   await page.goto(`/paintings/${paintings[0].slug}`);
   await expect(page.locator("#admin-bar")).toBeHidden();
-  await expect(page.locator("#admin-edit-toggle")).toBeHidden();
-  await expect(page.locator("#ae-del")).toHaveCount(0);
   await page.goto("/admin");
   await expect(page.locator('nav a[href="/#notify"]')).toHaveCount(0);
 });
@@ -378,10 +307,11 @@ test("studio wakes up on every visit, not just full loads", async ({ page }) => 
   await expect(page).toHaveURL(/#collection/);
   await page.goBack();
   await expect(page).toHaveURL(/\/admin/);
-  // Lists refilled, buttons wired — init ran on the return visit.
+  // Lists refilled — init ran on the return visit — and the new-painting
+  // door still opens its room.
   await expect(page.locator("#views-list")).not.toBeEmpty();
-  await page.locator("#add-toggle").click();
-  await expect(page.locator("#upload-form")).toBeVisible();
+  await page.locator('#sec-add a[href="/admin/paintings/new"]').click();
+  await expect(page.locator("#de-title")).toBeVisible();
 });
 
 test("banner lifetimes are 1/3/7/14 days plus no end date", async ({ page }) => {
@@ -401,10 +331,11 @@ test("collection groups available then sold, never bare statuses", async ({
   const text = (await page.locator("#edit-list").textContent()) ?? "";
   expect(text).not.toContain("— available");
   expect(text).not.toContain("— sold");
-  // Every row still carries its Edit button.
+  // Every row carries its thumbnail and its studio door.
   const links = await page.locator('#edit-list a[href^="/paintings/"]').count();
   expect(links).toBeGreaterThan(0);
-  await expect(page.locator("#edit-list button[data-edit]")).toHaveCount(links);
+  await expect(page.locator('#edit-list a[href^="/admin/paintings/"]')).toHaveCount(links);
+  await expect(page.locator("#edit-list img.thumb").first()).toBeVisible();
 });
 
 test("collection falls back to the baked-in list when the API fails", async ({
@@ -422,9 +353,10 @@ test("collection falls back to the baked-in list when the API fails", async ({
   await page.goto("/admin");
   const rows = page.locator('#edit-list a[href^="/paintings/"]');
   await expect(rows.first()).toBeVisible();
-  // Every row still carries its practice Edit button.
+  // Every row still carries its thumbnail and its studio door.
   const links = await rows.count();
-  await expect(page.locator("#edit-list button[data-local-edit]")).toHaveCount(links);
+  await expect(page.locator('#edit-list a[href^="/admin/paintings/"]')).toHaveCount(links);
+  await expect(page.locator("#edit-list img.thumb").first()).toBeVisible();
   await expect(page.locator("#collection-refresh")).toBeHidden();
   await expect(page.locator("#collection-note")).toContainText("Practice list");
   await expect(page.locator("#collection-note")).toBeVisible();
@@ -438,62 +370,70 @@ test("collection falls back to the baked-in list when the API fails", async ({
   expect(box).not.toBe("none");
 });
 
-test("dev list edits stay in the tab and vanish on reload", async ({ page }) => {
-  await page.goto("/admin");
-  const rows = page.locator('#edit-list a[href^="/paintings/"]');
-  await expect(rows.first()).toBeVisible();
-  const title = (await rows.first().textContent()) ?? "";
-  expect(title).not.toBe("");
-  await page.locator("#edit-list button[data-local-edit]").first().click();
-  // The form arrives prefilled with the row's own values.
-  await expect(page.locator("#ed-title")).toHaveValue(title);
-  await page.locator("#ed-price").fill("999.99");
-  await page.locator("#ed-save").click();
-  await expect(page.locator("#admin-status")).toContainText("practice only, gone on reload");
-  await expect(page.locator("#edit-list")).toContainText("$999.99");
-  // A reload restores the repo state — nothing was published.
-  await page.reload();
-  await expect(page.locator("#edit-list")).not.toContainText("$999.99");
-  await expect(page.locator("#edit-list")).toContainText(title);
+test("practice draft from the new room lands in the dashboard Drafts section", async ({
+  page,
+}) => {
+  await page.goto("/admin/paintings/new");
+  await page.locator("#de-title").fill("Practice Piece");
+  await page.locator("#de-price").fill("999.99");
+  await page.locator("#de-photo").setInputFiles("src/content/paintings/1943x1967.jpg");
+  await page.locator("#de-save-draft").click();
+  // Saving lands back on the dashboard with its confirmation…
+  await expect(page).toHaveURL(/\/admin\/?$/);
+  await expect(page.locator("#admin-status")).toContainText('Draft "Practice Piece" kept', {
+    timeout: 15_000,
+  });
+  // …and the Drafts section appears, practice row inside.
+  await expect(page.locator("#edit-list")).toContainText("Drafts");
+  await expect(page.locator("#edit-list")).toContainText("Practice Piece");
+  await expect(page.locator("#practice-reset")).toBeVisible();
 });
 
-test("dev list deletes stay in the tab", async ({ page }) => {
+test("practice reset clears the overlay back to the repo list", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "studio-practice-v1",
+      JSON.stringify({
+        upserts: {
+          "seeded-practice": {
+            slug: "seeded-practice",
+            title: "Seeded Practice",
+            price: 10,
+            sold: false,
+            alt: "",
+            description: "",
+            widthIn: "",
+            heightIn: "",
+            depthIn: "",
+            medium: "",
+            draft: true,
+          },
+        },
+        deletes: [],
+      }),
+    );
+  });
   await page.goto("/admin");
-  const rows = page.locator('#edit-list a[href^="/paintings/"]');
-  await expect(rows.first()).toBeVisible();
-  const before = await rows.count();
-  const title = (await rows.first().textContent()) ?? "";
-  await page.locator("#edit-list button[data-local-edit]").first().click();
-  const del = page.locator("#ed-del");
-  await del.click();
-  await expect(del).toHaveText("Tap again to delete");
-  // The form (not the list) holds the piece until the confirm tap lands.
-  await expect(page.locator("#ed-title")).toHaveValue(title);
-  await del.click();
-  await expect(page.locator("#admin-status")).toContainText("the real file is untouched");
-  await expect(page.locator('#edit-list a[href^="/paintings/"]')).toHaveCount(before - 1);
-  await page.reload();
-  await expect(page.locator('#edit-list a[href^="/paintings/"]')).toHaveCount(before);
+  await expect(page.locator("#edit-list")).toContainText("Seeded Practice");
+  await page.locator("#practice-reset").click();
+  await expect(page.locator("#edit-list")).not.toContainText("Seeded Practice");
+  await expect(page.locator("#practice-reset")).toBeHidden();
 });
 
 test("error toasts clear themselves after a few seconds", async ({ page }) => {
-  await page.goto("/admin");
-  await page.locator("#edit-list button[data-local-edit]").first().click();
-  await page.locator("#ed-title").fill("");
-  await page.locator("#ed-save").click();
-  const toast = page.locator("#admin-status");
+  await page.goto("/admin/paintings/new");
+  await page.locator("#de-publish").click();
+  const toast = page.locator("#de-status");
   await expect(toast).toContainText("Title and a valid price are required.");
   // Errors included: no stale complaint sits over the page.
   await expect(toast).toBeEmpty({ timeout: 10_000 });
 });
 
-test("navbar Add painting opens the working form", async ({ page }) => {
+test("navbar Add painting opens the new-painting room", async ({ page }) => {
   await page.goto("/admin");
-  await expect(page.locator("#upload-form")).toBeHidden();
-  await page.locator("#nav-add").click();
-  await expect(page.locator("#upload-form")).toBeVisible();
-  await expect(page.locator("#sec-add")).toHaveClass(/open/);
-  await expect(page.locator("#f-title")).toBeFocused();
+  await page.locator("nav a.nav-cta").click();
+  await expect(page).toHaveURL(/\/admin\/paintings\/new\/?$/);
+  await expect(page.locator("#de-title")).toBeVisible();
 });
 
 test("admin wordmark stays in the studio", async ({ page }) => {
@@ -501,68 +441,14 @@ test("admin wordmark stays in the studio", async ({ page }) => {
   await expect(page.locator("#signature")).toHaveAttribute("href", "/admin");
 });
 
-test("3D slot waits under the photo before any upload", async ({ page }) => {
-  await page.goto("/admin");
-  await page.locator("#add-toggle").click();
-  const slot = page.locator("#ar-preview");
-  await expect(slot).toBeVisible();
-  await expect(slot.locator(".ar-placeholder")).toContainText("takes a few seconds");
-  const box = await slot.boundingBox();
-  expect(box !== null && box.height >= 300).toBe(true);
-});
-
-test("add inputs show one focus ring, never two", async ({ page }) => {
-  await page.goto("/admin");
-  await page.locator("#add-toggle").click();
-  const title = page.locator("#f-title");
+test("studio inputs show one focus ring, never two", async ({ page }) => {
+  await page.goto("/admin/paintings/new");
+  const title = page.locator("#de-title");
   await title.click();
   await expect(title).toBeFocused();
   // The accent outline is the only ring: the border stays the quiet one.
   await expect(title).toHaveCSS("outline-width", "2px");
   await expect(title).toHaveCSS("border-color", "rgb(229, 220, 203)");
-});
-
-test("publish clears the photo so the next Save starts empty", async ({ page }) => {
-  await mockCommitApi(page);
-  await page.route("**/api/commit*", async (route) => {
-    if (route.request().method() === "POST") {
-      return route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: "{}",
-      });
-    }
-    return route.continue();
-  });
-  await page.goto("/admin");
-  await page.locator("#add-toggle").click();
-  // Skip the wall-preview build — photo state is what this exercises.
-  await page.locator("#f-ar").uncheck();
-  await page.locator("#photo-file").setInputFiles("src/content/paintings/1943x1967.jpg");
-  await page.locator("#f-title").fill("Review Test Piece");
-  await page.locator("#f-price").fill("250");
-  await page.locator('#upload-form button[type="submit"]').click();
-  await expect(page.locator("#admin-status")).toContainText('Published "Review Test Piece"', {
-    timeout: 15_000,
-  });
-  // Form reset AND photo forgotten: typing title+price alone can't publish.
-  await page.locator("#f-title").fill("Second Attempt");
-  await page.locator("#f-price").fill("300");
-  await page.locator('#upload-form button[type="submit"]').click();
-  await expect(page.locator("#admin-status")).toContainText("Choose a photo first.");
-  await expect(page.locator("#photo-preview")).toBeHidden();
-  await expect(page.locator("#photo-empty")).toBeVisible();
-});
-
-test("card preview hides its image until a photo arrives", async ({ page }) => {
-  await page.goto("/admin");
-  await page.locator("#add-toggle").click();
-  await page.locator("#f-title").fill("Just a title");
-  await expect(page.locator("#add-preview")).toBeVisible();
-  const display = await page
-    .locator("#pv-img")
-    .evaluate((el) => getComputedStyle(el).display);
-  expect(display).toBe("none");
 });
 
 test("gallery link leaves admin and lands home", async ({ browser }) => {

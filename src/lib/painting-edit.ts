@@ -13,6 +13,8 @@ export interface ParsedPainting {
   widthIn: string;
   heightIn: string;
   depthIn: string;
+  medium: string;
+  draft: boolean;
   sold: boolean;
   /** Photo filename (image:) and AR model refs, for dimension-fix rebuilds. */
   image: string;
@@ -41,6 +43,8 @@ export interface PaintingEdits {
   widthIn: string;
   heightIn: string;
   depthIn: string;
+  medium: string;
+  draft: boolean;
   sold: boolean;
   /** Set after an AR rebuild; omitted otherwise (existing refs untouched). */
   modelGlb?: string;
@@ -78,6 +82,8 @@ export function parsePainting(md: string): ParsedPainting | null {
     widthIn: data["widthIn"] ?? "",
     heightIn: data["heightIn"] ?? "",
     depthIn: data["depthIn"] ?? "",
+    medium: data["medium"] ?? "",
+    draft: (data["draft"] ?? "false").trim() === "true",
     sold: (data["sold"] ?? "false").trim() === "true",
     image: data["image"] ?? "",
     modelGlb: data["modelGlb"] ?? "",
@@ -99,6 +105,14 @@ export function patchPainting(md: string, edits: PaintingEdits): string {
   next = patchKey(next, "price", edits.price);
   next = patchKey(next, "alt", yamlQuote(edits.alt));
   next = patchKey(next, "sold", edits.sold ? "true" : "false");
+  next = patchKey(next, "draft", edits.draft ? "true" : "false");
+  // Medium is optional: an emptied field removes the key instead of
+  // leaving a blank string buyers would see.
+  if (edits.medium.trim() === "") {
+    next = next.replace(/^medium:.*\r?$/m, "");
+  } else {
+    next = patchKey(next, "medium", yamlQuote(edits.medium.trim()));
+  }
   // AR model refs after a dimension-fix rebuild (absent otherwise).
   if (edits.modelGlb !== undefined && edits.modelGlb !== "") {
     next = patchKey(next, "modelGlb", yamlQuote(edits.modelGlb));
@@ -124,3 +138,41 @@ export function patchPainting(md: string, edits: PaintingEdits): string {
   }
   return next;
 }
+
+/** Fresh .md for a new painting (draft or published). */
+export function buildMarkdown(input: {
+  title: string;
+  price: number;
+  alt: string;
+  description: string;
+  imageFile: string;
+  widthIn: number | null;
+  heightIn: number | null;
+  depthIn: number | null;
+  medium: string;
+  draft: boolean;
+  modelGlb: string;
+  modelUsdz: string;
+}): string {
+  const today = new Date().toISOString().slice(0, 10);
+  const lines = [
+    "---",
+    `title: ${yamlQuote(input.title)}`,
+    `dateAdded: ${today}`,
+    `image: ${yamlQuote(input.imageFile)}`,
+    `alt: ${yamlQuote(input.alt)}`,
+    "sold: false",
+    `draft: ${input.draft ? "true" : "false"}`,
+    `price: ${input.price.toFixed(2)}`,
+  ];
+  if (input.widthIn !== null) lines.push(`widthIn: ${input.widthIn}`);
+  if (input.heightIn !== null) lines.push(`heightIn: ${input.heightIn}`);
+  if (input.depthIn !== null) lines.push(`depthIn: ${input.depthIn}`);
+  if (input.medium.trim() !== "") lines.push(`medium: ${yamlQuote(input.medium.trim())}`);
+  if (input.modelGlb !== "") lines.push(`modelGlb: ${yamlQuote(input.modelGlb)}`);
+  if (input.modelUsdz !== "") lines.push(`modelUsdz: ${yamlQuote(input.modelUsdz)}`);
+  lines.push("---", input.description === "" ? "Fresh from the studio." : input.description, "");
+  return lines.join("\n");
+}
+
+

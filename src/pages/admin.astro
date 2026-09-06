@@ -29,60 +29,8 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
     <div class="admin-grid">
     <section class="card" id="sec-add">
       <h2>Add a painting</h2>
-      <button type="button" id="add-toggle" class="primary">Add new painting</button>
-      <p class="hint" id="add-preview-note" hidden></p>
-      <form id="upload-form" hidden>
-        <div class="add-anim">
-          <div class="add-fields">
-            <label>Title
-              <input id="f-title" name="title" type="text" autocomplete="off" required maxlength="120" />
-            </label>
-            <label>Price (CAD)
-              <input id="f-price" name="price" type="number" min="1" step="0.01" inputmode="decimal" required />
-            </label>
-            <div class="row">
-              <label>Width (in)
-                <input id="f-w" name="width" type="number" min="1" step="0.5" inputmode="decimal" placeholder="24" />
-              </label>
-              <label>Height (in)
-                <input id="f-h" name="height" type="number" min="1" step="0.5" inputmode="decimal" placeholder="36" />
-              </label>
-              <label>Depth (in)
-                <input id="f-d" name="depth" type="number" min="0.5" step="0.5" inputmode="decimal" placeholder="1.5" />
-              </label>
-            </div>
-            <p class="hint">Measure with a tape — buyers ask, shippers need it, and the wall preview needs it for true size.</p>
-            <label class="check"><input id="f-ar" type="checkbox" checked /> Build a 3D “view on your wall” preview (recommended)</label>
-            <label>Alt text (describe the art)
-              <input id="f-alt" name="alt" type="text" autocomplete="off" maxlength="200" />
-            </label>
-            <label>Description
-              <textarea id="f-desc" name="description" rows="3" maxlength="2000"></textarea>
-            </label>
-            <button type="submit" class="primary">Save painting</button>
-          </div>
-          <div id="add-preview" hidden>
-            <p class="hint">Preview — roughly how the gallery card will look.</p>
-            <div class="pv-mat"><img id="pv-img" alt="" /></div>
-            <p class="pv-title" id="pv-title"></p>
-            <p class="pv-sub" id="pv-sub"></p>
-          </div>
-        </div>
-      </form>
-      <div id="add-photo" hidden>
-        <span class="photo-caption" id="photo-caption">Upload photo</span>
-        <div class="photo-square">
-          <input id="photo-file" form="upload-form" type="file" accept="image/jpeg,image/png,image/webp,image/heic" capture="environment" aria-label="Upload photo" />
-          <span id="photo-empty" aria-hidden="true">Choose file</span>
-          <img id="photo-preview" alt="Photo preview" hidden />
-        </div>
-        <div class="row" id="photo-tools" hidden>
-          <button type="button" id="rotate-90">Rotate ↻</button>
-          <button type="button" id="rotate-270">Rotate ↺</button>
-        </div>
-        <p class="hint" id="photo-meta"></p>
-        <div id="ar-preview" class="live"><p class="ar-placeholder">Your 3D wall preview will appear here after you upload a photo — making it takes a few seconds.</p></div>
-      </div>
+      <p class="hint">New paintings start on their own page — it looks exactly like the buyer page, and you fill it in there.</p>
+      <a class="btn-link primary" href="/admin/paintings/new">Start a new painting</a>
     </section>
 
     <section class="card" id="share-panel" hidden>
@@ -104,9 +52,14 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
 
     <section class="card" id="sec-collection">
       <h2>Collection <button type="button" id="collection-refresh" hidden>Retry</button></h2>
-      <p class="hint" id="collection-hint"><a href="/#collection">Open the collection</a> to see what buyers see — then come back here and tap Edit here on any piece below.</p>
+      <p class="hint" id="collection-hint"><a href="/#collection">Open the collection</a> to see what buyers see — tap any piece below to open its studio page.</p>
       <p class="hint" id="collection-note" hidden></p>
-      <ul id="edit-list"><li>Loading…</li></ul>
+      <ul id="edit-list">
+        <li class="skel" aria-hidden="true"><span></span></li>
+        <li class="skel" aria-hidden="true"><span></span></li>
+        <li class="skel" aria-hidden="true"><span></span></li>
+      </ul>
+      <button type="button" id="practice-reset" hidden>Clear practice changes</button>
       <script type="application/json" id="local-collection" set:html={localJson} />
     </section>
 
@@ -239,10 +192,6 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
   input:hover, textarea:hover, select:hover { border-color: var(--muted); }
-  /* The picker is a button, not a text field: size + cursor say so. */
-  input[type="file"] { width: auto; max-width: 100%; cursor: pointer; }
-  /* Author flex beats the UA [hidden] rule — re-hide like the h2 buttons. */
-  #photo-tools[hidden] { display: none; }
   /* Studio links behave exactly like the footer: accent always, only
      the underline fades in on hover — never a color flash. */
   .admin a {
@@ -266,23 +215,17 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
     overflow: hidden;
   }
   :global(.view-bar > span) { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
-  button:focus-visible,
-  :global(#edit-list button:focus-visible) {
+  button:focus-visible, .btn-link:focus-visible {
     outline: 2px solid var(--accent); outline-offset: 2px;
   }
   /* One ring only: inputs show this outline on any focus, so it never
      doubles up with a border change (which is why this rule replaces it). */
-  input:focus, textarea:focus, select:focus,
-  :global(#edit-list input:focus),
-  :global(#edit-list textarea:focus) {
+  input:focus, textarea:focus, select:focus {
     outline: 2px solid var(--accent); outline-offset: 2px;
   }
   .row { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-block: 0.75rem; align-items: center; }
   .row label { flex: 1 1 8rem; margin-block: 0; }
-  /* The :global twins cover script-built buttons (collection rows, edit
-     form), which never carry the scope attribute. */
-  button,
-  :global(#edit-list button) {
+  button {
     font: inherit; font-size: 0.92rem; font-weight: 600;
     min-height: 2.9rem; padding: 0.55rem 1.2rem;
     border-radius: 0.75rem; border: 1px solid var(--line);
@@ -291,79 +234,39 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
     transition: background-color 0.25s ease, border-color 0.25s ease,
       color 0.25s ease, transform 0.2s ease;
   }
-  button:hover,
-  :global(#edit-list button:hover) { border-color: var(--ink); transform: translateY(-1px); }
-  button:active,
-  :global(#edit-list button:active) { transform: none; }
-  button.primary,
-  :global(#edit-list button.primary) { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-  button.primary:hover,
-  :global(#edit-list button.primary:hover) { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  button:hover { border-color: var(--ink); transform: translateY(-1px); }
+  button:active { transform: none; }
+  button.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  button.primary:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
   .card h2 button { min-height: 2.2rem; padding: 0.25rem 0.9rem; font-size: 0.82rem; margin-left: auto; }
   /* Author display:inline-flex beats the UA [hidden] rule — re-hide. */
   .card h2 button[hidden] { display: none; }
-  /* Add form: closed it takes no space; opening animates the card wider
-     with the fields left and the photo square right. */
-  #upload-form { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 0.35s ease, opacity 0.3s ease; }
-  /* Author display beats the UA [hidden] rule — re-hide while closed. */
-  #upload-form[hidden] { display: none; }
-  #sec-add.open #upload-form { grid-template-rows: 1fr; opacity: 1; }
-  .add-anim { overflow: hidden; min-height: 0; }
-  .add-fields button[type="submit"] { margin-top: 0.75rem; }
-  /* The photo column fades in with the rest of the form — same timing both
-     directions, so closing reverses the motion instead of snapping. */
-  #add-photo { opacity: 0; transition: opacity 0.3s ease; }
-  #sec-add.open #add-photo { opacity: 1; }
-  #add-photo[hidden] { display: none; }
-  .photo-caption { display: block; font-size: 0.9rem; font-weight: 600; margin-block: 0.75rem; }
-  /* The whole square is the picker: the file input covers it invisibly. */
-  .photo-square {
-    position: relative; aspect-ratio: 1; overflow: hidden;
-    border: 1.5px dashed var(--muted); border-radius: 0.75rem;
-    background: var(--paper); cursor: pointer;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  /* The new-painting room lives on its own page now — this card is just
+     its front door. */
+  .btn-link {
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 0.92rem; font-weight: 600; text-decoration: none;
+    min-height: 2.9rem; padding: 0.55rem 1.2rem;
+    border-radius: 0.75rem; border: 1px solid var(--ink);
+    background: var(--ink); color: var(--paper); cursor: pointer;
+    transition: background-color 0.25s ease, border-color 0.25s ease,
+      color 0.25s ease, transform 0.2s ease;
   }
-  .photo-square:hover { border-color: var(--ink); }
-  /* Focus ring as box-shadow so it fades in and out like the hover. */
-  .photo-square:focus-within { outline: none; box-shadow: 0 0 0 2px var(--accent); }
-  #photo-file {
-    position: absolute; inset: 0; width: 100%; height: 100%;
-    opacity: 0; cursor: pointer; border: none; background: none;
-    min-height: auto; padding: 0; margin: 0;
+  .btn-link:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); text-decoration: none; }
+  .btn-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (hover: hover) {
+    .btn-link:hover { transform: translateY(-1px); }
   }
-  #photo-empty {
-    position: absolute; inset: 0; display: flex;
-    align-items: center; justify-content: center;
-    font-size: 0.92rem; font-weight: 600; pointer-events: none;
-  }
-  #photo-preview {
-    position: absolute; inset: 0; width: 100%; height: 100%;
-    object-fit: contain; pointer-events: none;
-  }
-  #photo-preview[hidden], #photo-empty[hidden] { display: none; }
-  #photo-meta:empty { display: none; }
-  /* Reduced motion kills movement, not gentle fades: slides, lifts, and
-     expands go instant, while color and opacity transitions still run —
-     snapping colors is itself jarring. */
+  .btn-link:active { transform: none; }
+  /* Reduced motion kills movement, not gentle fades: lifts go instant,
+     while color and opacity transitions still run — snapping colors is
+     itself jarring. */
   @media (prefers-reduced-motion: reduce) {
-    #upload-form { transition: none; }
     #admin-status.toast-in { animation: none; }
-    button:hover,
-    :global(#edit-list button:hover) { transform: none; }
+    button:hover, .btn-link:hover { transform: none; }
     #sec-info details::details-content { transition: none; }
   }
   .hint { font-size: 0.88rem; color: var(--muted); }
-  .check { display: flex; gap: 0.6rem; align-items: center; font-weight: 600; }
-  .check input { width: auto; min-height: 1.4rem; accent-color: var(--accent); }
-  #ar-preview { margin-top: 0.75rem; }
-  /* Reserved while building or live, so the model never shoves the page. */
-  #ar-preview.live { min-height: 22rem; }
-  :global(#ar-preview .ar-placeholder) {
-    min-height: 22rem; box-sizing: border-box; margin: 0;
-    display: flex; align-items: center; justify-content: center; text-align: center;
-    border: 1.5px dashed var(--muted); border-radius: 0.75rem;
-    color: var(--muted); font-size: 0.9rem; padding: 1rem;
-  }
   #views-list, #edit-list { list-style: none; padding: 0; margin: 0.75rem 0 0; display: grid; gap: 0.5rem; }
   #sec-info ul { list-style: none; padding: 0; margin: 0.75rem 0 0; display: grid; gap: 0.5rem; }
   /* Rows and fields are built by script after load, so they never carry
@@ -391,57 +294,45 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
     font-size: 1.05rem; font-weight: 500; margin: 0;
   }
   :global(#edit-list li.list-plain) { color: var(--muted); font-size: 0.92rem; }
-  :global(#edit-list label) { display: grid; gap: 0.3rem; margin-block: 0.6rem; font-size: 0.85rem; font-weight: 600; }
-  :global(#edit-list input),
-  :global(#edit-list textarea) {
-    width: 100%; box-sizing: border-box; font: inherit; font-weight: 400; font-size: 0.9rem;
-    padding: 0.55rem 0.7rem; border-radius: 0.5rem;
-    border: 1px solid var(--line); background: var(--paper); color: var(--ink);
+  /* Rows carry a thumbnail, so she sees the piece without remembering
+     its name. Practice rows (dev) reuse the same shape. */
+  :global(#edit-list li.row-card) {
+    display: flex; gap: 0.8rem; align-items: center;
   }
-  :global(#edit-list .row) { display: flex; gap: 0.45rem; flex-wrap: wrap; margin: 0.6rem 0 0; }
-  :global(#edit-list .row label) { flex: 1 1 8rem; margin-block: 0; }
-  :global(#edit-list .check) { display: flex; gap: 0.6rem; align-items: center; font-weight: 600; }
-  :global(#edit-list .check input) { width: auto; accent-color: var(--accent); }
-  /* Add-form preview: quiet echo of the gallery card. */
-  #add-preview { margin: 0.75rem 0 0; max-width: 22rem; }
-  #add-preview .hint { margin: 0 0 0.5rem; }
-  #add-preview .pv-mat {
-    background: var(--card); border: 1px solid var(--line);
-    border-radius: 0.5rem; padding: 0.75rem;
-    box-shadow: var(--shadow);
+  :global(#edit-list img.thumb) {
+    width: 4rem; height: 4rem; object-fit: cover; border-radius: 0.5rem;
+    border: 1px solid var(--line); flex-shrink: 0; background: var(--card);
   }
-  #add-preview .pv-mat img { display: block; width: 100%; height: auto; border-radius: 0.25rem; }
-  /* Author display beats the UA [hidden] rule — re-hide the empty preview. */
-  #add-preview .pv-mat img[hidden] { display: none; }
-  #add-preview .pv-title {
-    margin: 0.6rem 0 0.15rem;
-    font-family: Georgia, "Iowan Old Style", Charter, serif; font-size: 1.2rem;
+  :global(#edit-list .row-body) { display: grid; gap: 0.3rem; min-width: 0; }
+  :global(#edit-list .row-edit) { font-size: 0.85rem; }
+  /* Loading skeletons hold the list's shape so rows landing never shove
+     the cards below. Static markup, replaced on first render. */
+  :global(#edit-list li.skel) { padding: 0.7rem 1rem; }
+  :global(#edit-list li.skel span) {
+    display: block; height: 2.6rem; border-radius: 0.5rem;
+    background: var(--line); opacity: 0.45;
+    animation: skel-pulse 1.6s ease-in-out infinite;
   }
-  #add-preview .pv-sub { margin: 0; font-size: 0.85rem; color: var(--muted); }
+  @keyframes skel-pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.6; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    :global(#edit-list li.skel span) { animation: none; opacity: 0.45; }
+  }
+  #practice-reset { margin-top: 0.75rem; }
+  #practice-reset[hidden] { display: none; }
   .card ul a { color: var(--accent); }
   /* No browser-blue links anywhere in the studio: visited matches unvisited. */
   .admin a, .admin a:visited { color: var(--accent); }
   /* Dashboard grid: one column on phones, two on desktop with the wide
-     working sections (Add, share, Collection) spanning both. */
+     working sections (share, Collection) spanning both. */
   @media (min-width: 60rem) {
     .admin-grid {
       display: grid; grid-template-columns: 1fr 1fr;
       gap: 0 1.5rem; align-items: start;
     }
     #share-panel, #sec-collection { grid-column: 1 / -1; }
-    /* While the form is open the Add card spans both columns: heading
-       and fields left (the heading bar covers roughly half the card),
-       the tall photo column starting at the top on the right. */
-    #sec-add.open {
-      grid-column: 1 / -1;
-      display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 4fr);
-      gap: 0 1.5rem;
-    }
-    #sec-add.open h2 { grid-column: 1; }
-    #sec-add.open #add-toggle { grid-column: 1; justify-self: start; }
-    #sec-add.open #add-preview-note { grid-column: 1; }
-    #sec-add.open #upload-form { grid-column: 1; min-width: 0; }
-    #sec-add.open #add-photo { grid-column: 2; grid-row: 1 / span 4; min-width: 0; }
     /* Full-width cards, readable lists: rows stop well short of the edge. */
     #edit-list, #views-list { max-width: 32rem; }
   }

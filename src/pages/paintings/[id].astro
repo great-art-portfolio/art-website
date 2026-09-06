@@ -61,7 +61,7 @@ const paintingJsonLd = {
   title={`${painting.data.title} — ${painting.data.sold ? "Sold" : "Original Painting"}`}
   description={painting.data.alt}
 >
-  <PaintingDetail mode="buy" data={data} backHref="/" backLabel="← Back to the collection">
+  <PaintingDetail mode="buy" data={data} backHref="/" backLabel="← Back to the collection" editHref={`/admin/paintings/${data.slug}`}>
     <Content />
   </PaintingDetail>
   <script type="application/ld+json" is:inline set:html={JSON.stringify(paintingJsonLd)} />
