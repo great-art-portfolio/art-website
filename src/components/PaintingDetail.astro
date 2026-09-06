@@ -927,9 +927,11 @@ const eyebrow = data.draft
       opacity: 1;
     }
   }
-  /* Draft AR slot: the same box, holding the wait in words. */
+  /* Draft AR slot: the same box, holding the wait in words. Narrow
+     measure, centered, so the lines wrap instead of sprawling. */
   .ar-waiting {
     width: 100%;
+    max-width: 26rem;
     min-height: 20rem;
     box-sizing: border-box;
     border-radius: 1rem;
@@ -942,7 +944,7 @@ const eyebrow = data.draft
     color: var(--muted);
     font-size: 0.92rem;
     padding: 1.5rem;
-    margin: 0;
+    margin-inline: auto;
   }
   #ar-stage[hidden] {
     display: none;
@@ -1042,11 +1044,12 @@ const eyebrow = data.draft
   textarea:hover {
     border-color: var(--muted);
   }
-  @media (prefers-reduced-motion: reduce) {
-    input,
-    textarea {
-      transition: none;
-    }
+  /* Browsers forward label hover to the field — hovering "Title" must
+     not warm its box. Only the field itself earns the hover. (The Sold
+     row opts out: there the label is one target on purpose.) */
+  .studio-fields label:hover:not(.de-check) input:not(:hover),
+  .studio-fields label:hover:not(.de-check) textarea:not(:hover) {
+    border-color: var(--line);
   }
   /* One ring only: inputs show the outline on any focus, never doubling
      with a border change. */
@@ -1196,14 +1199,10 @@ const eyebrow = data.draft
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
+
   /* Mouse taps leave no ring; keyboard tabs keep it. */
   .de-check input:focus:not(:focus-visible) {
     outline: none;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .de-check input {
-      transition: none;
-    }
   }
   /* High-contrast mode draws its own boxes better than CSS can. */
   @media (forced-colors: active) {
@@ -1243,11 +1242,6 @@ const eyebrow = data.draft
   }
   .studio-toolbar button:not(.btn-primary):hover {
     border-color: var(--ink);
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .studio-toolbar button:not(.btn-primary) {
-      transition: none;
-    }
   }
   .studio-toolbar button:focus-visible {
     outline: 2px solid var(--accent);
@@ -1293,11 +1287,6 @@ const eyebrow = data.draft
   .upload-tile:hover {
     border-color: var(--accent);
     color: var(--accent);
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .upload-tile {
-      transition: none;
-    }
   }
   #de-photo {
     position: absolute;
@@ -1345,11 +1334,6 @@ const eyebrow = data.draft
   }
   .tile-row button:hover {
     border-color: var(--ink);
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .tile-row button {
-      transition: none;
-    }
   }
   .tile-row button:focus-visible {
     outline: 2px solid var(--accent);

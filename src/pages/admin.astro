@@ -349,6 +349,13 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
   select:hover {
     border-color: var(--muted);
   }
+  /* Browsers forward label hover to the field — hovering "Announcement"
+     must not warm its box. Only the field itself earns the hover. */
+  label:hover input:not(:hover),
+  label:hover textarea:not(:hover),
+  label:hover select:not(:hover) {
+    border-color: var(--line);
+  }
   /* The dropdown is a choice, not typing — it gets the pointer finger. */
   select {
     cursor: pointer;

@@ -31,6 +31,12 @@ test("draft room looks like the buyer page, empty and editable", async ({
   );
   // The wall wait names the 3D model, not just "the 3D".
   await expect(page.locator("#de-ar-waiting")).toContainText("3D model takes");
+  // Narrow centered measure on desktop — it wraps instead of sprawling.
+  const mountW = (await page.locator("#ar-mount").boundingBox())?.width ?? 0;
+  const waitW =
+    (await page.locator("#de-ar-waiting").boundingBox())?.width ?? 0;
+  expect(waitW).toBeGreaterThan(0);
+  expect(waitW).toBeLessThan(mountW);
   await expect(page.locator("#de-alt")).toHaveAttribute(
     "aria-describedby",
     "de-alt-hint",
@@ -157,6 +163,29 @@ test("secondary actions fade their hovers", async ({ page }) => {
     "border-color",
     "rgb(164, 74, 36)",
   );
+});
+
+test("label text never warms its field", async ({ page }) => {
+  await page.goto("/admin/paintings/new");
+  // Hover the "Title" words themselves, not the box.
+  await page
+    .locator(".studio-fields label")
+    .first()
+    .hover({ position: { x: 10, y: 8 } });
+  await expect(page.locator("#de-title")).toHaveCSS(
+    "border-color",
+    "rgb(229, 220, 203)",
+  );
+});
+
+test("reduced motion still fades field colors", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/admin/paintings/new");
+  // Movement goes instant; color fades keep running.
+  const dur = await page
+    .locator("#de-title")
+    .evaluate((el) => getComputedStyle(el).transitionDuration);
+  expect(dur).toContain("0.2s");
 });
 
 test("reduced motion keeps the save button planted", async ({ page }) => {
