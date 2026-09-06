@@ -300,12 +300,11 @@ test("admin page renders the studio sections and upload form", async ({
   for (const id of ["#sec-add", "#sec-collection", "#sec-banner", "#sec-views"]) {
     await expect(page.locator(id)).toBeAttached();
   }
-  const subnav = page.locator(".subnav");
-  for (const href of ["#sec-add", "#sec-collection", "#sec-banner", "#sec-views"]) {
-    await expect(subnav.locator(`a[href="${href}"]`)).toHaveCount(1);
-  }
-  await expect(page.locator("#f-title")).toBeVisible();
-  await expect(page.locator("#f-price")).toBeVisible();
+  // Grid dashboard, no anchor strip; the working form waits for its button.
+  await expect(page.locator(".subnav")).toHaveCount(0);
+  await expect(page.locator(".admin-grid")).toBeVisible();
+  await expect(page.locator("#upload-form")).toBeHidden();
+  await expect(page.locator("#f-title")).toBeHidden();
   await expect(page.locator("#admin-token")).toBeAttached();
 });
 
