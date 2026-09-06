@@ -184,16 +184,17 @@ function renderLocalCollection(): boolean {
     const seeded = seedLocalRows(rows);
     if (seeded === null) return false;
     localRows = seeded;
+    // The static markup already shows these rows — record it so the first
+    // render below doesn't swap identical HTML (photos would flicker).
+    if (lastRowsKey === null) lastRowsKey = rowsKey(localRows);
   }
   const overlay = loadPracticeOverlay();
   renderRows(mergePractice(localRows, overlay));
   // Practice mode: saves from the studio rooms land in this browser, and
-  // clear out with one tap. The heading says so — only ever on a local
-  // preview, never on the live site.
-  const titleEl = $("collection-title");
-  titleEl.textContent =
-    "Collection (Development only — changes aren't persisted)";
-  fadeIn(titleEl);
+  // clear out with one tap. Only the dev suffix appears — the heading
+  // itself is never touched — and only ever on a local preview, never
+  // on the live site.
+  reveal($("collection-dev"));
   const reset = $("practice-reset") as HTMLButtonElement;
   reset.hidden = practiceCount(overlay) === 0;
   if (reset.dataset.wired !== "1") {
@@ -212,6 +213,30 @@ function subHtml(title: string): string {
 }
 
 /**
+ * Signature of exactly what a render shows: sorted rows, rendered fields
+ * only. Re-rendering identical markup would destroy and rebuild every
+ * photo (a visible flicker), so renderRows skips when nothing changed.
+ */
+function rowsKey(rows: LocalPainting[]): string {
+  return JSON.stringify(
+    [...rows]
+      .sort((a, b) => a.title.localeCompare(b.title))
+      .map((r) => [
+        r.slug,
+        r.title,
+        r.price,
+        r.sold,
+        r.draft,
+        r.image,
+        r.mdPath,
+      ]),
+  );
+}
+
+/** Key of what the list currently shows (null until the first render). */
+let lastRowsKey: string | null = null;
+
+/**
  * Two columns on desktop — Available left, Drafts/Sold right — one list
  * on phones. Same renderer as the static markup (studioRowHtml), so
  * hydration swaps identical HTML.
@@ -219,6 +244,9 @@ function subHtml(title: string): string {
 function renderRows(rows: LocalPainting[]): void {
   const list = $("edit-list");
   ($("collection-refresh") as HTMLButtonElement).hidden = true;
+  const key = rowsKey(rows);
+  if (key === lastRowsKey) return;
+  lastRowsKey = key;
   if (rows.length === 0) {
     list.innerHTML =
       '<li class="list-plain">Nothing here yet — tap Add painting above.</li>';
@@ -530,10 +558,12 @@ function init(): void {
         const meta = $("announce-meta");
         if (banner.text === "") {
           meta.textContent = "No banner showing right now.";
+          fadeIn(meta);
           return;
         }
         if (banner.expires === null) {
           meta.textContent = "Showing now, with no end date.";
+          fadeIn(meta);
           ($("f-duration") as unknown as HTMLSelectElement).value = "";
           return;
         }
@@ -542,6 +572,7 @@ function init(): void {
           left < 0
             ? `Ended ${banner.expires} — hidden on the site.`
             : `Showing now, ends ${banner.expires} (${left === 0 ? "last day" : `${left} days left`}).`;
+        fadeIn(meta);
         // Preselect the lifetime closest to what's left, so saving
         // without touching the dropdown roughly keeps the end date.
         const select = $("f-duration") as unknown as HTMLSelectElement;

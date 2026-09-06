@@ -135,7 +135,7 @@ test("admin explains itself gracefully without a publishing backend", async ({
   const doors = page.locator('#edit-list a[href^="/admin/paintings/"]');
   await expect(doors).toHaveCount(await rows.count());
   await expect(page.locator("#collection-refresh")).toBeHidden();
-  await expect(page.locator("#collection-title")).toContainText(
+  await expect(page.locator("#collection-dev")).toContainText(
     "Development only",
   );
   // Nothing to toast about on a quiet load.

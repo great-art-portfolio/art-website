@@ -141,13 +141,15 @@ test("collection rows link to their painting pages", async ({ page }) => {
 
 test("admin links wear the accent, never browser blue", async ({ page }) => {
   await page.goto("/admin");
-  // The dev heading proves the script ran — the row links it carries must
+  // The dev suffix proves the script ran — the row links it carries must
   // still wear the accent (they have no scope attribute).
-  await expect(page.locator("#collection-title")).toContainText(
+  await expect(page.locator("#collection-dev")).toContainText(
     "Development only",
   );
-  // Deferred reveals fade in instead of snapping.
-  await expect(page.locator("#collection-title")).toHaveClass(/fade-in/);
+  // Deferred reveals fade in instead of snapping — but the heading
+  // itself is never touched.
+  await expect(page.locator("#collection-dev")).toHaveClass(/fade-in/);
+  await expect(page.locator("#collection-title")).not.toHaveClass(/fade-in/);
   const color = await page
     .locator("#edit-list .row-title")
     .first()
@@ -240,7 +242,10 @@ test("info links list plainly, and Advanced eases open", async ({ page }) => {
       .evaluate((el) => getComputedStyle(el).listStyleType),
   ).toBe("none");
   await expect(page.locator("#admin-token")).toBeHidden();
-  // The Advanced heading stands clear of the lines above it.
+  await expect(page.locator("#sec-info summary")).toContainText(
+    "Advanced Settings",
+  );
+  // The Advanced Settings heading stands clear of the lines above it.
   await expect(page.locator("#sec-info summary")).toHaveCSS(
     "margin-top",
     "24px",
@@ -338,6 +343,22 @@ test("ship flags stay hidden until status resolves", async ({ page }) => {
   await page.goto("/admin");
   // No flash of "…" dots while loading.
   await expect(page.locator("#ship-flags")).toBeHidden();
+});
+
+test("collection photos never flicker on load", async ({ page }) => {
+  await page.goto("/admin");
+  // Dashboard script ran (dev suffix) — the rows below are final.
+  await expect(page.locator("#collection-dev")).toContainText(
+    "Development only",
+  );
+  const img = page.locator("#edit-list img.thumb").first();
+  await expect(img).toBeVisible();
+  const handle = await img.elementHandle();
+  expect(handle !== null).toBe(true);
+  if (handle === null) return;
+  // No re-render swaps identical markup underneath.
+  await page.waitForTimeout(1500);
+  expect(await page.evaluate((el) => el.isConnected, handle)).toBe(true);
 });
 
 test("most viewed stays hidden until data arrives", async ({ page }) => {
@@ -469,6 +490,8 @@ test("banner lifetimes are 1/3/7/14 days plus no end date", async ({
   // Status sits beside its button, never above it.
   await expect(page.locator("#announce-save + #announce-meta")).toHaveCount(1);
   await expect(page.locator("#announce-meta")).not.toBeEmpty();
+  // …and fades in instead of snapping.
+  await expect(page.locator("#announce-meta")).toHaveClass(/fade-in/);
   const btnBox = await page.locator("#announce-save").boundingBox();
   const metaBox = await page.locator("#announce-meta").boundingBox();
   expect(btnBox !== null && metaBox !== null).toBe(true);
@@ -520,7 +543,7 @@ test("collection falls back to the baked-in list when the API fails", async ({
   ).toHaveCount(links);
   await expect(page.locator("#edit-list img.thumb").first()).toBeVisible();
   await expect(page.locator("#collection-refresh")).toBeHidden();
-  await expect(page.locator("#collection-title")).toContainText(
+  await expect(page.locator("#collection-dev")).toContainText(
     "Development only",
   );
   // Script-built rows still wear the studio styles (accent links, boxed rows).

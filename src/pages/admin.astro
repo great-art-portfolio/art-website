@@ -68,6 +68,9 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
       <section class="card" id="sec-collection">
         <h2>
           <span id="collection-title">Collection</span>
+          <span id="collection-dev" hidden
+            >(Development only — changes aren't persisted)</span
+          >
           <button type="button" id="collection-refresh" hidden>Retry</button>
         </h2>
         <ul id="edit-list">
@@ -176,7 +179,7 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
           checkout is <span id="flag-stripe">…</span>.
         </p>
         <details>
-          <summary>Advanced</summary>
+          <summary>Advanced Settings</summary>
           <p class="hint">
             Email alerts <span id="flag-email">…</span> · iOS push <span
               id="flag-push">…</span
