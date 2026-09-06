@@ -25,13 +25,16 @@ export function studioRowHtml(r: StudioRowInput): string {
     s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
   const cents = dollarsToCents(Number(r.price));
   const price = cents === null ? "Price?" : formatCAD(cents);
-  const thumb =
+  // Photo and title are separate links to the buyer page — the title
+  // never stretches, so empty space beside it stays dead.
+  const photo =
     r.image === ""
       ? ""
-      : `<img class="thumb" src="${esc(r.image)}" alt="" loading="lazy" />`;
+      : `<a class="row-photo" href="/paintings/${esc(r.slug)}" aria-label="${esc(r.title)}">` +
+        `<img class="thumb" src="${esc(r.image)}" alt="" loading="lazy" /></a>`;
   return (
-    `<li class="row-card">${thumb}<span class="row-body">` +
-    `<a href="/paintings/${esc(r.slug)}"><strong>${esc(r.title)}</strong></a>` +
+    `<li class="row-card">${photo}<span class="row-body">` +
+    `<a class="row-title" href="/paintings/${esc(r.slug)}"><strong>${esc(r.title)}</strong></a>` +
     `<span> — ${price}</span>` +
     `<span class="row-actions">` +
     `<a class="row-edit" href="/admin/paintings/${esc(r.slug)}">${pencilIcon}Edit</a>` +

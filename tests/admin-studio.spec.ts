@@ -90,7 +90,7 @@ async function mockCommitApi(page: Page): Promise<void> {
 test("studio header links home, never to visitor funnels", async ({ page }) => {
   await mockCommitApi(page);
   await page.goto("/admin");
-  // ← Gallery, Add painting. Gallery doubles as leave (clears the token).
+  // ← Leave Admin, Add painting. Leave doubles as logout (clears the token).
   await expect(page.locator(".site-nav .nav-links a")).toHaveCount(2);
   await expect(
     page.locator('nav a.nav-cta[href="/admin/paintings/new"]'),
@@ -111,13 +111,25 @@ test("collection rows link to their painting pages", async ({ page }) => {
   await mockCommitApi(page);
   await page.goto("/admin");
   for (const p of paintings) {
+    // One title link per painting — plus its photo link when it has one.
     await expect(
-      page.locator(`#edit-list a[href="/paintings/${p.slug}"]`),
+      page.locator(`#edit-list a.row-title[href="/paintings/${p.slug}"]`),
     ).toHaveCount(1);
   }
-  await page
-    .locator(`#edit-list a[href="/paintings/${paintings[0].slug}"]`)
-    .click();
+  // The title link hugs its text: empty space beside it stays dead.
+  const title = page.locator(
+    `#edit-list a.row-title[href="/paintings/${paintings[0].slug}"]`,
+  );
+  const widths = await title.evaluate((el) => {
+    const li = el.closest(".row-card");
+    return {
+      link: el.getBoundingClientRect().width,
+      row: li === null ? 0 : li.getBoundingClientRect().width,
+    };
+  });
+  expect(widths.link).toBeGreaterThan(0);
+  expect(widths.link).toBeLessThan(widths.row);
+  await title.click();
   await expect(page).toHaveURL(
     new RegExp(`/paintings/${paintings[0].slug}/?$`),
   );
@@ -125,11 +137,14 @@ test("collection rows link to their painting pages", async ({ page }) => {
 
 test("admin links wear the accent, never browser blue", async ({ page }) => {
   await page.goto("/admin");
-  // The practice note proves the script rewrote the hint — the link it
-  // carries must still wear the accent (it has no scope attribute).
-  await expect(page.locator("#collection-note")).toContainText("Practice list");
+  // The dev heading proves the script ran — the row links it carries must
+  // still wear the accent (they have no scope attribute).
+  await expect(page.locator("#collection-title")).toContainText(
+    "Development only",
+  );
   const color = await page
-    .locator("#sec-collection .hint a")
+    .locator("#edit-list .row-title")
+    .first()
     .evaluate((el) => getComputedStyle(el).color);
   expect(color).toBe("rgb(164, 74, 36)");
 });
@@ -140,7 +155,7 @@ test("studio hovers match the footer: underline only, no color flash", async ({
   await page.emulateMedia({ colorScheme: "dark" });
   await page.goto("/admin");
   const accent = "rgb(208, 129, 89)";
-  for (const sel of ["#sec-collection .hint a", "#edit-list li a"]) {
+  for (const sel of ["#edit-list .row-title", "#edit-list .row-edit"]) {
     const link = page.locator(sel).first();
     await expect(link).toHaveCSS("color", accent);
     await expect(link).toHaveCSS("transition-duration", "0.12s");
@@ -159,7 +174,7 @@ test("reduced motion kills movement, keeps gentle fades", async ({ page }) => {
   await mockCommitApi(page);
   await page.goto("/admin");
   // … while color and underline fades still transition.
-  await expect(page.locator("#sec-collection .hint a")).toHaveCSS(
+  await expect(page.locator("#edit-list .row-title").first()).toHaveCSS(
     "transition-duration",
     "0.12s",
   );
@@ -183,7 +198,7 @@ test("collection rows stop well short of the card edge on desktop", async ({
   // Rows arrive as static markup — no skeleton flash, no layout shift.
   await expect(page.locator("#edit-list .row-card").first()).toBeVisible();
   await expect(page.locator("#edit-list .skel")).toHaveCount(0);
-  // The Available column stays narrower than the full card.
+  // One group alone fills the whole card — no empty half.
   const card =
     (await page.locator("#sec-collection").boundingBox())?.width ?? 0;
   const group =
@@ -193,7 +208,7 @@ test("collection rows stop well short of the card edge on desktop", async ({
         .boundingBox()
     )?.width ?? 0;
   expect(group).toBeGreaterThan(0);
-  expect(group).toBeLessThan(card);
+  expect(group).toBeGreaterThan(card * 0.85);
   // A grid of paintings, not a 1D list: cards sit side by side.
   const cards = page.locator(
     '#edit-list .list-group[data-group="available"] .row-card',
@@ -383,9 +398,9 @@ test("studio wakes up on every visit, not just full loads", async ({
   page,
 }) => {
   await page.goto("/admin");
-  // Out through the collection link (client-side hop), back again.
-  await page.locator('#sec-collection .hint a[href="/#collection"]').click();
-  await expect(page).toHaveURL(/#collection/);
+  // Out through a painting's buyer page (client-side hop), back again.
+  await page.locator("#edit-list a.row-title").first().click();
+  await expect(page).toHaveURL(/\/paintings\//);
   await page.goBack();
   await expect(page).toHaveURL(/\/admin/);
   // Lists refilled — init ran on the return visit — and the new-painting
@@ -415,7 +430,9 @@ test("collection groups available then sold, never bare statuses", async ({
   expect(text).not.toContain("— available");
   expect(text).not.toContain("— sold");
   // Every row carries its thumbnail and its studio door.
-  const links = await page.locator('#edit-list a[href^="/paintings/"]').count();
+  const links = await page
+    .locator('#edit-list a.row-title[href^="/paintings/"]')
+    .count();
   expect(links).toBeGreaterThan(0);
   await expect(
     page.locator('#edit-list a[href^="/admin/paintings/"]'),
@@ -436,7 +453,7 @@ test("collection falls back to the baked-in list when the API fails", async ({
     }),
   );
   await page.goto("/admin");
-  const rows = page.locator('#edit-list a[href^="/paintings/"]');
+  const rows = page.locator('#edit-list a.row-title[href^="/paintings/"]');
   await expect(rows.first()).toBeVisible();
   // Every row still carries its thumbnail and its studio door.
   const links = await rows.count();
@@ -445,8 +462,9 @@ test("collection falls back to the baked-in list when the API fails", async ({
   ).toHaveCount(links);
   await expect(page.locator("#edit-list img.thumb").first()).toBeVisible();
   await expect(page.locator("#collection-refresh")).toBeHidden();
-  await expect(page.locator("#collection-note")).toContainText("Practice list");
-  await expect(page.locator("#collection-note")).toBeVisible();
+  await expect(page.locator("#collection-title")).toContainText(
+    "Development only",
+  );
   // Script-built rows still wear the studio styles (accent links, boxed rows).
   const color = await rows.first().evaluate((el) => getComputedStyle(el).color);
   expect(color).toBe("rgb(164, 74, 36)");
@@ -610,6 +628,7 @@ test("gallery link leaves admin and lands home", async ({ browser }) => {
     window.localStorage.setItem("ADMIN_API_TOKEN", "test"),
   );
   await page.reload();
+  await expect(page.locator("#leave-admin")).toHaveText("← Leave Admin");
   await page.locator("#leave-admin").click();
   await expect(page).toHaveURL(/\/$/);
   const leftover = await page.evaluate(() => {

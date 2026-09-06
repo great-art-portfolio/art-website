@@ -78,7 +78,7 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
             wordmark === "admin" ? (
               <>
                 <a href="/" class="keep" id="leave-admin">
-                  ← Gallery
+                  ← Leave Admin
                 </a>
                 <a href="/admin/paintings/new" class="nav-cta">
                   Add painting
@@ -266,6 +266,7 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
   }
   .nav-links a {
     color: var(--ink);
+    white-space: nowrap;
     opacity: 0.78;
     text-decoration: underline transparent;
     text-underline-offset: 4px;

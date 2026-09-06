@@ -67,15 +67,9 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
 
       <section class="card" id="sec-collection">
         <h2>
-          Collection <button type="button" id="collection-refresh" hidden
-            >Retry</button
-          >
+          <span id="collection-title">Collection</span>
+          <button type="button" id="collection-refresh" hidden>Retry</button>
         </h2>
-        <p class="hint" id="collection-hint">
-          <a href="/#collection">Open the collection</a> to see what buyers see —
-          tap any piece below to open its studio page.
-        </p>
-        <p class="hint" id="collection-note" hidden></p>
         <ul id="edit-list">
           <li class="list-group" data-group="available">
             <div class="list-sub"><h3>Available</h3></div>
@@ -168,7 +162,7 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
         <ul>
           <li>
             <a href="https://chitchats.com/" rel="noopener">Chit Chats</a> — cheapest
-            tracked Canada/US shipping from Calgary.
+            tracked Canada/US shipping.
           </li>
           <li>
             <a href="https://www.pirateship.com/" rel="noopener">Pirate Ship</a> —
@@ -365,18 +359,6 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
     text-underline-offset: 3px;
   }
   .admin a:hover {
-    text-decoration-color: currentColor;
-  }
-  /* The hint link is written by script after load, so it never carries the
-     scope attribute — this twin keeps it out of browser-blue. */
-  :global(#collection-hint a),
-  :global(#collection-hint a:visited) {
-    color: var(--accent);
-    text-decoration: underline transparent;
-    text-underline-offset: 3px;
-    transition: text-decoration-color 0.12s ease;
-  }
-  :global(#collection-hint a:hover) {
     text-decoration-color: currentColor;
   }
   /* View bars: one accent row per painting, scaled to the top piece. */
@@ -604,6 +586,16 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
     display: grid;
     gap: 0.3rem;
     min-width: 0;
+    /* Links hug their text: empty space beside a title stays dead. */
+    justify-items: start;
+  }
+  :global(#edit-list .row-photo) {
+    display: inline-flex;
+    border-radius: 0.5rem;
+  }
+  :global(#edit-list .row-photo:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
   :global(#edit-list .row-edit) {
     font-size: 0.85rem;
@@ -657,6 +649,10 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
       grid-template-columns: 1fr 1fr;
       gap: 1.5rem;
       align-items: stretch;
+    }
+    /* One group alone takes the whole card — no empty half. */
+    :global(#edit-list .list-group:only-child) {
+      grid-column: 1 / -1;
     }
     :global(#edit-list .list-group) {
       display: grid;

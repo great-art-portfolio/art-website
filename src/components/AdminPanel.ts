@@ -172,15 +172,11 @@ function renderLocalCollection(): boolean {
   }
   const overlay = loadPracticeOverlay();
   renderRows(mergePractice(localRows, overlay));
-  ($("collection-hint") as HTMLParagraphElement).innerHTML =
-    '<a href="/#collection">Open the collection</a> to see what buyers see — tap any piece below to open its studio page.';
   // Practice mode: saves from the studio rooms land in this browser, and
-  // clear out with one tap. The note lives in the Collection card, next
-  // to the list it describes.
-  const note = $("collection-note");
-  note.textContent =
-    "Practice list — studio saves in this browser show up here. Real publishing happens on the live site.";
-  (note as HTMLParagraphElement).hidden = false;
+  // clear out with one tap. The heading says so — only ever on a local
+  // preview, never on the live site.
+  $("collection-title").textContent =
+    "Collection (Development only - changes aren't persisted)";
   const reset = $("practice-reset") as HTMLButtonElement;
   reset.hidden = practiceCount(overlay) === 0;
   if (reset.dataset.wired !== "1") {
@@ -311,7 +307,6 @@ function wireRowDelete(): void {
 
 async function refreshCollection(): Promise<void> {
   const list = $("edit-list");
-  ($("collection-note") as HTMLParagraphElement).hidden = true;
   let files: string[];
   try {
     files = (await api.listPaintingFiles()).filter((f) => f.endsWith(".md"));
@@ -396,8 +391,6 @@ async function refreshCollection(): Promise<void> {
     });
   }
   renderRows(rows);
-  ($("collection-hint") as HTMLParagraphElement).innerHTML =
-    '<a href="/#collection">Open the collection</a> to see what buyers see — tap any piece below to open its studio page.';
 }
 
 async function refreshViews(): Promise<void> {

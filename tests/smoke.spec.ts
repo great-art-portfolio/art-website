@@ -127,7 +127,7 @@ test("admin explains itself gracefully without a publishing backend", async ({
   // No GitHub behind the dev API: the baked-in index renders with practice
   // merges — thumbnails, buyer links, and studio doors work, real
   // publishing stays live-only.
-  const rows = page.locator('#edit-list a[href^="/paintings/"]');
+  const rows = page.locator('#edit-list a.row-title[href^="/paintings/"]');
   await expect(rows.first()).toBeVisible({ timeout: 15_000 });
   expect(await rows.count()).toBeGreaterThan(0);
   await expect(page.locator(".list-sub h3").first()).toHaveText("Available");
@@ -135,9 +135,10 @@ test("admin explains itself gracefully without a publishing backend", async ({
   const doors = page.locator('#edit-list a[href^="/admin/paintings/"]');
   await expect(doors).toHaveCount(await rows.count());
   await expect(page.locator("#collection-refresh")).toBeHidden();
-  await expect(page.locator("#collection-note")).toContainText("Practice list");
-  await expect(page.locator("#collection-note")).toBeVisible();
-  // Nothing to toast about — the note lives in the Collection card.
+  await expect(page.locator("#collection-title")).toContainText(
+    "Development only",
+  );
+  // Nothing to toast about on a quiet load.
   await expect(page.locator("#admin-status")).toBeHidden();
   // No secrets locally: Cloudflare answers 200 with zero rows, so the
   // views card hides instead of reporting. (The local-preview wording only
