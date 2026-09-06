@@ -110,7 +110,8 @@ test("admin explains itself gracefully without a publishing backend", async ({
   await expect(page.locator("#edit-list")).toContainText("live site", {
     timeout: 15_000,
   });
-  await expect(page.locator("#views-list")).toContainText(
-    /not wired up|local preview|No views/,
-  );
+  // No secrets locally: Cloudflare answers 200 with zero rows, so the
+  // views card hides instead of reporting. (The local-preview wording only
+  // appears when the API itself is down — covered in admin-studio.)
+  await expect(page.locator("#sec-views")).toBeHidden();
 });

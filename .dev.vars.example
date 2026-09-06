@@ -1,0 +1,27 @@
+# Local preview secrets. Copy to `.dev.vars` (never committed — it is in
+# `.gitignore`) so `pnpm dev` can publish, read views, and send test mail
+# exactly like the live site. Anything left blank behaves as "off", same as
+# production without that secret. Get values from the Cloudflare dashboard
+# (Pages → art-website → Settings → Environment variables and secrets).
+
+# Publishing (saves from /admin push to GitHub; without these, saves fail
+# with "not configured" and the studio names the live site instead).
+GITHUB_TOKEN=
+GITHUB_REPO=
+GITHUB_BRANCH=main
+
+# Studio API key (must match the live secret to test saves with a token).
+ADMIN_API_TOKEN=
+
+# Views (without these, Most-viewed reports "unconfigured").
+CF_ACCOUNT_ID=
+CF_ANALYTICS_TOKEN=
+CF_ANALYTICS_SITE=
+
+# Mail + push (optional; blank keeps the buttons quiet).
+RESEND_API_KEY=
+NOTIFY_EMAIL_FROM=
+NOTIFY_EMAIL_TO=
+VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_JWK=
+VAPID_CONTACT=

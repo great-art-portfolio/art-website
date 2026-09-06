@@ -22,6 +22,8 @@ pnpm install
 pnpm dev            # full site + API: builds, then serves dist on :4331
                     # (rebuilds on restart — rerun after editing content)
 pnpm dev:astro      # markup-only fast path (no API: admin/views publish paths 404)
+                    # dev uploads: copy .dev.vars.example to .dev.vars with
+                    # real secrets to test publishing end to end locally
 pnpm check          # astro check
 pnpm build
 pnpm check:inline   # no raw TS/imports in inline page scripts (see below)

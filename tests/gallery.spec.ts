@@ -293,11 +293,7 @@ test("admin page renders the studio sections and upload form", async ({
   page,
 }) => {
   await page.goto("/admin");
-  // Static "Studio", then the panel personalizes by time of day.
-  await expect(page.locator("#admin-greeting")).toContainText(
-    /^(Studio|Good (morning|afternoon|evening)\.)$/,
-  );
-  for (const id of ["#sec-add", "#sec-collection", "#sec-banner", "#sec-views"]) {
+  for (const id of ["#sec-add", "#sec-collection", "#sec-banner", "#sec-views", "#sec-info"]) {
     await expect(page.locator(id)).toBeAttached();
   }
   // Grid dashboard, no anchor strip; the working form waits for its button.
@@ -385,6 +381,6 @@ test("service worker serves the worker script but never caches admin", async ({
   await page.goto("/admin");
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.goto("/admin");
-  await expect(page.locator("#admin-greeting")).toBeVisible();
+  await expect(page.locator("#add-toggle")).toBeVisible();
   expect(await adminCached()).toBe(false);
 });
