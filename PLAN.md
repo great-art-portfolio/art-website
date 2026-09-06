@@ -1,3 +1,14 @@
+## Status (executed — all units complete)
+
+P1 inquiry-above-AR + skeleton; P2 grid + subnav removed; P3 add-form toggle;
+P4 sticky status + styled select; P5 AR gating + link colors; P6 validation +
+screenshots; U8/U9 done earlier. Board: typecheck, unit 49/49, inline OK,
+build 15 pages, full e2e green (one cold-boot flake, retried green).
+Screenshots: mobile hero-meta, mobile + desktop admin grid, studio gate,
+desktop AR copy. Fixes found by screenshots: mobile header crowding
+(Collection desktop-only + studio crumb), mobile grid confirmed single-column.
+Remaining human gates: mom's upload on barbart.ca/admin; push to main for CI.
+
 ## Goal
 
 Second pass, sparked by the 2026-09-06 review of the finished first plan:
