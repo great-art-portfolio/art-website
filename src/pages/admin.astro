@@ -131,7 +131,7 @@ import Layout from "../layouts/Layout.astro";
 
     <section class="card" id="sec-leave">
       <h2>Done for now</h2>
-      <p class="hint">Clears this browser's studio access and returns to the gallery. Token cleared — enter it in Settings to edit again.</p>
+      <p class="hint">Clears this browser's studio access and returns to the gallery — you'll need the token in Settings to edit again.</p>
       <div class="row">
         <button type="button" id="leave-admin">Leave admin</button>
       </div>
@@ -191,6 +191,18 @@ import Layout from "../layouts/Layout.astro";
     font-family: Georgia, "Iowan Old Style", Charter, serif; font-weight: 500;
     font-size: 1.4rem; cursor: pointer; border-radius: 0.25rem;
     padding-bottom: 0.75rem; border-bottom: 1px solid var(--line); margin-bottom: 1rem;
+    list-style: none;
+  }
+  .card summary::-webkit-details-marker { display: none; }
+  /* Custom disclosure mark: a plus that turns when open. */
+  .card summary::before {
+    content: "+"; color: var(--accent); font-weight: 700;
+    margin-right: 0.6rem; display: inline-block;
+    transition: transform 0.2s ease;
+  }
+  .card details[open] summary::before { transform: rotate(45deg); }
+  @media (prefers-reduced-motion: reduce) {
+    .card summary::before { transition: none; }
   }
   .card summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .card {
