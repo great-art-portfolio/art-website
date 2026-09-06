@@ -4,6 +4,8 @@ https://art-website-cm4.pages.dev/
 
 [Cloudflare](https://dash.cloudflare.com/ee6937662d7aeda01d2a6f1f49a1168a/pages/view/art-website)
 
+[Email Stuff](https://resend.com/domains/aca6af2f-c7fd-4cd1-975b-bf52e8824f29)
+
 ## Stack (all free tier)
 
 Astro 7 (static gallery — paintings are markdown + photos in git) +
@@ -17,7 +19,9 @@ Resend, nothing stored.
 
 ```sh
 pnpm install
-pnpm dev            # gallery
+pnpm dev            # full site + API: builds, then serves dist on :4331
+                    # (rebuilds on restart — rerun after editing content)
+pnpm dev:astro      # markup-only fast path (no API: admin/views publish paths 404)
 pnpm check          # astro check
 pnpm build
 pnpm check:inline   # no raw TS/imports in inline page scripts (see below)
