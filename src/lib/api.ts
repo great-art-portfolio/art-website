@@ -166,13 +166,6 @@ export const api = {
   }> {
     return await request("/api/status", { headers: adminHeaders() });
   },
-  async autoPost(input: { text: string; imageUrl: string }): Promise<void> {
-    await request("/api/social", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...adminHeaders() },
-      body: JSON.stringify(input),
-    });
-  },
   async paintingViews(): Promise<
     { views: Array<{ slug: string; views: number }>; unconfigured: boolean }
   > {

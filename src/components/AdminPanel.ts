@@ -752,16 +752,6 @@ function init(): void {
       .catch(() => setStatus("Copy failed — select the text manually.", true));
   });
 
-  $("share-auto").addEventListener("click", () => {
-    if (lastShare === null) return;
-    const caption = ($("share-caption") as HTMLTextAreaElement).value;
-    setStatus("Trying one-click post…");
-    api
-      .autoPost({ text: caption, imageUrl: lastShare.pageUrl })
-      .then(() => setStatus("Posted automatically."))
-      .catch((err: unknown) => setStatus((err as Error).message, true));
-  });
-
   api
     .collectorCount()
     .then((n) => {
