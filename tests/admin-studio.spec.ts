@@ -166,16 +166,15 @@ test("studio hovers match the footer: underline only, no color flash", async ({
   }
 });
 
-test("reduced motion kills movement, keeps gentle fades", async ({ page }) => {
+test("reduced motion stops all studio motion", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await mockCommitApi(page);
   await page.goto("/admin");
-  // The expanding form goes instant …
+  // Expands, fades, underlines: every state change is instant.
   await expect(page.locator("#upload-form")).toHaveCSS("transition-duration", "0s");
-  // … while the underline fade still runs.
   await expect(page.locator("#sec-collection .hint a")).toHaveCSS(
     "transition-duration",
-    "0.25s",
+    "0s",
   );
   // Buttons never lift — static or script-built.
   await page.locator("#add-toggle").hover();

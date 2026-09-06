@@ -154,7 +154,10 @@ const headlineHtml = "Original paintings, from the studio";
   @media (hover: hover) {
     .btn-primary:hover, .btn-ghost:hover { transform: translateY(-1px); }
   }
+  /* Reduced motion: every state change is instant, matching the
+     site-wide guard in the layout. */
   @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; animation: none !important; }
     .btn-primary:hover, .btn-ghost:hover { transform: none; }
   }
   .btn-primary:active, .btn-ghost:active { transform: none; }

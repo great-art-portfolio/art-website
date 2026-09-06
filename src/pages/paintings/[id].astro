@@ -611,10 +611,12 @@ const paintingJsonLd = {
     0%, 100% { opacity: 0.45; }
     50% { opacity: 1; }
   }
-  /* Reduced motion kills movement, not the gentle lightbox fade. */
+  /* Reduced motion: every state change is instant, matching the
+     site-wide guard in the layout. */
   @media (prefers-reduced-motion: reduce) {
-    .ar-skeleton { animation: none; }
-    #inquiry-form.revealed { animation: none; }
+    *, *::before, *::after { transition: none !important; animation: none !important; }
+    .btn-primary:hover,
+    :global(#admin-edit .btn-primary:hover) { transform: none; }
   }
   /* The viewer is focusable (keyboard orbit) — keep an accent ring for
      keyboard users, not the browser's default blue after a mouse tap. */
@@ -643,21 +645,32 @@ const paintingJsonLd = {
   }
   input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .hp { position: absolute; left: -9999px; }
-  .btn-primary {
+  /* The :global twins cover the script-built edit panel, whose nodes
+     never carry the scope attribute. */
+  .btn-primary,
+  :global(#admin-edit .btn-primary) {
     display: inline-flex; align-items: center; justify-content: center;
     min-height: 3rem; border-radius: 0.75rem; border: 0;
     background: var(--ink); color: var(--paper);
     font: inherit; font-weight: 600; cursor: pointer; padding: 0.7rem 1.5rem;
     transition: background-color 0.25s ease, color 0.25s ease, transform 0.2s ease;
   }
-  .btn-primary:hover { background: var(--accent); color: var(--accent-ink); }
+  .btn-primary:hover,
+  :global(#admin-edit .btn-primary:hover) { background: var(--accent); color: var(--accent-ink); }
+  :global(#admin-edit button) {
+    font: inherit; font-size: 0.9rem; font-weight: 600; min-height: 3rem;
+    padding: 0.7rem 1.2rem; border-radius: 0.75rem; cursor: pointer;
+    border: 1px solid var(--line); background: var(--paper); color: var(--ink);
+  }
+  :global(#admin-edit button:hover) { border-color: var(--ink); }
+  :global(#admin-edit button:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; }
+  :global(#admin-edit input:focus-visible),
+  :global(#admin-edit textarea:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; }
   @media (hover: hover) {
     .btn-primary:hover { transform: translateY(-1px); }
   }
-  @media (prefers-reduced-motion: reduce) {
-    .btn-primary:hover { transform: none; }
-  }
   .btn-primary:active { transform: none; }
-  .btn-primary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn-primary:focus-visible,
+  :global(#admin-edit .btn-primary:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
   #inquiry-status { font-size: 0.92rem; color: var(--muted); margin: 0.25rem 0 0; min-height: 1.2em; }
 </style>

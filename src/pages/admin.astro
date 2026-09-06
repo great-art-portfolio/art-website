@@ -330,18 +330,18 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
   }
   #photo-preview[hidden], #photo-empty[hidden] { display: none; }
   #photo-meta:empty { display: none; }
-  /* Reduced motion kills movement, not gentle fades: underline color,
-     focus rings, and hovers still transition; slides and expands don't. */
+  /* Reduced motion: every state change is instant, matching the
+     site-wide guard in the layout. The :global twins cover script-built
+     nodes, which never carry the scope attribute. */
   @media (prefers-reduced-motion: reduce) {
-    #upload-form { transition: none; }
-    #add-photo { transition: none; }
-    #admin-status.toast-in { animation: none; }
+    *, *::before, *::after { transition: none !important; animation: none !important; }
+    :global(#edit-list li a),
+    :global(#edit-list button),
+    :global(#ar-preview .ar-placeholder),
+    :global(.view-bar),
+    :global(.view-bar > span) { transition: none !important; animation: none !important; }
     button:hover,
     :global(#edit-list button:hover) { transform: none; }
-    #sec-add .add-fields,
-    #sec-add #add-photo,
-    #sec-add #add-preview { transition: none; }
-    #sec-info details::details-content { transition: none; }
   }
   .hint { font-size: 0.88rem; color: var(--muted); }
   .check { display: flex; gap: 0.6rem; align-items: center; font-weight: 600; }

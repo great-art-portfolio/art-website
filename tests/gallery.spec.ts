@@ -352,6 +352,34 @@ test("admin mode edit opens in context: real form or a graceful message", async 
   await authed.close();
 });
 
+test("in-context edit buttons wear the studio styling", async ({ browser }) => {
+  const authed = await browser.newContext();
+  await authed.addInitScript(() =>
+    sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
+  );
+  const adminPage = await authed.newPage();
+  await adminPage.route("**/api/commit*", async (route) => {
+    const name =
+      new URL(route.request().url()).searchParams.get("path")?.split("/").pop() ?? "";
+    const content = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), "..", "src", "content", "paintings", name),
+      "utf8",
+    );
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ content }),
+    });
+  });
+  await adminPage.goto(`/paintings/${available[0].slug}`);
+  await adminPage.locator("#admin-edit-toggle").click();
+  // Primary Save and plain Delete both styled, not browser defaults.
+  await expect(adminPage.locator("#ae-save")).toHaveCSS("border-radius", "12px");
+  await expect(adminPage.locator("#ae-save")).toHaveCSS("background-color", "rgb(35, 32, 27)");
+  await expect(adminPage.locator("#ae-del")).toHaveCSS("border-radius", "12px");
+  await authed.close();
+});
+
 test("service worker serves the worker script but never caches admin", async ({
   page,
 }) => {
