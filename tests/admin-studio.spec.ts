@@ -158,6 +158,8 @@ test("studio hovers match the footer: underline only, no color flash", async ({
   for (const sel of ["#sec-collection .hint a", "#edit-list li a"]) {
     const link = page.locator(sel).first();
     await expect(link).toHaveCSS("color", accent);
+    // Slow enough to see coming and going.
+    await expect(link).toHaveCSS("transition-duration", "0.6s");
     await link.hover();
     // Underline fades in; the text itself never leaves the accent.
     await expect(link).toHaveCSS("color", accent);
