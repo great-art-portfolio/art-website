@@ -159,5 +159,7 @@ test("studio subnav aligns with content on a phone", async ({ browser }) => {
   });
   expect(navX).toBeGreaterThanOrEqual(0);
   expect(Math.abs(navX - cardX)).toBeLessThan(24);
+  // Her way home stays visible on a phone (non-CTA links hide by default).
+  await expect(page.locator('.site-nav .nav-links a.keep[href="/"]')).toBeVisible();
   await context.close();
 });

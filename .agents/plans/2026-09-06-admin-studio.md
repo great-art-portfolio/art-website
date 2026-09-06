@@ -152,3 +152,7 @@ Deviations: studio nav is Gallery + Add painting (two links to `/` would be
 silly); found + fixed author `display:inline-flex` beating `[hidden]` on the
 Retry buttons. e2e admin-API calls are route-mocked (no backend under
 `wrangler pages dev`); delete exercised to confirm-arm only, never fired.
+Follow-up (uncommitted): `.keep` exemption so ← Gallery survives the ≤38rem
+nav collapse (it was display:none on her iPhone — she had no way home),
+subnav padding to exact edge alignment, 0.75rem mobile nav gap. Verified by
+screenshot at 390px + admin-studio 5 / gallery 17 green.
