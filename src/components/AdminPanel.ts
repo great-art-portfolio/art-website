@@ -75,6 +75,61 @@ async function refreshPreview(): Promise<void> {
   refreshAddPreview();
 }
 
+interface LocalRow {
+  slug: string;
+  title: string;
+  price: number;
+  sold: boolean;
+}
+
+/**
+ * Dev fallback: the page baked the collection in at build time, so the
+ * list and links render with no API at all. True only when the embedded
+ * list parses — otherwise the caller falls through to the error branches.
+ */
+function renderLocalCollection(): boolean {
+  const el = document.getElementById("local-collection");
+  if (el === null) return false;
+  let rows: unknown;
+  try {
+    rows = JSON.parse(el.textContent ?? "") as unknown;
+  } catch {
+    return false;
+  }
+  if (!Array.isArray(rows)) return false;
+  const list = $("edit-list");
+  ($("collection-refresh") as HTMLButtonElement).hidden = true;
+  const clean = rows.filter(
+    (r): r is LocalRow =>
+      typeof r === "object" &&
+      r !== null &&
+      typeof (r as LocalRow).slug === "string" &&
+      typeof (r as LocalRow).title === "string" &&
+      (r as LocalRow).title !== "",
+  );
+  if (clean.length === 0) {
+    list.innerHTML = "<li>Nothing here yet — add your first painting above.</li>";
+    return true;
+  }
+  const esc = (s: string): string =>
+    s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  clean.sort((a, b) => a.title.localeCompare(b.title));
+  list.innerHTML = clean
+    .map((r) => {
+      const cents = dollarsToCents(Number(r.price));
+      const price = cents === null ? "Price?" : formatCAD(cents);
+      return (
+        `<li><a href="/paintings/${esc(r.slug)}"><strong>${esc(r.title)}</strong></a>` +
+        ` — ${price} — ${r.sold ? "sold" : "available"}</li>`
+      );
+    })
+    .join("");
+  // No Edit buttons here on purpose — saving and deleting need the live
+  // site's API, so the list stays read-only.
+  setStatus("Showing your current collection — editing needs the live site.");
+  return true;
+}
+
 async function refreshCollection(): Promise<void> {
   const list = $("edit-list");
   let files: string[];
@@ -89,6 +144,9 @@ async function refreshCollection(): Promise<void> {
       retry.hidden = false;
       return;
     }
+    // No publishing backend here (dev): fall back to the list baked into
+    // the page — rows and links, read-only.
+    if (isLocalPreview() && renderLocalCollection()) return;
     if (await apiReachable()) {
       // Reachable API but the list failed (a bad token is handled above,
       // so this is a server problem) — Retry stays out for another try.

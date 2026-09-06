@@ -1,5 +1,17 @@
 ---
 import Layout from "../layouts/Layout.astro";
+import { getCollection } from "astro:content";
+import { slugifyTitle } from "../lib/site";
+
+// Baked in at build time so the list and links work everywhere, even with
+// no publishing backend (dev). Editing still needs the live site's API.
+const localCollection = (await getCollection("paintings")).map((p) => ({
+  slug: slugifyTitle(p.data.title),
+  title: p.data.title,
+  price: p.data.price,
+  sold: p.data.sold,
+}));
+const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
 ---
 
 <Layout title="Artist Studio — Admin" wordmark="admin">
@@ -86,6 +98,7 @@ import Layout from "../layouts/Layout.astro";
       <h2>Collection <button type="button" id="collection-refresh" hidden>Retry</button></h2>
       <p class="hint"><a href="/#collection">Open the collection</a> to see what buyers see — then come back here and tap Edit here on any piece below.</p>
       <ul id="edit-list"><li>Loading…</li></ul>
+      <script type="application/json" id="local-collection" set:html={localJson} />
     </section>
 
     <section class="card" id="sec-banner">

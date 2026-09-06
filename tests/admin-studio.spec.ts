@@ -267,7 +267,11 @@ test("banner lifetimes are 1/3/7/14 days plus no end date", async ({ page }) => 
   expect(values).toEqual(["", "1", "3", "7", "14"]);
 });
 
-test("collection names a server failure and keeps Retry out", async ({ page }) => {
+test("collection falls back to the baked-in list when the API fails", async ({
+  page,
+}) => {
+  // Even a reachable API can fail its list call — in dev the page's own
+  // baked-in list covers for it, read-only.
   await page.route("**/api/commit*", async (route) =>
     route.fulfill({
       status: 500,
@@ -275,24 +279,12 @@ test("collection names a server failure and keeps Retry out", async ({ page }) =
       body: JSON.stringify({ error: "boom" }),
     }),
   );
-  // Reachable API (status answers) but the list fails — a server problem,
-  // not a preview or token problem.
-  await page.route("**/api/status", async (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        stripe: false,
-        shippo: false,
-        socialPost: false,
-        email: false,
-        push: false,
-      }),
-    }),
-  );
   await page.goto("/admin");
-  await expect(page.locator("#edit-list")).toContainText("Couldn't load the collection");
-  await expect(page.locator("#collection-refresh")).toBeVisible();
+  const rows = page.locator('#edit-list a[href^="/paintings/"]');
+  await expect(rows.first()).toBeVisible();
+  await expect(page.locator("#edit-list button")).toHaveCount(0);
+  await expect(page.locator("#collection-refresh")).toBeHidden();
+  await expect(page.locator("#admin-status")).toContainText("editing needs the live site");
 });
 
 test("publish clears the photo so the next Save starts empty", async ({ page }) => {
