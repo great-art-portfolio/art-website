@@ -1,7 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
-  BANNER_DURATIONS,
   daysLeft,
   expiryForDuration,
   formatAnnouncement,
@@ -82,10 +81,4 @@ describe("expiry", () => {
     assert.equal(localToday(new Date(2026, 0, 2, 3, 4, 5)), "2026-01-02");
   });
 
-  it("offers 1/3/7/14 days plus no end date", () => {
-    assert.deepEqual(
-      BANNER_DURATIONS.map((d) => d.days),
-      [null, 1, 3, 7, 14],
-    );
-  });
 });

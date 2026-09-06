@@ -259,6 +259,82 @@ test("studio wakes up on every visit, not just full loads", async ({ page }) => 
   await expect(page.locator("#upload-form")).toBeVisible();
 });
 
+test("banner lifetimes are 1/3/7/14 days plus no end date", async ({ page }) => {
+  await page.goto("/admin");
+  const values = await page.locator("#f-duration option").evaluateAll((opts) =>
+    opts.map((o) => (o as HTMLOptionElement).value),
+  );
+  expect(values).toEqual(["", "1", "3", "7", "14"]);
+});
+
+test("collection names a server failure and keeps Retry out", async ({ page }) => {
+  await page.route("**/api/commit*", async (route) =>
+    route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "boom" }),
+    }),
+  );
+  // Reachable API (status answers) but the list fails — a server problem,
+  // not a preview or token problem.
+  await page.route("**/api/status", async (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        stripe: false,
+        shippo: false,
+        socialPost: false,
+        email: false,
+        push: false,
+      }),
+    }),
+  );
+  await page.goto("/admin");
+  await expect(page.locator("#edit-list")).toContainText("Couldn't load the collection");
+  await expect(page.locator("#collection-refresh")).toBeVisible();
+});
+
+test("publish clears the photo so the next Save starts empty", async ({ page }) => {
+  await mockCommitApi(page);
+  await page.route("**/api/commit*", async (route) => {
+    if (route.request().method() === "POST") {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: "{}",
+      });
+    }
+    return route.continue();
+  });
+  await page.goto("/admin");
+  await page.locator("#add-toggle").click();
+  // Skip the wall-preview build — photo state is what this exercises.
+  await page.locator("#f-ar").uncheck();
+  await page.locator("#photo-file").setInputFiles("src/content/paintings/1943x1967.jpg");
+  await page.locator("#f-title").fill("Review Test Piece");
+  await page.locator("#f-price").fill("250");
+  await page.locator('#upload-form button[type="submit"]').click();
+  await expect(page.locator("#admin-status")).toContainText('Published "Review Test Piece"');
+  // Form reset AND photo forgotten: typing title+price alone can't publish.
+  await page.locator("#f-title").fill("Second Attempt");
+  await page.locator("#f-price").fill("300");
+  await page.locator('#upload-form button[type="submit"]').click();
+  await expect(page.locator("#admin-status")).toContainText("Choose a photo first.");
+  await expect(page.locator("#photo-preview")).toBeHidden();
+});
+
+test("card preview hides its image until a photo arrives", async ({ page }) => {
+  await page.goto("/admin");
+  await page.locator("#add-toggle").click();
+  await page.locator("#f-title").fill("Just a title");
+  await expect(page.locator("#add-preview")).toBeVisible();
+  const display = await page
+    .locator("#pv-img")
+    .evaluate((el) => getComputedStyle(el).display);
+  expect(display).toBe("none");
+});
+
 test("gallery link leaves admin and lands home", async ({ browser }) => {
   const authed = await browser.newContext();
   const page = await authed.newPage();

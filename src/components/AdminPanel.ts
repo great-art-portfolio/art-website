@@ -90,9 +90,10 @@ async function refreshCollection(): Promise<void> {
       return;
     }
     if (await apiReachable()) {
-      list.innerHTML =
-        "<li>Publishing isn't available in this preview — open barbart.ca/admin on the live site to add or edit paintings.</li>";
-      retry.hidden = true;
+      // Reachable API but the list failed (a bad token is handled above,
+      // so this is a server problem) — Retry stays out for another try.
+      list.innerHTML = "<li>Couldn't load the collection — check the connection, then tap Retry.</li>";
+      retry.hidden = false;
       return;
     }
     list.innerHTML =
@@ -427,7 +428,7 @@ async function refreshFlags(): Promise<void> {
     if (isLocalPreview()) {
       const note = $("add-preview-note");
       note.textContent =
-        "Publishing needs the live site — everything else here works in this preview.";
+        "Saving needs the live site — everything else here works in this preview.";
       (note as HTMLParagraphElement).hidden = false;
     }
   }
@@ -706,6 +707,17 @@ function init(): void {
         );
         (e.target as HTMLFormElement).reset();
         loadedImage = null;
+        // The form is empty again — drop the published photo from memory
+        // too, or the next Save would silently reuse it.
+        if (lastPreviewUrl !== null) URL.revokeObjectURL(lastPreviewUrl);
+        lastPreviewUrl = null;
+        preparedBlob = null;
+        rotation = 0;
+        ($("photo-preview") as HTMLImageElement).hidden = true;
+        ($("ar-try-row") as HTMLDivElement).hidden = true;
+        ($("photo-tools") as HTMLDivElement).hidden = true;
+        $("photo-meta").textContent = "";
+        refreshAddPreview();
       } catch (err) {
         setStatus((err as Error).message, true);
       }

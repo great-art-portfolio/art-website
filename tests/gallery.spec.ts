@@ -384,3 +384,37 @@ test("service worker serves the worker script but never caches admin", async ({
   await expect(page.locator("#add-toggle")).toBeVisible();
   expect(await adminCached()).toBe(false);
 });
+
+test("offline inquiry queues on the phone and sends on reconnect", async ({
+  page,
+}) => {
+  expect(available.length).toBeGreaterThan(0);
+  let attempts = 0;
+  await page.route("**/api/inquiries", async (route) => {
+    attempts += 1;
+    // First send fails (the Calgary–Edmonton drive); the retry succeeds.
+    if (attempts === 1) return route.abort("failed");
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: "{}",
+    });
+  });
+  await page.goto(`/paintings/${available[0].slug}`);
+  // iPhones have no Background Sync — take the worker replay out, so this
+  // exercises the reconnect flush instead of the service worker path.
+  await page.evaluate(async () => {
+    const reg = await navigator.serviceWorker.ready;
+    Object.defineProperty(reg, "sync", { value: undefined, configurable: true });
+  });
+  await page.locator("#inquiry-reveal").click();
+  await page.locator('#inquiry-form input[name="name"]').fill("Review Buyer");
+  await page.locator('#inquiry-form input[name="email"]').fill("buyer@example.com");
+  await page.locator('#inquiry-form textarea[name="message"]').fill("Love this piece.");
+  await page.locator('#inquiry-form button[type="submit"]').click();
+  await expect(page.locator("#inquiry-status")).toContainText("Saved — it will send");
+  expect(attempts).toBe(1);
+  // Back online: the armed outbox replays without another tap.
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await expect.poll(() => attempts, { timeout: 10_000 }).toBe(2);
+});

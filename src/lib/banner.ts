@@ -17,20 +17,6 @@ export interface Banner {
   expires: string | null;
 }
 
-export interface BannerDuration {
-  days: number | null;
-  label: string;
-}
-
-/** Lifetime choices in the studio: usually temporary, since banners are forgotten. */
-export const BANNER_DURATIONS: BannerDuration[] = [
-  { days: null, label: "No end date" },
-  { days: 1, label: "1 day" },
-  { days: 3, label: "3 days" },
-  { days: 7, label: "7 days" },
-  { days: 14, label: "2 weeks" },
-];
-
 export function parseAnnouncement(raw: string): Banner {
   const lines = raw.replace(/\r\n/g, "\n").split("\n");
   let expires: string | null = null;

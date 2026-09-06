@@ -55,10 +55,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     data = (await res.json()) as T & { error?: string };
   } catch {
     // No Functions runtime here (e.g. plain `astro dev`) — the dev server
-    // answers API routes with an HTML 404 page instead of JSON.
+    // answers API routes with an HTML 404 page instead of JSON. Live 5xx
+    // pages land here too, so name the status, not the cause.
     throw new ApiError(
       res.status,
-      `The site API isn't running here — use the live /admin to publish. (${res.status})`,
+      `The site API didn't answer properly (${res.status}) — use the live /admin to publish.`,
     );
   }
   if (!res.ok) throw new ApiError(res.status, data.error ?? `Request failed (${res.status})`);
@@ -108,10 +109,8 @@ export const api = {
   /** Fetch a painting's repo photo (for AR rebuilds); null when unavailable. */
   async getPhoto(path: string): Promise<Blob | null> {
     try {
-      const token = getApiToken();
-      const headers: HeadersInit = token === "" ? {} : { Authorization: `Bearer ${token}` };
       const res = await fetch(`/api/photo?path=${encodeURIComponent(path)}`, {
-        headers,
+        headers: adminHeaders(),
       });
       if (!res.ok) return null;
       return await res.blob();

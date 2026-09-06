@@ -405,6 +405,9 @@ const paintingJsonLd = {
   function initDetail() {
     initAr();
     initAdmin();
+    // Browsers without Background Sync (iPhones) never replay the outbox
+    // on their own — flush on reconnect and page load instead.
+    void import("../../lib/queue").then(({ armOutboxFlush }) => armOutboxFlush());
     // Inquiries go straight to the artist's email — nothing is stored.
     // Spam: honeypot first, Cloudflare Turnstile when configured.
     const form = document.getElementById("inquiry-form");

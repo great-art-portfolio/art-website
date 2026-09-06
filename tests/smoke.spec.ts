@@ -107,9 +107,12 @@ test("admin explains itself gracefully without a publishing backend", async ({
   page,
 }) => {
   await page.goto("/admin");
-  await expect(page.locator("#edit-list")).toContainText("live site", {
+  // Reachable API but no GitHub behind it: a plain server problem with
+  // Retry out — never a "go to the live site" runaround, even here.
+  await expect(page.locator("#edit-list")).toContainText("Couldn't load the collection", {
     timeout: 15_000,
   });
+  await expect(page.locator("#collection-refresh")).toBeVisible();
   // No secrets locally: Cloudflare answers 200 with zero rows, so the
   // views card hides instead of reporting. (The local-preview wording only
   // appears when the API itself is down — covered in admin-studio.)

@@ -85,7 +85,7 @@ import Layout from "../layouts/Layout.astro";
 
     <section class="card" id="sec-collection">
       <h2>Collection <button type="button" id="collection-refresh" hidden>Retry</button></h2>
-      <p class="hint"><a href="/#collection">Open the collection</a> — the same pages buyers see, with your editing on top. The list below jumps straight to each piece.</p>
+      <p class="hint"><a href="/#collection">Open the collection</a> to see what buyers see — then come back here and tap Edit here on any piece below.</p>
       <ul id="edit-list"><li>Loading…</li></ul>
     </section>
 
@@ -146,16 +146,6 @@ import Layout from "../layouts/Layout.astro";
 
 <style>
   .admin { max-width: 64rem; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
-  .eyebrow {
-    margin: 0 0 0.6rem; font-size: 0.78rem; font-weight: 700;
-    letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent);
-  }
-  .admin h1 {
-    font-family: Georgia, "Iowan Old Style", Charter, serif; font-weight: 500;
-    font-size: clamp(2rem, 5vw, 2.75rem); margin: 0 0 0.5rem;
-  }
-  .stats { margin: 0 0 1rem; color: var(--muted); }
-  .stats:empty { display: none; }
   #admin-status {
     margin: 0 0 1.5rem; padding: 0.8rem 1.1rem; border-radius: var(--radius);
     border: 1px solid var(--line); background: var(--card);
@@ -195,15 +185,12 @@ import Layout from "../layouts/Layout.astro";
     padding: clamp(1.25rem, 3vw, 2rem);
     margin-block: 1.5rem;
   }
-  .card h2, .card h3 {
+  .card h2 {
     font-family: Georgia, "Iowan Old Style", Charter, serif; font-weight: 500;
     margin: 0 0 0.75rem;
-  }
-  .card h2 {
     font-size: 1.4rem; display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
     padding-bottom: 0.75rem; border-bottom: 1px solid var(--line); margin-bottom: 1rem;
   }
-  .card h3 { font-size: 1.15rem; margin-top: 1.5rem; }
   label { display: grid; gap: 0.35rem; margin-block: 0.75rem; font-size: 0.9rem; font-weight: 600; }
   input, textarea, select {
     width: 100%; box-sizing: border-box; font: inherit; font-weight: 400; font-size: 0.95rem;
@@ -285,6 +272,8 @@ import Layout from "../layouts/Layout.astro";
     box-shadow: var(--shadow);
   }
   #add-preview .pv-mat img { display: block; width: 100%; height: auto; border-radius: 0.25rem; }
+  /* Author display beats the UA [hidden] rule — re-hide the empty preview. */
+  #add-preview .pv-mat img[hidden] { display: none; }
   #add-preview .pv-title {
     margin: 0.6rem 0 0.15rem;
     font-family: Georgia, "Iowan Old Style", Charter, serif; font-size: 1.2rem;

@@ -49,46 +49,56 @@ async function enqueue(path: string, body: string): Promise<void> {
   }
 }
 
+let flushing = false;
+
 export async function flushOutbox(): Promise<void> {
+  // One replay at a time: concurrent flushes would send the same post twice.
+  if (flushing) return;
+  flushing = true;
   let db: IDBDatabase;
   try {
     db = await openDb();
   } catch {
+    flushing = false;
     return;
   }
-  const posts: QueuedPost[] = await new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, "readonly");
-    const req = tx.objectStore(STORE).getAll();
-    req.onsuccess = () => resolve(req.result as QueuedPost[]);
-    req.onerror = () => reject(req.error);
-  });
-  const drop = async (id: string): Promise<void> => {
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE, "readwrite");
-      tx.objectStore(STORE).delete(id);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
+  try {
+    const posts: QueuedPost[] = await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, "readonly");
+      const req = tx.objectStore(STORE).getAll();
+      req.onsuccess = () => resolve(req.result as QueuedPost[]);
+      req.onerror = () => reject(req.error);
     });
-  };
-  for (const post of posts) {
-    try {
-      const res = await fetch(post.path, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: post.body,
+    const drop = async (id: string): Promise<void> => {
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(STORE, "readwrite");
+        tx.objectStore(STORE).delete(id);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
       });
-      if (res.status >= 400 && res.status < 500) {
-        // Server rejected it (bad input, expired spam check) — retrying can't help.
-        await drop(post.id);
-        continue;
+    };
+    for (const post of posts) {
+      try {
+        const res = await fetch(post.path, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: post.body,
+        });
+        if (res.status >= 400 && res.status < 500) {
+          // Server rejected it (bad input, expired spam check) — retrying can't help.
+          await drop(post.id);
+          continue;
+        }
+        if (!res.ok) continue; // Server trouble — keep it for a later retry.
+      } catch {
+        break; // Still offline — stop, try again next time.
       }
-      if (!res.ok) continue; // Server trouble — keep it for a later retry.
-    } catch {
-      break; // Still offline — stop, try again next time.
+      await drop(post.id);
     }
-    await drop(post.id);
+    db.close();
+  } finally {
+    flushing = false;
   }
-  db.close();
 }
 
 /** POST JSON, queuing offline instead of failing. Never throws. */
@@ -118,7 +128,12 @@ export async function queuePost(
   }
 }
 
+let armed = false;
+
 export function armOutboxFlush(): void {
+  // Client-side hops re-run page init — arm once per browser session.
+  if (armed) return;
+  armed = true;
   window.addEventListener("online", () => void flushOutbox());
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => void flushOutbox());
