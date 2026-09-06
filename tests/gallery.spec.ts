@@ -63,6 +63,21 @@ test("gallery shows one card per available painting, each linked correctly", asy
   }
 });
 
+test("hovering a card prefetches its painting page", async ({ page }) => {
+  expect(available.length).toBeGreaterThan(0);
+  await page.goto("/");
+  const href = `/paintings/${available[0].slug}`;
+  const card = page.locator(`#gallery-static .card[href="${href}"]`);
+  await expect(card).toHaveAttribute("data-astro-prefetch", "hover");
+  // Hover must fetch the page without navigating — the next tap is instant.
+  const [req] = await Promise.all([
+    page.waitForRequest((r) => r.url().endsWith(href), { timeout: 10_000 }),
+    card.hover(),
+  ]);
+  expect(req.url().endsWith(href)).toBe(true);
+  expect(page.url().endsWith("/")).toBe(true);
+});
+
 test("sold archive matches the collection (absent while nothing is sold)", async ({
   page,
 }) => {
