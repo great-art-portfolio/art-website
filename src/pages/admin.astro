@@ -88,7 +88,7 @@ import Layout from "../layouts/Layout.astro";
 
     <section class="card" id="sec-collection">
       <h2>Collection <button type="button" id="collection-refresh" hidden>Retry</button></h2>
-      <p class="hint"><a href="/">Open the gallery</a> to see each piece as buyers do — tap one to edit it.</p>
+      <p class="hint"><a href="/admin/gallery">Open the studio collection</a> — every piece in one place. Tap one to open it; editing and deleting live on its page.</p>
       <ul id="edit-list"><li>Loading…</li></ul>
     </section>
 
@@ -129,6 +129,14 @@ import Layout from "../layouts/Layout.astro";
         <li><a href="https://www.pirateship.com/" rel="noopener">Pirate Ship</a> — backup for US labels.</li>
       </ul>
       <p class="hint">In-house Shippo labels are <span id="flag-shippo">…</span>; Stripe checkout is <span id="flag-stripe">…</span>.</p>
+    </section>
+
+    <section class="card" id="sec-leave">
+      <h2>Done for now</h2>
+      <p class="hint">Clears this browser's studio access and returns to the gallery. Token cleared — enter it in Settings to edit again.</p>
+      <div class="row">
+        <button type="button" id="leave-admin">Leave admin</button>
+      </div>
     </section>
 
     <section class="card">

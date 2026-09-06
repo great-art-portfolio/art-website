@@ -83,7 +83,8 @@ async function mockCommitApi(page: Page): Promise<void> {
 test("studio header links home, never to visitor funnels", async ({ page }) => {
   await mockCommitApi(page);
   await page.goto("/admin");
-  await expect(page.locator(".site-nav .nav-links a")).toHaveCount(2);
+  await expect(page.locator(".site-nav .nav-links a")).toHaveCount(3);
+  await expect(page.locator('.site-nav .nav-links a[href="/admin/gallery"]')).toHaveCount(1);
   await expect(page.locator('nav a[href="/#notify"]')).toHaveCount(0);
   await expect(page.locator(".card .step")).toHaveCount(0);
   // Retry buttons stay hidden while sections load on their own.
@@ -186,4 +187,51 @@ test("studio subnav aligns with content on a phone", async ({ browser }) => {
   // Her way home stays visible on a phone (non-CTA links hide by default).
   await expect(page.locator('.site-nav .nav-links a.keep[href="/"]')).toBeVisible();
   await context.close();
+});
+
+test("studio collection links every painting to its admin page", async ({ browser }) => {
+  const authed = await browser.newContext();
+  await authed.addInitScript(() => window.localStorage.setItem("ADMIN_API_TOKEN", "test"));
+  const page = await authed.newPage();
+  await page.goto("/admin/gallery");
+  await expect(page.locator("#studio-notice")).toBeHidden();
+  for (const p of paintings) {
+    await expect(page.locator(`#studio-grid .card[href="/paintings/${p.slug}"]`)).toHaveCount(1);
+  }
+  const first = page.locator("#studio-grid .card").first();
+  const href = await first.getAttribute("href");
+  await first.click();
+  await expect(page).toHaveURL(new RegExp(`${href}/?$`));
+  await expect(page.locator("#admin-bar")).toBeVisible();
+  await authed.close();
+});
+
+test("visitors meet the studio gate, not the collection", async ({ page }) => {
+  await page.goto("/admin/gallery");
+  await expect(page.locator("#studio-notice")).toBeVisible();
+  await expect(page.locator("#studio-grid")).toBeHidden();
+});
+
+test("leave admin clears the browser and lands home", async ({ browser }) => {
+  const authed = await browser.newContext();
+  const page = await authed.newPage();
+  await page.goto("/admin");
+  // Set once (addInitScript would re-run on the post-leave navigation and
+  // replant the token, defeating the assertion).
+  await page.evaluate(() => window.localStorage.setItem("ADMIN_API_TOKEN", "test"));
+  await page.reload();
+  await page.locator("#leave-admin").click();
+  await expect(page).toHaveURL(/\/$/);
+  const leftover = await page.evaluate(() => {
+    try {
+      return [
+        window.localStorage.getItem("ADMIN_API_TOKEN"),
+        window.sessionStorage.getItem("ADMIN_API_TOKEN"),
+      ];
+    } catch {
+      return ["blocked", "blocked"];
+    }
+  });
+  expect(leftover).toEqual([null, null]);
+  await authed.close();
 });

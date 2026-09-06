@@ -1,4 +1,4 @@
-import { api, ApiError } from "../lib/api";
+import { api, ApiError, getApiToken, setApiToken } from "../lib/api";
 import { loadImageFile, prepareImage } from "../lib/image";
 import { buildCaption, sharePainting } from "../lib/share";
 import { dollarsToCents, formatCAD } from "../lib/money";
@@ -498,11 +498,16 @@ function init(): void {
   });
 
   const tokenInput = $("admin-token") as HTMLInputElement;
-  tokenInput.value = sessionStorage.getItem("ADMIN_API_TOKEN") ?? "";
+  tokenInput.value = getApiToken();
   tokenInput.addEventListener("change", () => {
-    sessionStorage.setItem("ADMIN_API_TOKEN", tokenInput.value.trim());
+    setApiToken(tokenInput.value.trim());
     setStatus("Token saved on this device.");
     void refreshFlags();
+  });
+
+  $("leave-admin").addEventListener("click", () => {
+    setApiToken("");
+    window.location.href = "/";
   });
 
   const fileInput = $("photo-file") as HTMLInputElement;

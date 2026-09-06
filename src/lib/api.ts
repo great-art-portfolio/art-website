@@ -1,7 +1,39 @@
 /** Typed client for the Pages Functions API. */
 
+/**
+ * Studio token, remembered per browser ("remember this browser"): local
+ * storage first, with a session-storage fallback for tokens saved before
+ * the sticky change. Never throws (private-mode browsers may block it).
+ */
+export function getApiToken(): string {
+  try {
+    return localStorage.getItem("ADMIN_API_TOKEN") ?? sessionStorage.getItem("ADMIN_API_TOKEN") ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export function setApiToken(token: string): void {
+  try {
+    if (token === "") {
+      localStorage.removeItem("ADMIN_API_TOKEN");
+      sessionStorage.removeItem("ADMIN_API_TOKEN");
+    } else {
+      localStorage.setItem("ADMIN_API_TOKEN", token);
+      sessionStorage.removeItem("ADMIN_API_TOKEN");
+    }
+  } catch {
+    try {
+      if (token === "") sessionStorage.removeItem("ADMIN_API_TOKEN");
+      else sessionStorage.setItem("ADMIN_API_TOKEN", token);
+    } catch {
+      // Storage blocked — admin features stay unavailable here.
+    }
+  }
+}
+
 function adminHeaders(): HeadersInit {
-  const token = sessionStorage.getItem("ADMIN_API_TOKEN") ?? "";
+  const token = getApiToken();
   return token === "" ? {} : { Authorization: `Bearer ${token}` };
 }
 
@@ -76,7 +108,7 @@ export const api = {
   /** Fetch a painting's repo photo (for AR rebuilds); null when unavailable. */
   async getPhoto(path: string): Promise<Blob | null> {
     try {
-      const token = sessionStorage.getItem("ADMIN_API_TOKEN") ?? "";
+      const token = getApiToken();
       const headers: HeadersInit = token === "" ? {} : { Authorization: `Bearer ${token}` };
       const res = await fetch(`/api/photo?path=${encodeURIComponent(path)}`, {
         headers,

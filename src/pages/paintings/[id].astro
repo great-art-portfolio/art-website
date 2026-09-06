@@ -262,7 +262,11 @@ const paintingJsonLd = {
     if (bar === null || bar.dataset.wired === "1") return;
     let token = null;
     try {
-      token = sessionStorage.getItem("ADMIN_API_TOKEN");
+      // Remembered per browser (local storage) with a session fallback —
+      // mirrors getApiToken() in src/lib/api.ts.
+      token =
+        localStorage.getItem("ADMIN_API_TOKEN") ??
+        sessionStorage.getItem("ADMIN_API_TOKEN");
     } catch {
       return;
     }
