@@ -499,6 +499,7 @@ async function refreshFlags(): Promise<void> {
     ]) {
       $(id).textContent = "unavailable in this preview";
     }
+    ($("ship-flags") as HTMLElement).hidden = false;
   }
 }
 

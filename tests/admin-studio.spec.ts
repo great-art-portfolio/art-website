@@ -321,6 +321,16 @@ test("views card hides itself when empty", async ({ page }) => {
   await expect(page.locator("#sec-views")).toBeHidden();
 });
 
+test("ship flags stay hidden until status resolves", async ({ page }) => {
+  // Hang the status call: the feature flags never arrive.
+  await page.route("**/api/status*", async () => {
+    await new Promise<never>(() => undefined);
+  });
+  await page.goto("/admin");
+  // No flash of "…" dots while loading.
+  await expect(page.locator("#ship-flags")).toBeHidden();
+});
+
 test("most viewed stays hidden until data arrives", async ({ page }) => {
   await mockCommitApi(page);
   // Hang the analytics call: the response never arrives.
