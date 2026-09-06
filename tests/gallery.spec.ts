@@ -131,9 +131,15 @@ for (const p of paintings) {
       } else {
         await expect(page.locator("#ar-mount")).toBeVisible();
         await expect(page.locator("main.detail")).toHaveAttribute("data-glb", p.modelGlb);
-        await expect(page.locator("#ar-stage model-viewer")).toBeAttached({
-          timeout: 15_000,
-        });
+        // The viewer library loads when the section scrolls into view.
+        await expect(page.locator("#ar-stage img")).toBeVisible();
+        await page.locator("#ar-mount").scrollIntoViewIfNeeded();
+        const viewer = page.locator("#ar-stage model-viewer");
+        await expect(viewer).toBeAttached({ timeout: 15_000 });
+        // Poster first, model lazy-loads as the section nears the viewport.
+        await expect(viewer).toHaveAttribute("loading", "lazy");
+        const poster = await viewer.getAttribute("poster");
+        expect(poster !== null && poster !== "").toBe(true);
       }
     }
   });
@@ -148,6 +154,7 @@ test("viewing one painting after another shows each painting's own 3D model", as
   expect(withModels.length).toBeGreaterThan(1);
   const [first, second] = withModels as [Painting, Painting];
   await page.goto(`/paintings/${first.slug}`);
+  await page.locator("#ar-mount").scrollIntoViewIfNeeded();
   await expect(page.locator("#ar-stage model-viewer")).toHaveAttribute(
     "src",
     first.modelGlb,
@@ -157,11 +164,56 @@ test("viewing one painting after another shows each painting's own 3D model", as
   await expect(page).toHaveURL(/\/$/);
   await page.locator(`#gallery-static .card[href="/paintings/${second.slug}"]`).click();
   await expect(page).toHaveURL(new RegExp(`/paintings/${second.slug}/?$`));
+  await page.locator("#ar-mount").scrollIntoViewIfNeeded();
   await expect(page.locator("#ar-stage model-viewer")).toHaveAttribute(
     "src",
     second.modelGlb,
     { timeout: 15_000 },
   );
+});
+
+test("3D model waits for the visitor to scroll to it", async ({
+  browser,
+}) => {
+  // Small-phone viewport: the AR section starts below the fold.
+  const context = await browser.newContext({
+    viewport: { width: 360, height: 640 },
+  });
+  const page = await context.newPage();
+  const withModels = available.filter((p) => p.modelGlb !== "");
+  expect(withModels.length).toBeGreaterThan(0);
+  let glbRequests = 0;
+  let viewerLibRequests = 0;
+  await page.route("**/*.glb", async (route) => {
+    glbRequests += 1;
+    await route.continue();
+  });
+  await page.route("**/*model-viewer*.js", async (route) => {
+    viewerLibRequests += 1;
+    await route.continue();
+  });
+  await page.goto(`/paintings/${withModels[0].slug}`);
+  await expect(page.locator("#ar-mount")).toBeVisible();
+  // Premise check: the section must actually start out of view, or the
+  // zero-request assertions below prove nothing.
+  const mountTop = await page.locator("#ar-mount").evaluate((el) => el.getBoundingClientRect().top);
+  expect(mountTop).toBeGreaterThan(640);
+  await page.waitForTimeout(2000);
+  expect(glbRequests).toBe(0);
+  expect(viewerLibRequests).toBe(0);
+  await page.locator("#ar-mount").scrollIntoViewIfNeeded();
+  await expect.poll(() => glbRequests, { timeout: 15_000 }).toBeGreaterThan(0);
+  await expect.poll(() => viewerLibRequests, { timeout: 15_000 }).toBeGreaterThan(0);
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          () => (document.querySelector("#ar-stage model-viewer") as { loaded?: boolean } | null)?.loaded === true,
+        ),
+      { timeout: 15_000 },
+    )
+    .toBe(true);
+  await context.close();
 });
 
 test("install option stays hidden until the browser offers it", async ({

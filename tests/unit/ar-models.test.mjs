@@ -42,6 +42,9 @@ describe("AR models match the tape measurements", () => {
       assert.ok(existsSync(glbPath), `${fm.modelGlb} exists in public/`);
       const glb = readFileSync(glbPath);
       assert.ok(glb.length > 10_000, "model is not a stub");
+      // 1024px JPEG textures keep each model a few hundred KB — flag
+      // regressions before buyers pay the download.
+      assert.ok(glb.length < 512 * 1024, `model is bloated: ${glb.length} bytes`);
       const { min, max } = boxExtents(glb);
       const want = [Number(fm.widthIn) * IN_TO_M, Number(fm.heightIn) * IN_TO_M, Number(fm.depthIn) * IN_TO_M];
       const got = [max[0] - min[0], max[1] - min[1], max[2] - min[2]];

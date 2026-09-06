@@ -2,6 +2,12 @@
 import { Image } from "astro:assets";
 import { getCollection, type CollectionEntry } from "astro:content";
 import { formatDimensions } from "../lib/dims";
+import {
+  GALLERY_WIDTHS,
+  SOLD_WIDTHS,
+  gallerySizes,
+  soldSizes,
+} from "../lib/responsive-images";
 import { SHOW_PRICES, slugifyTitle, workCount } from "../lib/site";
 import { isExpired, localToday, parseAnnouncement } from "../lib/banner";
 import bannerRaw from "../content/announcement.txt?raw";
@@ -53,15 +59,19 @@ const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
 
   <div class="gallery" id="gallery-static">
     {
-      available.map((painting) => (
+      available.map((painting, i) => (
         <a class="card" href={`/paintings/${slugifyTitle(painting.data.title)}`}>
           <span class="mat">
             <Image
               src={painting.data.image}
               alt={painting.data.alt}
               width={1000}
-              loading="lazy"
-              sizes="(min-width: 60rem) 42vw, (min-width: 40rem) 44vw, 92vw"
+              widths={GALLERY_WIDTHS}
+              sizes={gallerySizes()}
+              format="webp"
+              decoding="async"
+              loading={i === 0 ? "eager" : "lazy"}
+              fetchpriority={i === 0 ? "high" : undefined}
             />
             {isNewStatic(painting.data.dateAdded) && <span class="badge new">New</span>}
           </span>
@@ -100,8 +110,11 @@ const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
                 src={painting.data.image}
                 alt={painting.data.alt}
                 width={700}
+                widths={SOLD_WIDTHS}
                 loading="lazy"
-                sizes="(min-width: 60rem) 22vw, (min-width: 40rem) 44vw, 92vw"
+                sizes={soldSizes()}
+                format="webp"
+                decoding="async"
               />
               <span class="badge sold">Sold</span>
             </span>
@@ -139,7 +152,7 @@ const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
   .section-head h2 { margin: 0; font-size: clamp(1.6rem, 3vw, 2.2rem); font-weight: 500; }
   .count { margin: 0; font-size: 0.9rem; color: var(--muted); white-space: nowrap; }
 
-  .gallery { display: grid; gap: 3rem 2.5rem; }
+  .gallery { display: grid; gap: 3rem 2.5rem; align-items: start; }
   #gallery-static {
     grid-template-columns: 1fr;
   }
@@ -178,6 +191,9 @@ const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
   .mat img {
     width: 100%; height: auto; display: block; border-radius: 0.25rem;
     background: #eee;
+    /* Future extreme portraits: cap height instead of letting one tall
+       card stretch its row. object-fit keeps the art undistorted. */
+    max-height: 80vh; object-fit: contain;
   }
   .caption { display: flex; flex-direction: column; gap: 0.15rem; padding: 0.9rem 0.25rem 0; }
   .caption-title {

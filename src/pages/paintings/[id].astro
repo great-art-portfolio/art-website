@@ -3,6 +3,7 @@ import { Image } from "astro:assets";
 import { getCollection, render } from "astro:content";
 import Layout from "../../layouts/Layout.astro";
 import { formatDimensions } from "../../lib/dims";
+import { PHOTO_WIDTHS, photoSizes } from "../../lib/responsive-images";
 import { SHOW_PRICES, slugifyTitle } from "../../lib/site";
 
 export async function getStaticPaths() {
@@ -66,7 +67,12 @@ const paintingJsonLd = {
           src={painting.data.image}
           alt={painting.data.alt}
           width={1200}
-          sizes="(min-width: 48rem) 55vw, 92vw"
+          widths={PHOTO_WIDTHS}
+          sizes={photoSizes()}
+          format="webp"
+          loading="eager"
+          fetchpriority="high"
+          decoding="async"
         />
         {painting.data.sold && <span class="badge sold">Sold</span>}
       </div>
@@ -141,6 +147,11 @@ const paintingJsonLd = {
     };
   }
   let turnstileToken = "";
+  // Heavy 3D code lives vendored in public/js (rebuilt via `pnpm vendor`).
+  // Stable URLs keep ~850KB of viewer + builder out of Vite's graph, so
+  // visitors never prefetch them — they load only on scroll-to-AR / on save.
+  const MODEL_VIEWER_URL = "/js/model-viewer.js";
+  const AR_TOOLING_URL = "/js/ar-tooling.js";
 
   /** Invisible-ish spam check, loaded only if the site key is configured. */
   function loadTurnstile() {
@@ -179,28 +190,67 @@ const paintingJsonLd = {
     const { glb, usdz, alt, title } = readPageData();
     if (glb === "" || mount.dataset.wiredSrc === glb) return;
     mount.dataset.wiredSrc = glb;
-    void import("@google/model-viewer")
-      .then(() => {
-        const stage = document.getElementById("ar-stage");
-        if (stage === null) return;
-        stage.replaceChildren();
-        const el = document.createElement("model-viewer");
-        el.setAttribute("src", glb);
-        if (usdz !== "") el.setAttribute("ios-src", usdz);
-        el.setAttribute("ar", "");
-        el.setAttribute("ar-modes", "webxr scene-viewer quick-look");
-        el.setAttribute("ar-scale", "fixed");
-        el.setAttribute("ar-placement", "wall");
-        el.setAttribute("camera-controls", "");
-        el.setAttribute("alt", alt === "" ? title : alt);
-        el.style.width = "100%";
-        el.style.height = "20rem";
-        el.style.borderRadius = "1rem";
-        stage.appendChild(el);
-      })
-      .catch(() => {
-        mount.hidden = true;
+    const stage = document.getElementById("ar-stage");
+    if (stage === null) return;
+    // Instant static preview from the photo already on screen — zero extra
+    // bytes. The viewer library (~1.5MB with its decoders) and the model
+    // only download once this section scrolls into view.
+    const photo = document.querySelector("#photo-wrap img");
+    const poster =
+      photo instanceof HTMLImageElement
+        ? photo.currentSrc === ""
+          ? photo.src
+          : photo.currentSrc
+        : "";
+    if (poster !== "") {
+      const img = document.createElement("img");
+      img.src = poster;
+      img.alt = "";
+      img.loading = "lazy";
+      img.decoding = "async";
+      img.style.width = "100%";
+      img.style.height = "20rem";
+      img.style.objectFit = "contain";
+      img.style.borderRadius = "1rem";
+      stage.replaceChildren(img);
+    }
+    const build = () => {
+      void import(/* @vite-ignore */ MODEL_VIEWER_URL)
+        .then(() => {
+          if (!document.contains(mount)) return;
+          const liveStage = document.getElementById("ar-stage");
+          if (liveStage === null) return;
+          const el = document.createElement("model-viewer");
+          el.setAttribute("src", glb);
+          if (usdz !== "") el.setAttribute("ios-src", usdz);
+          if (poster !== "") el.setAttribute("poster", poster);
+          el.setAttribute("loading", "lazy");
+          el.setAttribute("ar", "");
+          el.setAttribute("ar-modes", "webxr scene-viewer quick-look");
+          el.setAttribute("ar-scale", "fixed");
+          el.setAttribute("ar-placement", "wall");
+          el.setAttribute("camera-controls", "");
+          el.setAttribute("alt", alt === "" ? title : alt);
+          el.style.width = "100%";
+          el.style.height = "20rem";
+          el.style.borderRadius = "1rem";
+          liveStage.replaceChildren(el);
+        })
+        .catch(() => {
+          mount.hidden = true;
+        });
+    };
+    if ("IntersectionObserver" in window) {
+      const io = new IntersectionObserver((entries, obs) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          obs.disconnect();
+          build();
+        }
       });
+      io.observe(mount);
+    } else {
+      build();
+    }
   }
 
   // Page scripts only run on full loads — but this layout uses View Transitions,
@@ -300,7 +350,7 @@ const paintingJsonLd = {
       };
       // Dimension fixes (or a missing preview) rebuild the AR models
       // from the repo photo in the same commit.
-      void import("../../lib/ar")
+      void import(/* @vite-ignore */ AR_TOOLING_URL)
         .then((arMod) =>
           arMod.rebuildForDimFix(api.getPhoto, path, p, baseEdits, () => {
             status.textContent = "Rebuilding AR preview… (true size, takes a few seconds)";

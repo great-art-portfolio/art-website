@@ -11,7 +11,10 @@ import { USDZExporter } from "three/addons/exporters/USDZExporter.js";
 import type { PaintingEdits, ParsedPainting } from "./painting-edit";
 
 const IN_TO_M = 0.0254;
-const MAX_TEX_SIDE = 2048;
+// 1024px is plenty: the preview is a flat painting viewed from feet away
+// (a 20rem inline box, or a wall across the room), and anything finer
+// never resolves on screen — it only inflates every painting page.
+const MAX_TEX_SIDE = 1024;
 
 export interface ArModels {
   glb: Blob;

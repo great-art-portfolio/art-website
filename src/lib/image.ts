@@ -32,16 +32,27 @@ export async function loadImageFile(file: File): Promise<HTMLImageElement> {
   }
 }
 
+/**
+ * Pure output-size math behind drawPrepared — numbers in, numbers out,
+ * so rotation + downscale is unit-testable without a browser/DOM.
+ */
+export function scaleFor(
+  naturalWidth: number,
+  naturalHeight: number,
+  rotationDeg: 0 | 90 | 180 | 270,
+): { width: number; height: number } {
+  const rotated = rotationDeg === 90 || rotationDeg === 270;
+  const srcW = rotated ? naturalHeight : naturalWidth;
+  const srcH = rotated ? naturalWidth : naturalHeight;
+  const scale = Math.min(1, MAX_SIDE / Math.max(srcW, srcH));
+  return { width: Math.round(srcW * scale), height: Math.round(srcH * scale) };
+}
+
 function drawPrepared(
   img: HTMLImageElement,
   rotationDeg: 0 | 90 | 180 | 270,
 ): { canvas: HTMLCanvasElement; width: number; height: number } {
-  const rotated = rotationDeg === 90 || rotationDeg === 270;
-  const srcW = rotated ? img.naturalHeight : img.naturalWidth;
-  const srcH = rotated ? img.naturalWidth : img.naturalHeight;
-  const scale = Math.min(1, MAX_SIDE / Math.max(srcW, srcH));
-  const width = Math.round(srcW * scale);
-  const height = Math.round(srcH * scale);
+  const { width, height } = scaleFor(img.naturalWidth, img.naturalHeight, rotationDeg);
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;

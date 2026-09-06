@@ -251,9 +251,13 @@ import Layout from "../layouts/Layout.astro";
   #add-preview .pv-mat {
     background: var(--card); border: 1px solid var(--line);
     border-radius: 0.5rem; padding: 0.75rem;
+    box-shadow: var(--shadow);
   }
   #add-preview .pv-mat img { display: block; width: 100%; height: auto; border-radius: 0.25rem; }
-  #add-preview .pv-title { margin: 0.6rem 0 0.15rem; font-size: 1.05rem; }
+  #add-preview .pv-title {
+    margin: 0.6rem 0 0.15rem;
+    font-family: Georgia, "Iowan Old Style", Charter, serif; font-size: 1.2rem;
+  }
   #add-preview .pv-sub { margin: 0; font-size: 0.85rem; color: var(--muted); }
   .card ul a { color: var(--accent); }
   /* Section sub-nav: same quiet link treatment as the site header. */

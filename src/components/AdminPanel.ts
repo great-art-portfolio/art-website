@@ -10,6 +10,11 @@ import {
   type PaintingEdits,
 } from "../lib/painting-edit";
 
+// Heavy 3D builder lives vendored in public/js (rebuilt via `pnpm vendor` —
+// re-run after touching src/lib/ar.ts or upgrading three). Loaded from a
+// stable URL so Vite never prefetches ~370KB of model code with the page.
+const AR_TOOLING_URL = "/js/ar-tooling.js";
+
 /**
  * Admin island (client-only): publish paintings to git, share kit,
  * homepage banner, collector push. Protected in production by
@@ -52,7 +57,9 @@ async function refreshPreview(): Promise<void> {
   const img = $<HTMLImageElement>("photo-preview");
   img.src = prepared.previewUrl;
   img.hidden = false;
-  $("photo-meta").textContent = `${prepared.width} × ${prepared.height} px`;
+  const mb = prepared.blob.size / 1048576;
+  const size = mb >= 1 ? `${mb.toFixed(1)} MB` : `${Math.max(1, Math.round(prepared.blob.size / 1024))} KB`;
+  $("photo-meta").textContent = `${prepared.width} × ${prepared.height} px · ${size} upload`;
   refreshAddPreview();
 }
 
@@ -145,7 +152,7 @@ async function openEditForm(path: string): Promise<void> {
       try {
         // Dimension fixes (or a missing preview) rebuild the AR models
         // from the repo photo in the same commit.
-        const arMod = await import("../lib/ar");
+        const arMod = await import(/* @vite-ignore */ AR_TOOLING_URL);
         const fix = await arMod.rebuildForDimFix(api.getPhoto, path, p, edits, () =>
           setStatus("Rebuilding AR preview… (true size, takes a few seconds)"),
         );
@@ -419,7 +426,18 @@ function init(): void {
         loadedImage = img;
         await refreshPreview();
       })
-      .catch((err: unknown) => setStatus((err as Error).message, true));
+      .catch((err: unknown) => {
+        const name = (file.name ?? "").toLowerCase();
+        const heic =
+          file.type === "image/heic" ||
+          file.type === "image/heif" ||
+          name.endsWith(".heic") ||
+          name.endsWith(".heif");
+        setStatus(
+          `${(err as Error).message}.${heic ? " This looks like HEIC — iPhones read it, but desktop browsers often don't. Re-upload from the phone or export as JPEG first." : ""}`,
+          true,
+        );
+      });
   });
 
   for (const deg of [90, 270] as const) {
@@ -487,7 +505,9 @@ function init(): void {
         if (($("f-ar") as HTMLInputElement).checked) {
           setStatus("Building AR preview… (true size, takes a few seconds)");
           try {
-            const { buildArModels, estimateDims } = await import("../lib/ar");
+            const { buildArModels, estimateDims } = await import(
+              /* @vite-ignore */ AR_TOOLING_URL
+            );
             // Decode the prepared (rotated/cropped) photo so the model
             // matches exactly what buyers see.
             const arImg = await loadImageFile(
