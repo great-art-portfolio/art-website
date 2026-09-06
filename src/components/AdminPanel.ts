@@ -33,6 +33,11 @@ let preparedBlob: Blob | null = null;
 let lastPreviewUrl: string | null = null;
 let rotation: 0 | 90 | 180 | 270 = 0;
 let lastShare: { title: string; caption: string; pageUrl: string } | null = null;
+// Preview models: photo generation (bumped on every new/rotated photo),
+// built blobs, and their object URLs for cleanup.
+let photoGen = 0;
+let previewModels: { sig: string; glb: Blob; usdz: Blob } | null = null;
+let arPreviewUrls: string[] = [];
 
 function setStatus(msg: string, isError = false): void {
   const el = $("admin-status");
@@ -63,7 +68,11 @@ async function refreshPreview(): Promise<void> {
   const prepared = await prepareImage(loadedImage, rotation);
   if (lastPreviewUrl !== null) URL.revokeObjectURL(lastPreviewUrl);
   preparedBlob = prepared.blob;
-  ($("ar-try-row") as HTMLDivElement).hidden = false;
+  // New pixels invalidate any models built before — and hide them until
+  // the rebuild lands, so she never sees a wrong-size preview.
+  photoGen += 1;
+  previewModels = null;
+  ($("ar-preview") as HTMLElement).hidden = true;
   ($("photo-tools") as HTMLDivElement).hidden = false;
   lastPreviewUrl = prepared.previewUrl;
   const img = $<HTMLImageElement>("photo-preview");
@@ -74,6 +83,8 @@ async function refreshPreview(): Promise<void> {
   const size = mb >= 1 ? `${mb.toFixed(1)} MB` : `${Math.max(1, Math.round(prepared.blob.size / 1024))} KB`;
   $("photo-meta").textContent = `${prepared.width} × ${prepared.height} px · ${size} upload`;
   refreshAddPreview();
+  // Photo (or rotation) changed — rebuild the 3D preview to match.
+  void autoBuildAr();
 }
 
 interface LocalRow {
@@ -369,6 +380,53 @@ function refreshAddPreview(): void {
   }
 }
 
+/** What the in-memory preview models were built from — photo, rotation,
+ * tape numbers. Save reuses them only on an exact match. */
+function modelSig(): string | null {
+  if (preparedBlob === null) return null;
+  const { widthIn, heightIn, depthIn } = readDims();
+  return [photoGen, rotation, widthIn, heightIn, depthIn].map(String).join("|");
+}
+
+/**
+ * Build the true-size models the moment a photo exists (rebuilding when
+ * the photo, rotation, or tape numbers change), so the 3D + AR preview
+ * sits under the photo before Save. Stale runs bail; failures degrade to
+ * a models-free save and never block publishing.
+ */
+async function autoBuildAr(): Promise<void> {
+  if (preparedBlob === null) return;
+  if (!($("f-ar") as HTMLInputElement).checked) return;
+  const want = modelSig();
+  if (want !== null && previewModels !== null && previewModels.sig === want) return;
+  const source = preparedBlob;
+  const gen = photoGen;
+  setStatus("Building wall preview… (true size, takes a few seconds)");
+  try {
+    const { buildArModels, estimateDims } = await loadArTooling();
+    if (gen !== photoGen || preparedBlob !== source) return;
+    // Decode the prepared photo so the preview matches the card.
+    const arImg = await loadImageFile(blobToFile(source, "ar-source.jpg", "image/jpeg"));
+    const { widthIn, heightIn, depthIn } = readDims();
+    const dims = estimateDims(arImg, widthIn, heightIn, depthIn);
+    const models = await buildArModels(arImg, dims.w, dims.h, dims.d);
+    if (gen !== photoGen || preparedBlob !== source) return;
+    const sig = modelSig();
+    previewModels = sig === null ? null : { sig, glb: models.glb, usdz: models.usdz };
+    for (const url of arPreviewUrls) URL.revokeObjectURL(url);
+    const urls = [URL.createObjectURL(models.glb), URL.createObjectURL(models.usdz)];
+    arPreviewUrls = urls;
+    showArPreview(urls[0] as string, urls[1] as string);
+    setStatus("Wall preview below — preview only, nothing published yet.");
+  } catch (err) {
+    if (gen !== photoGen || preparedBlob !== source) return;
+    setStatus(
+      `Wall preview build failed — you can still save without it. (${(err as Error).message})`,
+      true,
+    );
+  }
+}
+
 /** Inline <model-viewer> test so she can try AR before buyers do. */
 function showArPreview(glbUrl: string, usdzUrl: string): void {
   const mount = $("ar-preview");
@@ -588,16 +646,20 @@ function init(): void {
   });
 
   // The working form stays out of sight until she means it — opening
-  // animates the card wider (fields left, photo square right).
+  // animates the card wider (fields left, tall photo column right).
   const addToggle = $("add-toggle") as HTMLButtonElement;
   const uploadForm = $("upload-form") as HTMLFormElement;
+  const addPhoto = $("add-photo");
   const addCard = $("sec-add");
   let addAnim = 0;
+  let addOpen = false;
   addToggle.addEventListener("click", () => {
     addAnim += 1;
     const turn = addAnim;
-    if (uploadForm.hidden) {
+    if (!addOpen) {
+      addOpen = true;
       uploadForm.hidden = false;
+      addPhoto.hidden = false;
       addToggle.textContent = "Close";
       // Next frame so the expand animates instead of snapping in.
       requestAnimationFrame(() =>
@@ -608,10 +670,13 @@ function init(): void {
         }),
       );
     } else {
+      addOpen = false;
       addCard.classList.remove("open");
       addToggle.textContent = "Add new painting";
       const hide = (): void => {
-        if (turn === addAnim) uploadForm.hidden = true;
+        if (turn !== addAnim) return;
+        uploadForm.hidden = true;
+        addPhoto.hidden = true;
       };
       if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) hide();
       else window.setTimeout(hide, 350);
@@ -649,30 +714,15 @@ function init(): void {
     });
   }
 
-  $("ar-try").addEventListener("click", () => {
-    if (preparedBlob === null) {
-      setStatus("Choose a photo first — then try the wall preview.", true);
-      return;
-    }
-    setStatus("Building wall preview… (true size, takes a few seconds)");
-    const source = preparedBlob;
-    void (async () => {
-      try {
-        const { buildArModels, estimateDims } = await loadArTooling();
-        // Decode the prepared photo so the preview matches the card.
-        const arImg = await loadImageFile(blobToFile(source, "ar-source.jpg", "image/jpeg"));
-        const { widthIn, heightIn, depthIn } = readDims();
-        const dims = estimateDims(arImg, widthIn, heightIn, depthIn);
-        const models = await buildArModels(arImg, dims.w, dims.h, dims.d);
-        showArPreview(URL.createObjectURL(models.glb), URL.createObjectURL(models.usdz));
-        setStatus("Wall preview below — preview only, nothing published yet.");
-      } catch (err) {
-        setStatus(
-          `AR preview failed: ${(err as Error).message} — you can still save without it.`,
-          true,
-        );
-      }
-    })();
+  // Tape numbers or the wall-preview checkbox changed — rebuild to match.
+  for (const id of ["f-w", "f-h", "f-d"]) {
+    $(id).addEventListener("change", () => {
+      void autoBuildAr();
+    });
+  }
+  $("f-ar").addEventListener("change", (e) => {
+    if ((e.target as HTMLInputElement).checked) void autoBuildAr();
+    else ($("ar-preview") as HTMLElement).hidden = true;
   });
 
   $("upload-form").addEventListener("submit", (e) => {
@@ -723,23 +773,38 @@ function init(): void {
         let glbBlob: Blob | null = null;
         let usdzBlob: Blob | null = null;
         if (($("f-ar") as HTMLInputElement).checked) {
-          setStatus("Building wall preview… (true size, takes a few seconds)");
-          try {
-            const { buildArModels, estimateDims } = await loadArTooling();
-            // Decode the prepared (rotated/cropped) photo so the model
-            // matches exactly what buyers see.
-            const arImg = await loadImageFile(
-              blobToFile(preparedBlob, "ar-source.jpg", "image/jpeg"),
-            );
-            const dims = estimateDims(arImg, widthIn, heightIn, depthIn);
-            const models = await buildArModels(arImg, dims.w, dims.h, dims.d);
-            glbBlob = models.glb;
-            usdzBlob = models.usdz;
+          // The preview models are already built (same photo + tape
+          // numbers) — reuse them instead of building twice.
+          const want = modelSig();
+          if (want !== null && previewModels !== null && previewModels.sig === want) {
+            glbBlob = previewModels.glb;
+            usdzBlob = previewModels.usdz;
+          } else {
+            setStatus("Building wall preview… (true size, takes a few seconds)");
+            try {
+              const { buildArModels, estimateDims } = await loadArTooling();
+              // Decode the prepared (rotated/cropped) photo so the model
+              // matches exactly what buyers see.
+              const arImg = await loadImageFile(
+                blobToFile(preparedBlob, "ar-source.jpg", "image/jpeg"),
+              );
+              const dims = estimateDims(arImg, widthIn, heightIn, depthIn);
+              const models = await buildArModels(arImg, dims.w, dims.h, dims.d);
+              glbBlob = models.glb;
+              usdzBlob = models.usdz;
+              const sig = modelSig();
+              previewModels = sig === null ? null : { sig, glb: models.glb, usdz: models.usdz };
+            } catch (err) {
+              console.error(err);
+              setStatus("Wall preview build failed — publishing without it. Uncheck the wall preview next time to skip the wait.");
+            }
+          }
+          if (glbBlob !== null && usdzBlob !== null) {
             modelGlb = `/models/${slug}.glb`;
             modelUsdz = `/models/${slug}.usdz`;
             files.push(
-              { path: `public/models/${slug}.glb`, blob: models.glb },
-              { path: `public/models/${slug}.usdz`, blob: models.usdz },
+              { path: `public/models/${slug}.glb`, blob: glbBlob },
+              { path: `public/models/${slug}.usdz`, blob: usdzBlob },
             );
             // Rebuild the markdown with the model URLs in.
             files[0] = {
@@ -757,15 +822,15 @@ function init(): void {
                 modelUsdz,
               }),
             };
-          } catch (err) {
-            console.error(err);
-            setStatus("Wall preview build failed — publishing without it. Uncheck the wall preview next time to skip the wait.");
           }
         }
         await api.commitFiles(`Add painting: ${title}`, files);
         if (glbBlob !== null && usdzBlob !== null) {
           // Preview from memory — the committed files go live after rebuild.
-          showArPreview(URL.createObjectURL(glbBlob), URL.createObjectURL(usdzBlob));
+          for (const url of arPreviewUrls) URL.revokeObjectURL(url);
+          const urls = [URL.createObjectURL(glbBlob), URL.createObjectURL(usdzBlob)];
+          arPreviewUrls = urls;
+          showArPreview(urls[0] as string, urls[1] as string);
         }
         const caption = buildCaption({
           title,
@@ -799,7 +864,7 @@ function init(): void {
         rotation = 0;
         ($("photo-preview") as HTMLImageElement).hidden = true;
         ($("photo-empty") as HTMLElement).hidden = false;
-        ($("ar-try-row") as HTMLDivElement).hidden = true;
+        previewModels = null;
         ($("photo-tools") as HTMLDivElement).hidden = true;
         $("photo-meta").textContent = "";
         refreshAddPreview();

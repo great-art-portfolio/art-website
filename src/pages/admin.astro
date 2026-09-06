@@ -25,55 +25,33 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
       <p class="hint" id="add-preview-note" hidden></p>
       <form id="upload-form" hidden>
         <div class="add-anim">
-          <div class="add-grid">
-            <div class="add-fields">
-              <label>Title
-                <input id="f-title" name="title" type="text" autocomplete="off" required maxlength="120" />
+          <div class="add-fields">
+            <label>Title
+              <input id="f-title" name="title" type="text" autocomplete="off" required maxlength="120" />
+            </label>
+            <label>Price (CAD)
+              <input id="f-price" name="price" type="number" min="1" step="0.01" inputmode="decimal" required />
+            </label>
+            <div class="row">
+              <label>Width (in)
+                <input id="f-w" name="width" type="number" min="1" step="0.5" inputmode="decimal" placeholder="24" />
               </label>
-              <label>Price (CAD)
-                <input id="f-price" name="price" type="number" min="1" step="0.01" inputmode="decimal" required />
+              <label>Height (in)
+                <input id="f-h" name="height" type="number" min="1" step="0.5" inputmode="decimal" placeholder="36" />
               </label>
-              <div class="row">
-                <label>Width (in)
-                  <input id="f-w" name="width" type="number" min="1" step="0.5" inputmode="decimal" placeholder="24" />
-                </label>
-                <label>Height (in)
-                  <input id="f-h" name="height" type="number" min="1" step="0.5" inputmode="decimal" placeholder="36" />
-                </label>
-                <label>Depth (in)
-                  <input id="f-d" name="depth" type="number" min="0.5" step="0.5" inputmode="decimal" placeholder="1.5" />
-                </label>
-              </div>
-              <p class="hint">Measure with a tape — buyers ask, shippers need it, and the wall preview needs it for true size.</p>
-              <label class="check"><input id="f-ar" type="checkbox" checked /> Build a 3D “view on your wall” preview (recommended)</label>
-              <div id="ar-try-row" hidden>
-                <div class="row">
-                  <button type="button" id="ar-try">Try the wall preview</button>
-                </div>
-                <p class="hint">Builds the true-size preview from the photo above — nothing publishes until Save.</p>
-              </div>
-              <label>Alt text (describe the art)
-                <input id="f-alt" name="alt" type="text" autocomplete="off" maxlength="200" />
+              <label>Depth (in)
+                <input id="f-d" name="depth" type="number" min="0.5" step="0.5" inputmode="decimal" placeholder="1.5" />
               </label>
-              <label>Description
-                <textarea id="f-desc" name="description" rows="3" maxlength="2000"></textarea>
-              </label>
-              <button type="submit" class="primary">Save painting</button>
             </div>
-            <div class="add-photo">
-              <span class="photo-caption" id="photo-caption">Upload photo</span>
-              <div class="photo-square">
-                <input id="photo-file" type="file" accept="image/jpeg,image/png,image/webp,image/heic" capture="environment" aria-label="Upload photo" />
-                <span id="photo-empty" aria-hidden="true">Choose file</span>
-                <img id="photo-preview" alt="Photo preview" hidden />
-              </div>
-              <div class="row" id="photo-tools" hidden>
-                <button type="button" id="rotate-90">Rotate ↻</button>
-                <button type="button" id="rotate-270">Rotate ↺</button>
-              </div>
-              <p class="hint" id="photo-meta"></p>
-              <div id="ar-preview" hidden></div>
-            </div>
+            <p class="hint">Measure with a tape — buyers ask, shippers need it, and the wall preview needs it for true size.</p>
+            <label class="check"><input id="f-ar" type="checkbox" checked /> Build a 3D “view on your wall” preview (recommended)</label>
+            <label>Alt text (describe the art)
+              <input id="f-alt" name="alt" type="text" autocomplete="off" maxlength="200" />
+            </label>
+            <label>Description
+              <textarea id="f-desc" name="description" rows="3" maxlength="2000"></textarea>
+            </label>
+            <button type="submit" class="primary">Save painting</button>
           </div>
           <div id="add-preview" hidden>
             <p class="hint">Preview — roughly how the gallery card will look.</p>
@@ -83,6 +61,20 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
           </div>
         </div>
       </form>
+      <div id="add-photo" hidden>
+        <span class="photo-caption" id="photo-caption">Upload photo</span>
+        <div class="photo-square">
+          <input id="photo-file" form="upload-form" type="file" accept="image/jpeg,image/png,image/webp,image/heic" capture="environment" aria-label="Upload photo" />
+          <span id="photo-empty" aria-hidden="true">Choose file</span>
+          <img id="photo-preview" alt="Photo preview" hidden />
+        </div>
+        <div class="row" id="photo-tools" hidden>
+          <button type="button" id="rotate-90">Rotate ↻</button>
+          <button type="button" id="rotate-270">Rotate ↺</button>
+        </div>
+        <p class="hint" id="photo-meta"></p>
+        <div id="ar-preview" hidden></div>
+      </div>
     </section>
 
     <section class="card" id="share-panel" hidden>
@@ -137,7 +129,7 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
 
     <section class="card" id="sec-info">
       <h2>Good to know</h2>
-      <p class="hint">When a buyer taps Send on a painting page, their note arrives straight in your inbox — just reply to it like any email (the reply goes to the buyer). Nothing is kept on the site, so there is no inbox here. After shipping, open the piece and mark it sold.</p>
+      <p class="hint">When a buyer taps Send on a painting page, their note lands straight in your inbox — hit reply and it goes to them. Send it from your barbart.ca address. After shipping, open the piece and mark it sold.</p>
       <ul>
         <li><a href="https://chitchats.com/" rel="noopener">Chit Chats</a> — cheapest tracked Canada/US shipping from Calgary.</li>
         <li><a href="https://www.pirateship.com/" rel="noopener">Pirate Ship</a> — backup for US labels.</li>
@@ -228,9 +220,13 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
   input[type="file"] { width: auto; max-width: 100%; cursor: pointer; }
   /* Author flex beats the UA [hidden] rule — re-hide like the h2 buttons. */
   #photo-tools[hidden] { display: none; }
-  /* Studio links animate; visited never goes browser-blue. */
-  .admin a { transition: color 0.2s ease; }
-  .admin a:hover { color: var(--ink); }
+  /* Studio links behave like the footer: accent always, the underline
+     fades in on hover only. */
+  .admin a {
+    transition: color 0.2s ease, text-decoration-color 0.25s ease;
+    text-decoration: underline transparent; text-underline-offset: 3px;
+  }
+  .admin a:hover { color: var(--ink); text-decoration-color: currentColor; }
   /* View bars: one accent row per painting, scaled to the top piece. */
   :global(.view-bar) {
     display: block; height: 0.45rem; margin-top: 0.35rem;
@@ -267,8 +263,11 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
   #upload-form[hidden] { display: none; }
   #sec-add.open #upload-form { grid-template-rows: 1fr; opacity: 1; }
   .add-anim { overflow: hidden; min-height: 0; }
-  .add-grid { display: grid; gap: 0 1.5rem; }
   .add-fields button[type="submit"] { margin-top: 0.75rem; }
+  /* The photo column fades in beside the form. */
+  #add-photo { opacity: 0; transition: opacity 0.3s ease 0.05s; }
+  #sec-add.open #add-photo { opacity: 1; }
+  #add-photo[hidden] { display: none; }
   .photo-caption { display: block; font-size: 0.9rem; font-weight: 600; margin-block: 0.75rem; }
   /* The whole square is the picker: the file input covers it invisibly. */
   .photo-square {
@@ -298,6 +297,9 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
   @media (prefers-reduced-motion: reduce) {
     #upload-form { transition: none; }
     .photo-square { transition: none; }
+    #add-photo { transition: none; }
+    .admin a { transition: none; }
+    :global(#edit-list li a) { transition: none; }
   }
   .hint { font-size: 0.88rem; color: var(--muted); }
   .check { display: flex; gap: 0.6rem; align-items: center; font-weight: 600; }
@@ -313,7 +315,12 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
     padding: 0.7rem 1rem; font-size: 0.92rem;
   }
   :global(#edit-list li a),
-  :global(#edit-list li a:visited) { color: var(--accent); }
+  :global(#edit-list li a:visited) {
+    color: var(--accent); text-decoration: underline transparent;
+    text-underline-offset: 3px;
+    transition: color 0.2s ease, text-decoration-color 0.25s ease;
+  }
+  :global(#edit-list li a:hover) { color: var(--ink); text-decoration-color: currentColor; }
   :global(#edit-list label) { display: grid; gap: 0.3rem; margin-block: 0.6rem; font-size: 0.85rem; font-weight: 600; }
   :global(#edit-list input),
   :global(#edit-list textarea) {
@@ -352,10 +359,19 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
       gap: 0 1.5rem; align-items: start;
     }
     #share-panel, #sec-collection { grid-column: 1 / -1; }
-    /* While the form is open the Add card spans both columns, with the
-       fields and the photo square side by side. */
-    #sec-add.open { grid-column: 1 / -1; }
-    #sec-add.open .add-grid { grid-template-columns: minmax(0, 5fr) minmax(0, 4fr); }
+    /* While the form is open the Add card spans both columns: heading
+       and fields left (the heading bar covers roughly half the card),
+       the tall photo column starting at the top on the right. */
+    #sec-add.open {
+      grid-column: 1 / -1;
+      display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 4fr);
+      gap: 0 1.5rem;
+    }
+    #sec-add.open h2 { grid-column: 1; }
+    #sec-add.open #add-toggle { grid-column: 1; justify-self: start; }
+    #sec-add.open #add-preview-note { grid-column: 1; }
+    #sec-add.open #upload-form { grid-column: 1; min-width: 0; }
+    #sec-add.open #add-photo { grid-column: 2; grid-row: 1 / span 4; min-width: 0; }
   }
   .card { scroll-margin-top: 7rem; }
 </style>

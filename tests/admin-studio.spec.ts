@@ -107,17 +107,22 @@ test("collection rows link to their painting pages", async ({ page }) => {
   await expect(page).toHaveURL(new RegExp(`/paintings/${paintings[0].slug}/?$`));
 });
 
-test("ar try waits for a photo", async ({ page }) => {
+test("wall preview builds itself once the photo lands", async ({ page }) => {
   await page.goto("/admin");
-  await expect(page.locator("#ar-try-row")).toBeHidden();
   await expect(page.locator("#photo-tools")).toBeHidden();
+  await expect(page.locator("#ar-preview")).toBeHidden();
   await page.locator("#add-toggle").click();
   await page.locator("#photo-file").setInputFiles("src/content/paintings/1943x1967.jpg");
-  await expect(page.locator("#ar-try-row")).toBeVisible();
   await expect(page.locator("#photo-tools")).toBeVisible();
   // The photo lands in the square; the Choose-file prompt steps aside.
   await expect(page.locator("#photo-preview")).toBeVisible();
   await expect(page.locator("#photo-empty")).toBeHidden();
+  // No button to press: the true-size 3D + AR preview builds on its own
+  // (wall-preview checkbox is on by default) before Save is ever hit.
+  await expect(page.locator("#ar-try-row")).toHaveCount(0);
+  const viewer = page.locator("#ar-preview model-viewer");
+  await expect(viewer).toBeAttached({ timeout: 30_000 });
+  await expect(page.locator("#admin-status")).toContainText("Wall preview below");
 });
 
 test("admin links wear the accent, never browser blue", async ({ page }) => {
@@ -163,6 +168,9 @@ test("add form waits behind its button", async ({ page }) => {
   await expect(page.locator("#photo-caption")).toHaveText("Upload photo");
   await expect(page.locator(".photo-square")).toBeVisible();
   await expect(page.locator("#photo-empty")).toBeVisible();
+  // Photo column shows with the form; its picker still belongs to it.
+  await expect(page.locator("#add-photo")).toBeVisible();
+  await expect(page.locator("#photo-file")).toHaveAttribute("form", "upload-form");
   const body = (await page.locator("#main").textContent()) ?? "";
   expect(body).not.toContain("Photo from your phone");
 });

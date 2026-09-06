@@ -78,7 +78,7 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
       <p class="footer-mark">{artistLabel} · {ARTIST_LOCATION}</p>
       <p class="footer-sub">Originals are one of a kind — prints of most pieces available on request.</p>
       <p class="footer-sub"><a href="/privacy">Privacy</a> — no cookies, no trackers
-        <button type="button" id="install-app" hidden>Install the gallery app</button>
+        <button type="button" id="install-app" hidden><span>Install the gallery app</span></button>
       </p>
       <p class="footer-sub">© {year} {artistLabel}</p>
     </footer>
@@ -103,8 +103,8 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
         if (btn !== null) btn.hidden = false;
       });
       document.addEventListener("click", (e) => {
-        var t = e.target;
-        if (t === null || t.id !== "install-app" || deferredInstall === null) return;
+        var t = e.target instanceof Element ? e.target.closest("#install-app") : null;
+        if (t === null || deferredInstall === null) return;
         var ask = deferredInstall;
         deferredInstall = null;
         t.hidden = true;
@@ -232,13 +232,18 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
   }
   .footer-sub a:hover { text-decoration-color: currentColor; }
   .footer-sub a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 0.25rem; }
-  /* Quiet install option: reads as footer text until tapped. */
+  /* Quiet install option: reads as footer text until tapped. The "· "
+     lives outside the underline span so the hover line starts at the I. */
   #install-app {
     font: inherit; color: var(--accent); background: none; border: 0; padding: 0;
-    text-decoration: underline transparent; text-underline-offset: 3px; cursor: pointer;
+    cursor: pointer;
   }
   #install-app::before { content: "· "; color: var(--muted); }
-  #install-app:hover { text-decoration-color: currentColor; }
+  #install-app span {
+    text-decoration: underline transparent; text-underline-offset: 3px;
+    transition: text-decoration-color 0.25s ease;
+  }
+  #install-app:hover span { text-decoration-color: currentColor; }
   #install-app:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 0.25rem; }
   #install-app[hidden] { display: none; }
 
