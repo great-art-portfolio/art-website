@@ -24,10 +24,17 @@ test("draft room looks like the buyer page, empty and editable", async ({
   await expect(page.locator("#de-ar-waiting")).toContainText("view it in AR");
   // No Interested button here — a draft has no live page yet.
   await expect(page.locator(".inquiry-off")).toHaveCount(0);
-  // Alt text says who it's for, in plain words.
-  await expect(page.locator("#de-alt + .hint")).toContainText(
-    "blind visitors hear this read aloud",
+  // Alt text says who it's for, in plain words — a separate caption
+  // under the field, so hovering it never touches the input.
+  await expect(page.locator("#de-alt-hint")).toContainText(
+    "It never shows on the page.",
   );
+  await expect(page.locator("#de-alt")).toHaveAttribute(
+    "aria-describedby",
+    "de-alt-hint",
+  );
+  // Wall preview is plainly named, under the tile.
+  await expect(page.locator("#ar-mount h2")).toHaveText("3D Model Preview");
   // Sold rides beside the save buttons, not above them.
   await expect(page.locator(".studio-toolbar .de-check")).toContainText("Sold");
   // Both exits for a new painting, and the way back.
@@ -117,6 +124,13 @@ test("edit room validates before saving", async ({ page }) => {
     "Title and a valid price are required.",
     { timeout: 10_000 },
   );
+});
+
+test("reduced motion keeps the save button planted", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/admin/paintings/new");
+  await page.locator("#de-save-draft").hover();
+  await expect(page.locator("#de-save-draft")).toHaveCSS("transform", "none");
 });
 
 test("delete arms before firing, never on one tap", async ({ page }) => {

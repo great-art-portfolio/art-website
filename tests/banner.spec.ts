@@ -51,6 +51,8 @@ test("studio banner form offers lifetimes and saves with an expiry", async ({
     .evaluateAll((opts) => opts.map((o) => (o as HTMLOptionElement).value));
   expect(values).toEqual(["", "1", "3", "7", "14"]);
   await expect(page.locator("#f-duration")).toHaveValue("7");
+  // A choice, not typing — the pointer finger shows on hover.
+  await expect(page.locator("#f-duration")).toHaveCSS("cursor", "pointer");
 
   await page.locator("#f-announce").fill("Lilac Festival this Sunday!");
   await page.locator("#f-duration").selectOption("3");

@@ -1,6 +1,6 @@
 import { api, ApiError, getApiToken, setApiToken } from "../lib/api";
 import { sharePainting } from "../lib/share";
-import { dollarsToCents, formatCAD } from "../lib/money";
+import { studioRowHtml as rowHtml } from "../lib/studio-rows";
 import { groupByAvailability, slugifyTitle } from "../lib/site";
 import { parsePainting } from "../lib/painting-edit";
 import {
@@ -194,37 +194,14 @@ function renderLocalCollection(): boolean {
   return true;
 }
 
-/**
- * One row: thumbnail, buyer link, price, the door to its studio page, and
- * its own delete. Mirrors the static rows in admin.astro so hydration
- * swaps identical markup (no flash, no shift).
- */
-function rowHtml(r: LocalPainting): string {
-  const esc = (s: string): string =>
-    s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-  const cents = dollarsToCents(Number(r.price));
-  const price = cents === null ? "Price?" : formatCAD(cents);
-  const thumb =
-    r.image === ""
-      ? ""
-      : `<img class="thumb" src="${esc(r.image)}" alt="" loading="lazy" />`;
-  return (
-    `<li class="row-card">${thumb}<span class="row-body">` +
-    `<a href="/paintings/${esc(r.slug)}"><strong>${esc(r.title)}</strong></a>` +
-    `<span> — ${price}</span>` +
-    `<a class="row-edit" href="/admin/paintings/${esc(r.slug)}">Edit here</a>` +
-    `<button type="button" class="row-del" data-slug="${esc(r.slug)}" data-title="${esc(r.title)}" data-md="${esc(r.mdPath)}">Delete</button>` +
-    `</span></li>`
-  );
-}
-
 function subHtml(title: string): string {
   return `<div class="list-sub"><h3>${title}</h3></div>`;
 }
 
 /**
  * Two columns on desktop — Available left, Drafts/Sold right — one list
- * on phones. Mirrors the static markup in admin.astro.
+ * on phones. Same renderer as the static markup (studioRowHtml), so
+ * hydration swaps identical HTML.
  */
 function renderRows(rows: LocalPainting[]): void {
   const list = $("edit-list");

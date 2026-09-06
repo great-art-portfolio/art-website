@@ -194,6 +194,19 @@ test("collection rows stop well short of the card edge on desktop", async ({
     )?.width ?? 0;
   expect(group).toBeGreaterThan(0);
   expect(group).toBeLessThan(card);
+  // A grid of paintings, not a 1D list: cards sit side by side.
+  const cards = page.locator(
+    '#edit-list .list-group[data-group="available"] .row-card',
+  );
+  expect(await cards.count()).toBeGreaterThan(1);
+  const firstX = (await cards.nth(0).boundingBox())?.x ?? 0;
+  const secondX = (await cards.nth(1).boundingBox())?.x ?? 0;
+  expect(secondX).toBeGreaterThan(firstX);
+  // Edit (pencil) and Delete (trash) ride side by side with icons.
+  await expect(cards.first().locator(".row-edit")).toContainText("Edit");
+  await expect(cards.first().locator(".row-edit svg")).toBeAttached();
+  await expect(cards.first().locator(".row-del")).toContainText("Delete");
+  await expect(cards.first().locator(".row-del svg")).toBeAttached();
 });
 
 test("info links list plainly, and Advanced eases open", async ({ page }) => {

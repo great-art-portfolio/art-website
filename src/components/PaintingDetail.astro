@@ -145,7 +145,7 @@ const eyebrow = data.draft
       {
         studio && !data.sold && (
           <div id="ar-mount">
-            <h2>Try it on your wall</h2>
+            <h2>3D Model Preview</h2>
             {data.modelGlb !== "" ? (
               <>
                 <p class="hint">
@@ -274,13 +274,14 @@ const eyebrow = data.draft
                   maxlength="200"
                   autocomplete="off"
                   value={data.alt}
+                  aria-describedby="de-alt-hint"
                 />
-                <p class="hint">
-                  Say what the painting looks like in plain words — blind
-                  visitors hear this read aloud instead of seeing the photo. It
-                  doesn't show on the page.
-                </p>
               </label>
+              <p class="hint" id="de-alt-hint">
+                This box describes the photo for people who can't see it — write
+                what the painting looks like and screen readers read it aloud.
+                It never shows on the page.
+              </p>
               <label class="de-desc-label">
                 Description
                 <textarea id="de-desc" rows="4" maxlength="2000">
@@ -938,17 +939,15 @@ const eyebrow = data.draft
   .ar-waiting[hidden] {
     display: none;
   }
-  /* Reduced motion kills movement (skeleton, reveal slide, lifts);
-     the lightbox fade still transitions. */
+  /* Reduced motion kills movement (skeleton, reveal slide);
+     the lightbox fade still transitions. Button lifts are handled below,
+     next to the hover rule that creates them. */
   @media (prefers-reduced-motion: reduce) {
     .ar-skeleton {
       animation: none;
     }
     #inquiry-form.revealed {
       animation: none;
-    }
-    .btn-primary:hover {
-      transform: none;
     }
   }
   /* The viewer is focusable (keyboard orbit) — keep an accent ring for
@@ -1084,6 +1083,13 @@ const eyebrow = data.draft
   @media (hover: hover) {
     .btn-primary:hover {
       transform: translateY(-1px);
+    }
+  }
+  /* Reduced motion keeps the button planted: this sits after the lift so
+     it wins when both queries match. Color fades still run. */
+  @media (hover: hover) and (prefers-reduced-motion: reduce) {
+    .btn-primary:hover {
+      transform: none;
     }
   }
   .btn-primary:active {
