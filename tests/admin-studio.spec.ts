@@ -321,6 +321,18 @@ test("views card hides itself when empty", async ({ page }) => {
   await expect(page.locator("#sec-views")).toBeHidden();
 });
 
+test("most viewed stays hidden until data arrives", async ({ page }) => {
+  await mockCommitApi(page);
+  // Hang the analytics call: the response never arrives.
+  await page.route("**/api/analytics*", async () => {
+    await new Promise<never>(() => undefined);
+  });
+  await page.goto("/admin");
+  // No flash of an empty card while loading.
+  await expect(page.locator("#sec-views")).toBeHidden();
+  await expect(page.locator("#views-list")).toBeEmpty();
+});
+
 test("views names the local preview when analytics is down", async ({
   page,
 }) => {
@@ -331,6 +343,7 @@ test("views names the local preview when analytics is down", async ({
     async (route) => await route.abort("failed"),
   );
   await page.goto("/admin");
+  await expect(page.locator("#sec-views")).toBeVisible();
   await expect(page.locator("#views-list")).toContainText("local preview");
   await expect(page.locator("#views-refresh")).toBeHidden();
 });
@@ -397,15 +410,31 @@ test("studio dashboard grids without sideways scroll on a phone", async ({
 test("studio wakes up on every visit, not just full loads", async ({
   page,
 }) => {
+  await mockCommitApi(page);
+  await page.route("**/api/analytics*", async (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        views: [
+          { slug: "first-thaw", views: 10 },
+          { slug: "prairie-moon", views: 5 },
+        ],
+        unconfigured: false,
+      }),
+    }),
+  );
   await page.goto("/admin");
+  // Bars prove the dashboard init ran on this load…
+  await expect(page.locator("#views-list .view-bar > span")).toHaveCount(2);
   // Out through a painting's buyer page (client-side hop), back again.
   await page.locator("#edit-list a.row-title").first().click();
   await expect(page).toHaveURL(/\/paintings\//);
   await page.goBack();
   await expect(page).toHaveURL(/\/admin/);
-  // Lists refilled — init ran on the return visit — and the new-painting
+  // …and again on the return visit — lists refilled, and the new-painting
   // door still opens its room.
-  await expect(page.locator("#views-list")).not.toBeEmpty();
+  await expect(page.locator("#views-list .view-bar > span")).toHaveCount(2);
   await page.locator('nav a.nav-cta[href="/admin/paintings/new"]').click();
   await expect(page.locator("#de-title")).toBeVisible();
 });

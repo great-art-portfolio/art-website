@@ -141,14 +141,14 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
         >
       </section>
 
-      <section class="card" id="sec-views">
+      <section class="card" id="sec-views" hidden>
         <h2>
           Most viewed <button type="button" id="views-refresh" hidden
             >Retry</button
           >
         </h2>
         <p class="hint">Past 30 days, from Cloudflare Analytics.</p>
-        <ul id="views-list"><li>Loading…</li></ul>
+        <ul id="views-list"></ul>
       </section>
 
       <section class="card" id="sec-info">
@@ -614,6 +614,10 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
   }
   :global(#edit-list .ico) {
     flex-shrink: 0;
+  }
+  /* Hidden until data arrives: no flash of an empty card on the way in. */
+  #sec-views[hidden] {
+    display: none;
   }
   #practice-reset {
     margin-top: 0.75rem;

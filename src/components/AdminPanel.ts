@@ -396,6 +396,9 @@ async function refreshCollection(): Promise<void> {
 async function refreshViews(): Promise<void> {
   const list = $("views-list");
   const retry = $("views-refresh") as HTMLButtonElement;
+  // The card starts hidden in markup — it only appears once there is
+  // something to show, so loading never flashes an empty card.
+  const card = $("sec-views") as HTMLElement;
   try {
     const { views, unconfigured } = await api.paintingViews();
     retry.hidden = true;
@@ -405,11 +408,12 @@ async function refreshViews(): Promise<void> {
       list.innerHTML = isLocalPreview()
         ? "<li>View stats only work on the live /admin — this is a local preview.</li>"
         : "<li>View stats aren't set up yet — the Cloudflare steps in the README finish the job.</li>";
+      card.hidden = false;
       return;
     }
     if (views.length === 0) {
       // Nothing to report — the card stays out of the way.
-      ($("sec-views") as HTMLElement).hidden = true;
+      card.hidden = true;
       return;
     }
     const max = Math.max(...views.map((v) => v.views));
@@ -423,6 +427,7 @@ async function refreshViews(): Promise<void> {
         );
       })
       .join("");
+    card.hidden = false;
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) {
       list.innerHTML =
@@ -439,6 +444,7 @@ async function refreshViews(): Promise<void> {
         : "<li>Could not load views — tap Retry.</li>";
     }
     retry.hidden = false;
+    card.hidden = false;
   }
 }
 
