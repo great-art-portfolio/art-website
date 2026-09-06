@@ -15,18 +15,21 @@ test("draft room looks like the buyer page, empty and editable", async ({
   await expect(page.locator(".eyebrow")).toHaveText(
     "Draft · only you can see this",
   );
-  // Photo tile waits for an upload where the photo goes.
-  await expect(page.locator("#de-photo-caption")).toHaveText("Upload photo");
-  await expect(page.locator("#de-photo-empty")).toBeVisible();
-  // Wall preview holds its honest wait in words.
+  // Photo tile waits for an upload where the photo goes — the tile
+  // itself says so, photos only.
+  await expect(page.locator("#de-photo-empty")).toHaveText("Upload photo");
+  await expect(page.locator("#de-photo-caption")).toHaveCount(0);
+  // Wall preview holds its honest wait in words, under the tile.
   await expect(page.locator("#de-ar-waiting")).toContainText("about 5 seconds");
   await expect(page.locator("#de-ar-waiting")).toContainText("view it in AR");
-  // Interested is off, with the reason stated.
-  const interested = page.locator(".inquiry-off .btn-primary");
-  await expect(interested).toBeDisabled();
-  await expect(page.locator(".inquiry-off .hint")).toContainText(
-    "Off while you edit",
+  // No Interested button here — a draft has no live page yet.
+  await expect(page.locator(".inquiry-off")).toHaveCount(0);
+  // Alt text says who it's for, in plain words.
+  await expect(page.locator("#de-alt + .hint")).toContainText(
+    "blind visitors hear this read aloud",
   );
+  // Sold rides beside the save buttons, not above them.
+  await expect(page.locator(".studio-toolbar .de-check")).toContainText("Sold");
   // Both exits for a new painting, and the way back.
   await expect(page.locator("#de-save-draft")).toHaveText("Save draft");
   await expect(page.locator("#de-publish")).toHaveText("Publish painting");
@@ -39,12 +42,14 @@ test("typing in the draft updates the buyer preview live", async ({ page }) => {
   await page.locator("#de-price").fill("200");
   await page.locator("#de-w").fill("24");
   await page.locator("#de-h").fill("36");
+  await page.locator("#de-d").fill("1");
   await page.locator("#de-medium").fill("Oil on canvas");
+  await page.locator("#de-alt").fill("Blue waves");
   await page.locator("#de-desc").fill("First paragraph.\n\nSecond paragraph.");
   await expect(page.locator("#pv-title")).toHaveText("Test Thaw");
   await expect(page.locator("#pv-price")).toHaveText("$200.00");
   await expect(page.locator("#pv-meta")).toHaveText(
-    "Oil on canvas · 24 × 36 in",
+    "Oil on canvas · 24 × 36 × 1 in",
   );
   await expect(page.locator("#pv-desc")).toContainText("First paragraph.");
   await expect(page.locator("#pv-desc")).toContainText("Second paragraph.");
@@ -88,6 +93,12 @@ test("edit room arrives prefilled with save, visibility, and delete", async ({
   await expect(page.locator("#de-save")).toHaveText("Save changes");
   await expect(page.locator("#de-del")).toHaveText("Delete…");
   await expect(page.locator("#de-replace")).toHaveText("Replace photo");
+  // The edit room keeps the disabled Interested button with its reason —
+  // only drafts (no live page yet) hide it.
+  await expect(page.locator(".inquiry-off .btn-primary")).toBeDisabled();
+  await expect(page.locator(".inquiry-off .hint")).toContainText(
+    "Off while you edit",
+  );
   await expect(page.locator(".crumbs a")).toHaveAttribute("href", "/admin");
   // Live preview follows edits.
   await page.locator("#de-price").fill("175");

@@ -163,7 +163,7 @@ test("reduced motion kills movement, keeps gentle fades", async ({ page }) => {
     "transition-duration",
     "0.12s",
   );
-  // Buttons never lift; skeletons hold still.
+  // Buttons never lift.
   await page.locator('nav a.nav-cta[href="/admin/paintings/new"]').hover();
   await expect(
     page.locator('nav a.nav-cta[href="/admin/paintings/new"]'),
@@ -180,12 +180,20 @@ test("collection rows stop well short of the card edge on desktop", async ({
   await page.goto("/admin");
   const list = page.locator("#edit-list");
   await expect(list).toBeVisible();
-  expect(await list.evaluate((el) => getComputedStyle(el).maxWidth)).toBe(
-    "512px",
-  );
-  const width = (await list.boundingBox())?.width ?? 0;
-  expect(width).toBeLessThanOrEqual(512);
-  expect(width).toBeGreaterThan(0);
+  // Rows arrive as static markup — no skeleton flash, no layout shift.
+  await expect(page.locator("#edit-list .row-card").first()).toBeVisible();
+  await expect(page.locator("#edit-list .skel")).toHaveCount(0);
+  // The Available column stays narrower than the full card.
+  const card =
+    (await page.locator("#sec-collection").boundingBox())?.width ?? 0;
+  const group =
+    (
+      await page
+        .locator('#edit-list .list-group[data-group="available"]')
+        .boundingBox()
+    )?.width ?? 0;
+  expect(group).toBeGreaterThan(0);
+  expect(group).toBeLessThan(card);
 });
 
 test("info links list plainly, and Advanced eases open", async ({ page }) => {
@@ -491,6 +499,61 @@ test("practice reset clears the overlay back to the repo list", async ({
   await page.locator("#practice-reset").click();
   await expect(page.locator("#edit-list")).not.toContainText("Seeded Practice");
   await expect(page.locator("#practice-reset")).toBeHidden();
+});
+
+test("dashboard delete asks first, then removes the row", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "studio-practice-v1",
+      JSON.stringify({
+        upserts: {
+          "doomed-piece": {
+            slug: "doomed-piece",
+            title: "Doomed Piece",
+            price: 10,
+            sold: false,
+            alt: "",
+            description: "",
+            widthIn: "",
+            heightIn: "",
+            depthIn: "",
+            medium: "",
+            draft: true,
+          },
+        },
+        deletes: [],
+      }),
+    );
+  });
+  await page.goto("/admin");
+  // Drafts get their own column beside Available on desktop.
+  const availX =
+    (
+      await page
+        .locator('#edit-list .list-group[data-group="available"]')
+        .boundingBox()
+    )?.x ?? 0;
+  const laterX =
+    (
+      await page
+        .locator('#edit-list .list-group[data-group="later"]')
+        .boundingBox()
+    )?.x ?? 0;
+  expect(laterX).toBeGreaterThan(availX);
+  const row = page.locator('.row-card:has-text("Doomed Piece")');
+  await expect(row).toBeVisible();
+  const del = row.locator(".row-del");
+  // First tap arms — nothing deleted, nowhere navigated.
+  await del.click();
+  await expect(del).toHaveText("Are you sure? Tap again to delete");
+  await expect(row).toBeVisible();
+  await expect(page).toHaveURL(/\/admin\/?$/);
+  // Second tap deletes for real.
+  await del.click();
+  await expect(row).toHaveCount(0);
+  await expect(page.locator("#admin-status")).toContainText(
+    'Deleted "Doomed Piece"',
+  );
 });
 
 test("error toasts clear themselves after a few seconds", async ({ page }) => {

@@ -79,71 +79,99 @@ const eyebrow = data.draft
     )
   }
   <div class="detail-grid">
-    {
-      studio && mode === "draft" ? (
-        <div>
-          <span class="photo-caption" id="de-photo-caption">
-            Upload photo
-          </span>
-          <div class="upload-tile">
-            <input
-              id="de-photo"
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/heic"
-              capture="environment"
-              aria-label="Upload photo"
-            />
-            <span id="de-photo-empty" aria-hidden="true">
-              Choose file
-            </span>
-            <img id="de-photo-preview" alt="Photo preview" hidden />
-          </div>
-          <div class="tile-row" id="de-photo-tools" hidden>
-            <button type="button" id="de-rotate-90">
-              Rotate ↻
-            </button>
-            <button type="button" id="de-rotate-270">
-              Rotate ↺
-            </button>
-          </div>
-          <p class="hint" id="de-photo-meta" />
-        </div>
-      ) : (
-        <div>
-          <div class="frame" id="photo-wrap" title="Tap to view fullscreen">
-            {data.image !== undefined && (
-              <Image
-                src={data.image}
-                alt={data.alt}
-                width={1200}
-                widths={PHOTO_WIDTHS}
-                sizes={photoSizes()}
-                format="webp"
-                loading="eager"
-                fetchpriority="high"
-                decoding="async"
-              />
-            )}
-            {data.sold && <span class="badge sold">Sold</span>}
-          </div>
-          {studio && (
-            <div class="tile-row">
-              <button type="button" id="de-replace">
-                Replace photo
-              </button>
+    <div class="media-col">
+      {
+        studio && mode === "draft" ? (
+          <div>
+            <div class="upload-tile">
               <input
-                id="de-replace-file"
+                id="de-photo"
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/heic"
                 capture="environment"
-                aria-label="Replace photo"
-                hidden
+                aria-label="Upload photo"
               />
+              <span id="de-photo-empty" aria-hidden="true">
+                Upload photo
+              </span>
+              <img id="de-photo-preview" alt="Photo preview" hidden />
             </div>
-          )}
-        </div>
-      )
-    }
+            <div class="tile-row" id="de-photo-tools" hidden>
+              <button type="button" id="de-rotate-90">
+                Rotate ↻
+              </button>
+              <button type="button" id="de-rotate-270">
+                Rotate ↺
+              </button>
+            </div>
+            <p class="hint" id="de-photo-meta" />
+          </div>
+        ) : (
+          <div>
+            <div class="frame" id="photo-wrap" title="Tap to view fullscreen">
+              {data.image !== undefined && (
+                <Image
+                  src={data.image}
+                  alt={data.alt}
+                  width={1200}
+                  widths={PHOTO_WIDTHS}
+                  sizes={photoSizes()}
+                  format="webp"
+                  loading="eager"
+                  fetchpriority="high"
+                  decoding="async"
+                />
+              )}
+              {data.sold && <span class="badge sold">Sold</span>}
+            </div>
+            {studio && (
+              <div class="tile-row">
+                <button type="button" id="de-replace">
+                  Replace photo
+                </button>
+                <input
+                  id="de-replace-file"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/heic"
+                  capture="environment"
+                  aria-label="Replace photo"
+                  hidden
+                />
+              </div>
+            )}
+          </div>
+        )
+      }
+      {
+        studio && !data.sold && (
+          <div id="ar-mount">
+            <h2>Try it on your wall</h2>
+            {data.modelGlb !== "" ? (
+              <>
+                <p class="hint">
+                  True size — on your phone, point it at the wall where it would
+                  hang.
+                </p>
+                <div id="ar-stage">
+                  <div class="ar-skeleton" aria-hidden="true" />
+                </div>
+              </>
+            ) : (
+              <>
+                <div class="ar-waiting" id="de-ar-waiting">
+                  <p>
+                    Waiting for a photo — once one arrives, the 3D takes about 5
+                    seconds to build. You'll see it here, and on a phone you can
+                    also view it in AR.
+                  </p>
+                </div>
+                <div id="ar-stage" hidden />
+              </>
+            )}
+          </div>
+        )
+      }
+    </div>
     <div
       id="lightbox"
       hidden
@@ -247,15 +275,17 @@ const eyebrow = data.draft
                   autocomplete="off"
                   value={data.alt}
                 />
+                <p class="hint">
+                  Say what the painting looks like in plain words — blind
+                  visitors hear this read aloud instead of seeing the photo. It
+                  doesn't show on the page.
+                </p>
               </label>
-              <label>
+              <label class="de-desc-label">
                 Description
                 <textarea id="de-desc" rows="4" maxlength="2000">
                   {data.description}
                 </textarea>
-              </label>
-              <label class="de-check">
-                <input id="de-sold" type="checkbox" checked={data.sold} /> Sold
               </label>
             </div>
             <div class="studio-toolbar">
@@ -281,6 +311,9 @@ const eyebrow = data.draft
                   </button>
                 </>
               )}
+              <label class="de-check">
+                <input id="de-sold" type="checkbox" checked={data.sold} /> Sold
+              </label>
               <span id="de-status" role="status" />
             </div>
           </>
@@ -358,7 +391,7 @@ const eyebrow = data.draft
         )
       }
       {
-        studio && !data.sold && (
+        studio && mode !== "draft" && !data.sold && (
           <div class="inquiry-off">
             <button type="button" class="btn-primary" disabled>
               Interested?
@@ -370,7 +403,7 @@ const eyebrow = data.draft
         )
       }
       {
-        !data.sold && data.modelGlb !== "" && (
+        !studio && !data.sold && data.modelGlb !== "" && (
           <div id="ar-mount">
             <h2>Try it on your wall</h2>
             <p class="hint">
@@ -380,21 +413,6 @@ const eyebrow = data.draft
             <div id="ar-stage">
               <div class="ar-skeleton" aria-hidden="true" />
             </div>
-          </div>
-        )
-      }
-      {
-        studio && !data.sold && data.modelGlb === "" && (
-          <div id="ar-mount">
-            <h2>Try it on your wall</h2>
-            <div class="ar-waiting" id="de-ar-waiting">
-              <p>
-                Waiting for a photo — once one arrives, the 3D takes about 5
-                seconds to build. You'll see it here, and on a phone you can
-                also view it in AR.
-              </p>
-            </div>
-            <div id="ar-stage" hidden />
           </div>
         )
       }
@@ -735,6 +753,17 @@ const eyebrow = data.draft
     gap: 2.5rem;
     align-items: start;
   }
+  /* Photo column stacks its pieces (tile, wall preview) with room to
+     breathe, so the left side holds content while she scrolls the form. */
+  .media-col {
+    display: grid;
+    gap: 1.5rem;
+    align-content: start;
+    min-width: 0;
+  }
+  .media-col > div {
+    min-width: 0;
+  }
   @media (min-width: 48rem) {
     .detail-grid {
       grid-template-columns: 1.15fr 1fr;
@@ -992,6 +1021,21 @@ const eyebrow = data.draft
     color: var(--ink);
     width: 100%;
     box-sizing: border-box;
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease;
+  }
+  /* Hover drafts the focus ring: the border warms toward the text color
+     before the accent outline lands on focus. */
+  input:hover,
+  textarea:hover {
+    border-color: var(--muted);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    input,
+    textarea {
+      transition: none;
+    }
   }
   /* One ring only: inputs show the outline on any focus, never doubling
      with a border change. */
@@ -1077,14 +1121,29 @@ const eyebrow = data.draft
   .de-row label {
     flex: 1 1 8rem;
   }
+  /* The write-up stands apart from the short fields above it. */
+  .de-desc-label {
+    margin-top: 0.35rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--line);
+  }
+  /* Sold rides beside the save buttons: a real checkbox with a pointer
+     cursor, tall enough to tap. */
   .de-check {
-    display: flex;
+    display: inline-flex;
     gap: 0.6rem;
     align-items: center;
+    min-height: 3rem;
+    margin: 0;
+    cursor: pointer;
   }
   .de-check input {
-    width: auto;
+    width: 1.15rem;
+    height: 1.15rem;
+    margin: 0;
+    flex-shrink: 0;
     accent-color: var(--accent);
+    cursor: pointer;
   }
   .studio-toolbar {
     display: flex;
@@ -1130,13 +1189,7 @@ const eyebrow = data.draft
   .inquiry-off .hint {
     margin: 0.6rem 0 0;
   }
-  /* Draft photo tile: the whole square is the picker. */
-  .photo-caption {
-    display: block;
-    font-size: 0.9rem;
-    font-weight: 600;
-    margin: 0 0 0.75rem;
-  }
+  /* Draft photo tile: the whole square is the picker, labeled inside. */
   .upload-tile {
     position: relative;
     aspect-ratio: 1;
@@ -1150,9 +1203,19 @@ const eyebrow = data.draft
     color: var(--muted);
     font-weight: 600;
     cursor: pointer;
+    transition:
+      border-color 0.2s ease,
+      color 0.2s ease,
+      background-color 0.2s ease;
   }
   .upload-tile:hover {
-    border-color: var(--ink);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .upload-tile {
+      transition: none;
+    }
   }
   #de-photo {
     position: absolute;
@@ -1196,9 +1259,15 @@ const eyebrow = data.draft
     border: 1px solid var(--line);
     background: var(--paper);
     color: var(--ink);
+    transition: border-color 0.2s ease;
   }
   .tile-row button:hover {
     border-color: var(--ink);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tile-row button {
+      transition: none;
+    }
   }
   .tile-row button:focus-visible {
     outline: 2px solid var(--accent);

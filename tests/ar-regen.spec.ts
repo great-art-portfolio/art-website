@@ -136,7 +136,9 @@ test("dashboard row opens the studio room, which saves home", async ({
   const api = await stubApi(page);
 
   await page.goto("/admin");
-  const row = page.locator("#edit-list li", { hasText: "First Thaw" });
+  const row = page.locator("#edit-list li.row-card", {
+    hasText: "First Thaw",
+  });
   await expect(row).toBeVisible({ timeout: 15_000 });
   await row.locator('a[href="/admin/paintings/first-thaw"]').click();
   await expect(page.locator("#de-w")).toBeVisible({ timeout: 15_000 });

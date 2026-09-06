@@ -129,6 +129,17 @@ function refreshPreview(): void {
     .filter((para) => para !== "")
     .map((para) => `<p>${escHtml(para)}</p>`)
     .join("");
+  // Alt text never shows on the page, but the preview photos wear it live
+  // so what a screen reader announces matches what buyers will hear.
+  const altText = ($("de-alt") as HTMLInputElement).value.trim();
+  const liveAlt =
+    altText === ""
+      ? (($("pv-title") as HTMLElement).textContent ?? "Painting")
+      : altText;
+  for (const sel of ["#de-photo-preview", "#photo-wrap img"]) {
+    const img = document.querySelector<HTMLImageElement>(sel);
+    if (img !== null) img.alt = liveAlt;
+  }
 }
 
 function blobToFile(blob: Blob, name: string, type: string): File {
@@ -650,6 +661,7 @@ function initStudio(): void {
     "de-title",
     "de-price",
     "de-medium",
+    "de-alt",
     "de-desc",
     "de-sold",
   ]) {
