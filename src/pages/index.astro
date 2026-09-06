@@ -168,6 +168,16 @@ const headlineHtml = "Original paintings, from the studio";
     padding-top: 1.5rem; border-top: 1px solid var(--line);
   }
   .hero-meta div { display: flex; gap: 0.5rem; align-items: baseline; margin: 0; }
+  /* Narrow: a real two-column grid so every description starts at the same
+     edge instead of trailing its (variably wrapping) term. */
+  @media (max-width: 40rem) {
+    .hero-meta { display: grid; gap: 0.75rem; }
+    .hero-meta div {
+      display: grid; grid-template-columns: 7.5rem 1fr;
+      gap: 0.25rem 1rem; align-items: baseline;
+    }
+    .hero-meta dd { text-wrap: pretty; }
+  }
   .hero-meta dt { font-weight: 700; font-size: 0.9rem; }
   .hero-meta dd { margin: 0; font-size: 0.9rem; color: var(--muted); }
 
