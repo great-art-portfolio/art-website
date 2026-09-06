@@ -128,12 +128,28 @@ test("admin links wear the accent, never browser blue", async ({ page }) => {
   expect(color).toBe("rgb(164, 74, 36)");
 });
 
-test("status bar sticks where she can see it", async ({ page }) => {
+test("errors toast over the page wherever she is scrolled", async ({ page }) => {
   await page.goto("/admin");
+  await page.locator("#add-toggle").click();
+  // Title + price filled (past native validation) but no photo: a panel error.
+  await page.locator("#f-title").fill("Toast Test");
+  await page.locator("#f-price").fill("250");
+  await page.locator('#upload-form button[type="submit"]').click();
+  await expect(page.locator("#admin-status")).toContainText("Choose a photo first.");
   const pos = await page
     .locator("#admin-status")
     .evaluate((el) => getComputedStyle(el).position);
-  expect(pos).toBe("sticky");
+  expect(pos).toBe("fixed");
+  // Scrolled to the bottom, the toast still sits inside the viewport.
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  const box = await page.locator("#admin-status").boundingBox();
+  const viewport = page.viewportSize();
+  expect(box).not.toBeNull();
+  expect(viewport).not.toBeNull();
+  if (box !== null && viewport !== null) {
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+  }
 });
 
 test("add form waits behind its button", async ({ page }) => {
@@ -188,6 +204,9 @@ test("views draws bars, hides when there is nothing to report", async ({ page })
   await expect(bars).toHaveCount(2);
   await expect(bars.first()).toHaveAttribute("style", "width:100%");
   await expect(bars.nth(1)).toHaveAttribute("style", "width:50%");
+  // Script-built bars actually render (a bar with no height is invisible).
+  const height = await bars.first().boundingBox();
+  expect(height !== null && height.height > 0).toBe(true);
 });
 
 test("views card hides itself when empty", async ({ page }) => {
@@ -294,7 +313,16 @@ test("collection falls back to the baked-in list when the API fails", async ({
   await expect(rows.first()).toBeVisible();
   await expect(page.locator("#edit-list button")).toHaveCount(0);
   await expect(page.locator("#collection-refresh")).toBeHidden();
-  await expect(page.locator("#admin-status")).toContainText("editing needs the live site");
+  await expect(page.locator("#collection-note")).toContainText("Editing needs the live site");
+  await expect(page.locator("#collection-note")).toBeVisible();
+  // Script-built rows still wear the studio styles (accent links, boxed rows).
+  const color = await rows.first().evaluate((el) => getComputedStyle(el).color);
+  expect(color).toBe("rgb(164, 74, 36)");
+  const box = await rows.first().evaluate((el) => {
+    const li = el.closest("li");
+    return li === null ? "" : getComputedStyle(li).borderStyle;
+  });
+  expect(box).not.toBe("none");
 });
 
 test("publish clears the photo so the next Save starts empty", async ({ page }) => {

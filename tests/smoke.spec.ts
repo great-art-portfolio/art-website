@@ -114,7 +114,10 @@ test("admin explains itself gracefully without a publishing backend", async ({
   expect(await rows.count()).toBeGreaterThan(0);
   await expect(page.locator("#edit-list button")).toHaveCount(0);
   await expect(page.locator("#collection-refresh")).toBeHidden();
-  await expect(page.locator("#admin-status")).toContainText("editing needs the live site");
+  await expect(page.locator("#collection-note")).toContainText("Editing needs the live site");
+  await expect(page.locator("#collection-note")).toBeVisible();
+  // Nothing to toast about — the note lives in the Collection card.
+  await expect(page.locator("#admin-status")).toBeHidden();
   // No secrets locally: Cloudflare answers 200 with zero rows, so the
   // views card hides instead of reporting. (The local-preview wording only
   // appears when the API itself is down — covered in admin-studio.)

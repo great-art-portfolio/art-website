@@ -105,6 +105,7 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
     <section class="card" id="sec-collection">
       <h2>Collection <button type="button" id="collection-refresh" hidden>Retry</button></h2>
       <p class="hint"><a href="/#collection">Open the collection</a> to see what buyers see — then come back here and tap Edit here on any piece below.</p>
+      <p class="hint" id="collection-note" hidden></p>
       <ul id="edit-list"><li>Loading…</li></ul>
       <script type="application/json" id="local-collection" set:html={localJson} />
     </section>
@@ -166,12 +167,15 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
 
 <style>
   .admin { max-width: 64rem; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+  /* Toast fixed to the viewport: errors find her wherever she is
+     scrolled. Empty (no message) means gone entirely. */
   #admin-status {
-    margin: 0 0 1.5rem; padding: 0.8rem 1.1rem; border-radius: var(--radius);
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: max(1rem, env(safe-area-inset-bottom, 1rem));
+    width: min(36rem, calc(100% - 2rem)); z-index: 40;
+    margin: 0; padding: 0.8rem 1.1rem; border-radius: var(--radius);
     border: 1px solid var(--line); background: var(--card);
-    font-size: 0.95rem;
-    /* Errors land where she is looking, not at the top of a long page. */
-    position: sticky; bottom: 1rem; z-index: 6; box-shadow: var(--shadow);
+    font-size: 0.95rem; box-shadow: var(--shadow);
   }
   #admin-status[data-tone="error"] {
     border-color: rgb(140 29 24 / 0.4); background: rgb(140 29 24 / 0.08); color: inherit;
@@ -228,12 +232,12 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
   .admin a { transition: color 0.2s ease; }
   .admin a:hover { color: var(--ink); }
   /* View bars: one accent row per painting, scaled to the top piece. */
-  .view-bar {
+  :global(.view-bar) {
     display: block; height: 0.45rem; margin-top: 0.35rem;
     border-radius: 999px; background: rgb(255 255 255 / 0.08);
     overflow: hidden;
   }
-  .view-bar > span { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+  :global(.view-bar > span) { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
   input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible {
     outline: 2px solid var(--accent); outline-offset: 2px;
   }
@@ -300,21 +304,27 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
   .check input { width: auto; min-height: 1.4rem; accent-color: var(--accent); }
   #ar-preview { margin-top: 0.75rem; }
   #views-list, #edit-list { list-style: none; padding: 0; margin: 0.75rem 0 0; display: grid; gap: 0.5rem; }
-  #views-list li, #edit-list li {
+  /* Rows and fields are built by script after load, so they never carry
+     the scope attribute — whole-selector :global keeps them styled. */
+  :global(#views-list li),
+  :global(#edit-list li) {
     list-style: none; background: var(--paper);
     border: 1px solid var(--line); border-radius: 0.75rem;
     padding: 0.7rem 1rem; font-size: 0.92rem;
   }
-  #edit-list label { display: grid; gap: 0.3rem; margin-block: 0.6rem; font-size: 0.85rem; font-weight: 600; }
-  #edit-list input, #edit-list textarea {
+  :global(#edit-list li a),
+  :global(#edit-list li a:visited) { color: var(--accent); }
+  :global(#edit-list label) { display: grid; gap: 0.3rem; margin-block: 0.6rem; font-size: 0.85rem; font-weight: 600; }
+  :global(#edit-list input),
+  :global(#edit-list textarea) {
     width: 100%; box-sizing: border-box; font: inherit; font-weight: 400; font-size: 0.9rem;
     padding: 0.55rem 0.7rem; border-radius: 0.5rem;
     border: 1px solid var(--line); background: var(--paper); color: var(--ink);
   }
-  #edit-list .row { display: flex; gap: 0.45rem; flex-wrap: wrap; margin: 0.6rem 0 0; }
-  #edit-list .row label { flex: 1 1 8rem; margin-block: 0; }
-  #edit-list .check { display: flex; gap: 0.6rem; align-items: center; font-weight: 600; }
-  #edit-list .check input { width: auto; accent-color: var(--accent); }
+  :global(#edit-list .row) { display: flex; gap: 0.45rem; flex-wrap: wrap; margin: 0.6rem 0 0; }
+  :global(#edit-list .row label) { flex: 1 1 8rem; margin-block: 0; }
+  :global(#edit-list .check) { display: flex; gap: 0.6rem; align-items: center; font-weight: 600; }
+  :global(#edit-list .check input) { width: auto; accent-color: var(--accent); }
   /* Add-form preview: quiet echo of the gallery card. */
   #add-preview { margin: 0.75rem 0 0; max-width: 22rem; }
   #add-preview .hint { margin: 0 0 0.5rem; }

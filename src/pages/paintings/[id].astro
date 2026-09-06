@@ -540,18 +540,21 @@ const paintingJsonLd = {
     border: 1px solid var(--line); border-radius: 0.75rem; background: var(--card);
   }
   #admin-edit[hidden] { display: none; }
-  #admin-edit label { display: grid; gap: 0.3rem; font-size: 0.85rem; font-weight: 600; }
-  #admin-edit input, #admin-edit textarea {
+  /* The edit panel is built by script after load, so its nodes never
+     carry the scope attribute — whole-selector :global keeps them styled. */
+  :global(#admin-edit label) { display: grid; gap: 0.3rem; font-size: 0.85rem; font-weight: 600; }
+  :global(#admin-edit input),
+  :global(#admin-edit textarea) {
     width: 100%; box-sizing: border-box; font: inherit; font-weight: 400; font-size: 0.9rem;
     padding: 0.55rem 0.7rem; border-radius: 0.5rem;
     border: 1px solid var(--line); background: var(--paper); color: var(--ink);
   }
-  #admin-edit .ae-row { display: flex; gap: 0.45rem; flex-wrap: wrap; align-items: end; }
-  #admin-edit .ae-row label { flex: 1 1 8rem; }
-  #admin-edit .ae-check { display: flex; gap: 0.6rem; align-items: center; }
-  #admin-edit .ae-check input { width: auto; accent-color: var(--accent); }
-  #admin-edit .btn-primary { width: auto; margin-top: 0; }
-  #ae-status { font-size: 0.85rem; color: var(--muted); align-self: center; }
+  :global(#admin-edit .ae-row) { display: flex; gap: 0.45rem; flex-wrap: wrap; align-items: end; }
+  :global(#admin-edit .ae-row label) { flex: 1 1 8rem; }
+  :global(#admin-edit .ae-check) { display: flex; gap: 0.6rem; align-items: center; }
+  :global(#admin-edit .ae-check input) { width: auto; accent-color: var(--accent); }
+  :global(#admin-edit .btn-primary) { width: auto; margin-top: 0; }
+  :global(#ae-status) { font-size: 0.85rem; color: var(--muted); align-self: center; }
   .detail-grid { display: grid; gap: 2.5rem; align-items: start; }
   @media (min-width: 48rem) {
     .detail-grid { grid-template-columns: 1.15fr 1fr; }

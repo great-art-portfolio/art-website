@@ -126,13 +126,17 @@ function renderLocalCollection(): boolean {
     })
     .join("");
   // No Edit buttons here on purpose — saving and deleting need the live
-  // site's API, so the list stays read-only.
-  setStatus("Showing your current collection — editing needs the live site.");
+  // site's API, so the list stays read-only. The note lives in the
+  // Collection card, next to the list it describes.
+  const note = $("collection-note");
+  note.textContent = "Editing needs the live site — this list is read-only here.";
+  (note as HTMLParagraphElement).hidden = false;
   return true;
 }
 
 async function refreshCollection(): Promise<void> {
   const list = $("edit-list");
+  ($("collection-note") as HTMLParagraphElement).hidden = true;
   let files: string[];
   try {
     files = (await api.listPaintingFiles()).filter((f) => f.endsWith(".md"));
