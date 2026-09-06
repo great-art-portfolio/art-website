@@ -154,6 +154,9 @@ const headlineHtml = "Original paintings, from the studio";
   @media (hover: hover) {
     .btn-primary:hover, .btn-ghost:hover { transform: translateY(-1px); }
   }
+  @media (prefers-reduced-motion: reduce) {
+    .btn-primary:hover, .btn-ghost:hover { transform: none; }
+  }
   .btn-primary:active, .btn-ghost:active { transform: none; }
   .btn-primary:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
   .btn-ghost:hover { border-color: var(--ink); }

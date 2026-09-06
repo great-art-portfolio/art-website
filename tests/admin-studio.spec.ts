@@ -168,6 +168,7 @@ test("studio hovers match the footer: underline only, no color flash", async ({
 
 test("reduced motion kills movement, keeps gentle fades", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
+  await mockCommitApi(page);
   await page.goto("/admin");
   // The expanding form goes instant …
   await expect(page.locator("#upload-form")).toHaveCSS("transition-duration", "0s");
@@ -176,6 +177,15 @@ test("reduced motion kills movement, keeps gentle fades", async ({ page }) => {
     "transition-duration",
     "0.25s",
   );
+  // Buttons never lift — static or script-built.
+  await page.locator("#add-toggle").hover();
+  await expect(page.locator("#add-toggle")).toHaveCSS("transform", "none");
+  const edit = page.locator("#edit-list button").first();
+  await expect(edit).toBeVisible();
+  // Script-built buttons wear the studio styling, not browser defaults.
+  await expect(edit).toHaveCSS("border-radius", "12px");
+  await edit.hover();
+  await expect(edit).toHaveCSS("transform", "none");
 });
 
 test("collection rows stop at half the card on desktop", async ({ page }) => {

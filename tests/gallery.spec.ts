@@ -78,6 +78,14 @@ test("hovering a card prefetches its painting page", async ({ page }) => {
   expect(page.url().endsWith("/")).toBe(true);
 });
 
+test("reduced motion keeps gallery cards planted", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  const card = page.locator("#gallery-static .card").first();
+  await card.hover();
+  await expect(card.locator(".mat")).toHaveCSS("transform", "none");
+});
+
 test("sold archive matches the collection (absent while nothing is sold)", async ({
   page,
 }) => {

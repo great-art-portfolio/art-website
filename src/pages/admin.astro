@@ -258,13 +258,17 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
     overflow: hidden;
   }
   :global(.view-bar > span) { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
-  input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible {
+  input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible,
+  :global(#edit-list button:focus-visible) {
     outline: 2px solid var(--accent); outline-offset: 2px;
   }
   input:focus, textarea:focus { border-color: var(--accent); }
   .row { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-block: 0.75rem; align-items: center; }
   .row label { flex: 1 1 8rem; margin-block: 0; }
-  button {
+  /* The :global twins cover script-built buttons (collection rows, edit
+     form), which never carry the scope attribute. */
+  button,
+  :global(#edit-list button) {
     font: inherit; font-size: 0.92rem; font-weight: 600;
     min-height: 2.9rem; padding: 0.55rem 1.2rem;
     border-radius: 0.75rem; border: 1px solid var(--line);
@@ -273,10 +277,14 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
     transition: background-color 0.25s ease, border-color 0.25s ease,
       color 0.25s ease, transform 0.2s ease;
   }
-  button:hover { border-color: var(--ink); transform: translateY(-1px); }
-  button:active { transform: none; }
-  button.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-  button.primary:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  button:hover,
+  :global(#edit-list button:hover) { border-color: var(--ink); transform: translateY(-1px); }
+  button:active,
+  :global(#edit-list button:active) { transform: none; }
+  button.primary,
+  :global(#edit-list button.primary) { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  button.primary:hover,
+  :global(#edit-list button.primary:hover) { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
   .card h2 button { min-height: 2.2rem; padding: 0.25rem 0.9rem; font-size: 0.82rem; margin-left: auto; }
   /* Author display:inline-flex beats the UA [hidden] rule — re-hide. */
   .card h2 button[hidden] { display: none; }
@@ -328,6 +336,8 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
     #upload-form { transition: none; }
     #add-photo { transition: none; }
     #admin-status.toast-in { animation: none; }
+    button:hover,
+    :global(#edit-list button:hover) { transform: none; }
     #sec-add .add-fields,
     #sec-add #add-photo,
     #sec-add #add-preview { transition: none; }
