@@ -8,14 +8,7 @@ import Layout from "../layouts/Layout.astro";
     <h1 id="admin-greeting">Studio</h1>
     <p id="admin-status" role="status" data-tone="ok"></p>
 
-    <nav class="subnav" aria-label="Studio sections">
-      <a href="#sec-add">Add</a>
-      <a href="#sec-collection">Collection</a>
-      <a href="#sec-banner">Banner</a>
-      <a href="#sec-views">Views</a>
-      <a href="#sec-ship">Ship it</a>
-    </nav>
-
+    <div class="admin-grid">
     <section class="card" id="sec-add">
       <h2>Add a painting</h2>
       <form id="upload-form">
@@ -158,13 +151,14 @@ import Layout from "../layouts/Layout.astro";
         </p>
       </details>
     </section>
+    </div>
   </main>
 </Layout>
 
 <script src="../components/AdminPanel.ts"></script>
 
 <style>
-  .admin { max-width: 46rem; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+  .admin { max-width: 64rem; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
   .eyebrow {
     margin: 0 0 0.6rem; font-size: 0.78rem; font-weight: 700;
     letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent);
@@ -281,17 +275,14 @@ import Layout from "../layouts/Layout.astro";
   }
   #add-preview .pv-sub { margin: 0; font-size: 0.85rem; color: var(--muted); }
   .card ul a { color: var(--accent); }
-  /* Section sub-nav: same quiet link treatment as the site header. */
-  .subnav {
-    position: sticky; top: 3.75rem; z-index: 5;
-    display: flex; gap: 1rem; flex-wrap: nowrap;
-    overflow-x: auto; scrollbar-width: thin;
-    padding: 0.6rem 0; margin: 0 0 0.5rem;
-    background: color-mix(in srgb, var(--paper) 88%, transparent);
-    backdrop-filter: blur(0.6rem); -webkit-backdrop-filter: blur(0.6rem);
-    border-bottom: 1px solid var(--line); font-size: 0.9rem;
+  /* Dashboard grid: one column on phones, two on desktop with the wide
+     working sections (Add, share, Collection) spanning both. */
+  @media (min-width: 60rem) {
+    .admin-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0 1.5rem; align-items: start;
+    }
+    #sec-add, #share-panel, #sec-collection { grid-column: 1 / -1; }
   }
-  .subnav a { color: var(--muted); text-decoration: none; white-space: nowrap; }
-  .subnav a:hover { color: var(--ink); text-decoration: underline; }
   .card { scroll-margin-top: 7rem; }
 </style>

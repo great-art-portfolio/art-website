@@ -166,24 +166,17 @@ test("visitors see zero admin chrome", async ({ page }) => {
   await expect(page.locator('nav a[href="/#notify"]')).toHaveCount(0);
 });
 
-test("studio subnav aligns with content on a phone", async ({ browser }) => {
+test("studio dashboard grids without sideways scroll on a phone", async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
   await page.goto("/admin");
+  // The anchor strip is gone; sections grid instead.
+  await expect(page.locator(".subnav")).toHaveCount(0);
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );
   expect(overflow).toBeLessThanOrEqual(0);
-  const { navX, cardX } = await page.evaluate(() => {
-    const nav = document.querySelector(".subnav a");
-    const card = document.querySelector("main.admin .card");
-    return {
-      navX: nav?.getBoundingClientRect().x ?? -1,
-      cardX: card?.getBoundingClientRect().x ?? -1,
-    };
-  });
-  expect(navX).toBeGreaterThanOrEqual(0);
-  expect(Math.abs(navX - cardX)).toBeLessThan(24);
+  await expect(page.locator(".admin-grid .card").first()).toBeVisible();
   // Her way home stays visible on a phone (non-CTA links hide by default).
   await expect(page.locator('.site-nav .nav-links a.keep[href="/"]')).toBeVisible();
   await context.close();
