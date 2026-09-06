@@ -710,6 +710,24 @@ function initStudio(): void {
   }
 
   if (mode === "draft") {
+    // The preview title and price open their fields — same look, doors.
+    for (const [pvId, fieldId, name] of [
+      ["pv-title", "de-title", "title"],
+      ["pv-price", "de-price", "price"],
+    ] as const) {
+      const pv = maybe(pvId);
+      const field = maybe<HTMLInputElement>(fieldId);
+      if (pv === null || field === null) continue;
+      pv.tabIndex = 0;
+      pv.title = `Edit the ${name} below`;
+      pv.addEventListener("click", () => field.focus());
+      pv.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          field.focus();
+        }
+      });
+    }
     maybe("de-save-draft")?.addEventListener("click", () => void saveNew(true));
     maybe("de-publish")?.addEventListener("click", () => void saveNew(false));
     return;

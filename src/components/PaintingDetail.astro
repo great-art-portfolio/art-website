@@ -160,9 +160,9 @@ const eyebrow = data.draft
               <>
                 <div class="ar-waiting" id="de-ar-waiting">
                   <p>
-                    Waiting for a photo — once one arrives, the 3D takes about 5
-                    seconds to build. You'll see it here, and on a phone you can
-                    also view it in AR.
+                    Waiting for a photo — once one arrives, the 3D model takes
+                    about 5 seconds to build. You'll see it here, and on a phone
+                    you can also view it in AR.
                   </p>
                 </div>
                 <div id="ar-stage" hidden />
@@ -836,6 +836,18 @@ const eyebrow = data.draft
     text-transform: uppercase;
     color: var(--accent);
   }
+  /* Draft rooms: the preview title and price are their fields' doors.
+     Same look exactly — only the text cursor gives them away. */
+  [data-mode="draft"] #pv-title,
+  [data-mode="draft"] #pv-price {
+    cursor: text;
+  }
+  [data-mode="draft"] #pv-title:focus-visible,
+  [data-mode="draft"] #pv-price:focus-visible {
+    outline: none;
+    text-decoration: underline dotted var(--accent);
+    text-underline-offset: 4px;
+  }
   h1 {
     font-size: clamp(1.9rem, 4vw, 2.6rem);
     font-weight: 500;
@@ -1165,6 +1177,10 @@ const eyebrow = data.draft
   .de-check input:hover {
     border-color: var(--accent);
   }
+  /* Hovering the word lights the box too — the label is one target. */
+  .de-check:hover input {
+    border-color: var(--accent);
+  }
   .de-check input:checked {
     background: var(--accent);
     border-color: var(--accent);
@@ -1220,9 +1236,18 @@ const eyebrow = data.draft
     border: 1px solid var(--line);
     background: var(--paper);
     color: var(--ink);
+    transition:
+      border-color 0.25s ease,
+      background-color 0.25s ease,
+      color 0.25s ease;
   }
   .studio-toolbar button:not(.btn-primary):hover {
     border-color: var(--ink);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .studio-toolbar button:not(.btn-primary) {
+      transition: none;
+    }
   }
   .studio-toolbar button:focus-visible {
     outline: 2px solid var(--accent);

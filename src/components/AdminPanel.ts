@@ -50,6 +50,21 @@ function setStatus(msg: string, isError = false): void {
   }, 6000);
 }
 
+/** A reveal fades instead of snapping (opacity-only, stays gentle). */
+function fadeIn(el: HTMLElement): void {
+  el.classList.remove("fade-in");
+  void el.offsetWidth;
+  el.classList.add("fade-in");
+}
+
+/** Unhide with a fade, once — already-visible stays put. */
+function reveal(el: HTMLElement): void {
+  if (el.hidden) {
+    el.hidden = false;
+    fadeIn(el);
+  }
+}
+
 /** Local preview (dev servers), where publishing + analytics genuinely live
  * only on the production site — never a bug, never a setup step. */
 function isLocalPreview(): boolean {
@@ -175,8 +190,10 @@ function renderLocalCollection(): boolean {
   // Practice mode: saves from the studio rooms land in this browser, and
   // clear out with one tap. The heading says so — only ever on a local
   // preview, never on the live site.
-  $("collection-title").textContent =
+  const titleEl = $("collection-title");
+  titleEl.textContent =
     "Collection (Development only — changes aren't persisted)";
+  fadeIn(titleEl);
   const reset = $("practice-reset") as HTMLButtonElement;
   reset.hidden = practiceCount(overlay) === 0;
   if (reset.dataset.wired !== "1") {
@@ -408,7 +425,7 @@ async function refreshViews(): Promise<void> {
       list.innerHTML = isLocalPreview()
         ? "<li>View stats only work on the live /admin — this is a local preview.</li>"
         : "<li>View stats aren't set up yet — the Cloudflare steps in the README finish the job.</li>";
-      card.hidden = false;
+      reveal(card);
       return;
     }
     if (views.length === 0) {
@@ -427,7 +444,7 @@ async function refreshViews(): Promise<void> {
         );
       })
       .join("");
-    card.hidden = false;
+    reveal(card);
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) {
       list.innerHTML =
@@ -444,7 +461,7 @@ async function refreshViews(): Promise<void> {
         : "<li>Could not load views — tap Retry.</li>";
     }
     retry.hidden = false;
-    card.hidden = false;
+    reveal(card);
   }
 }
 
@@ -484,7 +501,7 @@ async function refreshFlags(): Promise<void> {
     if (!s.shippo && !s.stripe) {
       shipFlags.hidden = true;
     } else {
-      shipFlags.hidden = false;
+      reveal(shipFlags);
       $("flag-stripe").textContent = s.stripe ? "on" : "off";
       $("flag-shippo").textContent = s.shippo ? "on" : "off";
     }
@@ -499,7 +516,7 @@ async function refreshFlags(): Promise<void> {
     ]) {
       $(id).textContent = "unavailable in this preview";
     }
-    ($("ship-flags") as HTMLElement).hidden = false;
+    reveal($("ship-flags"));
   }
 }
 

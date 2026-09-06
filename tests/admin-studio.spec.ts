@@ -120,15 +120,19 @@ test("collection rows link to their painting pages", async ({ page }) => {
   const title = page.locator(
     `#edit-list a.row-title[href="/paintings/${paintings[0].slug}"]`,
   );
-  const widths = await title.evaluate((el) => {
-    const li = el.closest(".row-card");
-    return {
-      link: el.getBoundingClientRect().width,
-      row: li === null ? 0 : li.getBoundingClientRect().width,
-    };
-  });
-  expect(widths.link).toBeGreaterThan(0);
-  expect(widths.link).toBeLessThan(widths.row);
+  // Retried: hydration can swap the rows mid-measure, briefly detaching
+  // the handle (zero box) before the identical markup lands again.
+  await expect(async () => {
+    const widths = await title.evaluate((el) => {
+      const li = el.closest(".row-card");
+      return {
+        link: el.getBoundingClientRect().width,
+        row: li === null ? 0 : li.getBoundingClientRect().width,
+      };
+    });
+    expect(widths.link).toBeGreaterThan(0);
+    expect(widths.link).toBeLessThan(widths.row);
+  }).toPass();
   await title.click();
   await expect(page).toHaveURL(
     new RegExp(`/paintings/${paintings[0].slug}/?$`),
@@ -142,6 +146,8 @@ test("admin links wear the accent, never browser blue", async ({ page }) => {
   await expect(page.locator("#collection-title")).toContainText(
     "Development only",
   );
+  // Deferred reveals fade in instead of snapping.
+  await expect(page.locator("#collection-title")).toHaveClass(/fade-in/);
   const color = await page
     .locator("#edit-list .row-title")
     .first()
@@ -213,10 +219,12 @@ test("collection rows stop well short of the card edge on desktop", async ({
   const cards = page.locator(
     '#edit-list .list-group[data-group="available"] .row-card',
   );
-  expect(await cards.count()).toBeGreaterThan(1);
-  const firstX = (await cards.nth(0).boundingBox())?.x ?? 0;
-  const secondX = (await cards.nth(1).boundingBox())?.x ?? 0;
-  expect(secondX).toBeGreaterThan(firstX);
+  await expect(async () => {
+    expect(await cards.count()).toBeGreaterThan(1);
+    const firstX = (await cards.nth(0).boundingBox())?.x ?? 0;
+    const secondX = (await cards.nth(1).boundingBox())?.x ?? 0;
+    expect(secondX).toBeGreaterThan(firstX);
+  }).toPass();
   // Edit (pencil) and Delete (trash) ride side by side with icons.
   await expect(cards.first().locator(".row-edit")).toContainText("Edit");
   await expect(cards.first().locator(".row-edit svg")).toBeAttached();
@@ -306,6 +314,7 @@ test("views draws bars, hides when there is nothing to report", async ({
   );
   await page.goto("/admin");
   await expect(page.locator("#sec-views")).toBeVisible();
+  await expect(page.locator("#sec-views")).toHaveClass(/fade-in/);
   const bars = page.locator("#views-list .view-bar > span");
   await expect(bars).toHaveCount(2);
   await expect(bars.first()).toHaveAttribute("style", "width:100%");
@@ -607,19 +616,21 @@ test("dashboard delete asks first, then removes the row", async ({ page }) => {
   });
   await page.goto("/admin");
   // Drafts get their own column beside Available on desktop.
-  const availX =
-    (
-      await page
-        .locator('#edit-list .list-group[data-group="available"]')
-        .boundingBox()
-    )?.x ?? 0;
-  const laterX =
-    (
-      await page
-        .locator('#edit-list .list-group[data-group="later"]')
-        .boundingBox()
-    )?.x ?? 0;
-  expect(laterX).toBeGreaterThan(availX);
+  await expect(async () => {
+    const availX =
+      (
+        await page
+          .locator('#edit-list .list-group[data-group="available"]')
+          .boundingBox()
+      )?.x ?? 0;
+    const laterX =
+      (
+        await page
+          .locator('#edit-list .list-group[data-group="later"]')
+          .boundingBox()
+      )?.x ?? 0;
+    expect(laterX).toBeGreaterThan(availX);
+  }).toPass();
   const row = page.locator('.row-card:has-text("Doomed Piece")');
   await expect(row).toBeVisible();
   const del = row.locator(".row-del");

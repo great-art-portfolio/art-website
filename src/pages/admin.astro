@@ -628,6 +628,16 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
   #sec-views[hidden] {
     display: none;
   }
+  /* Deferred reveals fade in instead of snapping. Opacity-only, so it
+     stays gentle under reduced motion too. */
+  .fade-in {
+    animation: fade-in 0.4s ease;
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
   #practice-reset {
     margin-top: 0.75rem;
   }

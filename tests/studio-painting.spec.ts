@@ -29,6 +29,8 @@ test("draft room looks like the buyer page, empty and editable", async ({
   await expect(page.locator("#de-alt-hint")).toContainText(
     "It never shows on the page.",
   );
+  // The wall wait names the 3D model, not just "the 3D".
+  await expect(page.locator("#de-ar-waiting")).toContainText("3D model takes");
   await expect(page.locator("#de-alt")).toHaveAttribute(
     "aria-describedby",
     "de-alt-hint",
@@ -126,6 +128,34 @@ test("edit room validates before saving", async ({ page }) => {
   await expect(page.locator("#de-status")).toContainText(
     "Title and a valid price are required.",
     { timeout: 10_000 },
+  );
+});
+
+test("preview title and price open their fields", async ({ page }) => {
+  await page.goto("/admin/paintings/new");
+  // Same look, doors: no input styling on the preview text.
+  await expect(page.locator("#pv-title")).toHaveCSS("cursor", "text");
+  await expect(page.locator("#pv-price")).toHaveCSS("cursor", "text");
+  await page.locator("#pv-title").click();
+  await expect(page.locator("#de-title")).toBeFocused();
+  await page.locator("#pv-price").click();
+  await expect(page.locator("#de-price")).toBeFocused();
+  // Keyboard too: Enter on the preview lands in the field.
+  await page.locator("#pv-title").press("Enter");
+  await expect(page.locator("#de-title")).toBeFocused();
+});
+
+test("secondary actions fade their hovers", async ({ page }) => {
+  await page.goto("/admin/paintings/new");
+  const pub = await page
+    .locator("#de-publish")
+    .evaluate((el) => getComputedStyle(el).transitionDuration);
+  expect(pub).toContain("0.25s");
+  // Hovering the Sold word lights its box.
+  await page.locator(".de-check").hover();
+  await expect(page.locator("#de-sold")).toHaveCSS(
+    "border-color",
+    "rgb(164, 74, 36)",
   );
 });
 
