@@ -69,6 +69,7 @@ async function refreshPreview(): Promise<void> {
   const img = $<HTMLImageElement>("photo-preview");
   img.src = prepared.previewUrl;
   img.hidden = false;
+  ($("photo-empty") as HTMLElement).hidden = true;
   const mb = prepared.blob.size / 1048576;
   const size = mb >= 1 ? `${mb.toFixed(1)} MB` : `${Math.max(1, Math.round(prepared.blob.size / 1024))} KB`;
   $("photo-meta").textContent = `${prepared.width} × ${prepared.height} px · ${size} upload`;
@@ -582,14 +583,35 @@ function init(): void {
     window.location.href = "/";
   });
 
-  // The working form stays out of sight until she means it.
+  // The working form stays out of sight until she means it — opening
+  // animates the card wider (fields left, photo square right).
   const addToggle = $("add-toggle") as HTMLButtonElement;
   const uploadForm = $("upload-form") as HTMLFormElement;
+  const addCard = $("sec-add");
+  let addAnim = 0;
   addToggle.addEventListener("click", () => {
-    const opening = uploadForm.hidden;
-    uploadForm.hidden = !opening;
-    addToggle.textContent = opening ? "Close" : "Add new painting";
-    if (opening) ($("f-title") as HTMLInputElement).focus();
+    addAnim += 1;
+    const turn = addAnim;
+    if (uploadForm.hidden) {
+      uploadForm.hidden = false;
+      addToggle.textContent = "Close";
+      // Next frame so the expand animates instead of snapping in.
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          if (turn !== addAnim) return;
+          addCard.classList.add("open");
+          ($("f-title") as HTMLInputElement).focus();
+        }),
+      );
+    } else {
+      addCard.classList.remove("open");
+      addToggle.textContent = "Add new painting";
+      const hide = (): void => {
+        if (turn === addAnim) uploadForm.hidden = true;
+      };
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) hide();
+      else window.setTimeout(hide, 350);
+    }
   });
 
   const fileInput = $("photo-file") as HTMLInputElement;
@@ -772,6 +794,7 @@ function init(): void {
         preparedBlob = null;
         rotation = 0;
         ($("photo-preview") as HTMLImageElement).hidden = true;
+        ($("photo-empty") as HTMLElement).hidden = false;
         ($("ar-try-row") as HTMLDivElement).hidden = true;
         ($("photo-tools") as HTMLDivElement).hidden = true;
         $("photo-meta").textContent = "";

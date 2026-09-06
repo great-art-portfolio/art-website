@@ -115,6 +115,9 @@ test("ar try waits for a photo", async ({ page }) => {
   await page.locator("#photo-file").setInputFiles("src/content/paintings/1943x1967.jpg");
   await expect(page.locator("#ar-try-row")).toBeVisible();
   await expect(page.locator("#photo-tools")).toBeVisible();
+  // The photo lands in the square; the Choose-file prompt steps aside.
+  await expect(page.locator("#photo-preview")).toBeVisible();
+  await expect(page.locator("#photo-empty")).toBeHidden();
 });
 
 test("admin links wear the accent, never browser blue", async ({ page }) => {
@@ -139,6 +142,13 @@ test("add form waits behind its button", async ({ page }) => {
   await page.locator("#add-toggle").click();
   await expect(page.locator("#upload-form")).toBeVisible();
   await expect(page.locator("#add-toggle")).toHaveText("Close");
+  // Opening widens the card (fields left, photo square right).
+  await expect(page.locator("#sec-add")).toHaveClass(/open/);
+  await expect(page.locator("#photo-caption")).toHaveText("Upload photo");
+  await expect(page.locator(".photo-square")).toBeVisible();
+  await expect(page.locator("#photo-empty")).toBeVisible();
+  const body = (await page.locator("#main").textContent()) ?? "";
+  expect(body).not.toContain("Photo from your phone");
 });
 
 test("collection names the missing API token when the API refuses", async ({ page }) => {
@@ -314,6 +324,7 @@ test("publish clears the photo so the next Save starts empty", async ({ page }) 
   await page.locator('#upload-form button[type="submit"]').click();
   await expect(page.locator("#admin-status")).toContainText("Choose a photo first.");
   await expect(page.locator("#photo-preview")).toBeHidden();
+  await expect(page.locator("#photo-empty")).toBeVisible();
 });
 
 test("card preview hides its image until a photo arrives", async ({ page }) => {
