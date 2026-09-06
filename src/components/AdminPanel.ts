@@ -39,6 +39,10 @@ let photoGen = 0;
 let previewModels: { sig: string; glb: Blob; usdz: Blob } | null = null;
 let arPreviewUrls: string[] = [];
 
+/** Toasts clear themselves after a few seconds — errors included, so a
+ * stale complaint never sits over the page. Each new message restarts the
+ * clock, and clearing an already-empty line is a no-op. */
+let statusTimer = 0;
 function setStatus(msg: string, isError = false): void {
   const el = $("admin-status");
   el.textContent = msg;
@@ -47,6 +51,13 @@ function setStatus(msg: string, isError = false): void {
   el.classList.remove("toast-in");
   void el.offsetWidth;
   el.classList.add("toast-in");
+  window.clearTimeout(statusTimer);
+  statusTimer = window.setTimeout(() => {
+    const live = document.getElementById("admin-status");
+    if (live === null) return;
+    live.textContent = "";
+    live.classList.remove("toast-in");
+  }, 6000);
 }
 
 /** Local preview (dev servers), where publishing + analytics genuinely live
@@ -94,54 +105,88 @@ async function refreshPreview(): Promise<void> {
   void autoBuildAr();
 }
 
-interface LocalRow {
+interface LocalPainting {
   slug: string;
   title: string;
   price: number;
   sold: boolean;
+  alt: string;
+  description: string;
+  widthIn: string;
+  heightIn: string;
+  depthIn: string;
+}
+
+/** Dev working copy: practice edits and deletes land here, never in git.
+ * Seeded once from the baked-in list; a reload restores the repo state. */
+let localRows: LocalPainting[] | null = null;
+
+function seedLocalRows(raw: unknown): LocalPainting[] | null {
+  if (!Array.isArray(raw)) return null;
+  const str = (v: unknown): string => (typeof v === "string" ? v : "");
+  const dim = (v: unknown): string =>
+    typeof v === "number" && Number.isFinite(v) && v > 0 ? String(v) : "";
+  const clean: LocalPainting[] = [];
+  for (const r of raw) {
+    if (typeof r !== "object" || r === null) continue;
+    const row = r as Record<string, unknown>;
+    if (typeof row["slug"] !== "string" || typeof row["title"] !== "string") continue;
+    if ((row["title"] as string) === "") continue;
+    clean.push({
+      slug: row["slug"] as string,
+      title: row["title"] as string,
+      price: typeof row["price"] === "number" ? (row["price"] as number) : Number(row["price"]),
+      sold: row["sold"] === true,
+      alt: str(row["alt"]),
+      description: str(row["description"]),
+      widthIn: dim(row["widthIn"]),
+      heightIn: dim(row["heightIn"]),
+      depthIn: dim(row["depthIn"]),
+    });
+  }
+  return clean;
 }
 
 /**
  * Dev fallback: the page baked the collection in at build time, so the
- * list and links render with no API at all. True only when the embedded
- * list parses — otherwise the caller falls through to the error branches.
+ * list works with no API at all — including practice edits and deletes
+ * against an in-memory copy (a reload restores the repo state). True only
+ * when the embedded list parses — otherwise the caller falls through to
+ * the error branches.
  */
 function renderLocalCollection(): boolean {
-  const el = document.getElementById("local-collection");
-  if (el === null) return false;
-  let rows: unknown;
-  try {
-    rows = JSON.parse(el.textContent ?? "") as unknown;
-  } catch {
-    return false;
+  if (localRows === null) {
+    const el = document.getElementById("local-collection");
+    if (el === null) return false;
+    let rows: unknown;
+    try {
+      rows = JSON.parse(el.textContent ?? "") as unknown;
+    } catch {
+      return false;
+    }
+    const seeded = seedLocalRows(rows);
+    if (seeded === null) return false;
+    localRows = seeded;
   }
-  if (!Array.isArray(rows)) return false;
   const list = $("edit-list");
   ($("collection-refresh") as HTMLButtonElement).hidden = true;
-  const clean = rows.filter(
-    (r): r is LocalRow =>
-      typeof r === "object" &&
-      r !== null &&
-      typeof (r as LocalRow).slug === "string" &&
-      typeof (r as LocalRow).title === "string" &&
-      (r as LocalRow).title !== "",
-  );
-  if (clean.length === 0) {
+  if (localRows.length === 0) {
     list.innerHTML = "<li>Nothing here yet — add your first painting above.</li>";
     return true;
   }
   const esc = (s: string): string =>
     s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-  clean.sort((a, b) => a.title.localeCompare(b.title));
-  const localRow = (r: LocalRow): string => {
+  const flat = [...localRows].sort((a, b) => a.title.localeCompare(b.title));
+  const localRow = (r: LocalPainting): string => {
     const cents = dollarsToCents(Number(r.price));
     const price = cents === null ? "Price?" : formatCAD(cents);
     return (
       `<li><a href="/paintings/${esc(r.slug)}"><strong>${esc(r.title)}</strong></a>` +
-      ` — ${price}</li>`
+      ` — ${price} ` +
+      `<span class="row"><button type="button" data-local-edit="${localRows?.indexOf(r) ?? -1}">Edit here</button></span></li>`
     );
   };
-  const groups = groupByAvailability(clean);
+  const groups = groupByAvailability(flat);
   let html = `<li class="list-sub"><h3>Available</h3></li>`;
   html +=
     groups.available.length === 0
@@ -152,14 +197,82 @@ function renderLocalCollection(): boolean {
   }
   list.innerHTML = html;
   ($("collection-hint") as HTMLParagraphElement).innerHTML =
-    '<a href="/#collection">Open the collection</a> to see what buyers see.';
-  // No Edit buttons here on purpose — saving and deleting need the live
-  // site's API, so the list stays read-only. The note lives in the
-  // Collection card, next to the list it describes.
+    '<a href="/#collection">Open the collection</a> to see what buyers see — then come back here and tap Edit here on any piece below.';
+  // Practice list: edits and deletes stay in this tab and vanish on reload.
+  // The note lives in the Collection card, next to the list it describes.
   const note = $("collection-note");
-  note.textContent = "Editing needs the live site — this list is read-only here.";
+  note.textContent =
+    "Practice list — edits and deletes here stay in this tab and vanish on reload. Real publishing happens on the live site.";
   (note as HTMLParagraphElement).hidden = false;
+  list.querySelectorAll("button[data-local-edit]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      openLocalEditForm(Number((btn as HTMLElement).dataset["localEdit"]));
+    });
+  });
   return true;
+}
+
+/** Dev edit form: same fields as the live one, saving to the in-memory copy. */
+function openLocalEditForm(index: number): void {
+  const rows = localRows;
+  if (rows === null) {
+    setStatus("Couldn't load that painting.", true);
+    return;
+  }
+  const row = rows[index];
+  if (row === undefined) {
+    setStatus("Couldn't load that painting.", true);
+    return;
+  }
+  const list = $("edit-list");
+  const esc = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+  list.innerHTML =
+    `<li><label>Title <input id="ed-title" type="text" maxlength="120" value="${esc(row.title)}" /></label>` +
+    `<label>Price (CAD) <input id="ed-price" type="number" min="1" step="0.01" inputmode="decimal" value="${esc(String(row.price))}" /></label>` +
+    `<label>Alt text <input id="ed-alt" type="text" maxlength="200" value="${esc(row.alt)}" /></label>` +
+    `<label>Description <textarea id="ed-desc" rows="3" maxlength="2000">${esc(row.description)}</textarea></label>` +
+    `<div class="row">` +
+    `<label>W (in) <input id="ed-w" type="number" min="1" step="0.5" inputmode="decimal" value="${esc(row.widthIn)}" /></label>` +
+    `<label>H (in) <input id="ed-h" type="number" min="1" step="0.5" inputmode="decimal" value="${esc(row.heightIn)}" /></label>` +
+    `<label>D (in) <input id="ed-d" type="number" min="0.5" step="0.5" inputmode="decimal" value="${esc(row.depthIn)}" /></label>` +
+    `</div>` +
+    `<label class="check"><input id="ed-sold" type="checkbox"${row.sold ? " checked" : ""} /> Sold</label>` +
+    `<span class="row"><button type="button" id="ed-save" class="primary">Save</button> ` +
+    `<button type="button" id="ed-cancel">Cancel</button> ` +
+    `<button type="button" id="ed-del">Delete…</button></span></li>`;
+  ($("ed-cancel") as HTMLButtonElement).addEventListener("click", () => void renderLocalCollection());
+  ($("ed-del") as HTMLButtonElement).addEventListener("click", (e) => {
+    const btn = e.currentTarget as HTMLButtonElement;
+    if (btn.dataset.armed !== "1") {
+      btn.dataset.armed = "1";
+      btn.textContent = "Tap again to delete";
+      setStatus(`This removes "${row.title}" from this practice list only. Tap again to confirm.`, true);
+      return;
+    }
+    rows.splice(index, 1);
+    setStatus(`Deleted "${row.title}" from this practice list — the real file is untouched.`);
+    renderLocalCollection();
+  });
+  ($("ed-save") as HTMLButtonElement).addEventListener("click", () => {
+    const val = (id: string): string => ($(id) as HTMLInputElement).value.trim();
+    const title = val("ed-title");
+    const price = Number(val("ed-price"));
+    if (title === "" || !(Number.isFinite(price) && price > 0)) {
+      setStatus("Title and a valid price are required.", true);
+      return;
+    }
+    row.title = title;
+    row.slug = slugifyTitle(title);
+    row.price = Math.round(price * 100) / 100;
+    row.alt = val("ed-alt");
+    row.description = ($("ed-desc") as HTMLTextAreaElement).value;
+    row.widthIn = val("ed-w");
+    row.heightIn = val("ed-h");
+    row.depthIn = val("ed-d");
+    row.sold = ($("ed-sold") as HTMLInputElement).checked;
+    setStatus(`Saved "${title}" — practice only, gone on reload.`);
+    renderLocalCollection();
+  });
 }
 
 async function refreshCollection(): Promise<void> {
@@ -178,7 +291,7 @@ async function refreshCollection(): Promise<void> {
       return;
     }
     // No publishing backend here (dev): fall back to the list baked into
-    // the page — rows and links, read-only.
+    // the page — rows, links, and practice edits, all local.
     if (isLocalPreview() && renderLocalCollection()) return;
     if (await apiReachable()) {
       // Reachable API but the list failed (a bad token is handled above,
@@ -731,6 +844,18 @@ function init(): void {
     }
   });
 
+  // The navbar "Add painting" button opens the working form (or just
+  // scrolls to it when already open) — the href alone only scrolled to a
+  // closed card, which read as doing nothing.
+  document.getElementById("nav-add")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (!addOpen) addToggle.click();
+    addCard.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+      block: "start",
+    });
+  });
+
   const fileInput = $("photo-file") as HTMLInputElement;
   fileInput.addEventListener("change", () => {
     const file = fileInput.files?.[0];
@@ -769,8 +894,12 @@ function init(): void {
     });
   }
   $("f-ar").addEventListener("change", (e) => {
-    if ((e.target as HTMLInputElement).checked) void autoBuildAr();
-    else ($("ar-preview") as HTMLElement).hidden = true;
+    const ar = $("ar-preview") as HTMLElement;
+    if ((e.target as HTMLInputElement).checked) {
+      // No photo yet: the placeholder slot is still inside, just unhide it.
+      if (preparedBlob === null) ar.hidden = false;
+      else void autoBuildAr();
+    } else ar.hidden = true;
   });
 
   $("upload-form").addEventListener("submit", (e) => {

@@ -4,12 +4,18 @@ import { getCollection } from "astro:content";
 import { slugifyTitle } from "../lib/site";
 
 // Baked in at build time so the list and links work everywhere, even with
-// no publishing backend (dev). Editing still needs the live site's API.
+// no publishing backend (dev). The full editable fields ride along so the
+// dev list supports practice edits and deletes without any API.
 const localCollection = (await getCollection("paintings")).map((p) => ({
   slug: slugifyTitle(p.data.title),
   title: p.data.title,
   price: p.data.price,
   sold: p.data.sold,
+  alt: p.data.alt,
+  description: p.body,
+  widthIn: p.data.widthIn ?? null,
+  heightIn: p.data.heightIn ?? null,
+  depthIn: p.data.depthIn ?? null,
 }));
 const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
 ---
@@ -73,7 +79,7 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
           <button type="button" id="rotate-270">Rotate ↺</button>
         </div>
         <p class="hint" id="photo-meta"></p>
-        <div id="ar-preview" hidden></div>
+        <div id="ar-preview" class="live"><p class="ar-placeholder">Your 3D wall preview will appear here after you upload a photo — making it takes a few seconds.</p></div>
       </div>
     </section>
 
@@ -172,18 +178,8 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
   /* Gentle rise on every new message, re-triggered from the panel. */
   #admin-status.toast-in { animation: toast-in 0.25s ease; }
   @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 0.5rem); } }
-  /* Staggered entrance for the Add form: fields first, photo column after,
-     so opening reads as an arrival, not a snap. Block-level on purpose —
-     the buttons and the square keep their own hover transitions. */
-  #sec-add .add-fields,
-  #sec-add #add-preview {
-    opacity: 0; transform: translateY(8px);
-    transition: opacity 0.3s ease, transform 0.3s ease;
-  }
-  #sec-add.open .add-fields,
-  #sec-add.open #add-preview {
-    opacity: 1; transform: none; transition-delay: 90ms;
-  }
+  /* The Add form arrives as one calm motion: the card expands and fades,
+     with no per-field stagger to fall out of sync on the way back out. */
   #admin-status[data-tone="error"] {
     border-color: rgb(140 29 24 / 0.4); background: rgb(140 29 24 / 0.08); color: inherit;
   }
@@ -195,7 +191,8 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
   .card summary {
     font-family: Georgia, "Iowan Old Style", Charter, serif; font-weight: 500;
     font-size: 1.4rem; cursor: pointer; border-radius: 0.25rem;
-    padding-bottom: 0.75rem; border-bottom: 1px solid var(--line); margin-bottom: 1rem;
+    padding-bottom: 0.75rem; border-bottom: 1px solid var(--line);
+    margin: 1.5rem 0 1rem;
     list-style: none;
   }
   .card summary::-webkit-details-marker { display: none; }
@@ -247,10 +244,19 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
   /* Studio links behave exactly like the footer: accent always, only
      the underline fades in on hover — never a color flash. */
   .admin a {
-    transition: text-decoration-color 0.25s ease;
+    transition: text-decoration-color 0.12s ease;
     text-decoration: underline transparent; text-underline-offset: 3px;
   }
   .admin a:hover { text-decoration-color: currentColor; }
+  /* The hint link is written by script after load, so it never carries the
+     scope attribute — this twin keeps it out of browser-blue. */
+  :global(#collection-hint a),
+  :global(#collection-hint a:visited) {
+    color: var(--accent); text-decoration: underline transparent;
+    text-underline-offset: 3px;
+    transition: text-decoration-color 0.12s ease;
+  }
+  :global(#collection-hint a:hover) { text-decoration-color: currentColor; }
   /* View bars: one accent row per painting, scaled to the top piece. */
   :global(.view-bar) {
     display: block; height: 0.45rem; margin-top: 0.35rem;
@@ -258,11 +264,17 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
     overflow: hidden;
   }
   :global(.view-bar > span) { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
-  input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible,
+  button:focus-visible,
   :global(#edit-list button:focus-visible) {
     outline: 2px solid var(--accent); outline-offset: 2px;
   }
-  input:focus, textarea:focus { border-color: var(--accent); }
+  /* One ring only: inputs show this outline on any focus, so it never
+     doubles up with a border change (which is why this rule replaces it). */
+  input:focus, textarea:focus, select:focus,
+  :global(#edit-list input:focus),
+  :global(#edit-list textarea:focus) {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
   .row { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-block: 0.75rem; align-items: center; }
   .row label { flex: 1 1 8rem; margin-block: 0; }
   /* The :global twins cover script-built buttons (collection rows, edit
@@ -290,18 +302,16 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
   .card h2 button[hidden] { display: none; }
   /* Add form: closed it takes no space; opening animates the card wider
      with the fields left and the photo square right. */
-  #upload-form { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 0.45s ease-out, opacity 0.35s ease; }
+  #upload-form { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 0.35s ease, opacity 0.3s ease; }
   /* Author display beats the UA [hidden] rule — re-hide while closed. */
   #upload-form[hidden] { display: none; }
   #sec-add.open #upload-form { grid-template-rows: 1fr; opacity: 1; }
   .add-anim { overflow: hidden; min-height: 0; }
   .add-fields button[type="submit"] { margin-top: 0.75rem; }
-  /* The photo column follows the fields, as one block. */
-  #add-photo {
-    opacity: 0; transform: translateY(8px);
-    transition: opacity 0.3s ease 220ms, transform 0.3s ease 220ms;
-  }
-  #sec-add.open #add-photo { opacity: 1; transform: none; }
+  /* The photo column fades in with the rest of the form — same timing both
+     directions, so closing reverses the motion instead of snapping. */
+  #add-photo { opacity: 0; transition: opacity 0.3s ease; }
+  #sec-add.open #add-photo { opacity: 1; }
   #add-photo[hidden] { display: none; }
   .photo-caption { display: block; font-size: 0.9rem; font-weight: 600; margin-block: 0.75rem; }
   /* The whole square is the picker: the file input covers it invisibly. */
@@ -335,9 +345,6 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
      snapping colors is itself jarring. */
   @media (prefers-reduced-motion: reduce) {
     #upload-form { transition: none; }
-    #sec-add .add-fields,
-    #sec-add #add-photo,
-    #sec-add #add-preview { transform: none; }
     #admin-status.toast-in { animation: none; }
     button:hover,
     :global(#edit-list button:hover) { transform: none; }
@@ -369,7 +376,7 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
   :global(#edit-list li a:visited) {
     color: var(--accent); text-decoration: underline transparent;
     text-underline-offset: 3px;
-    transition: text-decoration-color 0.25s ease;
+    transition: text-decoration-color 0.12s ease;
   }
   :global(#edit-list li a:hover) { text-decoration-color: currentColor; }
   /* Subheadings and plain notes sit in the list unboxed. */
@@ -433,8 +440,8 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
     #sec-add.open #add-preview-note { grid-column: 1; }
     #sec-add.open #upload-form { grid-column: 1; min-width: 0; }
     #sec-add.open #add-photo { grid-column: 2; grid-row: 1 / span 4; min-width: 0; }
-    /* Full-width cards, readable lists: rows stop at half the card. */
-    #edit-list, #views-list { max-width: 40rem; }
+    /* Full-width cards, readable lists: rows stop well short of the edge. */
+    #edit-list, #views-list { max-width: 32rem; }
   }
   .card { scroll-margin-top: 7rem; }
 </style>

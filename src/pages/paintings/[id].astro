@@ -315,6 +315,19 @@ const paintingJsonLd = {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
   }
 
+  // Edit-panel notes clear themselves like the studio toasts — errors
+  // included — so a stale complaint never sits over the form.
+  let aeStatusTimer = 0;
+  function setAeStatus(el, msg) {
+    if (el === null) return;
+    el.textContent = msg;
+    window.clearTimeout(aeStatusTimer);
+    aeStatusTimer = window.setTimeout(() => {
+      const live = document.getElementById("ae-status");
+      if (live !== null) live.textContent = "";
+    }, 6000);
+  }
+
   function renderAdminEdit(api, editMod, panel, toggle, path, content, p) {
     panel.innerHTML =
       `<label>Title <input id="ae-title" type="text" maxlength="120" value="${escHtml(p.title)}" /></label>` +
@@ -337,10 +350,10 @@ const paintingJsonLd = {
       const price = Number(val("ae-price"));
       const status = document.getElementById("ae-status");
       if (title === "" || !(Number.isFinite(price) && price > 0)) {
-        status.textContent = "Title and a valid price are required.";
+        setAeStatus(status, "Title and a valid price are required.");
         return;
       }
-      status.textContent = "Saving… (live in a few minutes)";
+      setAeStatus(status, "Saving… (live in a few minutes)");
       const baseEdits = {
         title,
         price: price.toFixed(2),
@@ -357,7 +370,7 @@ const paintingJsonLd = {
         .then(({ loadArTooling }) => loadArTooling())
         .then((arMod) =>
           arMod.rebuildForDimFix(api.getPhoto, path, p, baseEdits, () => {
-            status.textContent = "Rebuilding AR preview… (true size, takes a few seconds)";
+            setAeStatus(status, "Rebuilding AR preview… (true size, takes a few seconds)");
           }),
         )
         .then((fix) => {
@@ -365,12 +378,11 @@ const paintingJsonLd = {
           return api
             .commitFiles(`Edit painting: ${title}`, [{ path, blob: next }, ...fix.files])
             .then(() => {
-              status.textContent =
-                fix.note === null ? "Saved." : `Saved — but ${fix.note}`;
+              setAeStatus(status, fix.note === null ? "Saved." : `Saved — but ${fix.note}`);
             });
         })
         .catch((err) => {
-          status.textContent = err instanceof Error ? err.message : "Save failed.";
+          setAeStatus(status, err instanceof Error ? err.message : "Save failed.");
         });
     });
     document.getElementById("ae-del").addEventListener("click", (e) => {
@@ -380,24 +392,24 @@ const paintingJsonLd = {
       if (btn.dataset.armed !== "1") {
         btn.dataset.armed = "1";
         btn.textContent = "Tap again to delete";
-        status.textContent = `This removes "${p.title}" from the site. Tap again to confirm.`;
+        setAeStatus(status, `This removes "${p.title}" from the site. Tap again to confirm.`);
         return;
       }
       btn.disabled = true;
-      status.textContent = `Deleting "${p.title}"… (gone in a few minutes)`;
+      setAeStatus(status, `Deleting "${p.title}"… (gone in a few minutes)`);
       const livePath = readPageData().mdPath;
       void import("../../lib/painting-edit")
         .then((editMod) =>
           api.deleteFiles(`Delete painting: ${p.title}`, editMod.paintingFilePaths(livePath, p)),
         )
         .then(() => {
-          status.textContent = `Deleted "${p.title}" — recoverable from repo history.`;
+          setAeStatus(status, `Deleted "${p.title}" — recoverable from repo history.`);
         })
         .catch((err) => {
           btn.disabled = false;
           btn.dataset.armed = "";
           btn.textContent = "Delete…";
-          status.textContent = err instanceof Error ? err.message : "Delete failed.";
+          setAeStatus(status, err instanceof Error ? err.message : "Delete failed.");
         });
     });
   }
@@ -515,7 +527,7 @@ const paintingJsonLd = {
   .crumbs { margin: 0 0 1.5rem; font-size: 0.92rem; }
   .crumbs a {
     color: var(--muted); text-decoration: underline transparent;
-    text-underline-offset: 4px; transition: color 0.2s ease, text-decoration-color 0.25s ease;
+    text-underline-offset: 4px; transition: color 0.2s ease, text-decoration-color 0.12s ease;
   }
   .crumbs a:hover { color: var(--accent); text-decoration-color: currentColor; }
   .crumbs a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 0.25rem; }
@@ -666,7 +678,9 @@ const paintingJsonLd = {
   :global(#admin-edit button:hover) { border-color: var(--ink); }
   :global(#admin-edit button:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; }
   :global(#admin-edit input:focus-visible),
-  :global(#admin-edit textarea:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; }
+  :global(#admin-edit textarea:focus-visible),
+  :global(#admin-edit input:focus),
+  :global(#admin-edit textarea:focus) { outline: 2px solid var(--accent); outline-offset: 1px; }
   @media (hover: hover) {
     .btn-primary:hover { transform: translateY(-1px); }
   }

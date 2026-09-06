@@ -8,8 +8,9 @@ import { slugifyTitle } from "../src/lib/site";
  * Admin studio journey: mom types /admin and reaches everything from
  * there — no URLs to remember. Signed-out visitors see zero admin chrome.
  *
- * Delete is exercised only up to the confirm arm: tests never remove
- * collection content.
+ * Live delete is exercised only up to the confirm arm (tests never remove
+ * collection content); dev-list deletes run fully — they only touch an
+ * in-memory copy and a reload restores the repo state.
  */
 
 function loadPaintings(): Array<{ slug: string; title: string }> {
@@ -143,6 +144,9 @@ test("wall preview reserves its space while building", async ({ page }) => {
 
 test("admin links wear the accent, never browser blue", async ({ page }) => {
   await page.goto("/admin");
+  // The practice note proves the script rewrote the hint — the link it
+  // carries must still wear the accent (it has no scope attribute).
+  await expect(page.locator("#collection-note")).toContainText("Practice list");
   const color = await page
     .locator("#sec-collection .hint a")
     .evaluate((el) => getComputedStyle(el).color);
@@ -158,7 +162,7 @@ test("studio hovers match the footer: underline only, no color flash", async ({
   for (const sel of ["#sec-collection .hint a", "#edit-list li a"]) {
     const link = page.locator(sel).first();
     await expect(link).toHaveCSS("color", accent);
-    await expect(link).toHaveCSS("transition-duration", "0.25s");
+    await expect(link).toHaveCSS("transition-duration", "0.12s");
     await link.hover();
     // Underline fades in; the text itself never leaves the accent.
     await expect(link).toHaveCSS("color", accent);
@@ -175,7 +179,7 @@ test("reduced motion kills movement, keeps gentle fades", async ({ page }) => {
   // … while color and underline fades still transition.
   await expect(page.locator("#sec-collection .hint a")).toHaveCSS(
     "transition-duration",
-    "0.25s",
+    "0.12s",
   );
   // Buttons never lift — static or script-built.
   await page.locator("#add-toggle").hover();
@@ -188,13 +192,13 @@ test("reduced motion kills movement, keeps gentle fades", async ({ page }) => {
   await expect(edit).toHaveCSS("transform", "none");
 });
 
-test("collection rows stop at half the card on desktop", async ({ page }) => {
+test("collection rows stop well short of the card edge on desktop", async ({ page }) => {
   await page.goto("/admin");
   const list = page.locator("#edit-list");
   await expect(list).toBeVisible();
-  expect(await list.evaluate((el) => getComputedStyle(el).maxWidth)).toBe("640px");
+  expect(await list.evaluate((el) => getComputedStyle(el).maxWidth)).toBe("512px");
   const width = (await list.boundingBox())?.width ?? 0;
-  expect(width).toBeLessThanOrEqual(640);
+  expect(width).toBeLessThanOrEqual(512);
   expect(width).toBeGreaterThan(0);
 });
 
@@ -204,6 +208,8 @@ test("info links list plainly, and Advanced eases open", async ({ page }) => {
     await page.locator("#sec-info ul").evaluate((el) => getComputedStyle(el).listStyleType),
   ).toBe("none");
   await expect(page.locator("#admin-token")).toBeHidden();
+  // The Advanced heading stands clear of the lines above it.
+  await expect(page.locator("#sec-info summary")).toHaveCSS("margin-top", "24px");
   await page.locator("#sec-info summary").click();
   await expect(page.locator("#admin-token")).toBeVisible();
 });
@@ -405,7 +411,7 @@ test("collection falls back to the baked-in list when the API fails", async ({
   page,
 }) => {
   // Even a reachable API can fail its list call — in dev the page's own
-  // baked-in list covers for it, read-only.
+  // baked-in list covers for it, with practice edits and deletes.
   await page.route("**/api/commit*", async (route) =>
     route.fulfill({
       status: 500,
@@ -416,9 +422,11 @@ test("collection falls back to the baked-in list when the API fails", async ({
   await page.goto("/admin");
   const rows = page.locator('#edit-list a[href^="/paintings/"]');
   await expect(rows.first()).toBeVisible();
-  await expect(page.locator("#edit-list button")).toHaveCount(0);
+  // Every row still carries its practice Edit button.
+  const links = await rows.count();
+  await expect(page.locator("#edit-list button[data-local-edit]")).toHaveCount(links);
   await expect(page.locator("#collection-refresh")).toBeHidden();
-  await expect(page.locator("#collection-note")).toContainText("Editing needs the live site");
+  await expect(page.locator("#collection-note")).toContainText("Practice list");
   await expect(page.locator("#collection-note")).toBeVisible();
   // Script-built rows still wear the studio styles (accent links, boxed rows).
   const color = await rows.first().evaluate((el) => getComputedStyle(el).color);
@@ -428,6 +436,90 @@ test("collection falls back to the baked-in list when the API fails", async ({
     return li === null ? "" : getComputedStyle(li).borderStyle;
   });
   expect(box).not.toBe("none");
+});
+
+test("dev list edits stay in the tab and vanish on reload", async ({ page }) => {
+  await page.goto("/admin");
+  const rows = page.locator('#edit-list a[href^="/paintings/"]');
+  await expect(rows.first()).toBeVisible();
+  const title = (await rows.first().textContent()) ?? "";
+  expect(title).not.toBe("");
+  await page.locator("#edit-list button[data-local-edit]").first().click();
+  // The form arrives prefilled with the row's own values.
+  await expect(page.locator("#ed-title")).toHaveValue(title);
+  await page.locator("#ed-price").fill("999.99");
+  await page.locator("#ed-save").click();
+  await expect(page.locator("#admin-status")).toContainText("practice only, gone on reload");
+  await expect(page.locator("#edit-list")).toContainText("$999.99");
+  // A reload restores the repo state — nothing was published.
+  await page.reload();
+  await expect(page.locator("#edit-list")).not.toContainText("$999.99");
+  await expect(page.locator("#edit-list")).toContainText(title);
+});
+
+test("dev list deletes stay in the tab", async ({ page }) => {
+  await page.goto("/admin");
+  const rows = page.locator('#edit-list a[href^="/paintings/"]');
+  await expect(rows.first()).toBeVisible();
+  const before = await rows.count();
+  const title = (await rows.first().textContent()) ?? "";
+  await page.locator("#edit-list button[data-local-edit]").first().click();
+  const del = page.locator("#ed-del");
+  await del.click();
+  await expect(del).toHaveText("Tap again to delete");
+  // The form (not the list) holds the piece until the confirm tap lands.
+  await expect(page.locator("#ed-title")).toHaveValue(title);
+  await del.click();
+  await expect(page.locator("#admin-status")).toContainText("the real file is untouched");
+  await expect(page.locator('#edit-list a[href^="/paintings/"]')).toHaveCount(before - 1);
+  await page.reload();
+  await expect(page.locator('#edit-list a[href^="/paintings/"]')).toHaveCount(before);
+});
+
+test("error toasts clear themselves after a few seconds", async ({ page }) => {
+  await page.goto("/admin");
+  await page.locator("#edit-list button[data-local-edit]").first().click();
+  await page.locator("#ed-title").fill("");
+  await page.locator("#ed-save").click();
+  const toast = page.locator("#admin-status");
+  await expect(toast).toContainText("Title and a valid price are required.");
+  // Errors included: no stale complaint sits over the page.
+  await expect(toast).toBeEmpty({ timeout: 10_000 });
+});
+
+test("navbar Add painting opens the working form", async ({ page }) => {
+  await page.goto("/admin");
+  await expect(page.locator("#upload-form")).toBeHidden();
+  await page.locator("#nav-add").click();
+  await expect(page.locator("#upload-form")).toBeVisible();
+  await expect(page.locator("#sec-add")).toHaveClass(/open/);
+  await expect(page.locator("#f-title")).toBeFocused();
+});
+
+test("admin wordmark stays in the studio", async ({ page }) => {
+  await page.goto("/admin");
+  await expect(page.locator("#signature")).toHaveAttribute("href", "/admin");
+});
+
+test("3D slot waits under the photo before any upload", async ({ page }) => {
+  await page.goto("/admin");
+  await page.locator("#add-toggle").click();
+  const slot = page.locator("#ar-preview");
+  await expect(slot).toBeVisible();
+  await expect(slot.locator(".ar-placeholder")).toContainText("takes a few seconds");
+  const box = await slot.boundingBox();
+  expect(box !== null && box.height >= 300).toBe(true);
+});
+
+test("add inputs show one focus ring, never two", async ({ page }) => {
+  await page.goto("/admin");
+  await page.locator("#add-toggle").click();
+  const title = page.locator("#f-title");
+  await title.click();
+  await expect(title).toBeFocused();
+  // The accent outline is the only ring: the border stays the quiet one.
+  await expect(title).toHaveCSS("outline-width", "2px");
+  await expect(title).toHaveCSS("border-color", "rgb(229, 220, 203)");
 });
 
 test("publish clears the photo so the next Save starts empty", async ({ page }) => {
