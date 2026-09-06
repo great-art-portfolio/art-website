@@ -147,11 +147,6 @@ const paintingJsonLd = {
     };
   }
   let turnstileToken = "";
-  // Heavy 3D code lives vendored in public/js (rebuilt via `pnpm vendor`).
-  // Stable URLs keep ~850KB of viewer + builder out of Vite's graph, so
-  // visitors never prefetch them — they load only on scroll-to-AR / on save.
-  const MODEL_VIEWER_URL = "/js/model-viewer.js";
-  const AR_TOOLING_URL = "/js/ar-tooling.js";
 
   /** Invisible-ish spam check, loaded only if the site key is configured. */
   function loadTurnstile() {
@@ -215,7 +210,10 @@ const paintingJsonLd = {
       stage.replaceChildren(img);
     }
     const build = () => {
-      void import(/* @vite-ignore */ MODEL_VIEWER_URL)
+      // Script tag, not import(): Vite dev won't serve /public files as
+      // modules. See src/lib/vendor-loader.ts.
+      void import("../../lib/vendor-loader")
+        .then(({ loadModelViewer }) => loadModelViewer())
         .then(() => {
           if (!document.contains(mount)) return;
           const liveStage = document.getElementById("ar-stage");
@@ -351,7 +349,8 @@ const paintingJsonLd = {
       };
       // Dimension fixes (or a missing preview) rebuild the AR models
       // from the repo photo in the same commit.
-      void import(/* @vite-ignore */ AR_TOOLING_URL)
+      void import("../../lib/vendor-loader")
+        .then(({ loadArTooling }) => loadArTooling())
         .then((arMod) =>
           arMod.rebuildForDimFix(api.getPhoto, path, p, baseEdits, () => {
             status.textContent = "Rebuilding AR preview… (true size, takes a few seconds)";

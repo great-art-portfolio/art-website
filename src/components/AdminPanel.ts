@@ -11,10 +11,7 @@ import {
   type PaintingEdits,
 } from "../lib/painting-edit";
 
-// Heavy 3D builder lives vendored in public/js (rebuilt via `pnpm vendor` —
-// re-run after touching src/lib/ar.ts or upgrading three). Loaded from a
-// stable URL so Vite never prefetches ~370KB of model code with the page.
-const AR_TOOLING_URL = "/js/ar-tooling.js";
+import { loadArTooling, loadModelViewer } from "../lib/vendor-loader";
 
 /**
  * Admin island (client-only): publish paintings to git, share kit,
@@ -185,7 +182,7 @@ async function openEditForm(path: string): Promise<void> {
       try {
         // Dimension fixes (or a missing preview) rebuild the AR models
         // from the repo photo in the same commit.
-        const arMod = await import(/* @vite-ignore */ AR_TOOLING_URL);
+        const arMod = await loadArTooling();
         const fix = await arMod.rebuildForDimFix(api.getPhoto, path, p, edits, () =>
           setStatus("Rebuilding AR preview… (true size, takes a few seconds)"),
         );
@@ -286,8 +283,9 @@ function showArPreview(glbUrl: string, usdzUrl: string): void {
   const mount = $("ar-preview");
   mount.hidden = false;
   mount.innerHTML = "";
-  void import("@google/model-viewer")
-    .then(() => {
+  // Script tag, not import(): Vite dev won't serve /public files as
+  // modules. See src/lib/vendor-loader.ts.
+  void loadModelViewer().then(() => {
       const el = document.createElement("model-viewer") as unknown as HTMLElement;
       el.setAttribute("src", glbUrl);
       el.setAttribute("ios-src", usdzUrl);
@@ -501,9 +499,7 @@ function init(): void {
     const source = preparedBlob;
     void (async () => {
       try {
-        const { buildArModels, estimateDims } = await import(
-          /* @vite-ignore */ AR_TOOLING_URL
-        );
+        const { buildArModels, estimateDims } = await loadArTooling();
         // Decode the prepared photo so the preview matches the card.
         const arImg = await loadImageFile(blobToFile(source, "ar-source.jpg", "image/jpeg"));
         const { widthIn, heightIn, depthIn } = readDims();
@@ -570,9 +566,7 @@ function init(): void {
         if (($("f-ar") as HTMLInputElement).checked) {
           setStatus("Building AR preview… (true size, takes a few seconds)");
           try {
-            const { buildArModels, estimateDims } = await import(
-              /* @vite-ignore */ AR_TOOLING_URL
-            );
+            const { buildArModels, estimateDims } = await loadArTooling();
             // Decode the prepared (rotated/cropped) photo so the model
             // matches exactly what buyers see.
             const arImg = await loadImageFile(

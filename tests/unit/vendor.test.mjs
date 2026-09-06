@@ -39,4 +39,11 @@ describe("vendored viewer + AR builder", () => {
       assert.ok(!bundle.includes("from'three'"), `${file} inlines three`);
     }
   });
+
+  it("ar-tooling exposes the window.ArTooling global", () => {
+    // IIFE build: callers load it with a <script> tag (Vite dev refuses
+    // /public files as modules), then call through the global.
+    const bundle = readFileSync(join(root, "public/js/ar-tooling.js"), "utf8");
+    assert.ok(bundle.includes("ArTooling"), "bundle sets window.ArTooling");
+  });
 });

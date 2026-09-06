@@ -6,8 +6,10 @@
  * dynamic imports, and Astro 7 gives user config no way to turn that
  * off for the client build — so ~1MB of 3D viewer + model-building
  * code downloaded on pages whose visitors never touch those features.
- * Loading these stable URLs via /* @vite-ignore *\/ keeps them out of
- * Vite's graph entirely: strictly on-demand, no prefetch.
+ * Loading these stable URLs with plain <script> tags (see
+ * src/lib/vendor-loader.ts) keeps them out of Vite's graph entirely:
+ * strictly on-demand, no prefetch. Script tags — never native import() —
+ * because Vite dev refuses to serve /public files as modules.
  *
  *   pnpm vendor
  *
@@ -52,13 +54,17 @@ execFileSync(
 
 // AR builder (three.js + GLB/USDZ exporters): bunded from src so the
 // upload flow, backfill, and dimension-fix regens share one implementation.
+// IIFE + global (not ESM): callers load it with a plain <script> tag because
+// Vite dev refuses to serve /public files as modules — native import() of a
+// /js URL works in production but throws in `astro dev`.
 execFileSync(
   esbuild,
   [
     join(here, "ar-entry.ts"),
     "--bundle",
     "--minify",
-    "--format=esm",
+    "--format=iife",
+    "--global-name=ArTooling",
     `--outfile=${join(outDir, "ar-tooling.js")}`,
     "--log-level=error",
   ],
