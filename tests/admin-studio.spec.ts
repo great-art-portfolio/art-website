@@ -107,6 +107,22 @@ test("collection rows link to their painting pages", async ({ page }) => {
   await expect(page).toHaveURL(new RegExp(`/paintings/${paintings[0].slug}/?$`));
 });
 
+test("ar try waits for a photo", async ({ page }) => {
+  await page.goto("/admin");
+  await expect(page.locator("#ar-try-row")).toBeHidden();
+  await page.locator("#add-toggle").click();
+  await page.locator("#photo-file").setInputFiles("src/content/paintings/1943x1967.jpg");
+  await expect(page.locator("#ar-try-row")).toBeVisible();
+});
+
+test("admin links wear the accent, never browser blue", async ({ page }) => {
+  await page.goto("/admin");
+  const color = await page
+    .locator("#sec-collection .hint a")
+    .evaluate((el) => getComputedStyle(el).color);
+  expect(color).toBe("rgb(164, 74, 36)");
+});
+
 test("status bar sticks where she can see it", async ({ page }) => {
   await page.goto("/admin");
   const pos = await page

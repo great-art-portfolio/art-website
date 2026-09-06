@@ -69,6 +69,7 @@ async function refreshPreview(): Promise<void> {
   const prepared = await prepareImage(loadedImage, rotation);
   if (lastPreviewUrl !== null) URL.revokeObjectURL(lastPreviewUrl);
   preparedBlob = prepared.blob;
+  ($("ar-try-row") as HTMLDivElement).hidden = false;
   lastPreviewUrl = prepared.previewUrl;
   const img = $<HTMLImageElement>("photo-preview");
   img.src = prepared.previewUrl;

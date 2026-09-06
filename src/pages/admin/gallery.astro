@@ -142,6 +142,12 @@ const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
     background: var(--card); margin: 0 0 1.5rem;
   }
   .notice[hidden] { display: none; }
+  /* No browser-blue links: visited matches unvisited. Hint/notice links
+     wear the accent; cards keep ink titles like the public gallery. */
+  .studio .hint a, .studio .hint a:visited,
+  .studio .notice a, .studio .notice a:visited { color: var(--accent); }
+  .studio a.card, .studio a.card:visited { color: inherit; }
+  .crumbs a, .crumbs a:visited { color: var(--muted); }
   #studio-grid[hidden] { display: none; }
   #studio-grid h2 {
     font-family: Georgia, "Iowan Old Style", Charter, serif; font-weight: 500;

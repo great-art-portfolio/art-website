@@ -32,10 +32,12 @@ import Layout from "../layouts/Layout.astro";
         </div>
         <p class="hint">Measure with a tape — buyers ask, shippers need it, and AR needs it for true size.</p>
         <label class="check"><input id="f-ar" type="checkbox" checked /> Build “view on your wall” AR preview (recommended)</label>
-        <div class="row">
-          <button type="button" id="ar-try">Try AR preview</button>
+        <div id="ar-try-row" hidden>
+          <div class="row">
+            <button type="button" id="ar-try">Try AR preview</button>
+          </div>
+          <p class="hint">Builds the true-size preview from the photo above — nothing publishes until Save.</p>
         </div>
-        <p class="hint">Builds the true-size preview from the photo above — nothing publishes until Save.</p>
         <div id="ar-preview" hidden></div>
         <label>Alt text (describe the art)
           <input id="f-alt" name="alt" type="text" autocomplete="off" maxlength="200" />
@@ -279,6 +281,8 @@ import Layout from "../layouts/Layout.astro";
   }
   #add-preview .pv-sub { margin: 0; font-size: 0.85rem; color: var(--muted); }
   .card ul a { color: var(--accent); }
+  /* No browser-blue links anywhere in the studio: visited matches unvisited. */
+  .admin a, .admin a:visited { color: var(--accent); }
   /* Dashboard grid: one column on phones, two on desktop with the wide
      working sections (Add, share, Collection) spanning both. */
   @media (min-width: 60rem) {
