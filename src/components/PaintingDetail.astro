@@ -1,0 +1,853 @@
+---
+/**
+ * One painting, three rooms. The buyer page, the studio edit page, and the
+ * new-painting draft page share this exact layout, so what mom sees while
+ * editing is what buyers see — minus the inquiry form, which is disabled
+ * with its reason stated wherever she works.
+ *
+ * Data arrives as plain values (never a content entry), so static buyer
+ * pages and dynamic studio routes render the same markup. Buyer behavior
+ * (AR, inquiry, lightbox, in-context admin) rides along in the inline
+ * script below, which no-ops cleanly wherever its elements are absent.
+ */
+import { Image, type ImageMetadata } from "astro:assets";
+import { PHOTO_WIDTHS, photoSizes } from "../lib/responsive-images";
+import { SHOW_PRICES } from "../lib/site";
+
+export interface PaintingDetailData {
+  title: string;
+  price: number;
+  sold: boolean;
+  medium: string;
+  /** Precomputed "Oil · 24 × 36 in" line (empty when unmeasured). */
+  meta: string;
+  alt: string;
+  description: string;
+  /** Tape numbers as display strings ("" when unmeasured). */
+  widthIn: string;
+  heightIn: string;
+  depthIn: string;
+  /** Absent in draft mode — the upload tile takes the photo's place. */
+  image?: ImageMetadata;
+  modelGlb: string;
+  modelUsdz: string;
+  mdPath: string;
+  slug: string;
+  draft: boolean;
+}
+
+interface Props {
+  mode: "buy" | "edit" | "draft";
+  data: PaintingDetailData;
+  backHref: string;
+  backLabel: string;
+}
+
+const { mode, data, backHref, backLabel } = Astro.props;
+const studio = mode !== "buy";
+const priceLabel = `$${data.price.toFixed(2)} CAD`;
+const eyebrow = data.draft ? "Draft · only you can see this" : "Original painting · one of a kind";
+---
+
+<main
+  class="detail"
+  id="main"
+  data-mode={mode}
+  data-title={data.title}
+  data-price-cents={Math.round(data.price * 100)}
+  data-glb={data.modelGlb}
+  data-usdz={data.modelUsdz}
+  data-alt={data.alt}
+  data-md-path={data.mdPath}
+  data-slug={data.slug}
+  data-draft={data.draft ? "1" : ""}
+  data-image={data.image?.src ?? ""}
+>
+  <p class="crumbs"><a href={backHref}>{backLabel}</a></p>
+  {mode === "buy" && (
+    <div id="admin-bar" hidden>
+      <span>Admin mode</span>
+      <button type="button" id="admin-edit-toggle">Edit this painting</button>
+      <a href="/admin#sec-collection">Studio</a>
+    </div>
+  )}
+  {mode === "buy" && <div id="admin-edit" hidden></div>}
+  <div class="detail-grid">
+    {studio && mode === "draft" ? (
+      <div>
+        <span class="photo-caption" id="de-photo-caption">Upload photo</span>
+        <div class="upload-tile">
+          <input id="de-photo" type="file" accept="image/jpeg,image/png,image/webp,image/heic" capture="environment" aria-label="Upload photo" />
+          <span id="de-photo-empty" aria-hidden="true">Choose file</span>
+          <img id="de-photo-preview" alt="Photo preview" hidden />
+        </div>
+        <div class="tile-row" id="de-photo-tools" hidden>
+          <button type="button" id="de-rotate-90">Rotate ↻</button>
+          <button type="button" id="de-rotate-270">Rotate ↺</button>
+        </div>
+        <p class="hint" id="de-photo-meta"></p>
+      </div>
+    ) : (
+      <div class="frame" id="photo-wrap" title="Tap to view fullscreen">
+        {data.image !== undefined && (
+          <Image
+            src={data.image}
+            alt={data.alt}
+            width={1200}
+            widths={PHOTO_WIDTHS}
+            sizes={photoSizes()}
+            format="webp"
+            loading="eager"
+            fetchpriority="high"
+            decoding="async"
+          />
+        )}
+        {data.sold && <span class="badge sold">Sold</span>}
+      </div>
+    )}
+    <div id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Painting fullscreen view"><img id="lightbox-img" alt="" /></div>
+    <div class="info">
+      <p class="eyebrow">{eyebrow}</p>
+      {studio ? (
+        <>
+          <h1 id="pv-title">{data.title === "" ? "Untitled" : data.title}</h1>
+          <p class="price" id="pv-price">{data.price > 0 ? priceLabel : "Price?"}</p>
+          <p class="art-meta" id="pv-meta">{data.meta}</p>
+          <div class="desc" id="pv-desc"></div>
+          <div class="studio-fields">
+            <h2>Painting details</h2>
+            <label>Title
+              <input id="de-title" type="text" maxlength="120" autocomplete="off" value={data.title} />
+            </label>
+            <label>Price (CAD)
+              <input id="de-price" type="number" min="1" step="0.01" inputmode="decimal" value={data.price > 0 ? String(data.price) : ""} />
+            </label>
+            <div class="de-row">
+              <label>Width (in)
+                <input id="de-w" type="number" min="1" step="0.5" inputmode="decimal" value={data.widthIn} />
+              </label>
+              <label>Height (in)
+                <input id="de-h" type="number" min="1" step="0.5" inputmode="decimal" value={data.heightIn} />
+              </label>
+              <label>Depth (in)
+                <input id="de-d" type="number" min="0.5" step="0.5" inputmode="decimal" value={data.depthIn} />
+              </label>
+            </div>
+            <p class="hint">Measure with a tape — buyers ask, shippers need it, and the wall preview needs it for true size.</p>
+            <label>Medium (optional, e.g. Oil on canvas)
+              <input id="de-medium" type="text" maxlength="120" autocomplete="off" value={data.medium} />
+            </label>
+            <label>Alt text (describe the art)
+              <input id="de-alt" type="text" maxlength="200" autocomplete="off" value={data.alt} />
+            </label>
+            <label>Description
+              <textarea id="de-desc" rows="4" maxlength="2000">{data.description}</textarea>
+            </label>
+            <label class="de-check"><input id="de-sold" type="checkbox" checked={data.sold} /> Sold</label>
+          </div>
+          <div class="studio-toolbar">
+            {mode === "draft" ? (
+              <>
+                <button type="button" id="de-save-draft" class="btn-primary">Save draft</button>
+                <button type="button" id="de-publish">Publish painting</button>
+              </>
+            ) : (
+              <>
+                <button type="button" id="de-save" class="btn-primary">Save changes</button>
+                <button type="button" id="de-visibility">{data.draft ? "Publish" : "Unpublish"}</button>
+                <button type="button" id="de-del">Delete…</button>
+              </>
+            )}
+            <span id="de-status" role="status"></span>
+          </div>
+        </>
+      ) : (
+        <>
+          <h1>{data.title}</h1>
+          {data.sold ? (
+            <p class="sold-note">This piece has found a home.</p>
+          ) : SHOW_PRICES ? (
+            <p class="price">{priceLabel}</p>
+          ) : (
+            <p class="price-note">Price on request — send a note below and the artist will reply.</p>
+          )}
+          {data.meta !== "" && <p class="art-meta">{data.meta}</p>}
+          <div class="desc">
+            <slot />
+          </div>
+        </>
+      )}
+      {!data.sold && !studio && (
+        <>
+          <button type="button" id="inquiry-reveal" class="btn-primary" hidden>Interested?</button>
+          <form id="inquiry-form">
+            <h2>Ask about this painting</h2>
+            <p class="ship-note">Shipping arranged with the artist after purchase.</p>
+            <label>Name <input name="name" type="text" required autocomplete="name" /></label>
+            <label>Email <input name="email" type="email" required autocomplete="email" /></label>
+            <label>Message <textarea name="message" rows="3" placeholder="Hi, I love this piece…" /></label>
+            <input type="text" name="website" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true" />
+            <div id="turnstile-mount"></div>
+            <button type="submit" class="btn-primary">Send inquiry</button>
+            <p id="inquiry-status" role="status"></p>
+          </form>
+        </>
+      )}
+      {studio && !data.sold && (
+        <div class="inquiry-off">
+          <button type="button" class="btn-primary" disabled>Interested?</button>
+          <p class="hint">Off while you edit — buyers see this button on the live page.</p>
+        </div>
+      )}
+      {!data.sold && data.modelGlb !== "" && (
+        <div id="ar-mount">
+          <h2>Try it on your wall</h2>
+          <p class="hint">True size — on your phone, point it at the wall where it would hang.</p>
+          <div id="ar-stage"><div class="ar-skeleton" aria-hidden="true"></div></div>
+        </div>
+      )}
+      {studio && !data.sold && data.modelGlb === "" && (
+        <div id="ar-mount">
+          <h2>Try it on your wall</h2>
+          <div class="ar-waiting" id="de-ar-waiting">
+            <p>Waiting for a photo — once one arrives, the 3D takes about 5 seconds to build. You'll see it here, and on a phone you can also view it in AR.</p>
+          </div>
+          <div id="ar-stage" hidden></div>
+        </div>
+      )}
+    </div>
+  </div>
+</main>
+
+<script>
+  // NOTE: no define:vars on this block — with it, Astro emits the script
+  // raw (dynamic imports stay relative URLs and 404). Page data comes
+  // from #main data-* attributes instead, and Vite bundles this properly.
+  // View Transitions keep this module alive across gallery → painting
+  // navigations (it runs once per document, not once per page), so page
+  // data must be read live from #main on every use — eval-time consts go
+  // stale and the next painting inherits the previous one's 3D model,
+  // inquiry title, and edit path.
+  function readPageData() {
+    const pageData = document.getElementById("main").dataset;
+    return {
+      title: pageData.title ?? "",
+      priceCents: Number(pageData.priceCents ?? "0"),
+      glb: pageData.glb ?? "",
+      usdz: pageData.usdz ?? "",
+      alt: pageData.alt ?? "",
+      mdPath: pageData.mdPath ?? "",
+    };
+  }
+  let turnstileToken = "";
+
+  /** Invisible-ish spam check, loaded only if the site key is configured. */
+  function loadTurnstile() {
+    if (document.getElementById("turnstile-script") !== null) return;
+    fetch("/api/status")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data === null || data.turnstileSiteKey === "") return;
+        if (document.getElementById("turnstile-script") !== null) return;
+        const script = document.createElement("script");
+        script.id = "turnstile-script";
+        script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+        script.async = true;
+        script.defer = true;
+        script.onload = () => {
+          const tApi = window.turnstile;
+          if (tApi === undefined) return;
+          tApi.render("#turnstile-mount", {
+            sitekey: data.turnstileSiteKey,
+            callback: (t) => {
+              turnstileToken = t;
+            },
+          });
+        };
+        document.head.appendChild(script);
+      })
+      .catch(() => {
+        // Spam check unavailable — the honeypot still guards the form.
+      });
+  }
+
+  /** "View on your wall" AR viewer (only rendered when models exist). */
+  function initAr() {
+    const mount = document.getElementById("ar-mount");
+    if (mount === null) return;
+    const { glb, usdz, alt, title } = readPageData();
+    if (glb === "" || mount.dataset.wiredSrc === glb) return;
+    mount.dataset.wiredSrc = glb;
+    const stage = document.getElementById("ar-stage");
+    if (stage === null) return;
+    // Instant static preview from the photo already on screen — zero extra
+    // bytes. The viewer library (~1.5MB with its decoders) and the model
+    // only download once this section scrolls into view.
+    const photo = document.querySelector("#photo-wrap img");
+    const poster =
+      photo instanceof HTMLImageElement
+        ? photo.currentSrc === ""
+          ? photo.src
+          : photo.currentSrc
+        : "";
+    if (poster !== "") {
+      const img = document.createElement("img");
+      img.src = poster;
+      img.alt = "";
+      img.loading = "lazy";
+      img.decoding = "async";
+      img.style.width = "100%";
+      img.style.height = "20rem";
+      img.style.objectFit = "contain";
+      img.style.borderRadius = "1rem";
+      stage.replaceChildren(img);
+    }
+    const build = () => {
+      // Script tag, not import(): Vite dev won't serve /public files as
+      // modules. See src/lib/vendor-loader.ts.
+      void import("../lib/vendor-loader")
+        .then(({ loadModelViewer }) => loadModelViewer())
+        .then(() => {
+          if (!document.contains(mount)) return;
+          const liveStage = document.getElementById("ar-stage");
+          if (liveStage === null) return;
+          const el = document.createElement("model-viewer");
+          el.setAttribute("src", glb);
+          if (usdz !== "") el.setAttribute("ios-src", usdz);
+          if (poster !== "") el.setAttribute("poster", poster);
+          el.setAttribute("loading", "lazy");
+          el.setAttribute("ar", "");
+          el.setAttribute("ar-modes", "webxr scene-viewer quick-look");
+          el.setAttribute("ar-scale", "fixed");
+          el.setAttribute("ar-placement", "wall");
+          el.setAttribute("camera-controls", "");
+          el.setAttribute("alt", alt === "" ? title : alt);
+          el.style.width = "100%";
+          el.style.height = "20rem";
+          el.style.borderRadius = "1rem";
+          liveStage.replaceChildren(el);
+        })
+        .catch(() => {
+          mount.hidden = true;
+        });
+    };
+    if ("IntersectionObserver" in window) {
+      const io = new IntersectionObserver((entries, obs) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          obs.disconnect();
+          build();
+        }
+      });
+      io.observe(mount);
+    } else {
+      build();
+    }
+  }
+
+  // Page scripts only run on full loads — but this layout uses View Transitions,
+  // so gallery → painting navigations never re-run them. Everything is wired in
+  // initDetail(), called immediately AND on astro:page-load. Guards keep a
+  // double-fire on the same DOM from wiring anything twice.
+  /** Admin mode: token set in /admin Settings reveals an edit toolbar
+      so paintings are edited in context while browsing. */
+  function initAdmin() {
+    const bar = document.getElementById("admin-bar");
+    if (bar === null || bar.dataset.wired === "1") return;
+    let token = null;
+    try {
+      // Remembered per browser (local storage) with a session fallback —
+      // mirrors getApiToken() in src/lib/api.ts.
+      token =
+        localStorage.getItem("ADMIN_API_TOKEN") ??
+        sessionStorage.getItem("ADMIN_API_TOKEN");
+    } catch {
+      return;
+    }
+    if (token === null || token === "") return;
+    bar.dataset.wired = "1";
+    bar.hidden = false;
+    const toggle = document.getElementById("admin-edit-toggle");
+    const panel = document.getElementById("admin-edit");
+    if (toggle === null || panel === null) return;
+    toggle.addEventListener("click", () => {
+      if (!panel.hidden) {
+        panel.hidden = true;
+        toggle.textContent = "Edit this painting";
+        return;
+      }
+      toggle.disabled = true;
+      const liveMdPath = readPageData().mdPath;
+      Promise.all([import("../lib/api"), import("../lib/painting-edit")])
+        .then(([apiMod, editMod]) =>
+          apiMod.api.getPaintingFile(liveMdPath).then((content) => {
+            toggle.disabled = false;
+            if (content === null) {
+              panel.innerHTML = "<p>Couldn't load this painting's file.</p>";
+              panel.hidden = false;
+              return;
+            }
+            const p = editMod.parsePainting(content);
+            if (p === null) {
+              panel.innerHTML = "<p>Couldn't read this painting's file.</p>";
+              panel.hidden = false;
+              return;
+            }
+            renderAdminEdit(apiMod.api, editMod, panel, toggle, liveMdPath, content, p);
+          }),
+        )
+        .catch(() => {
+          toggle.disabled = false;
+          panel.innerHTML = "<p>Editing needs the live site — this is a preview.</p>";
+          panel.hidden = false;
+        });
+    });
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+  }
+
+  // Edit-panel notes clear themselves like the studio toasts — errors
+  // included — so a stale complaint never sits over the form.
+  let aeStatusTimer = 0;
+  function setAeStatus(el, msg) {
+    if (el === null) return;
+    el.textContent = msg;
+    window.clearTimeout(aeStatusTimer);
+    aeStatusTimer = window.setTimeout(() => {
+      const live = document.getElementById("ae-status");
+      if (live !== null) live.textContent = "";
+    }, 6000);
+  }
+
+  function renderAdminEdit(api, editMod, panel, toggle, path, content, p) {
+    panel.innerHTML =
+      `<label>Title <input id="ae-title" type="text" maxlength="120" value="${escHtml(p.title)}" /></label>` +
+      `<label>Price (CAD) <input id="ae-price" type="number" min="1" step="0.01" inputmode="decimal" value="${escHtml(p.price)}" /></label>` +
+      `<label>Alt text <input id="ae-alt" type="text" maxlength="200" value="${escHtml(p.alt)}" /></label>` +
+      `<label>Description <textarea id="ae-desc" rows="3" maxlength="2000">${escHtml(p.description)}</textarea></label>` +
+      `<div class="ae-row">` +
+      `<label>W (in) <input id="ae-w" type="number" min="1" step="0.5" inputmode="decimal" value="${escHtml(p.widthIn)}" /></label>` +
+      `<label>H (in) <input id="ae-h" type="number" min="1" step="0.5" inputmode="decimal" value="${escHtml(p.heightIn)}" /></label>` +
+      `<label>D (in) <input id="ae-d" type="number" min="0.5" step="0.5" inputmode="decimal" value="${escHtml(p.depthIn)}" /></label>` +
+      `</div>` +
+      `<label class="ae-check"><input id="ae-sold" type="checkbox"${p.sold ? " checked" : ""} /> Sold</label>` +
+      `<div class="ae-row"><button type="button" id="ae-save" class="btn-primary">Save</button> ` +
+      `<button type="button" id="ae-del">Delete…</button> ` +
+      `<span id="ae-status" role="status"></span></div>`;
+    panel.hidden = false;
+    const val = (id) => document.getElementById(id).value.trim();
+    document.getElementById("ae-save").addEventListener("click", () => {
+      const title = val("ae-title");
+      const price = Number(val("ae-price"));
+      const status = document.getElementById("ae-status");
+      if (title === "" || !(Number.isFinite(price) && price > 0)) {
+        setAeStatus(status, "Title and a valid price are required.");
+        return;
+      }
+      setAeStatus(status, "Saving… (live in a few minutes)");
+      const baseEdits = {
+        title,
+        price: price.toFixed(2),
+        alt: val("ae-alt"),
+        description: document.getElementById("ae-desc").value,
+        widthIn: val("ae-w"),
+        heightIn: val("ae-h"),
+        depthIn: val("ae-d"),
+        sold: document.getElementById("ae-sold").checked,
+      };
+      // Dimension fixes (or a missing preview) rebuild the AR models
+      // from the repo photo in the same commit.
+      void import("../lib/vendor-loader")
+        .then(({ loadArTooling }) => loadArTooling())
+        .then((arMod) =>
+          arMod.rebuildForDimFix(api.getPhoto, path, p, baseEdits, () => {
+            setAeStatus(status, "Rebuilding AR preview… (true size, takes a few seconds)");
+          }),
+        )
+        .then((fix) => {
+          const next = editMod.patchPainting(content, fix.edits);
+          return api
+            .commitFiles(`Edit painting: ${title}`, [{ path, blob: next }, ...fix.files])
+            .then(() => {
+              setAeStatus(status, fix.note === null ? "Saved." : `Saved — but ${fix.note}`);
+            });
+        })
+        .catch((err) => {
+          setAeStatus(status, err instanceof Error ? err.message : "Save failed.");
+        });
+    });
+    document.getElementById("ae-del").addEventListener("click", (e) => {
+      const btn = e.currentTarget;
+      const status = document.getElementById("ae-status");
+      if (!(btn instanceof HTMLButtonElement) || status === null) return;
+      if (btn.dataset.armed !== "1") {
+        btn.dataset.armed = "1";
+        btn.textContent = "Tap again to delete";
+        setAeStatus(status, `This removes "${p.title}" from the site. Tap again to confirm.`);
+        return;
+      }
+      btn.disabled = true;
+      setAeStatus(status, `Deleting "${p.title}"… (gone in a few minutes)`);
+      const livePath = readPageData().mdPath;
+      void import("../lib/painting-edit")
+        .then((editMod) =>
+          api.deleteFiles(`Delete painting: ${p.title}`, editMod.paintingFilePaths(livePath, p)),
+        )
+        .then(() => {
+          setAeStatus(status, `Deleted "${p.title}" — recoverable from repo history.`);
+        })
+        .catch((err) => {
+          btn.disabled = false;
+          btn.dataset.armed = "";
+          btn.textContent = "Delete…";
+          setAeStatus(status, err instanceof Error ? err.message : "Delete failed.");
+        });
+    });
+  }
+
+  function initDetail() {
+    initAr();
+    initAdmin();
+    // Browsers without Background Sync (iPhones) never replay the outbox
+    // on their own — flush on reconnect and page load instead.
+    void import("../lib/queue").then(({ armOutboxFlush }) => armOutboxFlush());
+    // Inquiries go straight to the artist's email — nothing is stored.
+    // Spam: honeypot first, Cloudflare Turnstile when configured.
+    const form = document.getElementById("inquiry-form");
+    if (form !== null && form.dataset.wired !== "1") {
+      form.dataset.wired = "1";
+      loadTurnstile();
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const data = new FormData(form);
+        if ((data.get("website") ?? "") !== "") return; // honeypot
+        const status = document.getElementById("inquiry-status");
+        status.textContent = "Sending…";
+        const live = readPageData();
+        void import("../lib/queue").then(({ queuePost }) =>
+          queuePost("/api/inquiries", {
+            paintingTitle: live.title,
+            priceCents: live.priceCents,
+            name: String(data.get("name") ?? ""),
+            email: String(data.get("email") ?? ""),
+            message: String(data.get("message") ?? ""),
+            website: "",
+            turnstileToken,
+          }).then((result) => {
+            status.textContent =
+              result === "sent"
+                ? "Thanks! The artist will reply by email."
+                : result === "queued"
+                  ? "Saved — it will send automatically when you're back online."
+                  : "That didn't go through — check your email address and try again.";
+            if (result === "sent") form.reset();
+          }),
+        );
+      });
+    }
+
+    // "Interested?" reveals the form (shown openly without JS).
+    const reveal = document.getElementById("inquiry-reveal");
+    if (reveal !== null && form !== null && reveal.dataset.wired !== "1") {
+      reveal.dataset.wired = "1";
+      form.hidden = true;
+      reveal.hidden = false;
+      reveal.addEventListener("click", () => {
+        form.hidden = false;
+        form.classList.add("revealed");
+        reveal.hidden = true;
+        const name = form.querySelector('input[name="name"]');
+        if (name !== null) name.focus();
+      });
+    }
+
+    // Tap photo → fullscreen overlay. Document-level listeners are registered
+    // once per browser session — the elements they act on are re-queried live.
+    if (window.__detailDocWired !== true) {
+      window.__detailDocWired = true;
+      const close = () => {
+        if (document.fullscreenElement !== null) {
+          document.exitFullscreen().catch(() => undefined);
+        }
+        const box = document.getElementById("lightbox");
+        if (box !== null) box.hidden = true;
+      };
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          const box = document.getElementById("lightbox");
+          if (box !== null && !box.hidden) close();
+        }
+      });
+      document.addEventListener("fullscreenchange", () => {
+        if (document.fullscreenElement === null) {
+          const box = document.getElementById("lightbox");
+          if (box !== null) box.hidden = true;
+        }
+      });
+    }
+
+    const wrap = document.getElementById("photo-wrap");
+    const box = document.getElementById("lightbox");
+    const full = document.getElementById("lightbox-img");
+    const photo = wrap !== null ? wrap.querySelector("img") : null;
+    if (wrap !== null && box !== null && full !== null && photo != null && wrap.dataset.wired !== "1") {
+      wrap.dataset.wired = "1";
+      wrap.addEventListener("click", () => {
+        full.src = photo.currentSrc === "" ? photo.src : photo.currentSrc;
+        full.alt = photo.alt;
+        box.hidden = false;
+        if (typeof box.requestFullscreen === "function" && document.fullscreenEnabled) {
+          box.requestFullscreen().catch(() => undefined);
+        }
+      });
+      box.addEventListener("click", () => {
+        if (document.fullscreenElement !== null) {
+          document.exitFullscreen().catch(() => undefined);
+        }
+        box.hidden = true;
+      });
+    }
+  }
+
+  initDetail();
+  document.addEventListener("astro:page-load", initDetail);
+</script>
+
+<style>
+  .detail { max-width: 76rem; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+  .crumbs { margin: 0 0 1.5rem; font-size: 0.92rem; }
+  .crumbs a {
+    color: var(--muted); text-decoration: underline transparent;
+    text-underline-offset: 4px; transition: color 0.2s ease, text-decoration-color 0.12s ease;
+  }
+  .crumbs a:hover { color: var(--accent); text-decoration-color: currentColor; }
+  .crumbs a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 0.25rem; }
+  /* Admin-mode toolbar: quiet bar, same link treatment as the header. */
+  #admin-bar {
+    display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;
+    margin: 0 0 1.5rem; padding: 0.6rem 1rem;
+    border: 1px solid var(--line); border-radius: 0.75rem;
+    background: var(--card); font-size: 0.88rem;
+  }
+  #admin-bar[hidden] { display: none; }
+  #admin-bar span { font-weight: 600; }
+  #admin-bar button {
+    font: inherit; font-size: 0.85rem; font-weight: 600;
+    padding: 0.35rem 0.8rem; border-radius: 0.6rem;
+    border: 1px solid var(--line); background: var(--paper); color: var(--ink);
+    cursor: pointer;
+  }
+  #admin-bar button:hover { border-color: var(--ink); }
+  #admin-bar a { color: var(--muted); }
+  #admin-edit {
+    display: grid; gap: 0.6rem; margin: 0 0 1.5rem; padding: 1rem;
+    border: 1px solid var(--line); border-radius: 0.75rem; background: var(--card);
+  }
+  #admin-edit[hidden] { display: none; }
+  /* The edit panel is built by script after load, so its nodes never
+     carry the scope attribute — whole-selector :global keeps them styled. */
+  :global(#admin-edit label) { display: grid; gap: 0.3rem; font-size: 0.85rem; font-weight: 600; }
+  :global(#admin-edit input),
+  :global(#admin-edit textarea) {
+    width: 100%; box-sizing: border-box; font: inherit; font-weight: 400; font-size: 0.9rem;
+    padding: 0.55rem 0.7rem; border-radius: 0.5rem;
+    border: 1px solid var(--line); background: var(--paper); color: var(--ink);
+  }
+  :global(#admin-edit .ae-row) { display: flex; gap: 0.45rem; flex-wrap: wrap; align-items: end; }
+  :global(#admin-edit .ae-row label) { flex: 1 1 8rem; }
+  :global(#admin-edit .ae-check) { display: flex; gap: 0.6rem; align-items: center; }
+  :global(#admin-edit .ae-check input) { width: auto; accent-color: var(--accent); }
+  :global(#admin-edit .btn-primary) { width: auto; margin-top: 0; }
+  :global(#ae-status) { font-size: 0.85rem; color: var(--muted); align-self: center; }
+  .detail-grid { display: grid; gap: 2.5rem; align-items: start; }
+  @media (min-width: 48rem) {
+    .detail-grid { grid-template-columns: 1.15fr 1fr; }
+    .info { position: sticky; top: 5.5rem; }
+  }
+  .frame {
+    position: relative; background: var(--card);
+    border: 1px solid var(--line); border-radius: var(--radius);
+    padding: clamp(0.7rem, 2vw, 1.1rem);
+    box-shadow: var(--shadow);
+    cursor: zoom-in;
+  }
+  .frame img { width: 100%; height: auto; display: block; border-radius: 0.25rem; }
+  .badge {
+    position: absolute; top: 1.2rem; right: 1.2rem;
+    padding: 0.3rem 0.8rem; border-radius: 999px;
+    font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em;
+    background: rgb(20 18 15 / 0.82); color: #fff;
+  }
+  .badge.sold { background: rgb(140 29 24 / 0.9); }
+  #lightbox { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.94); display: grid; place-items: center; z-index: 50; cursor: zoom-out; animation: lb-in 0.25s ease; }
+  #lightbox[hidden] { display: none; }
+  @keyframes lb-in { from { opacity: 0; } }
+  #lightbox img { max-width: 100vw; max-height: 100vh; object-fit: contain; border-radius: 0; }
+  .eyebrow {
+    margin: 0 0 0.6rem; font-size: 0.78rem; font-weight: 700;
+    letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent);
+  }
+  h1 { font-size: clamp(1.9rem, 4vw, 2.6rem); font-weight: 500; margin: 0 0 0.75rem; text-wrap: balance; }
+  .price { font-family: Georgia, serif; font-size: 1.6rem; color: var(--accent); margin: 0; }
+  .price-note { font-size: 0.92rem; color: var(--muted); margin: 0.3rem 0 0; }
+  .art-meta { font-size: 0.95rem; color: var(--muted); margin: 0.75rem 0 0; }
+  .sold-note {
+    display: inline-block; margin: 0; padding: 0.4rem 1rem; border-radius: 999px;
+    background: rgb(140 29 24 / 0.1); color: #8c1d18; font-weight: 600; font-size: 0.95rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    .sold-note { color: #e89a8a; }
+  }
+  .desc { margin: 1.25rem 0 0; color: var(--muted); }
+  .desc :global(p) { margin: 0 0 0.75rem; }
+  #pv-desc:empty { display: none; }
+  #ar-mount { margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
+  #ar-mount h2 { font-size: 1.25rem; font-weight: 500; margin: 0 0 0.25rem; }
+  #ar-mount .hint { margin: 0 0 0.75rem; }
+  /* Loading skeleton: holds the exact viewer box so the swap never flashes
+     or shifts layout. Cleared by replaceChildren on render. */
+  .ar-skeleton {
+    width: 100%; height: 20rem; border-radius: 1rem;
+    background: var(--card); border: 1px solid var(--line);
+    animation: ar-pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes ar-pulse {
+    0%, 100% { opacity: 0.45; }
+    50% { opacity: 1; }
+  }
+  /* Draft AR slot: the same box, holding the wait in words. */
+  .ar-waiting {
+    width: 100%; min-height: 20rem; box-sizing: border-box; border-radius: 1rem;
+    background: var(--card); border: 1px dashed var(--muted);
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    color: var(--muted); font-size: 0.92rem; padding: 1.5rem; margin: 0;
+  }
+  #ar-stage[hidden] { display: none; }
+  /* Reduced motion kills movement (skeleton, reveal slide, lifts);
+     the lightbox fade still transitions. */
+  @media (prefers-reduced-motion: reduce) {
+    .ar-skeleton { animation: none; }
+    #inquiry-form.revealed { animation: none; }
+    .btn-primary:hover,
+    :global(#admin-edit .btn-primary:hover) { transform: none; }
+  }
+  /* The viewer is focusable (keyboard orbit) — keep an accent ring for
+     keyboard users, not the browser's default blue after a mouse tap. */
+  #ar-stage model-viewer:focus { outline: none; }
+  #ar-stage model-viewer:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 3px;
+  }
+  .hint { font-size: 0.85rem; color: var(--muted); }
+  #inquiry-reveal { margin-top: 1.75rem; width: 100%; }
+  /* .btn-primary sets display:inline-flex, which beats the UA [hidden] rule —
+     so hidden must be re-asserted or the button shows alongside the form. */
+  #inquiry-reveal[hidden] { display: none; }
+  form { display: grid; gap: 0.65rem; margin-top: 1.75rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
+  form[hidden] { display: none; }
+  /* Gentle arrival when "Interested?" reveals the form (class added once). */
+  #inquiry-form.revealed { animation: form-in 0.3s ease; }
+  @keyframes form-in { from { opacity: 0; transform: translateY(8px); } }
+  form h2 { font-size: 1.25rem; font-weight: 500; margin: 0 0 0.25rem; }
+  .ship-note { font-size: 0.88rem; color: var(--muted); margin: 0 0 0.5rem; }
+  label { display: grid; gap: 0.3rem; font-size: 0.88rem; font-weight: 600; }
+  input, textarea {
+    font: inherit; font-weight: 400; font-size: 0.95rem;
+    padding: 0.6rem 0.75rem; border-radius: 0.5rem;
+    border: 1px solid var(--line); background: var(--paper); color: var(--ink);
+    width: 100%; box-sizing: border-box;
+  }
+  /* One ring only: inputs show the outline on any focus, never doubling
+     with a border change. */
+  input:focus, textarea:focus,
+  input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .hp { position: absolute; left: -9999px; }
+  /* The :global twins cover the script-built edit panel, whose nodes
+     never carry the scope attribute. */
+  .btn-primary,
+  :global(#admin-edit .btn-primary) {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 3rem; border-radius: 0.75rem; border: 0;
+    background: var(--ink); color: var(--paper);
+    font: inherit; font-weight: 600; cursor: pointer; padding: 0.7rem 1.5rem;
+    transition: background-color 0.25s ease, color 0.25s ease, transform 0.2s ease;
+  }
+  .btn-primary:hover,
+  :global(#admin-edit .btn-primary:hover) { background: var(--accent); color: var(--accent-ink); }
+  .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+  .btn-primary:disabled:hover { background: var(--ink); color: var(--paper); transform: none; }
+  :global(#admin-edit .btn-primary) { width: auto; margin-top: 0; }
+  :global(#admin-edit button) {
+    font: inherit; font-size: 0.9rem; font-weight: 600; min-height: 3rem;
+    padding: 0.7rem 1.2rem; border-radius: 0.75rem; cursor: pointer;
+    border: 1px solid var(--line); background: var(--paper); color: var(--ink);
+  }
+  :global(#admin-edit button:hover) { border-color: var(--ink); }
+  :global(#admin-edit button:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; }
+  :global(#admin-edit input:focus-visible),
+  :global(#admin-edit textarea:focus-visible),
+  :global(#admin-edit input:focus),
+  :global(#admin-edit textarea:focus) { outline: 2px solid var(--accent); outline-offset: 1px; }
+  @media (hover: hover) {
+    .btn-primary:hover { transform: translateY(-1px); }
+  }
+  .btn-primary:active { transform: none; }
+  .btn-primary:focus-visible,
+  :global(#admin-edit .btn-primary:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #inquiry-status { font-size: 0.92rem; color: var(--muted); margin: 0.25rem 0 0; min-height: 1.2em; }
+  /* Studio rooms: the details read as a second section under the live
+     preview, and the toolbar pins the save actions beside a status line. */
+  .studio-fields {
+    display: grid; gap: 0.65rem; margin-top: 1.75rem; padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+  }
+  .studio-fields h2 { font-size: 1.25rem; font-weight: 500; margin: 0 0 0.25rem; }
+  .de-row { display: flex; gap: 0.45rem; flex-wrap: wrap; }
+  .de-row label { flex: 1 1 8rem; }
+  .de-check { display: flex; gap: 0.6rem; align-items: center; }
+  .de-check input { width: auto; accent-color: var(--accent); }
+  .studio-toolbar { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; margin-top: 1rem; }
+  .studio-toolbar button:not(.btn-primary) {
+    font: inherit; font-size: 0.9rem; font-weight: 600; min-height: 3rem;
+    padding: 0.7rem 1.2rem; border-radius: 0.75rem; cursor: pointer;
+    border: 1px solid var(--line); background: var(--paper); color: var(--ink);
+  }
+  .studio-toolbar button:not(.btn-primary):hover { border-color: var(--ink); }
+  .studio-toolbar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #de-status { font-size: 0.88rem; color: var(--muted); }
+  #de-status:empty { display: none; }
+  .inquiry-off { margin-top: 1.75rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
+  .inquiry-off .btn-primary { width: 100%; }
+  .inquiry-off .hint { margin: 0.6rem 0 0; }
+  /* Draft photo tile: the whole square is the picker. */
+  .photo-caption { display: block; font-size: 0.9rem; font-weight: 600; margin: 0 0 0.75rem; }
+  .upload-tile {
+    position: relative; aspect-ratio: 1; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    border: 1.5px dashed var(--muted); border-radius: var(--radius, 1rem);
+    background: var(--card); color: var(--muted); font-weight: 600;
+    cursor: pointer;
+  }
+  .upload-tile:hover { border-color: var(--ink); }
+  #de-photo {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    opacity: 0; cursor: pointer;
+  }
+  #de-photo:focus-visible + #de-photo-empty,
+  .upload-tile:focus-within { outline: none; box-shadow: 0 0 0 2px var(--accent); }
+  #de-photo-preview {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: contain; pointer-events: none;
+  }
+  #de-photo-preview[hidden], #de-photo-empty[hidden] { display: none; }
+  .tile-row { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.75rem; }
+  .tile-row button {
+    font: inherit; font-size: 0.9rem; font-weight: 600; min-height: 3rem;
+    padding: 0.7rem 1.2rem; border-radius: 0.75rem; cursor: pointer;
+    border: 1px solid var(--line); background: var(--paper); color: var(--ink);
+  }
+  .tile-row button:hover { border-color: var(--ink); }
+  .tile-row button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #de-photo-tools[hidden] { display: none; }
+  #de-photo-meta:empty { display: none; }
+</style>
