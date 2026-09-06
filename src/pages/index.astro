@@ -12,19 +12,24 @@ const headlineHtml = "Original paintings, from the studio";
   <main id="main">
     <section class="hero">
       <p class="eyebrow">{TAGLINE} · {ARTIST_LOCATION}</p>
-      <h1 set:html={headlineHtml}></h1>
+      <h1 set:html={headlineHtml} />
       <p class="lede">
-        Nature and abstract originals, painted by hand and sold directly from the studio.
-        What you see is the actual painting — and when an original sells, only its prints remain.
+        Nature and abstract originals, painted by hand and sold directly from
+        the studio. What you see is the actual painting — and when an original
+        sells, only its prints remain.
       </p>
       <div class="hero-ctas">
         <a href="#collection" class="btn-primary">Browse the collection</a>
         <a href="#notify" class="btn-ghost">Get notified of new work</a>
       </div>
       <dl class="hero-meta">
-        <div><dt>Originals &amp; prints</dt><dd>painted once, printed to order</dd></div>
+        <div>
+          <dt>Originals &amp; prints</dt><dd>painted once, printed to order</dd>
+        </div>
         <div><dt>Direct</dt><dd>from the studio, no gallery markup</dd></div>
-        <div><dt>Shipped with care</dt><dd>arranged together after purchase</dd></div>
+        <div>
+          <dt>Shipped with care</dt><dd>arranged together after purchase</dd>
+        </div>
       </dl>
     </section>
 
@@ -35,21 +40,24 @@ const headlineHtml = "Original paintings, from the studio";
         <p class="eyebrow">From the studio</p>
         <h2>Painted in {ARTIST_LOCATION}</h2>
         <p>
-          {ARTIST_NAME} paints nature and abstraction from her Calgary studio —
-          prairie light, quiet water, and colour studies that sit somewhere
-          between landscape and feeling. Every piece here starts as an original —
-          most are also available as prints. When an original sells, it's gone
-          for good — though its prints live on.
+          {ARTIST_NAME} paints nature and abstraction from her Calgary studio — prairie
+          light, quiet water, and colour studies that sit somewhere between landscape
+          and feeling. Every piece here starts as an original — most are also available
+          as prints. When an original sells, it's gone for good — though its prints
+          live on.
         </p>
         <p>
-          See something you love? Open the painting and tap <strong>Interested?</strong> —
-          your note goes straight to the artist. Pieces are sold directly, so the
-          price you see is the price — shipping is arranged together after purchase.
+          See something you love? Open the painting and tap <strong
+            >Interested?</strong
+          > — your note goes straight to the artist. Pieces are sold directly, so
+          the price you see is the price — shipping is arranged together after purchase.
         </p>
         <div class="notify-inline" id="notify-card" hidden>
           <h3>Never miss a new painting</h3>
           <p>One tap — your browser tells you when something new is hung.</p>
-          <button type="button" id="notify-btn" class="btn-primary">Notify me</button>
+          <button type="button" id="notify-btn" class="btn-primary"
+            >Notify me</button
+          >
           <p class="hint" id="notify-hint"></p>
         </div>
       </div>
@@ -61,32 +69,34 @@ const headlineHtml = "Original paintings, from the studio";
   // NOTE: no static imports here — inline page scripts ship as classic
   // scripts, so `import` kills the whole block (see painting template).
   // Dynamic import() is bundled fine.
-  let pushApi = null;
+  // No cache variable: dynamic import() is already module-cached, and a
+  // cache local would trip implicit-any across the async boundary.
+  // (Inline scripts are plain JS — annotations don't survive astro check,
+  // so this stays annotation-free on purpose.)
   async function push() {
-    if (pushApi === null) pushApi = await import("../lib/push");
-    return pushApi;
+    return import("../lib/push");
   }
 
   // Runs on full loads AND View-Transitions navigations. The dataset flag
   // keeps a double-fire on the same DOM from wiring the button twice.
   async function initNotify() {
     const card = document.getElementById("notify-card");
-    const btn = document.getElementById("notify-btn");
+    const btnEl = document.getElementById("notify-btn");
+    const btn = btnEl instanceof HTMLButtonElement ? btnEl : null;
     const hint = document.getElementById("notify-hint");
     if (card === null || btn === null || hint === null) return;
 
     if (btn.dataset.wired !== "1") {
       btn.dataset.wired = "1";
       btn.addEventListener("click", () => {
-        const hintEl = document.getElementById("notify-hint");
         void push().then((api) =>
           api.pushState().then((state) => {
             if (state === "subscribed") {
               void api.unsubscribePush().then(() => void paintNotify());
             } else {
-              hintEl.textContent = "Waiting for your browser…";
+              hint.textContent = "Waiting for your browser…";
               void api.subscribePush().then((ok) => {
-                hintEl.textContent = ok
+                hint.textContent = ok
                   ? "You're on the list."
                   : "That didn't work — push alerts aren't set up on the server yet.";
                 void paintNotify();
@@ -101,7 +111,8 @@ const headlineHtml = "Original paintings, from the studio";
 
   async function paintNotify() {
     const card = document.getElementById("notify-card");
-    const btn = document.getElementById("notify-btn");
+    const btnEl = document.getElementById("notify-btn");
+    const btn = btnEl instanceof HTMLButtonElement ? btnEl : null;
     const hint = document.getElementById("notify-hint");
     if (card === null || btn === null || hint === null) return;
     const state = await (await push()).pushState();
@@ -113,7 +124,8 @@ const headlineHtml = "Original paintings, from the studio";
     } else if (state === "denied") {
       btn.textContent = "Notifications blocked";
       btn.disabled = true;
-      hint.textContent = "You blocked notifications for this site in your browser settings.";
+      hint.textContent =
+        "You blocked notifications for this site in your browser settings.";
     } else {
       btn.textContent = "Notify me";
       btn.disabled = false;
@@ -127,85 +139,194 @@ const headlineHtml = "Original paintings, from the studio";
 
 <style>
   .hero {
-    max-width: 76rem; margin: 0 auto;
+    max-width: 76rem;
+    margin: 0 auto;
     padding: clamp(3.5rem, 8vw, 6.5rem) 1.5rem 3rem;
   }
   .eyebrow {
-    margin: 0 0 1rem; font-size: 0.8rem; font-weight: 700;
-    letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent);
+    margin: 0 0 1rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
   }
   .hero h1 {
-    margin: 0 0 1.25rem; font-weight: 500;
+    margin: 0 0 1.25rem;
+    font-weight: 500;
     font-size: clamp(2.4rem, 6vw, 4.25rem);
-    max-width: 16ch; text-wrap: balance;
+    max-width: 16ch;
+    text-wrap: balance;
   }
-  .hero h1 .nobr { white-space: nowrap; }
-  .lede { margin: 0 0 2rem; font-size: 1.15rem; color: var(--muted); max-width: 38rem; }
-  .hero-ctas { display: flex; flex-wrap: wrap; gap: 0.9rem; margin-bottom: 3rem; }
-  .btn-primary, .btn-ghost {
-    display: inline-flex; align-items: center; justify-content: center;
-    text-decoration: none; text-align: center;
-    min-height: 3rem; border-radius: 0.75rem;
-    padding: 0.75rem 1.7rem; font-weight: 600; font-size: 1rem; cursor: pointer;
-    transition: background-color 0.25s ease, border-color 0.25s ease,
-      color 0.25s ease, transform 0.2s ease;
+  .hero h1 .nobr {
+    white-space: nowrap;
+  }
+  .lede {
+    margin: 0 0 2rem;
+    font-size: 1.15rem;
+    color: var(--muted);
+    max-width: 38rem;
+  }
+  .hero-ctas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.9rem;
+    margin-bottom: 3rem;
+  }
+  .btn-primary,
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    text-align: center;
+    min-height: 3rem;
+    border-radius: 0.75rem;
+    padding: 0.75rem 1.7rem;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition:
+      background-color 0.25s ease,
+      border-color 0.25s ease,
+      color 0.25s ease,
+      transform 0.2s ease;
   }
   /* Lift only where a real hover pointer exists — on touch it would stick after tap. */
   @media (hover: hover) {
-    .btn-primary:hover, .btn-ghost:hover { transform: translateY(-1px); }
+    .btn-primary:hover,
+    .btn-ghost:hover {
+      transform: translateY(-1px);
+    }
   }
   /* Reduced motion kills the button lifts; color fades still transition. */
   @media (prefers-reduced-motion: reduce) {
-    .btn-primary:hover, .btn-ghost:hover { transform: none; }
+    .btn-primary:hover,
+    .btn-ghost:hover {
+      transform: none;
+    }
   }
-  .btn-primary:active, .btn-ghost:active { transform: none; }
-  .btn-primary:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-  .btn-ghost:hover { border-color: var(--ink); }
-  .btn-primary:focus-visible, .btn-ghost:focus-visible {
-    outline: 2px solid var(--accent); outline-offset: 2px;
+  .btn-primary:active,
+  .btn-ghost:active {
+    transform: none;
   }
-  .btn-primary { background: var(--ink); color: var(--paper); border: 1px solid var(--ink); }
-  .btn-ghost { border: 1px solid var(--line); color: var(--ink); background: transparent; }
-  button.btn-primary { font: inherit; font-weight: 600; }
+  .btn-primary:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+  }
+  .btn-ghost:hover {
+    border-color: var(--ink);
+  }
+  .btn-primary:focus-visible,
+  .btn-ghost:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .btn-primary {
+    background: var(--ink);
+    color: var(--paper);
+    border: 1px solid var(--ink);
+  }
+  .btn-ghost {
+    border: 1px solid var(--line);
+    color: var(--ink);
+    background: transparent;
+  }
+  button.btn-primary {
+    font: inherit;
+    font-weight: 600;
+  }
   .hero-meta {
-    display: flex; flex-wrap: wrap; gap: 0.75rem 2.5rem; margin: 0;
-    padding-top: 1.5rem; border-top: 1px solid var(--line);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 2.5rem;
+    margin: 0;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
   }
-  .hero-meta div { display: flex; gap: 0.5rem; align-items: baseline; margin: 0; }
+  .hero-meta div {
+    display: flex;
+    gap: 0.5rem;
+    align-items: baseline;
+    margin: 0;
+  }
   /* Narrow: a real two-column grid so every description starts at the same
      edge instead of trailing its (variably wrapping) term. */
   @media (max-width: 40rem) {
-    .hero-meta { display: grid; gap: 0.75rem; }
-    .hero-meta div {
-      display: grid; grid-template-columns: 7.5rem 1fr;
-      gap: 0.25rem 1rem; align-items: baseline;
+    .hero-meta {
+      display: grid;
+      gap: 0.75rem;
     }
-    .hero-meta dd { text-wrap: pretty; }
+    .hero-meta div {
+      display: grid;
+      grid-template-columns: 7.5rem 1fr;
+      gap: 0.25rem 1rem;
+      align-items: baseline;
+    }
+    .hero-meta dd {
+      text-wrap: pretty;
+    }
   }
-  .hero-meta dt { font-weight: 700; font-size: 0.9rem; }
-  .hero-meta dd { margin: 0; font-size: 0.9rem; color: var(--muted); }
+  .hero-meta dt {
+    font-weight: 700;
+    font-size: 0.9rem;
+  }
+  .hero-meta dd {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
 
   .about {
-    max-width: 76rem; margin: 1rem auto 0; padding: 0 1.5rem 3rem;
+    max-width: 76rem;
+    margin: 1rem auto 0;
+    padding: 0 1.5rem 3rem;
     scroll-margin-top: 5rem;
   }
   .about-inner {
-    background: var(--card); border: 1px solid var(--line); border-radius: 1rem;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 1rem;
     padding: clamp(1.75rem, 4vw, 3rem);
     max-width: 44rem;
   }
-  .about-inner h2 { margin: 0 0 1rem; font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 500; }
-  .about-inner p { margin: 0 0 1rem; color: var(--muted); }
-  .about-inner p:last-child { margin-bottom: 0; }
-  .about-inner strong { color: var(--ink); }
+  .about-inner h2 {
+    margin: 0 0 1rem;
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-weight: 500;
+  }
+  .about-inner p {
+    margin: 0 0 1rem;
+    color: var(--muted);
+  }
+  .about-inner p:last-child {
+    margin-bottom: 0;
+  }
+  .about-inner strong {
+    color: var(--ink);
+  }
 
   .notify-inline {
-    margin-top: 1.75rem; padding-top: 1.5rem;
+    margin-top: 1.75rem;
+    padding-top: 1.5rem;
     border-top: 1px solid var(--line);
     scroll-margin-top: 5rem;
   }
-  .notify-inline[hidden] { display: none; }
-  .notify-inline h3 { margin: 0 0 0.4rem; font-size: 1.2rem; font-weight: 500; }
-  .notify-inline p { margin: 0 0 1rem; }
-  .notify-inline .hint { font-size: 0.9rem; margin: 0.8rem 0 0; min-height: 1.2em; }
+  .notify-inline[hidden] {
+    display: none;
+  }
+  .notify-inline h3 {
+    margin: 0 0 0.4rem;
+    font-size: 1.2rem;
+    font-weight: 500;
+  }
+  .notify-inline p {
+    margin: 0 0 1rem;
+  }
+  .notify-inline .hint {
+    font-size: 0.9rem;
+    margin: 0.8rem 0 0;
+    min-height: 1.2em;
+  }
 </style>

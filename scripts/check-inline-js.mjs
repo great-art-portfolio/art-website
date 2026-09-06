@@ -9,7 +9,8 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const root = new URL("../dist/", import.meta.url).pathname;
-const suspect = /^\s*import[\s"'{*]|declare\s+\w|:\s*(string|number|void|boolean|never|unknown|any|HTMLElement|HTML\w*)\b|\bas\s+(const|unknown|HTML\w*|[A-Z][\w<>|[\]]*)/m;
+const suspect =
+  /^\s*import[\s"'{*]|declare\s+\w|:\s*(string|number|void|boolean|never|unknown|any|HTMLElement|HTML\w*)\b|\bas\s+(const|unknown|HTML\w*|[A-Z][\w<>|[\]]*)/m;
 
 function htmlFiles(dir) {
   const out = [];
@@ -24,7 +25,9 @@ function htmlFiles(dir) {
 let failures = 0;
 for (const file of htmlFiles(root)) {
   const html = readFileSync(file, "utf8");
-  const tags = [...html.matchAll(/<script(?![^>]*\bsrc=)([^>]*)>([\s\S]*?)<\/script>/g)];
+  const tags = [
+    ...html.matchAll(/<script(?![^>]*\bsrc=)([^>]*)>([\s\S]*?)<\/script>/g),
+  ];
   for (const m of tags) {
     if (/\btype\s*=\s*["']?(module|application\/ld\+json)/.test(m[1])) continue;
     const lines = m[2].split("\n").filter((l) => !l.trim().startsWith("//"));
@@ -35,7 +38,9 @@ for (const file of htmlFiles(root)) {
   }
 }
 if (failures > 0) {
-  console.error("\nMove it to an external .ts file (<script src>) or use dynamic import().");
+  console.error(
+    "\nMove it to an external .ts file (<script src>) or use dynamic import().",
+  );
   process.exit(1);
 }
 console.log("inline scripts OK");

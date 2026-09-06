@@ -24,7 +24,8 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string): T => {
   return el as T;
 };
 
-let lastShare: { title: string; caption: string; pageUrl: string } | null = null;
+let lastShare: { title: string; caption: string; pageUrl: string } | null =
+  null;
 
 /** Toasts clear themselves after a few seconds — errors included, so a
  * stale complaint never sits over the page. Each new message restarts the
@@ -94,12 +95,16 @@ function seedLocalRows(raw: unknown): LocalPainting[] | null {
   for (const r of raw) {
     if (typeof r !== "object" || r === null) continue;
     const row = r as Record<string, unknown>;
-    if (typeof row["slug"] !== "string" || typeof row["title"] !== "string") continue;
+    if (typeof row["slug"] !== "string" || typeof row["title"] !== "string")
+      continue;
     if ((row["title"] as string) === "") continue;
     clean.push({
       slug: row["slug"] as string,
       title: row["title"] as string,
-      price: typeof row["price"] === "number" ? (row["price"] as number) : Number(row["price"]),
+      price:
+        typeof row["price"] === "number"
+          ? (row["price"] as number)
+          : Number(row["price"]),
       sold: row["sold"] === true,
       draft: row["draft"] === true,
       image: str(row["image"]),
@@ -116,7 +121,10 @@ function seedLocalRows(raw: unknown): LocalPainting[] | null {
 
 /** Dev practice overlay over the baked list: deletes drop rows, upserts
  * replace same-slug rows or append new ones. */
-function mergePractice(rows: LocalPainting[], overlay: PracticeOverlay): LocalPainting[] {
+function mergePractice(
+  rows: LocalPainting[],
+  overlay: PracticeOverlay,
+): LocalPainting[] {
   const gone = new Set(overlay.deletes);
   const kept = rows.filter((r) => !gone.has(r.slug));
   for (const p of Object.values(overlay.upserts)) {
@@ -179,7 +187,8 @@ function renderLocalCollection(): boolean {
 
 /** One row: thumbnail, buyer link, price, and the door to its studio page. */
 function rowHtml(r: LocalPainting): string {
-  const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  const esc = (s: string): string =>
+    s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
   const cents = dollarsToCents(Number(r.price));
   const price = cents === null ? "Price?" : formatCAD(cents);
   const thumb =
@@ -200,7 +209,8 @@ function renderRows(rows: LocalPainting[]): void {
   const list = $("edit-list");
   ($("collection-refresh") as HTMLButtonElement).hidden = true;
   if (rows.length === 0) {
-    list.innerHTML = '<li class="list-plain">Nothing here yet — start a new painting above.</li>';
+    list.innerHTML =
+      '<li class="list-plain">Nothing here yet — start a new painting above.</li>';
     return;
   }
   const flat = [...rows].sort((a, b) => a.title.localeCompare(b.title));
@@ -209,14 +219,17 @@ function renderRows(rows: LocalPainting[]): void {
   let html =
     drafts.length === 0
       ? ""
-      : `<li class="list-sub"><h3>Drafts</h3></li>` + drafts.map(rowHtml).join("");
+      : `<li class="list-sub"><h3>Drafts</h3></li>` +
+        drafts.map(rowHtml).join("");
   html += `<li class="list-sub"><h3>Available</h3></li>`;
   html +=
     groups.available.length === 0
       ? `<li class="list-plain">Nothing available right now.</li>`
       : groups.available.map(rowHtml).join("");
   if (groups.sold.length > 0) {
-    html += `<li class="list-sub"><h3>Sold</h3></li>` + groups.sold.map(rowHtml).join("");
+    html +=
+      `<li class="list-sub"><h3>Sold</h3></li>` +
+      groups.sold.map(rowHtml).join("");
   }
   list.innerHTML = html;
 }
@@ -242,7 +255,8 @@ async function refreshCollection(): Promise<void> {
     if (await apiReachable()) {
       // Reachable API but the list failed (a bad token is handled above,
       // so this is a server problem) — Retry stays out for another try.
-      list.innerHTML = "<li>Couldn't load the collection — check the connection, then tap Retry.</li>";
+      list.innerHTML =
+        "<li>Couldn't load the collection — check the connection, then tap Retry.</li>";
       retry.hidden = false;
       return;
     }
@@ -272,7 +286,9 @@ async function refreshCollection(): Promise<void> {
               typeof (r as { slug?: unknown }).slug === "string" &&
               typeof (r as { image?: unknown }).image === "string"
             ) {
-              thumbBySlug[(r as { slug: string }).slug] = (r as { image: string }).image;
+              thumbBySlug[(r as { slug: string }).slug] = (
+                r as { image: string }
+              ).image;
             }
           }
         }
@@ -346,7 +362,8 @@ async function refreshViews(): Promise<void> {
       return;
     }
     if (await apiReachable()) {
-      list.innerHTML = "<li>View stats aren't available right now — tap Retry.</li>";
+      list.innerHTML =
+        "<li>View stats aren't available right now — tap Retry.</li>";
     } else {
       list.innerHTML = isLocalPreview()
         ? "<li>Views only work on the live /admin — this is a local preview.</li>"
@@ -361,7 +378,8 @@ async function refreshCapabilities(): Promise<void> {
   const sw = "serviceWorker" in navigator ? "on" : "unavailable";
   let sync = "unavailable";
   try {
-    const reg = (await navigator.serviceWorker.ready) as ServiceWorkerRegistration & {
+    const reg = (await navigator.serviceWorker
+      .ready) as ServiceWorkerRegistration & {
       sync?: unknown;
     };
     sync = reg.sync === undefined ? "unavailable" : "on";
@@ -397,7 +415,13 @@ async function refreshFlags(): Promise<void> {
     }
   } catch {
     // No API here (e.g. astro dev) — say so instead of leaving "…" dots.
-    for (const id of ["flag-email", "flag-push", "flag-stripe", "flag-shippo", "flag-social"]) {
+    for (const id of [
+      "flag-email",
+      "flag-push",
+      "flag-stripe",
+      "flag-shippo",
+      "flag-social",
+    ]) {
       $(id).textContent = "unavailable in this preview";
     }
   }
@@ -427,7 +451,7 @@ function init(): void {
             : `Showing now, ends ${banner.expires} (${left === 0 ? "last day" : `${left} days left`}).`;
         // Preselect the lifetime closest to what's left, so saving
         // without touching the dropdown roughly keeps the end date.
-        const select = ($("f-duration") as unknown as HTMLSelectElement);
+        const select = $("f-duration") as unknown as HTMLSelectElement;
         let best = "";
         let bestGap = Number.POSITIVE_INFINITY;
         for (const opt of ["1", "3", "7", "14"]) {
@@ -445,21 +469,27 @@ function init(): void {
     });
 
   $("announce-save").addEventListener("click", () => {
-    const text = ($("f-announce") as HTMLInputElement).value.trim().slice(0, 280);
+    const text = ($("f-announce") as HTMLInputElement).value
+      .trim()
+      .slice(0, 280);
     const durationRaw = ($("f-duration") as unknown as HTMLSelectElement).value;
     setStatus("Publishing banner… (live in a few minutes)");
     void import("../lib/banner").then((bannerMod) => {
       const days = durationRaw === "" ? null : Number(durationRaw);
       const body = bannerMod.formatAnnouncement(
         text,
-        days === null || !Number.isFinite(days) ? null : bannerMod.expiryForDuration(days),
+        days === null || !Number.isFinite(days)
+          ? null
+          : bannerMod.expiryForDuration(days),
       );
       api
         .commitFiles("Update homepage banner", [
           { path: "src/content/announcement.txt", blob: body },
         ])
         .then(() =>
-          setStatus(body === "" ? "Banner cleared." : "Banner updated on the homepage."),
+          setStatus(
+            body === "" ? "Banner cleared." : "Banner updated on the homepage.",
+          ),
         )
         .catch((err: unknown) => setStatus((err as Error).message, true));
     });
@@ -477,7 +507,6 @@ function init(): void {
     setApiToken("");
     window.location.href = "/";
   });
-
 
   $("share-native").addEventListener("click", () => {
     if (lastShare === null) return;
@@ -525,7 +554,10 @@ function init(): void {
   });
 
   $("views-refresh").addEventListener("click", () => void refreshViews());
-  $("collection-refresh").addEventListener("click", () => void refreshCollection());
+  $("collection-refresh").addEventListener(
+    "click",
+    () => void refreshCollection(),
+  );
 
   // Landing here from a painting room: its confirmation toast and, after
   // a publish, a ready-made share caption ride along in session storage.
@@ -538,7 +570,11 @@ function init(): void {
     const shareRaw = window.sessionStorage.getItem("studio-share");
     if (shareRaw !== null) {
       window.sessionStorage.removeItem("studio-share");
-      const share = JSON.parse(shareRaw) as { title: string; caption: string; pageUrl: string };
+      const share = JSON.parse(shareRaw) as {
+        title: string;
+        caption: string;
+        pageUrl: string;
+      };
       lastShare = share;
       ($("share-caption") as HTMLTextAreaElement).value = share.caption;
       ($("share-panel") as HTMLElement).hidden = false;

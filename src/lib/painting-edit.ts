@@ -133,7 +133,10 @@ export function patchPainting(md: string, edits: PaintingEdits): string {
   const bodyMatch = next.match(/^---\r?\n[\s\S]*?\r?\n---\r?\n?([\s\S]*)$/);
   const oldBody = bodyMatch?.[1] ?? null;
   if (oldBody !== null) {
-    const body = edits.description.trim() === "" ? "Fresh from the studio." : edits.description.trim();
+    const body =
+      edits.description.trim() === ""
+        ? "Fresh from the studio."
+        : edits.description.trim();
     next = `${next.slice(0, next.length - oldBody.length)}${body}\n`;
   }
   return next;
@@ -168,11 +171,16 @@ export function buildMarkdown(input: {
   if (input.widthIn !== null) lines.push(`widthIn: ${input.widthIn}`);
   if (input.heightIn !== null) lines.push(`heightIn: ${input.heightIn}`);
   if (input.depthIn !== null) lines.push(`depthIn: ${input.depthIn}`);
-  if (input.medium.trim() !== "") lines.push(`medium: ${yamlQuote(input.medium.trim())}`);
-  if (input.modelGlb !== "") lines.push(`modelGlb: ${yamlQuote(input.modelGlb)}`);
-  if (input.modelUsdz !== "") lines.push(`modelUsdz: ${yamlQuote(input.modelUsdz)}`);
-  lines.push("---", input.description === "" ? "Fresh from the studio." : input.description, "");
+  if (input.medium.trim() !== "")
+    lines.push(`medium: ${yamlQuote(input.medium.trim())}`);
+  if (input.modelGlb !== "")
+    lines.push(`modelGlb: ${yamlQuote(input.modelGlb)}`);
+  if (input.modelUsdz !== "")
+    lines.push(`modelUsdz: ${yamlQuote(input.modelUsdz)}`);
+  lines.push(
+    "---",
+    input.description === "" ? "Fresh from the studio." : input.description,
+    "",
+  );
   return lines.join("\n");
 }
-
-

@@ -2,25 +2,61 @@
 import Layout from "../layouts/Layout.astro";
 ---
 
-<Layout title="Privacy" description="How this gallery handles your information.">
+<Layout
+  title="Privacy"
+  description="How this gallery handles your information."
+>
   <main class="privacy">
     <h1>Privacy</h1>
-    <p>This gallery is run by a single artist in Calgary, Alberta. It follows Alberta's Personal Information Protection Act (PIPA).</p>
+    <p>
+      This gallery is run by a single artist in Calgary, Alberta. It follows
+      Alberta's Personal Information Protection Act (PIPA).
+    </p>
     <h2>What is collected</h2>
     <ul>
-      <li><strong>Page views:</strong> anonymous counters per painting (no cookies, no fingerprinting).</li>
-      <li><strong>Aggregate analytics:</strong> Cloudflare Web Analytics, which sets no cookies and tracks no individuals.</li>
-      <li><strong>Inquiries:</strong> the name, email, and message you type into a painting's form — emailed straight to the artist so she can reply. Nothing about your inquiry is stored on the site.</li>
-    <li><strong>Collector alerts:</strong> if you tap “Notify me”, your browser's push subscription (its address plus two encryption keys) is stored in the site's database — that is the only personal information the site keeps, and only so new paintings can ping you. Remove it any time with the same button, which deletes it.</li>
-    <li><strong>Spam check:</strong> the buy form uses Cloudflare Turnstile, which quietly confirms you're human. No puzzles, no tracking cookies.</li>
+      <li>
+        <strong>Page views:</strong> anonymous counters per painting (no cookies,
+        no fingerprinting).
+      </li>
+      <li>
+        <strong>Aggregate analytics:</strong> Cloudflare Web Analytics, which sets
+        no cookies and tracks no individuals.
+      </li>
+      <li>
+        <strong>Inquiries:</strong> the name, email, and message you type into a painting's
+        form — emailed straight to the artist so she can reply. Nothing about your
+        inquiry is stored on the site.
+      </li>
+      <li>
+        <strong>Collector alerts:</strong> if you tap “Notify me”, your browser's
+        push subscription (its address plus two encryption keys) is stored in the
+        site's database — that is the only personal information the site keeps, and
+        only so new paintings can ping you. Remove it any time with the same button,
+        which deletes it.
+      </li>
+      <li>
+        <strong>Spam check:</strong> the buy form uses Cloudflare Turnstile, which
+        quietly confirms you're human. No puzzles, no tracking cookies.
+      </li>
     </ul>
     <h2>What is not collected</h2>
-    <p>No accounts, no advertising trackers, no cross-site tracking, no sale of personal information.</p>
+    <p>
+      No accounts, no advertising trackers, no cross-site tracking, no sale of
+      personal information.
+    </p>
     <h2>Your choices</h2>
-    <p>To stop collector alerts, tap the same “Notify me” button again. To ask anything about privacy, email the artist and it will be handled personally.</p>
+    <p>
+      To stop collector alerts, tap the same “Notify me” button again. To ask
+      anything about privacy, email the artist and it will be handled
+      personally.
+    </p>
   </main>
 </Layout>
 
 <style>
-  .privacy { max-width: 44rem; margin: 0 auto; padding: 1rem 1.25rem 4rem; }
+  .privacy {
+    max-width: 44rem;
+    margin: 0 auto;
+    padding: 1rem 1.25rem 4rem;
+  }
 </style>

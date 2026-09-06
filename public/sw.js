@@ -9,7 +9,10 @@ const IMAGE_LIMIT = 60;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting()),
+    caches
+      .open(STATIC_CACHE)
+      .then((cache) => cache.addAll(PRECACHE))
+      .then(() => self.skipWaiting()),
   );
 });
 
@@ -18,7 +21,11 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((k) => !k.startsWith(VERSION)).map((k) => caches.delete(k))),
+        Promise.all(
+          keys
+            .filter((k) => !k.startsWith(VERSION))
+            .map((k) => caches.delete(k)),
+        ),
       )
       .then(() => self.clients.claim()),
   );
@@ -58,7 +65,10 @@ self.addEventListener("fetch", (event) => {
           fetch(request).then((res) => {
             const copy = res.clone();
             event.waitUntil(
-              caches.open(IMAGE_CACHE).then((cache) => cache.put(request, copy)).then(trimImages),
+              caches
+                .open(IMAGE_CACHE)
+                .then((cache) => cache.put(request, copy))
+                .then(trimImages),
             );
             return res;
           }),
@@ -73,7 +83,9 @@ self.addEventListener("fetch", (event) => {
       fetch(request)
         .then((res) => {
           const copy = res.clone();
-          event.waitUntil(caches.open(STATIC_CACHE).then((cache) => cache.put(request, copy)));
+          event.waitUntil(
+            caches.open(STATIC_CACHE).then((cache) => cache.put(request, copy)),
+          );
           return res;
         })
         .catch(() =>
@@ -87,7 +99,8 @@ self.addEventListener("fetch", (event) => {
 function openOutbox() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open("gallery-outbox", 1);
-    req.onupgradeneeded = () => req.result.createObjectStore("posts", { keyPath: "id" });
+    req.onupgradeneeded = () =>
+      req.result.createObjectStore("posts", { keyPath: "id" });
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
@@ -157,7 +170,10 @@ self.addEventListener("notificationclick", (event) => {
       .matchAll({ type: "window", includeUncontrolled: true })
       .then((wins) => {
         for (const w of wins) {
-          if (new URL(w.url).pathname === new URL(url, self.location.origin).pathname) {
+          if (
+            new URL(w.url).pathname ===
+            new URL(url, self.location.origin).pathname
+          ) {
             return w.focus();
           }
         }

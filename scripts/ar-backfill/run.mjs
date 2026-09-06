@@ -12,7 +12,13 @@
  * review the diff, then commit/push as usual.
  */
 import { createServer } from "node:http";
-import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdirSync } from "node:fs";
+import {
+  readFileSync,
+  writeFileSync,
+  existsSync,
+  unlinkSync,
+  mkdirSync,
+} from "node:fs";
 import { join, dirname, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
@@ -38,7 +44,9 @@ function serve(rootDir) {
       const url = new URL(req.url ?? "/", "http://x");
       let file = join(rootDir, decodeURIComponent(url.pathname));
       const data = readFileSync(file);
-      res.writeHead(200, { "Content-Type": MIME[extname(file)] ?? "application/octet-stream" });
+      res.writeHead(200, {
+        "Content-Type": MIME[extname(file)] ?? "application/octet-stream",
+      });
       res.end(data);
     } catch {
       res.writeHead(404);
@@ -52,7 +60,11 @@ function parseFrontmatter(raw) {
   const data = {};
   for (const line of (m?.[1] ?? "").split(/\r?\n/)) {
     const i = line.indexOf(":");
-    if (i > 0) data[line.slice(0, i).trim()] = line.slice(i + 1).trim().replace(/^"|"$/g, "");
+    if (i > 0)
+      data[line.slice(0, i).trim()] = line
+        .slice(i + 1)
+        .trim()
+        .replace(/^"|"$/g, "");
   }
   return data;
 }
@@ -83,7 +95,9 @@ if (jobs.length === 0) {
 }
 for (const j of jobs) {
   if (j.image === "" || !(j.w > 0) || !(j.h > 0) || !(j.d > 0)) {
-    console.error(`SKIP ${j.stem}: needs image + widthIn/heightIn/depthIn in frontmatter`);
+    console.error(
+      `SKIP ${j.stem}: needs image + widthIn/heightIn/depthIn in frontmatter`,
+    );
     process.exit(1);
   }
 }
@@ -91,7 +105,13 @@ for (const j of jobs) {
 // Bundle the production builder (three.js included) for the harness page.
 execFileSync(
   join(root, "node_modules", ".bin", "esbuild"),
-  [join(here, "entry.ts"), "--bundle", "--format=iife", `--outfile=${bundlePath}`, "--log-level=error"],
+  [
+    join(here, "entry.ts"),
+    "--bundle",
+    "--format=iife",
+    `--outfile=${bundlePath}`,
+    "--log-level=error",
+  ],
   { stdio: "inherit" },
 );
 
@@ -115,8 +135,10 @@ try {
     );
     const glb = Buffer.from(out.glb, "base64");
     const usdz = Buffer.from(out.usdz, "base64");
-    if (glb.subarray(0, 4).toString() !== "glTF") throw new Error(`${j.stem}: bad GLB magic`);
-    if (usdz.subarray(0, 2).toString() !== "PK") throw new Error(`${j.stem}: bad USDZ magic`);
+    if (glb.subarray(0, 4).toString() !== "glTF")
+      throw new Error(`${j.stem}: bad GLB magic`);
+    if (usdz.subarray(0, 2).toString() !== "PK")
+      throw new Error(`${j.stem}: bad USDZ magic`);
     if (glb.length < 10_000 || usdz.length < 10_000) {
       throw new Error(`${j.stem}: suspiciously small model`);
     }
@@ -134,11 +156,16 @@ try {
         /^(depthIn:\s*[\d.]+\r?\n)/m,
         `$1modelGlb: "/models/${j.stem}.glb"\nmodelUsdz: "/models/${j.stem}.usdz"\n`,
       );
-      if (next === raw) throw new Error(`${j.stem}: couldn't patch frontmatter (no depthIn line?)`);
+      if (next === raw)
+        throw new Error(
+          `${j.stem}: couldn't patch frontmatter (no depthIn line?)`,
+        );
       writeFileSync(mdPath, next);
     }
   }
-  console.log(`\nDone: ${jobs.length} painting(s). Review with git diff, then commit/push.`);
+  console.log(
+    `\nDone: ${jobs.length} painting(s). Review with git diff, then commit/push.`,
+  );
 } finally {
   await browser.close();
   server.close();

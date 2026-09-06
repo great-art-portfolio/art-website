@@ -10,7 +10,8 @@
  * (AR, inquiry, lightbox, in-context admin) rides along in the inline
  * script below, which no-ops cleanly wherever its elements are absent.
  */
-import { Image, type ImageMetadata } from "astro:assets";
+import { Image } from "astro:assets";
+import type { ImageMetadata } from "astro";
 import { PHOTO_WIDTHS, photoSizes } from "../lib/responsive-images";
 import { SHOW_PRICES } from "../lib/site";
 
@@ -48,7 +49,9 @@ interface Props {
 const { mode, data, backHref, backLabel, editHref = "" } = Astro.props;
 const studio = mode !== "buy";
 const priceLabel = `$${data.price.toFixed(2)} CAD`;
-const eyebrow = data.draft ? "Draft · only you can see this" : "Original painting · one of a kind";
+const eyebrow = data.draft
+  ? "Draft · only you can see this"
+  : "Original painting · one of a kind";
 ---
 
 <main
@@ -66,164 +69,335 @@ const eyebrow = data.draft ? "Draft · only you can see this" : "Original painti
   data-image={data.image?.src ?? ""}
 >
   <p class="crumbs"><a href={backHref}>{backLabel}</a></p>
-  {mode === "buy" && (
-    <div id="admin-bar" hidden>
-      <span>Admin mode</span>
-      <a href={editHref}>Edit in the studio</a>
-      <a href="/admin#sec-collection">Studio</a>
-    </div>
-  )}
+  {
+    mode === "buy" && (
+      <div id="admin-bar" hidden>
+        <span>Admin mode</span>
+        <a href={editHref}>Edit in the studio</a>
+        <a href="/admin#sec-collection">Studio</a>
+      </div>
+    )
+  }
   <div class="detail-grid">
-    {studio && mode === "draft" ? (
-      <div>
-        <span class="photo-caption" id="de-photo-caption">Upload photo</span>
-        <div class="upload-tile">
-          <input id="de-photo" type="file" accept="image/jpeg,image/png,image/webp,image/heic" capture="environment" aria-label="Upload photo" />
-          <span id="de-photo-empty" aria-hidden="true">Choose file</span>
-          <img id="de-photo-preview" alt="Photo preview" hidden />
-        </div>
-        <div class="tile-row" id="de-photo-tools" hidden>
-          <button type="button" id="de-rotate-90">Rotate ↻</button>
-          <button type="button" id="de-rotate-270">Rotate ↺</button>
-        </div>
-        <p class="hint" id="de-photo-meta"></p>
-      </div>
-    ) : (
-      <div>
-        <div class="frame" id="photo-wrap" title="Tap to view fullscreen">
-          {data.image !== undefined && (
-            <Image
-              src={data.image}
-              alt={data.alt}
-              width={1200}
-              widths={PHOTO_WIDTHS}
-              sizes={photoSizes()}
-              format="webp"
-              loading="eager"
-              fetchpriority="high"
-              decoding="async"
+    {
+      studio && mode === "draft" ? (
+        <div>
+          <span class="photo-caption" id="de-photo-caption">
+            Upload photo
+          </span>
+          <div class="upload-tile">
+            <input
+              id="de-photo"
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/heic"
+              capture="environment"
+              aria-label="Upload photo"
             />
-          )}
-          {data.sold && <span class="badge sold">Sold</span>}
-        </div>
-        {studio && (
-          <div class="tile-row">
-            <button type="button" id="de-replace">Replace photo</button>
-            <input id="de-replace-file" type="file" accept="image/jpeg,image/png,image/webp,image/heic" capture="environment" aria-label="Replace photo" hidden />
+            <span id="de-photo-empty" aria-hidden="true">
+              Choose file
+            </span>
+            <img id="de-photo-preview" alt="Photo preview" hidden />
           </div>
-        )}
-      </div>
-    )}
-    <div id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Painting fullscreen view"><img id="lightbox-img" alt="" /></div>
+          <div class="tile-row" id="de-photo-tools" hidden>
+            <button type="button" id="de-rotate-90">
+              Rotate ↻
+            </button>
+            <button type="button" id="de-rotate-270">
+              Rotate ↺
+            </button>
+          </div>
+          <p class="hint" id="de-photo-meta" />
+        </div>
+      ) : (
+        <div>
+          <div class="frame" id="photo-wrap" title="Tap to view fullscreen">
+            {data.image !== undefined && (
+              <Image
+                src={data.image}
+                alt={data.alt}
+                width={1200}
+                widths={PHOTO_WIDTHS}
+                sizes={photoSizes()}
+                format="webp"
+                loading="eager"
+                fetchpriority="high"
+                decoding="async"
+              />
+            )}
+            {data.sold && <span class="badge sold">Sold</span>}
+          </div>
+          {studio && (
+            <div class="tile-row">
+              <button type="button" id="de-replace">
+                Replace photo
+              </button>
+              <input
+                id="de-replace-file"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/heic"
+                capture="environment"
+                aria-label="Replace photo"
+                hidden
+              />
+            </div>
+          )}
+        </div>
+      )
+    }
+    <div
+      id="lightbox"
+      hidden
+      role="dialog"
+      aria-modal="true"
+      aria-label="Painting fullscreen view"
+    >
+      <img id="lightbox-img" alt="" />
+    </div>
     <div class="info">
       <p class="eyebrow">{eyebrow}</p>
-      {studio ? (
-        <>
-          <h1 id="pv-title">{data.title === "" ? "Untitled" : data.title}</h1>
-          <p class="price" id="pv-price">{data.price > 0 ? priceLabel : "Price?"}</p>
-          <p class="art-meta" id="pv-meta">{data.meta}</p>
-          <div class="desc" id="pv-desc"></div>
-          <div class="studio-fields">
-            <h2>Painting details</h2>
-            <label>Title
-              <input id="de-title" type="text" maxlength="120" autocomplete="off" value={data.title} />
-            </label>
-            <label>Price (CAD)
-              <input id="de-price" type="number" min="1" step="0.01" inputmode="decimal" value={data.price > 0 ? String(data.price) : ""} />
-            </label>
-            <div class="de-row">
-              <label>Width (in)
-                <input id="de-w" type="number" min="1" step="0.5" inputmode="decimal" value={data.widthIn} />
+      {
+        studio ? (
+          <>
+            <h1 id="pv-title">{data.title === "" ? "Untitled" : data.title}</h1>
+            <p class="price" id="pv-price">
+              {data.price > 0 ? priceLabel : "Price?"}
+            </p>
+            <p class="art-meta" id="pv-meta">
+              {data.meta}
+            </p>
+            <div class="desc" id="pv-desc" />
+            <div class="studio-fields">
+              <h2>Painting details</h2>
+              <label>
+                Title
+                <input
+                  id="de-title"
+                  type="text"
+                  maxlength="120"
+                  autocomplete="off"
+                  value={data.title}
+                />
               </label>
-              <label>Height (in)
-                <input id="de-h" type="number" min="1" step="0.5" inputmode="decimal" value={data.heightIn} />
+              <label>
+                Price (CAD)
+                <input
+                  id="de-price"
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  inputmode="decimal"
+                  value={data.price > 0 ? String(data.price) : ""}
+                />
               </label>
-              <label>Depth (in)
-                <input id="de-d" type="number" min="0.5" step="0.5" inputmode="decimal" value={data.depthIn} />
+              <div class="de-row">
+                <label>
+                  Width (in)
+                  <input
+                    id="de-w"
+                    type="number"
+                    min="1"
+                    step="0.5"
+                    inputmode="decimal"
+                    value={data.widthIn}
+                  />
+                </label>
+                <label>
+                  Height (in)
+                  <input
+                    id="de-h"
+                    type="number"
+                    min="1"
+                    step="0.5"
+                    inputmode="decimal"
+                    value={data.heightIn}
+                  />
+                </label>
+                <label>
+                  Depth (in)
+                  <input
+                    id="de-d"
+                    type="number"
+                    min="0.5"
+                    step="0.5"
+                    inputmode="decimal"
+                    value={data.depthIn}
+                  />
+                </label>
+              </div>
+              <p class="hint">
+                Measure with a tape — buyers ask, shippers need it, and the wall
+                preview needs it for true size.
+              </p>
+              <label>
+                Medium (optional, e.g. Oil on canvas)
+                <input
+                  id="de-medium"
+                  type="text"
+                  maxlength="120"
+                  autocomplete="off"
+                  value={data.medium}
+                />
+              </label>
+              <label>
+                Alt text (describe the art)
+                <input
+                  id="de-alt"
+                  type="text"
+                  maxlength="200"
+                  autocomplete="off"
+                  value={data.alt}
+                />
+              </label>
+              <label>
+                Description
+                <textarea id="de-desc" rows="4" maxlength="2000">
+                  {data.description}
+                </textarea>
+              </label>
+              <label class="de-check">
+                <input id="de-sold" type="checkbox" checked={data.sold} /> Sold
               </label>
             </div>
-            <p class="hint">Measure with a tape — buyers ask, shippers need it, and the wall preview needs it for true size.</p>
-            <label>Medium (optional, e.g. Oil on canvas)
-              <input id="de-medium" type="text" maxlength="120" autocomplete="off" value={data.medium} />
-            </label>
-            <label>Alt text (describe the art)
-              <input id="de-alt" type="text" maxlength="200" autocomplete="off" value={data.alt} />
-            </label>
-            <label>Description
-              <textarea id="de-desc" rows="4" maxlength="2000">{data.description}</textarea>
-            </label>
-            <label class="de-check"><input id="de-sold" type="checkbox" checked={data.sold} /> Sold</label>
-          </div>
-          <div class="studio-toolbar">
-            {mode === "draft" ? (
-              <>
-                <button type="button" id="de-save-draft" class="btn-primary">Save draft</button>
-                <button type="button" id="de-publish">Publish painting</button>
-              </>
+            <div class="studio-toolbar">
+              {mode === "draft" ? (
+                <>
+                  <button type="button" id="de-save-draft" class="btn-primary">
+                    Save draft
+                  </button>
+                  <button type="button" id="de-publish">
+                    Publish painting
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button type="button" id="de-save" class="btn-primary">
+                    Save changes
+                  </button>
+                  <button type="button" id="de-visibility">
+                    {data.draft ? "Publish" : "Unpublish"}
+                  </button>
+                  <button type="button" id="de-del">
+                    Delete…
+                  </button>
+                </>
+              )}
+              <span id="de-status" role="status" />
+            </div>
+          </>
+        ) : (
+          <>
+            <h1>{data.title}</h1>
+            {data.sold ? (
+              <p class="sold-note">This piece has found a home.</p>
+            ) : SHOW_PRICES ? (
+              <p class="price">{priceLabel}</p>
             ) : (
-              <>
-                <button type="button" id="de-save" class="btn-primary">Save changes</button>
-                <button type="button" id="de-visibility">{data.draft ? "Publish" : "Unpublish"}</button>
-                <button type="button" id="de-del">Delete…</button>
-              </>
+              <p class="price-note">
+                Price on request — send a note below and the artist will reply.
+              </p>
             )}
-            <span id="de-status" role="status"></span>
+            {data.meta !== "" && <p class="art-meta">{data.meta}</p>}
+            <div class="desc">
+              <slot />
+            </div>
+          </>
+        )
+      }
+      {
+        !data.sold && !studio && (
+          <>
+            <button
+              type="button"
+              id="inquiry-reveal"
+              class="btn-primary"
+              hidden
+            >
+              Interested?
+            </button>
+            <form id="inquiry-form">
+              <h2>Ask about this painting</h2>
+              <p class="ship-note">
+                Shipping arranged with the artist after purchase.
+              </p>
+              <label>
+                Name{" "}
+                <input name="name" type="text" required autocomplete="name" />
+              </label>
+              <label>
+                Email{" "}
+                <input
+                  name="email"
+                  type="email"
+                  required
+                  autocomplete="email"
+                />
+              </label>
+              <label>
+                Message{" "}
+                <textarea
+                  name="message"
+                  rows="3"
+                  placeholder="Hi, I love this piece…"
+                />
+              </label>
+              <input
+                type="text"
+                name="website"
+                tabindex="-1"
+                autocomplete="off"
+                class="hp"
+                aria-hidden="true"
+              />
+              <div id="turnstile-mount" />
+              <button type="submit" class="btn-primary">
+                Send inquiry
+              </button>
+              <p id="inquiry-status" role="status" />
+            </form>
+          </>
+        )
+      }
+      {
+        studio && !data.sold && (
+          <div class="inquiry-off">
+            <button type="button" class="btn-primary" disabled>
+              Interested?
+            </button>
+            <p class="hint">
+              Off while you edit — buyers see this button on the live page.
+            </p>
           </div>
-        </>
-      ) : (
-        <>
-          <h1>{data.title}</h1>
-          {data.sold ? (
-            <p class="sold-note">This piece has found a home.</p>
-          ) : SHOW_PRICES ? (
-            <p class="price">{priceLabel}</p>
-          ) : (
-            <p class="price-note">Price on request — send a note below and the artist will reply.</p>
-          )}
-          {data.meta !== "" && <p class="art-meta">{data.meta}</p>}
-          <div class="desc">
-            <slot />
+        )
+      }
+      {
+        !data.sold && data.modelGlb !== "" && (
+          <div id="ar-mount">
+            <h2>Try it on your wall</h2>
+            <p class="hint">
+              True size — on your phone, point it at the wall where it would
+              hang.
+            </p>
+            <div id="ar-stage">
+              <div class="ar-skeleton" aria-hidden="true" />
+            </div>
           </div>
-        </>
-      )}
-      {!data.sold && !studio && (
-        <>
-          <button type="button" id="inquiry-reveal" class="btn-primary" hidden>Interested?</button>
-          <form id="inquiry-form">
-            <h2>Ask about this painting</h2>
-            <p class="ship-note">Shipping arranged with the artist after purchase.</p>
-            <label>Name <input name="name" type="text" required autocomplete="name" /></label>
-            <label>Email <input name="email" type="email" required autocomplete="email" /></label>
-            <label>Message <textarea name="message" rows="3" placeholder="Hi, I love this piece…" /></label>
-            <input type="text" name="website" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true" />
-            <div id="turnstile-mount"></div>
-            <button type="submit" class="btn-primary">Send inquiry</button>
-            <p id="inquiry-status" role="status"></p>
-          </form>
-        </>
-      )}
-      {studio && !data.sold && (
-        <div class="inquiry-off">
-          <button type="button" class="btn-primary" disabled>Interested?</button>
-          <p class="hint">Off while you edit — buyers see this button on the live page.</p>
-        </div>
-      )}
-      {!data.sold && data.modelGlb !== "" && (
-        <div id="ar-mount">
-          <h2>Try it on your wall</h2>
-          <p class="hint">True size — on your phone, point it at the wall where it would hang.</p>
-          <div id="ar-stage"><div class="ar-skeleton" aria-hidden="true"></div></div>
-        </div>
-      )}
-      {studio && !data.sold && data.modelGlb === "" && (
-        <div id="ar-mount">
-          <h2>Try it on your wall</h2>
-          <div class="ar-waiting" id="de-ar-waiting">
-            <p>Waiting for a photo — once one arrives, the 3D takes about 5 seconds to build. You'll see it here, and on a phone you can also view it in AR.</p>
+        )
+      }
+      {
+        studio && !data.sold && data.modelGlb === "" && (
+          <div id="ar-mount">
+            <h2>Try it on your wall</h2>
+            <div class="ar-waiting" id="de-ar-waiting">
+              <p>
+                Waiting for a photo — once one arrives, the 3D takes about 5
+                seconds to build. You'll see it here, and on a phone you can
+                also view it in AR.
+              </p>
+            </div>
+            <div id="ar-stage" hidden />
           </div>
-          <div id="ar-stage" hidden></div>
-        </div>
-      )}
+        )
+      }
     </div>
   </div>
 </main>
@@ -238,14 +412,14 @@ const eyebrow = data.draft ? "Draft · only you can see this" : "Original painti
   // stale and the next painting inherits the previous one's 3D model,
   // inquiry title, and edit path.
   function readPageData() {
-    const pageData = document.getElementById("main").dataset;
+    const pageData = document.getElementById("main")?.dataset;
     return {
-      title: pageData.title ?? "",
-      priceCents: Number(pageData.priceCents ?? "0"),
-      glb: pageData.glb ?? "",
-      usdz: pageData.usdz ?? "",
-      alt: pageData.alt ?? "",
-      mdPath: pageData.mdPath ?? "",
+      title: pageData?.title ?? "",
+      priceCents: Number(pageData?.priceCents ?? "0"),
+      glb: pageData?.glb ?? "",
+      usdz: pageData?.usdz ?? "",
+      alt: pageData?.alt ?? "",
+      mdPath: pageData?.mdPath ?? "",
     };
   }
   let turnstileToken = "";
@@ -256,18 +430,26 @@ const eyebrow = data.draft ? "Draft · only you can see this" : "Original painti
     fetch("/api/status")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data === null || data.turnstileSiteKey === "") return;
+        const raw =
+          data !== null &&
+          typeof data === "object" &&
+          "turnstileSiteKey" in data
+            ? data.turnstileSiteKey
+            : undefined;
+        const key = typeof raw === "string" ? raw : "";
+        if (key === "") return;
         if (document.getElementById("turnstile-script") !== null) return;
         const script = document.createElement("script");
         script.id = "turnstile-script";
-        script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+        script.src =
+          "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
         script.async = true;
         script.defer = true;
         script.onload = () => {
           const tApi = window.turnstile;
           if (tApi === undefined) return;
           tApi.render("#turnstile-mount", {
-            sitekey: data.turnstileSiteKey,
+            sitekey: key,
             callback: (t) => {
               turnstileToken = t;
             },
@@ -362,17 +544,18 @@ const eyebrow = data.draft ? "Draft · only you can see this" : "Original painti
   function initAdmin() {
     const bar = document.getElementById("admin-bar");
     if (bar === null || bar.dataset.wired === "1") return;
-    let token = null;
+    let token;
     try {
       // Remembered per browser (local storage) with a session fallback —
       // mirrors getApiToken() in src/lib/api.ts.
       token =
         localStorage.getItem("ADMIN_API_TOKEN") ??
-        sessionStorage.getItem("ADMIN_API_TOKEN");
+        sessionStorage.getItem("ADMIN_API_TOKEN") ??
+        "";
     } catch {
       return;
     }
-    if (token === null || token === "") return;
+    if (token === "") return;
     bar.dataset.wired = "1";
     bar.hidden = false;
   }
@@ -385,7 +568,8 @@ const eyebrow = data.draft ? "Draft · only you can see this" : "Original painti
     void import("../lib/queue").then(({ armOutboxFlush }) => armOutboxFlush());
     // Inquiries go straight to the artist's email — nothing is stored.
     // Spam: honeypot first, Cloudflare Turnstile when configured.
-    const form = document.getElementById("inquiry-form");
+    const formEl = document.getElementById("inquiry-form");
+    const form = formEl instanceof HTMLFormElement ? formEl : null;
     if (form !== null && form.dataset.wired !== "1") {
       form.dataset.wired = "1";
       loadTurnstile();
@@ -394,6 +578,7 @@ const eyebrow = data.draft ? "Draft · only you can see this" : "Original painti
         const data = new FormData(form);
         if ((data.get("website") ?? "") !== "") return; // honeypot
         const status = document.getElementById("inquiry-status");
+        if (status === null) return;
         status.textContent = "Sending…";
         const live = readPageData();
         void import("../lib/queue").then(({ queuePost }) =>
@@ -429,7 +614,7 @@ const eyebrow = data.draft ? "Draft · only you can see this" : "Original painti
         form.classList.add("revealed");
         reveal.hidden = true;
         const name = form.querySelector('input[name="name"]');
-        if (name !== null) name.focus();
+        if (name instanceof HTMLInputElement) name.focus();
       });
     }
 
@@ -458,17 +643,28 @@ const eyebrow = data.draft ? "Draft · only you can see this" : "Original painti
       });
     }
 
-    const wrap = document.getElementById("photo-wrap");
+    const wrapEl = document.getElementById("photo-wrap");
+    const wrap = wrapEl instanceof HTMLElement ? wrapEl : null;
     const box = document.getElementById("lightbox");
-    const full = document.getElementById("lightbox-img");
+    const fullEl = document.getElementById("lightbox-img");
+    const full = fullEl instanceof HTMLImageElement ? fullEl : null;
     const photo = wrap !== null ? wrap.querySelector("img") : null;
-    if (wrap !== null && box !== null && full !== null && photo != null && wrap.dataset.wired !== "1") {
+    if (
+      wrap !== null &&
+      box !== null &&
+      full !== null &&
+      photo != null &&
+      wrap.dataset.wired !== "1"
+    ) {
       wrap.dataset.wired = "1";
       wrap.addEventListener("click", () => {
         full.src = photo.currentSrc === "" ? photo.src : photo.currentSrc;
         full.alt = photo.alt;
         box.hidden = false;
-        if (typeof box.requestFullscreen === "function" && document.fullscreenEnabled) {
+        if (
+          typeof box.requestFullscreen === "function" &&
+          document.fullscreenEnabled
+        ) {
           box.requestFullscreen().catch(() => undefined);
         }
       });
@@ -486,196 +682,532 @@ const eyebrow = data.draft ? "Draft · only you can see this" : "Original painti
 </script>
 
 <style>
-  .detail { max-width: 76rem; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
-  .crumbs { margin: 0 0 1.5rem; font-size: 0.92rem; }
-  .crumbs a {
-    color: var(--muted); text-decoration: underline transparent;
-    text-underline-offset: 4px; transition: color 0.2s ease, text-decoration-color 0.12s ease;
+  .detail {
+    max-width: 76rem;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
   }
-  .crumbs a:hover { color: var(--accent); text-decoration-color: currentColor; }
-  .crumbs a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 0.25rem; }
+  .crumbs {
+    margin: 0 0 1.5rem;
+    font-size: 0.92rem;
+  }
+  .crumbs a {
+    color: var(--muted);
+    text-decoration: underline transparent;
+    text-underline-offset: 4px;
+    transition:
+      color 0.2s ease,
+      text-decoration-color 0.12s ease;
+  }
+  .crumbs a:hover {
+    color: var(--accent);
+    text-decoration-color: currentColor;
+  }
+  .crumbs a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+  }
   /* Admin-mode toolbar: quiet bar, same link treatment as the header. */
   #admin-bar {
-    display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;
-    margin: 0 0 1.5rem; padding: 0.6rem 1rem;
-    border: 1px solid var(--line); border-radius: 0.75rem;
-    background: var(--card); font-size: 0.88rem;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin: 0 0 1.5rem;
+    padding: 0.6rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+    background: var(--card);
+    font-size: 0.88rem;
   }
-  #admin-bar[hidden] { display: none; }
-  #admin-bar span { font-weight: 600; }
-  #admin-bar a { color: var(--muted); }
-  .detail-grid { display: grid; gap: 2.5rem; align-items: start; }
+  #admin-bar[hidden] {
+    display: none;
+  }
+  #admin-bar span {
+    font-weight: 600;
+  }
+  #admin-bar a {
+    color: var(--muted);
+  }
+  .detail-grid {
+    display: grid;
+    gap: 2.5rem;
+    align-items: start;
+  }
   @media (min-width: 48rem) {
-    .detail-grid { grid-template-columns: 1.15fr 1fr; }
-    .info { position: sticky; top: 5.5rem; }
+    .detail-grid {
+      grid-template-columns: 1.15fr 1fr;
+    }
+    .info {
+      position: sticky;
+      top: 5.5rem;
+    }
   }
   .frame {
-    position: relative; background: var(--card);
-    border: 1px solid var(--line); border-radius: var(--radius);
+    position: relative;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
     padding: clamp(0.7rem, 2vw, 1.1rem);
     box-shadow: var(--shadow);
     cursor: zoom-in;
   }
-  .frame img { width: 100%; height: auto; display: block; border-radius: 0.25rem; }
+  .frame img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 0.25rem;
+  }
   .badge {
-    position: absolute; top: 1.2rem; right: 1.2rem;
-    padding: 0.3rem 0.8rem; border-radius: 999px;
-    font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em;
-    background: rgb(20 18 15 / 0.82); color: #fff;
+    position: absolute;
+    top: 1.2rem;
+    right: 1.2rem;
+    padding: 0.3rem 0.8rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    background: rgb(20 18 15 / 0.82);
+    color: #fff;
   }
-  .badge.sold { background: rgb(140 29 24 / 0.9); }
-  #lightbox { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.94); display: grid; place-items: center; z-index: 50; cursor: zoom-out; animation: lb-in 0.25s ease; }
-  #lightbox[hidden] { display: none; }
-  @keyframes lb-in { from { opacity: 0; } }
-  #lightbox img { max-width: 100vw; max-height: 100vh; object-fit: contain; border-radius: 0; }
+  .badge.sold {
+    background: rgb(140 29 24 / 0.9);
+  }
+  #lightbox {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.94);
+    display: grid;
+    place-items: center;
+    z-index: 50;
+    cursor: zoom-out;
+    animation: lb-in 0.25s ease;
+  }
+  #lightbox[hidden] {
+    display: none;
+  }
+  @keyframes lb-in {
+    from {
+      opacity: 0;
+    }
+  }
+  #lightbox img {
+    max-width: 100vw;
+    max-height: 100vh;
+    object-fit: contain;
+    border-radius: 0;
+  }
   .eyebrow {
-    margin: 0 0 0.6rem; font-size: 0.78rem; font-weight: 700;
-    letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent);
+    margin: 0 0 0.6rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
   }
-  h1 { font-size: clamp(1.9rem, 4vw, 2.6rem); font-weight: 500; margin: 0 0 0.75rem; text-wrap: balance; }
-  .price { font-family: Georgia, serif; font-size: 1.6rem; color: var(--accent); margin: 0; }
-  .price-note { font-size: 0.92rem; color: var(--muted); margin: 0.3rem 0 0; }
-  .art-meta { font-size: 0.95rem; color: var(--muted); margin: 0.75rem 0 0; }
+  h1 {
+    font-size: clamp(1.9rem, 4vw, 2.6rem);
+    font-weight: 500;
+    margin: 0 0 0.75rem;
+    text-wrap: balance;
+  }
+  .price {
+    font-family: Georgia, serif;
+    font-size: 1.6rem;
+    color: var(--accent);
+    margin: 0;
+  }
+  .price-note {
+    font-size: 0.92rem;
+    color: var(--muted);
+    margin: 0.3rem 0 0;
+  }
+  .art-meta {
+    font-size: 0.95rem;
+    color: var(--muted);
+    margin: 0.75rem 0 0;
+  }
   .sold-note {
-    display: inline-block; margin: 0; padding: 0.4rem 1rem; border-radius: 999px;
-    background: rgb(140 29 24 / 0.1); color: #8c1d18; font-weight: 600; font-size: 0.95rem;
+    display: inline-block;
+    margin: 0;
+    padding: 0.4rem 1rem;
+    border-radius: 999px;
+    background: rgb(140 29 24 / 0.1);
+    color: #8c1d18;
+    font-weight: 600;
+    font-size: 0.95rem;
   }
   @media (prefers-color-scheme: dark) {
-    .sold-note { color: #e89a8a; }
+    .sold-note {
+      color: #e89a8a;
+    }
   }
-  .desc { margin: 1.25rem 0 0; color: var(--muted); }
-  .desc :global(p) { margin: 0 0 0.75rem; }
-  #pv-desc:empty { display: none; }
-  #ar-mount { margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
-  #ar-mount h2 { font-size: 1.25rem; font-weight: 500; margin: 0 0 0.25rem; }
-  #ar-mount .hint { margin: 0 0 0.75rem; }
+  .desc {
+    margin: 1.25rem 0 0;
+    color: var(--muted);
+  }
+  .desc :global(p) {
+    margin: 0 0 0.75rem;
+  }
+  #pv-desc:empty {
+    display: none;
+  }
+  #ar-mount {
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--line);
+  }
+  #ar-mount h2 {
+    font-size: 1.25rem;
+    font-weight: 500;
+    margin: 0 0 0.25rem;
+  }
+  #ar-mount .hint {
+    margin: 0 0 0.75rem;
+  }
   /* Loading skeleton: holds the exact viewer box so the swap never flashes
      or shifts layout. Cleared by replaceChildren on render. */
   .ar-skeleton {
-    width: 100%; height: 20rem; border-radius: 1rem;
-    background: var(--card); border: 1px solid var(--line);
+    width: 100%;
+    height: 20rem;
+    border-radius: 1rem;
+    background: var(--card);
+    border: 1px solid var(--line);
     animation: ar-pulse 1.6s ease-in-out infinite;
   }
   @keyframes ar-pulse {
-    0%, 100% { opacity: 0.45; }
-    50% { opacity: 1; }
+    0%,
+    100% {
+      opacity: 0.45;
+    }
+    50% {
+      opacity: 1;
+    }
   }
   /* Draft AR slot: the same box, holding the wait in words. */
   .ar-waiting {
-    width: 100%; min-height: 20rem; box-sizing: border-box; border-radius: 1rem;
-    background: var(--card); border: 1px dashed var(--muted);
-    display: flex; align-items: center; justify-content: center; text-align: center;
-    color: var(--muted); font-size: 0.92rem; padding: 1.5rem; margin: 0;
+    width: 100%;
+    min-height: 20rem;
+    box-sizing: border-box;
+    border-radius: 1rem;
+    background: var(--card);
+    border: 1px dashed var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.92rem;
+    padding: 1.5rem;
+    margin: 0;
   }
-  #ar-stage[hidden] { display: none; }
+  #ar-stage[hidden] {
+    display: none;
+  }
   /* Author display beats the UA [hidden] rule — re-hide the waiting box. */
-  .ar-waiting[hidden] { display: none; }
+  .ar-waiting[hidden] {
+    display: none;
+  }
   /* Reduced motion kills movement (skeleton, reveal slide, lifts);
      the lightbox fade still transitions. */
   @media (prefers-reduced-motion: reduce) {
-    .ar-skeleton { animation: none; }
-    #inquiry-form.revealed { animation: none; }
-    .btn-primary:hover { transform: none; }
+    .ar-skeleton {
+      animation: none;
+    }
+    #inquiry-form.revealed {
+      animation: none;
+    }
+    .btn-primary:hover {
+      transform: none;
+    }
   }
   /* The viewer is focusable (keyboard orbit) — keep an accent ring for
      keyboard users, not the browser's default blue after a mouse tap. */
-  #ar-stage model-viewer:focus { outline: none; }
-  #ar-stage model-viewer:focus-visible {
-    outline: 2px solid var(--accent); outline-offset: 3px;
+  #ar-stage model-viewer:focus {
+    outline: none;
   }
-  .hint { font-size: 0.85rem; color: var(--muted); }
-  #inquiry-reveal { margin-top: 1.75rem; width: 100%; }
+  #ar-stage model-viewer:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+  .hint {
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  #inquiry-reveal {
+    margin-top: 1.75rem;
+    width: 100%;
+  }
   /* .btn-primary sets display:inline-flex, which beats the UA [hidden] rule —
      so hidden must be re-asserted or the button shows alongside the form. */
-  #inquiry-reveal[hidden] { display: none; }
-  form { display: grid; gap: 0.65rem; margin-top: 1.75rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
-  form[hidden] { display: none; }
+  #inquiry-reveal[hidden] {
+    display: none;
+  }
+  form {
+    display: grid;
+    gap: 0.65rem;
+    margin-top: 1.75rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+  }
+  form[hidden] {
+    display: none;
+  }
   /* Gentle arrival when "Interested?" reveals the form (class added once). */
-  #inquiry-form.revealed { animation: form-in 0.3s ease; }
-  @keyframes form-in { from { opacity: 0; transform: translateY(8px); } }
-  form h2 { font-size: 1.25rem; font-weight: 500; margin: 0 0 0.25rem; }
-  .ship-note { font-size: 0.88rem; color: var(--muted); margin: 0 0 0.5rem; }
-  label { display: grid; gap: 0.3rem; font-size: 0.88rem; font-weight: 600; }
-  input, textarea {
-    font: inherit; font-weight: 400; font-size: 0.95rem;
-    padding: 0.6rem 0.75rem; border-radius: 0.5rem;
-    border: 1px solid var(--line); background: var(--paper); color: var(--ink);
-    width: 100%; box-sizing: border-box;
+  #inquiry-form.revealed {
+    animation: form-in 0.3s ease;
+  }
+  @keyframes form-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+  form h2 {
+    font-size: 1.25rem;
+    font-weight: 500;
+    margin: 0 0 0.25rem;
+  }
+  .ship-note {
+    font-size: 0.88rem;
+    color: var(--muted);
+    margin: 0 0 0.5rem;
+  }
+  label {
+    display: grid;
+    gap: 0.3rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+  }
+  input,
+  textarea {
+    font: inherit;
+    font-weight: 400;
+    font-size: 0.95rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    width: 100%;
+    box-sizing: border-box;
   }
   /* One ring only: inputs show the outline on any focus, never doubling
      with a border change. */
-  input:focus, textarea:focus,
-  input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-  .hp { position: absolute; left: -9999px; }
+  input:focus,
+  textarea:focus,
+  input:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .hp {
+    position: absolute;
+    left: -9999px;
+  }
   .btn-primary {
-    display: inline-flex; align-items: center; justify-content: center;
-    min-height: 3rem; border-radius: 0.75rem; border: 0;
-    background: var(--ink); color: var(--paper);
-    font: inherit; font-weight: 600; cursor: pointer; padding: 0.7rem 1.5rem;
-    transition: background-color 0.25s ease, color 0.25s ease, transform 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 3rem;
+    border-radius: 0.75rem;
+    border: 0;
+    background: var(--ink);
+    color: var(--paper);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0.7rem 1.5rem;
+    transition:
+      background-color 0.25s ease,
+      color 0.25s ease,
+      transform 0.2s ease;
   }
-  .btn-primary:hover { background: var(--accent); color: var(--accent-ink); }
-  .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
-  .btn-primary:disabled:hover { background: var(--ink); color: var(--paper); transform: none; }
+  .btn-primary:hover {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+  .btn-primary:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  .btn-primary:disabled:hover {
+    background: var(--ink);
+    color: var(--paper);
+    transform: none;
+  }
   @media (hover: hover) {
-    .btn-primary:hover { transform: translateY(-1px); }
+    .btn-primary:hover {
+      transform: translateY(-1px);
+    }
   }
-  .btn-primary:active { transform: none; }
-  .btn-primary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  #inquiry-status { font-size: 0.92rem; color: var(--muted); margin: 0.25rem 0 0; min-height: 1.2em; }
+  .btn-primary:active {
+    transform: none;
+  }
+  .btn-primary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  #inquiry-status {
+    font-size: 0.92rem;
+    color: var(--muted);
+    margin: 0.25rem 0 0;
+    min-height: 1.2em;
+  }
   /* Studio rooms: the details read as a second section under the live
      preview, and the toolbar pins the save actions beside a status line. */
   .studio-fields {
-    display: grid; gap: 0.65rem; margin-top: 1.75rem; padding-top: 1.5rem;
+    display: grid;
+    gap: 0.65rem;
+    margin-top: 1.75rem;
+    padding-top: 1.5rem;
     border-top: 1px solid var(--line);
   }
-  .studio-fields h2 { font-size: 1.25rem; font-weight: 500; margin: 0 0 0.25rem; }
-  .de-row { display: flex; gap: 0.45rem; flex-wrap: wrap; }
-  .de-row label { flex: 1 1 8rem; }
-  .de-check { display: flex; gap: 0.6rem; align-items: center; }
-  .de-check input { width: auto; accent-color: var(--accent); }
-  .studio-toolbar { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; margin-top: 1rem; }
-  .studio-toolbar button:not(.btn-primary) {
-    font: inherit; font-size: 0.9rem; font-weight: 600; min-height: 3rem;
-    padding: 0.7rem 1.2rem; border-radius: 0.75rem; cursor: pointer;
-    border: 1px solid var(--line); background: var(--paper); color: var(--ink);
+  .studio-fields h2 {
+    font-size: 1.25rem;
+    font-weight: 500;
+    margin: 0 0 0.25rem;
   }
-  .studio-toolbar button:not(.btn-primary):hover { border-color: var(--ink); }
-  .studio-toolbar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  #de-status { font-size: 0.88rem; color: var(--muted); }
-  #de-status:empty { display: none; }
-  .inquiry-off { margin-top: 1.75rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
-  .inquiry-off .btn-primary { width: 100%; }
-  .inquiry-off .hint { margin: 0.6rem 0 0; }
+  .de-row {
+    display: flex;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+  }
+  .de-row label {
+    flex: 1 1 8rem;
+  }
+  .de-check {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+  }
+  .de-check input {
+    width: auto;
+    accent-color: var(--accent);
+  }
+  .studio-toolbar {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 1rem;
+  }
+  .studio-toolbar button:not(.btn-primary) {
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    min-height: 3rem;
+    padding: 0.7rem 1.2rem;
+    border-radius: 0.75rem;
+    cursor: pointer;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .studio-toolbar button:not(.btn-primary):hover {
+    border-color: var(--ink);
+  }
+  .studio-toolbar button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  #de-status {
+    font-size: 0.88rem;
+    color: var(--muted);
+  }
+  #de-status:empty {
+    display: none;
+  }
+  .inquiry-off {
+    margin-top: 1.75rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+  }
+  .inquiry-off .btn-primary {
+    width: 100%;
+  }
+  .inquiry-off .hint {
+    margin: 0.6rem 0 0;
+  }
   /* Draft photo tile: the whole square is the picker. */
-  .photo-caption { display: block; font-size: 0.9rem; font-weight: 600; margin: 0 0 0.75rem; }
+  .photo-caption {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin: 0 0 0.75rem;
+  }
   .upload-tile {
-    position: relative; aspect-ratio: 1; overflow: hidden;
-    display: flex; align-items: center; justify-content: center;
-    border: 1.5px dashed var(--muted); border-radius: var(--radius, 1rem);
-    background: var(--card); color: var(--muted); font-weight: 600;
+    position: relative;
+    aspect-ratio: 1;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px dashed var(--muted);
+    border-radius: var(--radius, 1rem);
+    background: var(--card);
+    color: var(--muted);
+    font-weight: 600;
     cursor: pointer;
   }
-  .upload-tile:hover { border-color: var(--ink); }
+  .upload-tile:hover {
+    border-color: var(--ink);
+  }
   #de-photo {
-    position: absolute; inset: 0; width: 100%; height: 100%;
-    opacity: 0; cursor: pointer;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
   }
   #de-photo:focus-visible + #de-photo-empty,
-  .upload-tile:focus-within { outline: none; box-shadow: 0 0 0 2px var(--accent); }
+  .upload-tile:focus-within {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--accent);
+  }
   #de-photo-preview {
-    position: absolute; inset: 0; width: 100%; height: 100%;
-    object-fit: contain; pointer-events: none;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    pointer-events: none;
   }
-  #de-photo-preview[hidden], #de-photo-empty[hidden] { display: none; }
-  .tile-row { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.75rem; }
+  #de-photo-preview[hidden],
+  #de-photo-empty[hidden] {
+    display: none;
+  }
+  .tile-row {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    margin-top: 0.75rem;
+  }
   .tile-row button {
-    font: inherit; font-size: 0.9rem; font-weight: 600; min-height: 3rem;
-    padding: 0.7rem 1.2rem; border-radius: 0.75rem; cursor: pointer;
-    border: 1px solid var(--line); background: var(--paper); color: var(--ink);
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    min-height: 3rem;
+    padding: 0.7rem 1.2rem;
+    border-radius: 0.75rem;
+    cursor: pointer;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
   }
-  .tile-row button:hover { border-color: var(--ink); }
-  .tile-row button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  #de-photo-tools[hidden] { display: none; }
-  #de-photo-meta:empty { display: none; }
+  .tile-row button:hover {
+    border-color: var(--ink);
+  }
+  .tile-row button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  #de-photo-tools[hidden] {
+    display: none;
+  }
+  #de-photo-meta:empty {
+    display: none;
+  }
 </style>

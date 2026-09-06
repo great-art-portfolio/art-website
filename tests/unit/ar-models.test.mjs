@@ -13,7 +13,11 @@ function frontmatter(path) {
   const data = {};
   for (const line of (m?.[1] ?? "").split(/\r?\n/)) {
     const i = line.indexOf(":");
-    if (i > 0) data[line.slice(0, i).trim()] = line.slice(i + 1).trim().replace(/^"|"$/g, "");
+    if (i > 0)
+      data[line.slice(0, i).trim()] = line
+        .slice(i + 1)
+        .trim()
+        .replace(/^"|"$/g, "");
   }
   return data;
 }
@@ -23,7 +27,9 @@ function boxExtents(glb) {
   assert.equal(glb.subarray(0, 4).toString(), "glTF", "GLB magic");
   const jsonLen = glb.readUInt32LE(12);
   const json = JSON.parse(glb.subarray(20, 20 + jsonLen).toString("utf8"));
-  const box = json.accessors.find((a) => a.count === 24 && Array.isArray(a.min));
+  const box = json.accessors.find(
+    (a) => a.count === 24 && Array.isArray(a.min),
+  );
   assert.ok(box, "frame-box position accessor (24 verts)");
   return { min: box.min, max: box.max };
 }
@@ -44,13 +50,23 @@ describe("AR models match the tape measurements", () => {
       assert.ok(glb.length > 10_000, "model is not a stub");
       // 1024px JPEG textures keep each model a few hundred KB — flag
       // regressions before buyers pay the download.
-      assert.ok(glb.length < 512 * 1024, `model is bloated: ${glb.length} bytes`);
+      assert.ok(
+        glb.length < 512 * 1024,
+        `model is bloated: ${glb.length} bytes`,
+      );
       const { min, max } = boxExtents(glb);
-      const want = [Number(fm.widthIn) * IN_TO_M, Number(fm.heightIn) * IN_TO_M, Number(fm.depthIn) * IN_TO_M];
+      const want = [
+        Number(fm.widthIn) * IN_TO_M,
+        Number(fm.heightIn) * IN_TO_M,
+        Number(fm.depthIn) * IN_TO_M,
+      ];
       const got = [max[0] - min[0], max[1] - min[1], max[2] - min[2]];
       for (let i = 0; i < 3; i += 1) {
         const err = Math.abs(got[i] - want[i]);
-        assert.ok(err < 0.002, `axis ${i}: got ${got[i].toFixed(4)}m, want ${want[i].toFixed(4)}m`);
+        assert.ok(
+          err < 0.002,
+          `axis ${i}: got ${got[i].toFixed(4)}m, want ${want[i].toFixed(4)}m`,
+        );
       }
     });
 

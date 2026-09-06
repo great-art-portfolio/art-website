@@ -7,6 +7,7 @@ responsive variants. Admin stays one-tap simple.
 Source of truth is code, not docs/ (docs may be stale).
 
 ## Already good (keep)
+
 - Auto-variants: `src/content.config.ts` `image()` + Astro `<Image>` build webp
   srcsets. Gallery `400/700/1000`, sold `400/700`, detail `640/960/1280/1600`.
   Locked by `tests/images.spec.ts`.
@@ -19,6 +20,7 @@ Source of truth is code, not docs/ (docs may be stale).
 - Policy: verify on local dev server, never live barbart.ca/admin.
 
 ## Phase 1 — refactor-first (do first, no visual change)
+
 1. New `src/lib/responsive-images.ts`: GALLERY_WIDTHS / SOLD_WIDTHS /
    PHOTO_WIDTHS + gallerySizes() / soldSizes() / photoSizes(). Use from
    `src/components/Gallery.astro` and `src/pages/paintings/[id].astro`.
@@ -28,6 +30,7 @@ Source of truth is code, not docs/ (docs may be stale).
 3. Keep `#gallery-static .card` selectors (e2e coupled in gallery.spec.ts).
 
 ## Phase 2 — responsive images (pipeline + grid + upload)
+
 - Detail hero: `loading=eager + fetchpriority=high + decoding=async`, pin webp.
 - Gallery: `decoding=async`, pin webp; first 1-2 cards eager/high, rest lazy.
 - Grid: `.gallery{align-items:start}`; `#add-preview` echo card
@@ -38,6 +41,7 @@ Source of truth is code, not docs/ (docs may be stale).
   Defer crop/straighten/exposure sliders.
 
 ## Phase 3 — tests (local dev only)
+
 - `tests/images.spec.ts`: hero eager/high, decoding, format pin; import
   widths/sizes from responsive-images.ts.
 - `tests/gallery.spec.ts`: breakpoint columns/overflow, aspect-preserved.
@@ -45,9 +49,11 @@ Source of truth is code, not docs/ (docs may be stale).
   ar-models / painting-edit / banner green.
 
 ## Order
+
 Refactor (Phase 1) -> responsive (Phase 2) -> tests again (Phase 3).
 
 ## Status (2026-09-06)
+
 - Phase 1 DONE: responsive-images.ts extracted + wired; scaleFor() pure + tested.
 - In-flight work completed: vendored /js/model-viewer.js + /js/ar-tooling.js
   are now actually loaded (painting page + admin, via @vite-ignore stable

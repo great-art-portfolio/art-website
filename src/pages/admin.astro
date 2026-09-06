@@ -27,91 +27,146 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
     <p id="admin-status" role="status" data-tone="ok"></p>
 
     <div class="admin-grid">
-    <section class="card" id="sec-add">
-      <h2>Add a painting</h2>
-      <p class="hint">New paintings start on their own page — it looks exactly like the buyer page, and you fill it in there.</p>
-      <a class="btn-link primary" href="/admin/paintings/new">Start a new painting</a>
-    </section>
-
-    <section class="card" id="share-panel" hidden>
-      <h2>Tell social media</h2>
-      <textarea id="share-caption" rows="8"></textarea>
-      <div class="row">
-        <button type="button" id="share-native" class="primary">Share…</button>
-        <button type="button" id="share-copy">Copy caption</button>
-        <button type="button" id="notify-collectors">Notify collectors</button>
-      </div>
-      <p class="hint" id="collectors-hint"></p>
-      <p class="hint">
-        “Share…” opens the iPhone/iPad share sheet — post straight to Instagram or Facebook.
-        No business account needed.
-        “Notify collectors” is separate: it sends a phone alert to visitors who tapped
-        “Notify me” — not email, and nothing to do with the inbox notes buyers send you.
-      </p>
-    </section>
-
-    <section class="card" id="sec-collection">
-      <h2>Collection <button type="button" id="collection-refresh" hidden>Retry</button></h2>
-      <p class="hint" id="collection-hint"><a href="/#collection">Open the collection</a> to see what buyers see — tap any piece below to open its studio page.</p>
-      <p class="hint" id="collection-note" hidden></p>
-      <ul id="edit-list">
-        <li class="skel" aria-hidden="true"><span></span></li>
-        <li class="skel" aria-hidden="true"><span></span></li>
-        <li class="skel" aria-hidden="true"><span></span></li>
-      </ul>
-      <button type="button" id="practice-reset" hidden>Clear practice changes</button>
-      <script type="application/json" id="local-collection" set:html={localJson} />
-    </section>
-
-    <section class="card" id="sec-banner">
-      <h2>Homepage banner</h2>
-      <p class="hint">One banner at a time under the gallery — markets, holidays, “studio open”. Saving replaces it; empty hides it. Banners usually end on their own, so a forgotten one doesn't linger.</p>
-      <label>Announcement
-        <input id="f-announce" type="text" maxlength="280" placeholder="Find me at the Lilac Festival this Sunday!" />
-      </label>
-      <label>Show until
-        <select id="f-duration">
-          <option value="">No end date</option>
-          <option value="1">1 day</option>
-          <option value="3">3 days</option>
-          <option value="7" selected>7 days</option>
-          <option value="14">2 weeks</option>
-        </select>
-      </label>
-      <p class="hint" id="announce-meta"></p>
-      <button type="button" id="announce-save" class="primary">Update banner</button>
-    </section>
-
-    <section class="card" id="sec-views">
-      <h2>Most viewed <button type="button" id="views-refresh" hidden>Retry</button></h2>
-      <p class="hint">Past 30 days, from Cloudflare Analytics.</p>
-      <ul id="views-list"><li>Loading…</li></ul>
-    </section>
-
-    <section class="card" id="sec-info">
-      <h2>Good to know</h2>
-      <p class="hint">When a buyer taps Send on a painting page, their note lands straight in your inbox — hit reply and it goes to them. Send it from your author@barbart.ca email address. After shipping, open the piece and mark it sold.</p>
-      <ul>
-        <li><a href="https://chitchats.com/" rel="noopener">Chit Chats</a> — cheapest tracked Canada/US shipping from Calgary.</li>
-        <li><a href="https://www.pirateship.com/" rel="noopener">Pirate Ship</a> — backup for US labels.</li>
-      </ul>
-      <p class="hint" id="ship-flags">In-house Shippo labels are <span id="flag-shippo">…</span>; Stripe checkout is <span id="flag-stripe">…</span>.</p>
-      <details>
-        <summary>Advanced</summary>
+      <section class="card" id="sec-add">
+        <h2>Add a painting</h2>
         <p class="hint">
-          Email alerts <span id="flag-email">…</span> · iOS push <span id="flag-push">…</span> ·
-          auto-post <span id="flag-social">…</span>
+          New paintings start on their own page — it looks exactly like the
+          buyer page, and you fill it in there.
         </p>
-        <label>Local API token (only needed on this device if Access is off)
-          <input id="admin-token" type="password" autocomplete="off" />
+        <a class="btn-link primary" href="/admin/paintings/new"
+          >Start a new painting</a
+        >
+      </section>
+
+      <section class="card" id="share-panel" hidden>
+        <h2>Tell social media</h2>
+        <textarea id="share-caption" rows="8"></textarea>
+        <div class="row">
+          <button type="button" id="share-native" class="primary">Share…</button
+          >
+          <button type="button" id="share-copy">Copy caption</button>
+          <button type="button" id="notify-collectors">Notify collectors</button
+          >
+        </div>
+        <p class="hint" id="collectors-hint"></p>
+        <p class="hint">
+          “Share…” opens the iPhone/iPad share sheet — post straight to
+          Instagram or Facebook. No business account needed. “Notify collectors”
+          is separate: it sends a phone alert to visitors who tapped “Notify me”
+          — not email, and nothing to do with the inbox notes buyers send you.
+        </p>
+      </section>
+
+      <section class="card" id="sec-collection">
+        <h2>
+          Collection <button type="button" id="collection-refresh" hidden
+            >Retry</button
+          >
+        </h2>
+        <p class="hint" id="collection-hint">
+          <a href="/#collection">Open the collection</a> to see what buyers see —
+          tap any piece below to open its studio page.
+        </p>
+        <p class="hint" id="collection-note" hidden></p>
+        <ul id="edit-list">
+          <li class="skel" aria-hidden="true"><span></span></li>
+          <li class="skel" aria-hidden="true"><span></span></li>
+          <li class="skel" aria-hidden="true"><span></span></li>
+        </ul>
+        <button type="button" id="practice-reset" hidden
+          >Clear practice changes</button
+        >
+        <script
+          is:inline
+          type="application/json"
+          id="local-collection"
+          set:html={localJson}
+        />
+      </section>
+
+      <section class="card" id="sec-banner">
+        <h2>Homepage banner</h2>
+        <p class="hint">
+          One banner at a time under the gallery — markets, holidays, “studio
+          open”. Saving replaces it; empty hides it. Banners usually end on
+          their own, so a forgotten one doesn't linger.
+        </p>
+        <label
+          >Announcement
+          <input
+            id="f-announce"
+            type="text"
+            maxlength="280"
+            placeholder="Find me at the Lilac Festival this Sunday!"
+          />
         </label>
+        <label
+          >Show until
+          <select id="f-duration">
+            <option value="">No end date</option>
+            <option value="1">1 day</option>
+            <option value="3">3 days</option>
+            <option value="7" selected>7 days</option>
+            <option value="14">2 weeks</option>
+          </select>
+        </label>
+        <p class="hint" id="announce-meta"></p>
+        <button type="button" id="announce-save" class="primary"
+          >Update banner</button
+        >
+      </section>
+
+      <section class="card" id="sec-views">
+        <h2>
+          Most viewed <button type="button" id="views-refresh" hidden
+            >Retry</button
+          >
+        </h2>
+        <p class="hint">Past 30 days, from Cloudflare Analytics.</p>
+        <ul id="views-list"><li>Loading…</li></ul>
+      </section>
+
+      <section class="card" id="sec-info">
+        <h2>Good to know</h2>
         <p class="hint">
-          This browser can keep working offline: <span id="cap-sw">…</span> ·
-          sending in the background: <span id="cap-sync">…</span> ·
-          network: <span id="cap-net">…</span>
+          When a buyer taps Send on a painting page, their note lands straight
+          in your inbox — hit reply and it goes to them. Send it from your
+          author@barbart.ca email address. After shipping, open the piece and
+          mark it sold.
         </p>
-      </details>
-    </section>
+        <ul>
+          <li>
+            <a href="https://chitchats.com/" rel="noopener">Chit Chats</a> — cheapest
+            tracked Canada/US shipping from Calgary.
+          </li>
+          <li>
+            <a href="https://www.pirateship.com/" rel="noopener">Pirate Ship</a> —
+            backup for US labels.
+          </li>
+        </ul>
+        <p class="hint" id="ship-flags">
+          In-house Shippo labels are <span id="flag-shippo">…</span>; Stripe
+          checkout is <span id="flag-stripe">…</span>.
+        </p>
+        <details>
+          <summary>Advanced</summary>
+          <p class="hint">
+            Email alerts <span id="flag-email">…</span> · iOS push <span
+              id="flag-push">…</span
+            > · auto-post <span id="flag-social">…</span>
+          </p>
+          <label
+            >Local API token (only needed on this device if Access is off)
+            <input id="admin-token" type="password" autocomplete="off" />
+          </label>
+          <p class="hint">
+            This browser can keep working offline: <span id="cap-sw">…</span> · sending
+            in the background: <span id="cap-sync">…</span> · network: <span
+              id="cap-net">…</span
+            >
+          </p>
+        </details>
+      </section>
     </div>
   </main>
 </Layout>
@@ -119,222 +174,460 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
 <script src="../components/AdminPanel.ts"></script>
 
 <style>
-  .admin { max-width: 64rem; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+  .admin {
+    max-width: 64rem;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem 4rem;
+  }
   /* Toast fixed to the viewport: errors find her wherever she is
      scrolled. Empty (no message) means gone entirely. */
   #admin-status {
-    position: fixed; left: 50%; transform: translateX(-50%);
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
     bottom: max(1rem, env(safe-area-inset-bottom, 1rem));
-    width: min(36rem, calc(100% - 2rem)); z-index: 40;
-    margin: 0; padding: 0.8rem 1.1rem; border-radius: var(--radius);
-    border: 1px solid var(--line); background: var(--card);
-    font-size: 0.95rem; box-shadow: var(--shadow);
+    width: min(36rem, calc(100% - 2rem));
+    z-index: 40;
+    margin: 0;
+    padding: 0.8rem 1.1rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    background: var(--card);
+    font-size: 0.95rem;
+    box-shadow: var(--shadow);
   }
   /* Gentle rise on every new message, re-triggered from the panel. */
-  #admin-status.toast-in { animation: toast-in 0.25s ease; }
-  @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 0.5rem); } }
+  #admin-status.toast-in {
+    animation: toast-in 0.25s ease;
+  }
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translate(-50%, 0.5rem);
+    }
+  }
   /* The Add form arrives as one calm motion: the card expands and fades,
      with no per-field stagger to fall out of sync on the way back out. */
   #admin-status[data-tone="error"] {
-    border-color: rgb(140 29 24 / 0.4); background: rgb(140 29 24 / 0.08); color: inherit;
+    border-color: rgb(140 29 24 / 0.4);
+    background: rgb(140 29 24 / 0.08);
+    color: inherit;
   }
   /* The status line starts empty (no blurb) and only appears once the
      studio has something to say. */
-  #admin-status:empty { display: none; }
+  #admin-status:empty {
+    display: none;
+  }
   /* Collapsed Settings ("Advanced" drawer): the summary wears the h2 style
      so the closed card still reads as a section header. */
   .card summary {
-    font-family: Georgia, "Iowan Old Style", Charter, serif; font-weight: 500;
-    font-size: 1.4rem; cursor: pointer; border-radius: 0.25rem;
-    padding-bottom: 0.75rem; border-bottom: 1px solid var(--line);
+    font-family: Georgia, "Iowan Old Style", Charter, serif;
+    font-weight: 500;
+    font-size: 1.4rem;
+    cursor: pointer;
+    border-radius: 0.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--line);
     margin: 1.5rem 0 1rem;
     list-style: none;
   }
-  .card summary::-webkit-details-marker { display: none; }
+  .card summary::-webkit-details-marker {
+    display: none;
+  }
   /* Custom disclosure mark: a chevron that turns down when open. */
   .card summary::before {
-    content: ">"; color: var(--accent); font-weight: 700;
-    margin-right: 0.6rem; display: inline-block;
+    content: ">";
+    color: var(--accent);
+    font-weight: 700;
+    margin-right: 0.6rem;
+    display: inline-block;
     transition: transform 0.2s ease;
   }
-  .card details[open] summary::before { transform: rotate(90deg); }
-  @media (prefers-reduced-motion: reduce) {
-    .card summary::before { transition: none; }
+  .card details[open] summary::before {
+    transform: rotate(90deg);
   }
-  .card summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) {
+    .card summary::before {
+      transition: none;
+    }
+  }
+  .card summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
   /* Advanced drawer eases open where the browser allows it; elsewhere it
      simply appears, as before. */
-  #sec-info details { interpolate-size: allow-keywords; }
+  #sec-info details {
+    interpolate-size: allow-keywords;
+  }
   #sec-info details::details-content {
-    block-size: 0; overflow: clip;
-    transition: block-size 0.35s ease, content-visibility 0.35s ease;
+    block-size: 0;
+    overflow: clip;
+    transition:
+      block-size 0.35s ease,
+      content-visibility 0.35s ease;
     transition-behavior: allow-discrete;
   }
-  #sec-info details[open]::details-content { block-size: auto; }
+  #sec-info details[open]::details-content {
+    block-size: auto;
+  }
   .card {
-    background: var(--card); border: 1px solid var(--line);
-    border-radius: 1rem; box-shadow: var(--shadow);
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 1rem;
+    box-shadow: var(--shadow);
     padding: clamp(1.25rem, 3vw, 2rem);
     margin-block: 1.5rem;
   }
   .card h2 {
-    font-family: Georgia, "Iowan Old Style", Charter, serif; font-weight: 500;
+    font-family: Georgia, "Iowan Old Style", Charter, serif;
+    font-weight: 500;
     margin: 0 0 0.75rem;
-    font-size: 1.4rem; display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
-    padding-bottom: 0.75rem; border-bottom: 1px solid var(--line); margin-bottom: 1rem;
+    font-size: 1.4rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 1rem;
   }
-  label { display: grid; gap: 0.35rem; margin-block: 0.75rem; font-size: 0.9rem; font-weight: 600; }
-  input, textarea, select {
-    width: 100%; box-sizing: border-box; font: inherit; font-weight: 400; font-size: 0.95rem;
-    padding: 0.65rem 0.8rem; border-radius: 0.6rem;
-    border: 1px solid var(--line); background: var(--paper); color: var(--ink);
+  label {
+    display: grid;
+    gap: 0.35rem;
+    margin-block: 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+  input,
+  textarea,
+  select {
+    width: 100%;
+    box-sizing: border-box;
+    font: inherit;
+    font-weight: 400;
+    font-size: 0.95rem;
+    padding: 0.65rem 0.8rem;
+    border-radius: 0.6rem;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
     min-height: 3rem;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease;
   }
-  input:hover, textarea:hover, select:hover { border-color: var(--muted); }
+  input:hover,
+  textarea:hover,
+  select:hover {
+    border-color: var(--muted);
+  }
   /* Studio links behave exactly like the footer: accent always, only
      the underline fades in on hover — never a color flash. */
   .admin a {
     transition: text-decoration-color 0.12s ease;
-    text-decoration: underline transparent; text-underline-offset: 3px;
+    text-decoration: underline transparent;
+    text-underline-offset: 3px;
   }
-  .admin a:hover { text-decoration-color: currentColor; }
+  .admin a:hover {
+    text-decoration-color: currentColor;
+  }
   /* The hint link is written by script after load, so it never carries the
      scope attribute — this twin keeps it out of browser-blue. */
   :global(#collection-hint a),
   :global(#collection-hint a:visited) {
-    color: var(--accent); text-decoration: underline transparent;
+    color: var(--accent);
+    text-decoration: underline transparent;
     text-underline-offset: 3px;
     transition: text-decoration-color 0.12s ease;
   }
-  :global(#collection-hint a:hover) { text-decoration-color: currentColor; }
+  :global(#collection-hint a:hover) {
+    text-decoration-color: currentColor;
+  }
   /* View bars: one accent row per painting, scaled to the top piece. */
   :global(.view-bar) {
-    display: block; height: 0.45rem; margin-top: 0.35rem;
-    border-radius: 999px; background: rgb(255 255 255 / 0.08);
+    display: block;
+    height: 0.45rem;
+    margin-top: 0.35rem;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.08);
     overflow: hidden;
   }
-  :global(.view-bar > span) { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
-  button:focus-visible, .btn-link:focus-visible {
-    outline: 2px solid var(--accent); outline-offset: 2px;
+  :global(.view-bar > span) {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    border-radius: 999px;
+  }
+  button:focus-visible,
+  .btn-link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
   /* One ring only: inputs show this outline on any focus, so it never
      doubles up with a border change (which is why this rule replaces it). */
-  input:focus, textarea:focus, select:focus {
-    outline: 2px solid var(--accent); outline-offset: 2px;
+  input:focus,
+  textarea:focus,
+  select:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
-  .row { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-block: 0.75rem; align-items: center; }
-  .row label { flex: 1 1 8rem; margin-block: 0; }
+  .row {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    margin-block: 0.75rem;
+    align-items: center;
+  }
+  .row label {
+    flex: 1 1 8rem;
+    margin-block: 0;
+  }
   button {
-    font: inherit; font-size: 0.92rem; font-weight: 600;
-    min-height: 2.9rem; padding: 0.55rem 1.2rem;
-    border-radius: 0.75rem; border: 1px solid var(--line);
-    background: var(--paper); color: var(--ink); cursor: pointer;
-    display: inline-flex; align-items: center; justify-content: center;
-    transition: background-color 0.25s ease, border-color 0.25s ease,
-      color 0.25s ease, transform 0.2s ease;
+    font: inherit;
+    font-size: 0.92rem;
+    font-weight: 600;
+    min-height: 2.9rem;
+    padding: 0.55rem 1.2rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition:
+      background-color 0.25s ease,
+      border-color 0.25s ease,
+      color 0.25s ease,
+      transform 0.2s ease;
   }
-  button:hover { border-color: var(--ink); transform: translateY(-1px); }
-  button:active { transform: none; }
-  button.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-  button.primary:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-  .card h2 button { min-height: 2.2rem; padding: 0.25rem 0.9rem; font-size: 0.82rem; margin-left: auto; }
+  button:hover {
+    border-color: var(--ink);
+    transform: translateY(-1px);
+  }
+  button:active {
+    transform: none;
+  }
+  button.primary {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+  button.primary:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+  }
+  .card h2 button {
+    min-height: 2.2rem;
+    padding: 0.25rem 0.9rem;
+    font-size: 0.82rem;
+    margin-left: auto;
+  }
   /* Author display:inline-flex beats the UA [hidden] rule — re-hide. */
-  .card h2 button[hidden] { display: none; }
+  .card h2 button[hidden] {
+    display: none;
+  }
   /* The new-painting room lives on its own page now — this card is just
      its front door. */
   .btn-link {
-    display: inline-flex; align-items: center; justify-content: center;
-    font-size: 0.92rem; font-weight: 600; text-decoration: none;
-    min-height: 2.9rem; padding: 0.55rem 1.2rem;
-    border-radius: 0.75rem; border: 1px solid var(--ink);
-    background: var(--ink); color: var(--paper); cursor: pointer;
-    transition: background-color 0.25s ease, border-color 0.25s ease,
-      color 0.25s ease, transform 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.92rem;
+    font-weight: 600;
+    text-decoration: none;
+    min-height: 2.9rem;
+    padding: 0.55rem 1.2rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--ink);
+    background: var(--ink);
+    color: var(--paper);
+    cursor: pointer;
+    transition:
+      background-color 0.25s ease,
+      border-color 0.25s ease,
+      color 0.25s ease,
+      transform 0.2s ease;
   }
-  .btn-link:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); text-decoration: none; }
-  .btn-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn-link:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+    text-decoration: none;
+  }
+  .btn-link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
   @media (hover: hover) {
-    .btn-link:hover { transform: translateY(-1px); }
+    .btn-link:hover {
+      transform: translateY(-1px);
+    }
   }
-  .btn-link:active { transform: none; }
+  .btn-link:active {
+    transform: none;
+  }
   /* Reduced motion kills movement, not gentle fades: lifts go instant,
      while color and opacity transitions still run — snapping colors is
      itself jarring. */
   @media (prefers-reduced-motion: reduce) {
-    #admin-status.toast-in { animation: none; }
-    button:hover, .btn-link:hover { transform: none; }
-    #sec-info details::details-content { transition: none; }
+    #admin-status.toast-in {
+      animation: none;
+    }
+    button:hover,
+    .btn-link:hover {
+      transform: none;
+    }
+    #sec-info details::details-content {
+      transition: none;
+    }
   }
-  .hint { font-size: 0.88rem; color: var(--muted); }
-  #views-list, #edit-list { list-style: none; padding: 0; margin: 0.75rem 0 0; display: grid; gap: 0.5rem; }
-  #sec-info ul { list-style: none; padding: 0; margin: 0.75rem 0 0; display: grid; gap: 0.5rem; }
+  .hint {
+    font-size: 0.88rem;
+    color: var(--muted);
+  }
+  #views-list,
+  #edit-list {
+    list-style: none;
+    padding: 0;
+    margin: 0.75rem 0 0;
+    display: grid;
+    gap: 0.5rem;
+  }
+  #sec-info ul {
+    list-style: none;
+    padding: 0;
+    margin: 0.75rem 0 0;
+    display: grid;
+    gap: 0.5rem;
+  }
   /* Rows and fields are built by script after load, so they never carry
      the scope attribute — whole-selector :global keeps them styled. */
   :global(#views-list li),
   :global(#edit-list li) {
-    list-style: none; background: var(--paper);
-    border: 1px solid var(--line); border-radius: 0.75rem;
-    padding: 0.7rem 1rem; font-size: 0.92rem;
+    list-style: none;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+    padding: 0.7rem 1rem;
+    font-size: 0.92rem;
   }
   :global(#edit-list li a),
   :global(#edit-list li a:visited) {
-    color: var(--accent); text-decoration: underline transparent;
+    color: var(--accent);
+    text-decoration: underline transparent;
     text-underline-offset: 3px;
     transition: text-decoration-color 0.12s ease;
   }
-  :global(#edit-list li a:hover) { text-decoration-color: currentColor; }
+  :global(#edit-list li a:hover) {
+    text-decoration-color: currentColor;
+  }
   /* Subheadings and plain notes sit in the list unboxed. */
   :global(#edit-list li.list-sub),
   :global(#edit-list li.list-plain) {
-    background: none; border: none; padding: 0.5rem 0 0;
+    background: none;
+    border: none;
+    padding: 0.5rem 0 0;
   }
   :global(#edit-list li.list-sub h3) {
     font-family: Georgia, "Iowan Old Style", Charter, serif;
-    font-size: 1.05rem; font-weight: 500; margin: 0;
+    font-size: 1.05rem;
+    font-weight: 500;
+    margin: 0;
   }
-  :global(#edit-list li.list-plain) { color: var(--muted); font-size: 0.92rem; }
+  :global(#edit-list li.list-plain) {
+    color: var(--muted);
+    font-size: 0.92rem;
+  }
   /* Rows carry a thumbnail, so she sees the piece without remembering
      its name. Practice rows (dev) reuse the same shape. */
   :global(#edit-list li.row-card) {
-    display: flex; gap: 0.8rem; align-items: center;
+    display: flex;
+    gap: 0.8rem;
+    align-items: center;
   }
   :global(#edit-list img.thumb) {
-    width: 4rem; height: 4rem; object-fit: cover; border-radius: 0.5rem;
-    border: 1px solid var(--line); flex-shrink: 0; background: var(--card);
+    width: 4rem;
+    height: 4rem;
+    object-fit: cover;
+    border-radius: 0.5rem;
+    border: 1px solid var(--line);
+    flex-shrink: 0;
+    background: var(--card);
   }
-  :global(#edit-list .row-body) { display: grid; gap: 0.3rem; min-width: 0; }
-  :global(#edit-list .row-edit) { font-size: 0.85rem; }
+  :global(#edit-list .row-body) {
+    display: grid;
+    gap: 0.3rem;
+    min-width: 0;
+  }
+  :global(#edit-list .row-edit) {
+    font-size: 0.85rem;
+  }
   /* Loading skeletons hold the list's shape so rows landing never shove
      the cards below. Static markup, replaced on first render. */
-  :global(#edit-list li.skel) { padding: 0.7rem 1rem; }
+  :global(#edit-list li.skel) {
+    padding: 0.7rem 1rem;
+  }
   :global(#edit-list li.skel span) {
-    display: block; height: 2.6rem; border-radius: 0.5rem;
-    background: var(--line); opacity: 0.45;
+    display: block;
+    height: 2.6rem;
+    border-radius: 0.5rem;
+    background: var(--line);
+    opacity: 0.45;
     animation: skel-pulse 1.6s ease-in-out infinite;
   }
   @keyframes skel-pulse {
-    0%, 100% { opacity: 0.3; }
-    50% { opacity: 0.6; }
+    0%,
+    100% {
+      opacity: 0.3;
+    }
+    50% {
+      opacity: 0.6;
+    }
   }
   @media (prefers-reduced-motion: reduce) {
-    :global(#edit-list li.skel span) { animation: none; opacity: 0.45; }
+    :global(#edit-list li.skel span) {
+      animation: none;
+      opacity: 0.45;
+    }
   }
-  #practice-reset { margin-top: 0.75rem; }
-  #practice-reset[hidden] { display: none; }
-  .card ul a { color: var(--accent); }
+  #practice-reset {
+    margin-top: 0.75rem;
+  }
+  #practice-reset[hidden] {
+    display: none;
+  }
+  .card ul a {
+    color: var(--accent);
+  }
   /* No browser-blue links anywhere in the studio: visited matches unvisited. */
-  .admin a, .admin a:visited { color: var(--accent); }
+  .admin a,
+  .admin a:visited {
+    color: var(--accent);
+  }
   /* Dashboard grid: one column on phones, two on desktop with the wide
      working sections (share, Collection) spanning both. */
   @media (min-width: 60rem) {
     .admin-grid {
-      display: grid; grid-template-columns: 1fr 1fr;
-      gap: 0 1.5rem; align-items: start;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0 1.5rem;
+      align-items: start;
     }
-    #share-panel, #sec-collection { grid-column: 1 / -1; }
+    #share-panel,
+    #sec-collection {
+      grid-column: 1 / -1;
+    }
     /* Full-width cards, readable lists: rows stop well short of the edge. */
-    #edit-list, #views-list { max-width: 32rem; }
+    #edit-list,
+    #views-list {
+      max-width: 32rem;
+    }
   }
-  .card { scroll-margin-top: 7rem; }
+  .card {
+    scroll-margin-top: 7rem;
+  }
 </style>

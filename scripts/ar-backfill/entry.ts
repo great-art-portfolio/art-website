@@ -38,4 +38,6 @@ async function buildFromUrl(
   };
 }
 
-(window as unknown as { __arBackfill: unknown }).__arBackfill = { buildFromUrl };
+(window as unknown as { __arBackfill: unknown }).__arBackfill = {
+  buildFromUrl,
+};

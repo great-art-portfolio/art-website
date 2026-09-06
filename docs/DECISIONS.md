@@ -55,7 +55,7 @@ her phone only ever talks to our own admin endpoint.
 Workers can't run an SMTP server, so mail goes through Resend. Collector
 push is Web Push (VAPID) fanned out from `/admin`; the service worker
 shows a generic tickle and the gallery does the talking. ntfy stays as
-the free phone ping for *inquiry* alerts (optional second channel
+the free phone ping for _inquiry_ alerts (optional second channel
 alongside email), Pushover optional.
 
 ## Checkout + shipping (disabled until needed)
@@ -84,7 +84,7 @@ the Astro language server supports it.
 ## Analytics & privacy law
 
 Canada has no EU-style cookie-banner law. PIPEDA + Alberta PIPA require
-meaningful consent for *personal information* — push subscriptions are
+meaningful consent for _personal information_ — push subscriptions are
 opt-in by tapping the button (consent) and deletable with the same
 button, which is what the commissioners actually look for. Everything
 else (aggregate stats, emailed inquiries) collects or keeps nothing, so

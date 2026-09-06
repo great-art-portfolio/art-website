@@ -19,9 +19,9 @@
 ## Wow (impress visitors)
 
 - [x] **AR "view on your wall"**: photo → true-scale framed GLB (Android)
-  + USDZ (iOS, wall-anchored) generated on her phone at upload time via
-  three.js, committed to `public/models`; buyers launch it from the
-  painting page with `<model-viewer>`.
+  - USDZ (iOS, wall-anchored) generated on her phone at upload time via
+    three.js, committed to `public/models`; buyers launch it from the
+    painting page with `<model-viewer>`.
 
 ## Growth
 

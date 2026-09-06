@@ -1,7 +1,9 @@
 ---
 import { getCollection } from "astro:content";
 import Layout from "../../../layouts/Layout.astro";
-import PaintingDetail, { type PaintingDetailData } from "../../../components/PaintingDetail.astro";
+import PaintingDetail, {
+  type PaintingDetailData,
+} from "../../../components/PaintingDetail.astro";
 import { formatDimensions } from "../../../lib/dims";
 import { slugifyTitle } from "../../../lib/site";
 
@@ -16,11 +18,14 @@ export async function getStaticPaths() {
 }
 
 const { painting } = Astro.props;
-const meta = [painting.data.medium, formatDimensions(
-  painting.data.widthIn ?? null,
-  painting.data.heightIn ?? null,
-  painting.data.depthIn ?? null,
-)]
+const meta = [
+  painting.data.medium,
+  formatDimensions(
+    painting.data.widthIn ?? null,
+    painting.data.heightIn ?? null,
+    painting.data.depthIn ?? null,
+  ),
+]
   .filter((s) => s !== undefined && s !== "")
   .join(" · ");
 const data: PaintingDetailData = {
@@ -30,10 +35,13 @@ const data: PaintingDetailData = {
   medium: painting.data.medium ?? "",
   meta,
   alt: painting.data.alt,
-  description: painting.body,
-  widthIn: painting.data.widthIn === undefined ? "" : String(painting.data.widthIn),
-  heightIn: painting.data.heightIn === undefined ? "" : String(painting.data.heightIn),
-  depthIn: painting.data.depthIn === undefined ? "" : String(painting.data.depthIn),
+  description: painting.body ?? "",
+  widthIn:
+    painting.data.widthIn === undefined ? "" : String(painting.data.widthIn),
+  heightIn:
+    painting.data.heightIn === undefined ? "" : String(painting.data.heightIn),
+  depthIn:
+    painting.data.depthIn === undefined ? "" : String(painting.data.depthIn),
   image: painting.data.image,
   modelGlb: painting.data.modelGlb ?? "",
   modelUsdz: painting.data.modelUsdz ?? "",
@@ -43,8 +51,17 @@ const data: PaintingDetailData = {
 };
 ---
 
-<Layout title={`${painting.data.title} — Studio`} wordmark="admin" description={`Edit ${painting.data.title} in the studio.`}>
-  <PaintingDetail mode="edit" data={data} backHref="/admin" backLabel="← Back to the studio" />
+<Layout
+  title={`${painting.data.title} — Studio`}
+  wordmark="admin"
+  description={`Edit ${painting.data.title} in the studio.`}
+>
+  <PaintingDetail
+    mode="edit"
+    data={data}
+    backHref="/admin"
+    backLabel="← Back to the studio"
+  />
 </Layout>
 
 <script src="../../../components/StudioPainting.ts"></script>

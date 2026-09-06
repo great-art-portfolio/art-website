@@ -18,13 +18,21 @@ describe("vendored viewer + AR builder", () => {
     it(`${file} exists and is not a stub`, () => {
       const path = join(root, file);
       assert.ok(existsSync(path), `${file} built — run pnpm vendor`);
-      assert.ok(statSync(path).size > 100_000, `${file} looks like a real bundle`);
+      assert.ok(
+        statSync(path).size > 100_000,
+        `${file} looks like a real bundle`,
+      );
     });
   }
 
   it("ar-tooling.js carries the admin flow's entry points", () => {
     const bundle = readFileSync(join(root, "public/js/ar-tooling.js"), "utf8");
-    for (const name of ["buildArModels", "estimateDims", "rebuildForDimFix", "rebuildArFiles"]) {
+    for (const name of [
+      "buildArModels",
+      "estimateDims",
+      "rebuildForDimFix",
+      "rebuildArFiles",
+    ]) {
       assert.ok(bundle.includes(name), `bundle exports ${name}`);
     }
   });
@@ -33,7 +41,10 @@ describe("vendored viewer + AR builder", () => {
     // The verbatim model-viewer module imports bare "three" — browsers
     // can't resolve that without an import map, so the viewer silently
     // never loads. Bundles must inline everything (see scripts/vendor).
-    for (const file of ["public/js/model-viewer.js", "public/js/ar-tooling.js"]) {
+    for (const file of [
+      "public/js/model-viewer.js",
+      "public/js/ar-tooling.js",
+    ]) {
       const bundle = readFileSync(join(root, file), "utf8");
       assert.ok(!bundle.includes('from"three"'), `${file} inlines three`);
       assert.ok(!bundle.includes("from'three'"), `${file} inlines three`);

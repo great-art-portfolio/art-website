@@ -14,7 +14,9 @@ import { fileURLToPath } from "node:url";
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const mdPath = "src/content/paintings/1943x1967.md";
 const localMd = readFileSync(join(repoRoot, mdPath), "utf8");
-const localJpg = readFileSync(join(repoRoot, "src", "content", "paintings", "1943x1967.jpg"));
+const localJpg = readFileSync(
+  join(repoRoot, "src", "content", "paintings", "1943x1967.jpg"),
+);
 
 interface PostedFile {
   path: string;
@@ -33,7 +35,9 @@ function mdBody(posted: Posted | null, path: string): string {
 
 async function authedPage(browser: Browser): Promise<Page> {
   const context = await browser.newContext();
-  await context.addInitScript(() => sessionStorage.setItem("ADMIN_API_TOKEN", "test"));
+  await context.addInitScript(() =>
+    sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
+  );
   return context.newPage();
 }
 
@@ -58,7 +62,13 @@ async function stubApi(page: Page): Promise<{ posted: () => Posted | null }> {
   });
   await page.route("**/api/status", async (route) => {
     await route.fulfill({
-      json: { stripe: false, shippo: false, socialPost: false, email: false, push: false },
+      json: {
+        stripe: false,
+        shippo: false,
+        socialPost: false,
+        email: false,
+        push: false,
+      },
     });
   });
   return { posted: () => posted };
@@ -82,7 +92,11 @@ test("studio room dimension fix rebuilds AR in the same commit", async ({
   const posted = api.posted();
   expect(posted?.message).toBe("Edit painting: First Thaw");
   expect(posted?.files.map((f) => f.path).sort()).toEqual(
-    [mdPath, "public/models/1943x1967.glb", "public/models/1943x1967.usdz"].sort(),
+    [
+      mdPath,
+      "public/models/1943x1967.glb",
+      "public/models/1943x1967.usdz",
+    ].sort(),
   );
   const md = mdBody(posted, mdPath);
   expect(md).toMatch(/^widthIn: 21$/m);
@@ -129,13 +143,20 @@ test("dashboard row opens the studio room, which saves home", async ({
   await page.locator("#de-w").fill("22");
   await page.locator("#de-save").click();
   await expect(page).toHaveURL(/\/admin\/?$/, { timeout: 30_000 });
-  await expect(page.locator("#admin-status")).toContainText('Saved "First Thaw" — live in a few minutes.', {
-    timeout: 30_000,
-  });
+  await expect(page.locator("#admin-status")).toContainText(
+    'Saved "First Thaw" — live in a few minutes.',
+    {
+      timeout: 30_000,
+    },
+  );
 
   const posted = api.posted();
   expect(posted?.files.map((f) => f.path).sort()).toEqual(
-    [mdPath, "public/models/1943x1967.glb", "public/models/1943x1967.usdz"].sort(),
+    [
+      mdPath,
+      "public/models/1943x1967.glb",
+      "public/models/1943x1967.usdz",
+    ].sort(),
   );
   expect(mdBody(posted, mdPath)).toMatch(/^widthIn: 22$/m);
   await page.context().close();

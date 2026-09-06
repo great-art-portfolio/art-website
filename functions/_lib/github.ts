@@ -69,7 +69,8 @@ export async function readTextFile(
     config,
     `/repos/${config.repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(config.branch)}`,
   )) as { content?: string; encoding?: string } | null;
-  if (data === null || data.content === undefined || data.encoding !== "base64") return null;
+  if (data === null || data.content === undefined || data.encoding !== "base64")
+    return null;
   const bin = atob(data.content.replace(/\n/g, ""));
   const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
   return new TextDecoder().decode(bytes);
@@ -84,13 +85,17 @@ export async function readBinaryFile(
     config,
     `/repos/${config.repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(config.branch)}`,
   )) as { content?: string; encoding?: string } | null;
-  if (data === null || data.content === undefined || data.encoding !== "base64") return null;
+  if (data === null || data.content === undefined || data.encoding !== "base64")
+    return null;
   const bin = atob(data.content.replace(/\n/g, ""));
   return Uint8Array.from(bin, (c) => c.charCodeAt(0));
 }
 
 /** List filenames directly inside a repo directory (empty when missing). */
-export async function listDir(config: GitHubConfig, path: string): Promise<string[]> {
+export async function listDir(
+  config: GitHubConfig,
+  path: string,
+): Promise<string[]> {
   const data = (await gh(
     config,
     `/repos/${config.repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(config.branch)}`,
@@ -109,11 +114,17 @@ export async function commitFiles(
   message: string,
   files: RepoFile[],
 ): Promise<string> {
-  const ref = (await gh(config, `/repos/${config.repo}/git/ref/heads/${encodeURIComponent(config.branch)}`)) as {
+  const ref = (await gh(
+    config,
+    `/repos/${config.repo}/git/ref/heads/${encodeURIComponent(config.branch)}`,
+  )) as {
     object: { sha: string };
   };
   const baseSha = ref.object.sha;
-  const baseCommit = (await gh(config, `/repos/${config.repo}/git/commits/${baseSha}`)) as {
+  const baseCommit = (await gh(
+    config,
+    `/repos/${config.repo}/git/commits/${baseSha}`,
+  )) as {
     tree: { sha: string };
   };
 
@@ -139,9 +150,13 @@ export async function commitFiles(
     body: JSON.stringify({ message, tree: tree.sha, parents: [baseSha] }),
   })) as { sha: string };
 
-  await gh(config, `/repos/${config.repo}/git/refs/heads/${encodeURIComponent(config.branch)}`, {
-    method: "PATCH",
-    body: JSON.stringify({ sha: commit.sha }),
-  });
+  await gh(
+    config,
+    `/repos/${config.repo}/git/refs/heads/${encodeURIComponent(config.branch)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ sha: commit.sha }),
+    },
+  );
   return commit.sha;
 }

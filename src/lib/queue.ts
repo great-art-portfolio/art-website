@@ -30,7 +30,12 @@ function openDb(): Promise<IDBDatabase> {
 
 async function enqueue(path: string, body: string): Promise<void> {
   const db = await openDb();
-  const post: QueuedPost = { id: crypto.randomUUID(), path, body, ts: Date.now() };
+  const post: QueuedPost = {
+    id: crypto.randomUUID(),
+    path,
+    body,
+    ts: Date.now(),
+  };
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE, "readwrite");
     tx.objectStore(STORE).add(post);
@@ -40,7 +45,8 @@ async function enqueue(path: string, body: string): Promise<void> {
   db.close();
   // Nudge the service worker to replay ASAP (no-op where unsupported).
   try {
-    const reg = (await navigator.serviceWorker.ready) as ServiceWorkerRegistration & {
+    const reg = (await navigator.serviceWorker
+      .ready) as ServiceWorkerRegistration & {
       sync?: { register: (tag: string) => Promise<void> };
     };
     await reg.sync?.register(SYNC_TAG);

@@ -52,7 +52,11 @@ function drawPrepared(
   img: HTMLImageElement,
   rotationDeg: 0 | 90 | 180 | 270,
 ): { canvas: HTMLCanvasElement; width: number; height: number } {
-  const { width, height } = scaleFor(img.naturalWidth, img.naturalHeight, rotationDeg);
+  const { width, height } = scaleFor(
+    img.naturalWidth,
+    img.naturalHeight,
+    rotationDeg,
+  );
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
@@ -73,7 +77,8 @@ export async function prepareImage(
   const { canvas, width, height } = drawPrepared(img, rotationDeg);
   const blob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
-      (result) => (result === null ? reject(new Error("Export failed")) : resolve(result)),
+      (result) =>
+        result === null ? reject(new Error("Export failed")) : resolve(result),
       "image/jpeg",
       JPEG_QUALITY,
     );

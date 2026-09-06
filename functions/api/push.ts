@@ -20,9 +20,12 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   }
   try {
     if (body["action"] === "unsubscribe") {
-      const endpoint = typeof body["endpoint"] === "string" ? body["endpoint"] : "";
+      const endpoint =
+        typeof body["endpoint"] === "string" ? body["endpoint"] : "";
       if (endpoint === "") return badRequest("endpoint is required");
-      await context.env.DB.prepare("DELETE FROM push_subscriptions WHERE endpoint = ?")
+      await context.env.DB.prepare(
+        "DELETE FROM push_subscriptions WHERE endpoint = ?",
+      )
         .bind(endpoint)
         .run();
       return json({ ok: true });

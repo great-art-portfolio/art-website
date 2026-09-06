@@ -11,7 +11,9 @@ import { expect, test } from "@playwright/test";
  * emails, push fan-out) — validation shapes and read-only paths only.
  */
 
-test("painting page shows the Interested button, not the form", async ({ page }) => {
+test("painting page shows the Interested button, not the form", async ({
+  page,
+}) => {
   await page.goto("/paintings/night-reeds");
   await expect(page.getByRole("button", { name: "Interested?" })).toBeVisible();
   await expect(page.locator("#inquiry-form")).toBeHidden();
@@ -28,7 +30,9 @@ test("reduced motion keeps the nav button planted", async ({ page }) => {
   }
 });
 
-test("clicking Interested reveals the form and focuses Name", async ({ page }) => {
+test("clicking Interested reveals the form and focuses Name", async ({
+  page,
+}) => {
   await page.goto("/paintings/night-reeds");
   await page.getByRole("button", { name: "Interested?" }).click();
   await expect(page.locator("#inquiry-form")).toBeVisible();
@@ -52,9 +56,9 @@ test("admin mode toolbar appears only with a stored token", async ({
   const adminPage = await authed.newPage();
   await adminPage.goto("/paintings/night-reeds");
   await expect(adminPage.locator("#admin-bar")).toBeVisible();
-  await expect(adminPage.locator('#admin-bar a[href^="/admin/paintings/"]')).toHaveText(
-    "Edit in the studio",
-  );
+  await expect(
+    adminPage.locator('#admin-bar a[href^="/admin/paintings/"]'),
+  ).toHaveText("Edit in the studio");
   await authed.close();
 });
 

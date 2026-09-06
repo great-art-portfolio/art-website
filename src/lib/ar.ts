@@ -59,7 +59,13 @@ export function estimateDims(
   heightIn: number | null,
   depthIn: number | null,
 ): { w: number; h: number; d: number } {
-  return resolveDims(img.naturalWidth, img.naturalHeight, widthIn, heightIn, depthIn);
+  return resolveDims(
+    img.naturalWidth,
+    img.naturalHeight,
+    widthIn,
+    heightIn,
+    depthIn,
+  );
 }
 
 /** Decode repo photo bytes (from the photo endpoint) into an <img>. */
@@ -97,7 +103,10 @@ export async function buildArModels(
   texture.userData.mimeType = "image/jpeg";
 
   const art = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.9 });
-  const frame = new THREE.MeshStandardMaterial({ color: 0x1c1a17, roughness: 0.6 });
+  const frame = new THREE.MeshStandardMaterial({
+    color: 0x1c1a17,
+    roughness: 0.6,
+  });
   const scene = new THREE.Scene();
   // Frame box + art plane a hair in front (multi-material boxes trip USDZ).
   scene.add(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), frame));
@@ -106,7 +115,9 @@ export async function buildArModels(
   scene.add(face);
 
   const gltf = new GLTFExporter();
-  const glbBuf = (await gltf.parseAsync(scene, { binary: true })) as ArrayBuffer;
+  const glbBuf = (await gltf.parseAsync(scene, {
+    binary: true,
+  })) as ArrayBuffer;
 
   const usdz = new USDZExporter();
   const anchor = {
@@ -127,7 +138,9 @@ export async function buildArModels(
     const mesh = obj as THREE.Mesh;
     if (mesh.isMesh === true) {
       mesh.geometry.dispose();
-      for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+      for (const m of Array.isArray(mesh.material)
+        ? mesh.material
+        : [mesh.material]) {
         m.dispose();
       }
     }
@@ -193,14 +206,24 @@ export async function rebuildForDimFix(
   };
   const changed = next.w !== prev.w || next.h !== prev.h || next.d !== prev.d;
   const missing = before.modelGlb === "" || before.modelUsdz === "";
-  if (!changed && !missing) return { edits, files: [], rebuilt: false, note: null };
+  if (!changed && !missing)
+    return { edits, files: [], rebuilt: false, note: null };
   try {
     if (onRebuildStart !== undefined) onRebuildStart();
     const photoPath =
       before.image === "" ? null : `src/content/paintings/${before.image}`;
-    const rebuilt = await rebuildArFiles(getPhoto, stemOf(mdPath), photoPath, next);
+    const rebuilt = await rebuildArFiles(
+      getPhoto,
+      stemOf(mdPath),
+      photoPath,
+      next,
+    );
     return {
-      edits: { ...edits, modelGlb: rebuilt.modelGlb, modelUsdz: rebuilt.modelUsdz },
+      edits: {
+        ...edits,
+        modelGlb: rebuilt.modelGlb,
+        modelUsdz: rebuilt.modelUsdz,
+      },
       files: rebuilt.files,
       rebuilt: true,
       note: null,
@@ -228,11 +251,18 @@ export async function rebuildArFiles(
   photoPath: string | null,
   dims: { w: number | null; h: number | null; d: number | null },
 ): Promise<RebuiltAr> {
-  if (photoPath === null) throw new Error("This painting has no photo to rebuild from.");
+  if (photoPath === null)
+    throw new Error("This painting has no photo to rebuild from.");
   const photo = await getPhoto(photoPath);
   if (photo === null) throw new Error("Couldn't fetch this painting's photo.");
   const img = await loadImageBlob(photo);
-  const final = resolveDims(img.naturalWidth, img.naturalHeight, dims.w, dims.h, dims.d);
+  const final = resolveDims(
+    img.naturalWidth,
+    img.naturalHeight,
+    dims.w,
+    dims.h,
+    dims.d,
+  );
   const models = await buildArModels(img, final.w, final.h, final.d);
   const modelGlb = `/models/${stem}.glb`;
   const modelUsdz = `/models/${stem}.usdz`;

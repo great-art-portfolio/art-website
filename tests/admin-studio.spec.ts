@@ -58,7 +58,9 @@ async function mockCommitApi(page: Page): Promise<void> {
       });
     }
     if (req.method() === "GET") {
-      const name = (new URL(req.url()).searchParams.get("path") ?? "").split("/").pop() ?? "";
+      const name =
+        (new URL(req.url()).searchParams.get("path") ?? "").split("/").pop() ??
+        "";
       try {
         const content = readFileSync(join(paintingsDir, name), "utf8");
         return route.fulfill({
@@ -67,7 +69,11 @@ async function mockCommitApi(page: Page): Promise<void> {
           body: JSON.stringify({ content }),
         });
       } catch {
-        return route.fulfill({ status: 400, contentType: "application/json", body: "{}" });
+        return route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: "{}",
+        });
       }
     }
     return route.continue();
@@ -86,7 +92,9 @@ test("studio header links home, never to visitor funnels", async ({ page }) => {
   await page.goto("/admin");
   // ← Gallery, Add painting. Gallery doubles as leave (clears the token).
   await expect(page.locator(".site-nav .nav-links a")).toHaveCount(2);
-  await expect(page.locator('nav a.nav-cta[href="/admin/paintings/new"]')).toHaveText("Add painting");
+  await expect(
+    page.locator('nav a.nav-cta[href="/admin/paintings/new"]'),
+  ).toHaveText("Add painting");
   await expect(page.locator('nav a[href="/#notify"]')).toHaveCount(0);
   await expect(page.locator(".card .step")).toHaveCount(0);
   // Retry buttons stay hidden while sections load on their own.
@@ -103,10 +111,16 @@ test("collection rows link to their painting pages", async ({ page }) => {
   await mockCommitApi(page);
   await page.goto("/admin");
   for (const p of paintings) {
-    await expect(page.locator(`#edit-list a[href="/paintings/${p.slug}"]`)).toHaveCount(1);
+    await expect(
+      page.locator(`#edit-list a[href="/paintings/${p.slug}"]`),
+    ).toHaveCount(1);
   }
-  await page.locator(`#edit-list a[href="/paintings/${paintings[0].slug}"]`).click();
-  await expect(page).toHaveURL(new RegExp(`/paintings/${paintings[0].slug}/?$`));
+  await page
+    .locator(`#edit-list a[href="/paintings/${paintings[0].slug}"]`)
+    .click();
+  await expect(page).toHaveURL(
+    new RegExp(`/paintings/${paintings[0].slug}/?$`),
+  );
 });
 
 test("admin links wear the accent, never browser blue", async ({ page }) => {
@@ -133,7 +147,10 @@ test("studio hovers match the footer: underline only, no color flash", async ({
     await link.hover();
     // Underline fades in; the text itself never leaves the accent.
     await expect(link).toHaveCSS("color", accent);
-    await expect(link).not.toHaveCSS("text-decoration-color", "rgba(0, 0, 0, 0)");
+    await expect(link).not.toHaveCSS(
+      "text-decoration-color",
+      "rgba(0, 0, 0, 0)",
+    );
   }
 });
 
@@ -148,15 +165,25 @@ test("reduced motion kills movement, keeps gentle fades", async ({ page }) => {
   );
   // Buttons never lift; skeletons hold still.
   await page.locator("#sec-add .btn-link").hover();
-  await expect(page.locator("#sec-add .btn-link")).toHaveCSS("transform", "none");
-  await expect(page.locator("#edit-list .row-edit").first()).toHaveCSS("color", "rgb(164, 74, 36)");
+  await expect(page.locator("#sec-add .btn-link")).toHaveCSS(
+    "transform",
+    "none",
+  );
+  await expect(page.locator("#edit-list .row-edit").first()).toHaveCSS(
+    "color",
+    "rgb(164, 74, 36)",
+  );
 });
 
-test("collection rows stop well short of the card edge on desktop", async ({ page }) => {
+test("collection rows stop well short of the card edge on desktop", async ({
+  page,
+}) => {
   await page.goto("/admin");
   const list = page.locator("#edit-list");
   await expect(list).toBeVisible();
-  expect(await list.evaluate((el) => getComputedStyle(el).maxWidth)).toBe("512px");
+  expect(await list.evaluate((el) => getComputedStyle(el).maxWidth)).toBe(
+    "512px",
+  );
   const width = (await list.boundingBox())?.width ?? 0;
   expect(width).toBeLessThanOrEqual(512);
   expect(width).toBeGreaterThan(0);
@@ -165,21 +192,30 @@ test("collection rows stop well short of the card edge on desktop", async ({ pag
 test("info links list plainly, and Advanced eases open", async ({ page }) => {
   await page.goto("/admin");
   expect(
-    await page.locator("#sec-info ul").evaluate((el) => getComputedStyle(el).listStyleType),
+    await page
+      .locator("#sec-info ul")
+      .evaluate((el) => getComputedStyle(el).listStyleType),
   ).toBe("none");
   await expect(page.locator("#admin-token")).toBeHidden();
   // The Advanced heading stands clear of the lines above it.
-  await expect(page.locator("#sec-info summary")).toHaveCSS("margin-top", "24px");
+  await expect(page.locator("#sec-info summary")).toHaveCSS(
+    "margin-top",
+    "24px",
+  );
   await page.locator("#sec-info summary").click();
   await expect(page.locator("#admin-token")).toBeVisible();
 });
 
-test("errors toast over the page wherever she is scrolled", async ({ page }) => {
+test("errors toast over the page wherever she is scrolled", async ({
+  page,
+}) => {
   await page.goto("/admin");
   // Saving an empty banner with no backend behind it: a panel error.
   await page.locator("#f-announce").fill("");
   await page.locator("#announce-save").click();
-  await expect(page.locator("#admin-status")).not.toBeEmpty({ timeout: 15_000 });
+  await expect(page.locator("#admin-status")).not.toBeEmpty({
+    timeout: 15_000,
+  });
   // Every message re-rises the toast.
   await expect(page.locator("#admin-status.toast-in")).toHaveCount(1);
   const pos = await page
@@ -198,7 +234,9 @@ test("errors toast over the page wherever she is scrolled", async ({ page }) => 
   }
 });
 
-test("collection names the missing API token when the API refuses", async ({ page }) => {
+test("collection names the missing API token when the API refuses", async ({
+  page,
+}) => {
   await page.route(
     "**/api/commit*",
     async (route) =>
@@ -213,7 +251,9 @@ test("collection names the missing API token when the API refuses", async ({ pag
   await expect(page.locator("#collection-refresh")).toBeVisible();
 });
 
-test("views draws bars, hides when there is nothing to report", async ({ page }) => {
+test("views draws bars, hides when there is nothing to report", async ({
+  page,
+}) => {
   await mockCommitApi(page);
   // Later routes win: this overrides the mock's empty views above.
   await page.route("**/api/analytics*", async (route) =>
@@ -246,16 +286,23 @@ test("views card hides itself when empty", async ({ page }) => {
   await expect(page.locator("#sec-views")).toBeHidden();
 });
 
-test("views names the local preview when analytics is down", async ({ page }) => {
+test("views names the local preview when analytics is down", async ({
+  page,
+}) => {
   await mockCommitApi(page);
   // Later routes win: this overrides the mock's analytics success above.
-  await page.route("**/api/analytics*", async (route) => await route.abort("failed"));
+  await page.route(
+    "**/api/analytics*",
+    async (route) => await route.abort("failed"),
+  );
   await page.goto("/admin");
   await expect(page.locator("#views-list")).toContainText("local preview");
   await expect(page.locator("#views-refresh")).toBeHidden();
 });
 
-test("admin mode follows her through the whole gallery", async ({ browser }) => {
+test("admin mode follows her through the whole gallery", async ({
+  browser,
+}) => {
   const authed = await browser.newContext();
   await authed.addInitScript(() =>
     sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
@@ -284,23 +331,33 @@ test("visitors see zero admin chrome", async ({ page }) => {
   await expect(page.locator('nav a[href="/#notify"]')).toHaveCount(0);
 });
 
-test("studio dashboard grids without sideways scroll on a phone", async ({ browser }) => {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+test("studio dashboard grids without sideways scroll on a phone", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+  });
   const page = await context.newPage();
   await page.goto("/admin");
   // The anchor strip is gone; sections grid instead.
   await expect(page.locator(".subnav")).toHaveCount(0);
   const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    () =>
+      document.documentElement.scrollWidth -
+      document.documentElement.clientWidth,
   );
   expect(overflow).toBeLessThanOrEqual(0);
   await expect(page.locator(".admin-grid .card").first()).toBeVisible();
   // Her way home stays visible on a phone (non-CTA links hide by default).
-  await expect(page.locator('.site-nav .nav-links a.keep[href="/"]')).toBeVisible();
+  await expect(
+    page.locator('.site-nav .nav-links a.keep[href="/"]'),
+  ).toBeVisible();
   await context.close();
 });
 
-test("studio wakes up on every visit, not just full loads", async ({ page }) => {
+test("studio wakes up on every visit, not just full loads", async ({
+  page,
+}) => {
   await page.goto("/admin");
   // Out through the collection link (client-side hop), back again.
   await page.locator('#sec-collection .hint a[href="/#collection"]').click();
@@ -314,11 +371,13 @@ test("studio wakes up on every visit, not just full loads", async ({ page }) => 
   await expect(page.locator("#de-title")).toBeVisible();
 });
 
-test("banner lifetimes are 1/3/7/14 days plus no end date", async ({ page }) => {
+test("banner lifetimes are 1/3/7/14 days plus no end date", async ({
+  page,
+}) => {
   await page.goto("/admin");
-  const values = await page.locator("#f-duration option").evaluateAll((opts) =>
-    opts.map((o) => (o as HTMLOptionElement).value),
-  );
+  const values = await page
+    .locator("#f-duration option")
+    .evaluateAll((opts) => opts.map((o) => (o as HTMLOptionElement).value));
   expect(values).toEqual(["", "1", "3", "7", "14"]);
 });
 
@@ -334,7 +393,9 @@ test("collection groups available then sold, never bare statuses", async ({
   // Every row carries its thumbnail and its studio door.
   const links = await page.locator('#edit-list a[href^="/paintings/"]').count();
   expect(links).toBeGreaterThan(0);
-  await expect(page.locator('#edit-list a[href^="/admin/paintings/"]')).toHaveCount(links);
+  await expect(
+    page.locator('#edit-list a[href^="/admin/paintings/"]'),
+  ).toHaveCount(links);
   await expect(page.locator("#edit-list img.thumb").first()).toBeVisible();
 });
 
@@ -355,7 +416,9 @@ test("collection falls back to the baked-in list when the API fails", async ({
   await expect(rows.first()).toBeVisible();
   // Every row still carries its thumbnail and its studio door.
   const links = await rows.count();
-  await expect(page.locator('#edit-list a[href^="/admin/paintings/"]')).toHaveCount(links);
+  await expect(
+    page.locator('#edit-list a[href^="/admin/paintings/"]'),
+  ).toHaveCount(links);
   await expect(page.locator("#edit-list img.thumb").first()).toBeVisible();
   await expect(page.locator("#collection-refresh")).toBeHidden();
   await expect(page.locator("#collection-note")).toContainText("Practice list");
@@ -376,20 +439,27 @@ test("practice draft from the new room lands in the dashboard Drafts section", a
   await page.goto("/admin/paintings/new");
   await page.locator("#de-title").fill("Practice Piece");
   await page.locator("#de-price").fill("999.99");
-  await page.locator("#de-photo").setInputFiles("src/content/paintings/1943x1967.jpg");
+  await page
+    .locator("#de-photo")
+    .setInputFiles("src/content/paintings/1943x1967.jpg");
   await page.locator("#de-save-draft").click();
   // Saving lands back on the dashboard with its confirmation…
   await expect(page).toHaveURL(/\/admin\/?$/);
-  await expect(page.locator("#admin-status")).toContainText('Draft "Practice Piece" kept', {
-    timeout: 15_000,
-  });
+  await expect(page.locator("#admin-status")).toContainText(
+    'Draft "Practice Piece" kept',
+    {
+      timeout: 15_000,
+    },
+  );
   // …and the Drafts section appears, practice row inside.
   await expect(page.locator("#edit-list")).toContainText("Drafts");
   await expect(page.locator("#edit-list")).toContainText("Practice Piece");
   await expect(page.locator("#practice-reset")).toBeVisible();
 });
 
-test("practice reset clears the overlay back to the repo list", async ({ page }) => {
+test("practice reset clears the overlay back to the repo list", async ({
+  page,
+}) => {
   await page.addInitScript(() => {
     window.localStorage.setItem(
       "studio-practice-v1",
@@ -457,7 +527,9 @@ test("gallery link leaves admin and lands home", async ({ browser }) => {
   await page.goto("/admin");
   // Set once (addInitScript would re-run on the post-leave navigation and
   // replant the token, defeating the assertion).
-  await page.evaluate(() => window.localStorage.setItem("ADMIN_API_TOKEN", "test"));
+  await page.evaluate(() =>
+    window.localStorage.setItem("ADMIN_API_TOKEN", "test"),
+  );
   await page.reload();
   await page.locator("#leave-admin").click();
   await expect(page).toHaveURL(/\/$/);

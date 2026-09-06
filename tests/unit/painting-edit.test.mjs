@@ -10,7 +10,11 @@ import {
 
 describe("resolveDims", () => {
   it("uses the tape measurements when present", () => {
-    assert.deepEqual(resolveDims(1943, 1967, 20, 20, 1.5), { w: 20, h: 20, d: 1.5 });
+    assert.deepEqual(resolveDims(1943, 1967, 20, 20, 1.5), {
+      w: 20,
+      h: 20,
+      d: 1.5,
+    });
   });
 
   it("falls back to 24 in wide at the photo's aspect", () => {
@@ -68,7 +72,7 @@ describe("parsePainting photo/model refs", () => {
   });
 
   it("defaults to empty when absent", () => {
-    const p = parsePainting("---\ntitle: \"X\"\n---\nBody.\n");
+    const p = parsePainting('---\ntitle: "X"\n---\nBody.\n');
     assert.equal(p?.image, "");
     assert.equal(p?.modelGlb, "");
   });
@@ -131,13 +135,18 @@ describe("patchPainting model refs", () => {
   });
 
   it("flips the draft flag both ways", () => {
-    assert.match(patchPainting(SAMPLE, { ...edits, draft: true }), /^draft: true$/m);
+    assert.match(
+      patchPainting(SAMPLE, { ...edits, draft: true }),
+      /^draft: true$/m,
+    );
     const back = patchPainting(SAMPLE, { ...edits, draft: true });
     assert.match(patchPainting(back, edits), /^draft: false$/m);
   });
 
   it("reads medium and draft back", () => {
-    const p = parsePainting(patchPainting(SAMPLE, { ...edits, medium: "Oil", draft: true }));
+    const p = parsePainting(
+      patchPainting(SAMPLE, { ...edits, medium: "Oil", draft: true }),
+    );
     assert.equal(p.medium, "Oil");
     assert.equal(p.draft, true);
     const plain = parsePainting(SAMPLE);
@@ -198,11 +207,18 @@ describe("paintingFilePaths", () => {
     ]);
   });
   it("skips missing photo and model-less paintings", () => {
-    assert.deepEqual(paintingFilePaths(md, { image: "", modelGlb: "", modelUsdz: "" }), [md]);
+    assert.deepEqual(
+      paintingFilePaths(md, { image: "", modelGlb: "", modelUsdz: "" }),
+      [md],
+    );
   });
   it("ignores non-model refs", () => {
     assert.deepEqual(
-      paintingFilePaths(md, { image: "x.jpg", modelGlb: "https://cdn.example/m.glb", modelUsdz: "" }),
+      paintingFilePaths(md, {
+        image: "x.jpg",
+        modelGlb: "https://cdn.example/m.glb",
+        modelUsdz: "",
+      }),
       [md, "src/content/paintings/x.jpg"],
     );
   });

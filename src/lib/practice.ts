@@ -40,7 +40,11 @@ export function loadPracticeOverlay(): PracticeOverlay {
     const src = parsed.upserts;
     if (typeof src === "object" && src !== null) {
       for (const [slug, p] of Object.entries(src)) {
-        if (typeof p === "object" && p !== null && typeof (p as PracticePainting).title === "string") {
+        if (
+          typeof p === "object" &&
+          p !== null &&
+          typeof (p as PracticePainting).title === "string"
+        ) {
           upserts[slug] = p as PracticePainting;
         }
       }

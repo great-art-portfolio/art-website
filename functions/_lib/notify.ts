@@ -56,8 +56,10 @@ async function sendEmail(
   text: string,
   replyTo?: string,
 ): Promise<boolean> {
-  if (env.RESEND_API_KEY === undefined || env.RESEND_API_KEY === "") return false;
-  if (env.NOTIFY_EMAIL_TO === undefined || env.NOTIFY_EMAIL_TO === "") return false;
+  if (env.RESEND_API_KEY === undefined || env.RESEND_API_KEY === "")
+    return false;
+  if (env.NOTIFY_EMAIL_TO === undefined || env.NOTIFY_EMAIL_TO === "")
+    return false;
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -77,7 +79,11 @@ async function sendEmail(
   return res.ok;
 }
 
-async function sendPush(env: AppEnv, title: string, message: string): Promise<boolean> {
+async function sendPush(
+  env: AppEnv,
+  title: string,
+  message: string,
+): Promise<boolean> {
   const jobs: Promise<boolean>[] = [];
   if (env.NTFY_TOPIC !== undefined && env.NTFY_TOPIC !== "") {
     jobs.push(

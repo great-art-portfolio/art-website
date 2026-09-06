@@ -7,11 +7,14 @@ const token =
   (import.meta.env.PUBLIC_CF_BEACON_TOKEN as string | undefined) ||
   "ddd0b31f86c24e31a4fbabd86185e210";
 ---
-{token !== undefined && token !== "" && (
-  <script
-    is:inline
-    defer
-    src="https://static.cloudflareinsights.com/beacon.min.js"
-    data-cf-beacon={`{"token": "${token}"}`}
-  />
-)}
+
+{
+  token !== undefined && token !== "" && (
+    <script
+      is:inline
+      defer
+      src="https://static.cloudflareinsights.com/beacon.min.js"
+      data-cf-beacon={`{"token": "${token}"}`}
+    />
+  )
+}

@@ -1,4 +1,9 @@
-import { commitFiles, listDir, readTextFile, type GitHubConfig } from "../_lib/github";
+import {
+  commitFiles,
+  listDir,
+  readTextFile,
+  type GitHubConfig,
+} from "../_lib/github";
 import type { AppEnv } from "../_lib/env";
 import { badRequest, json, requireAdmin, serverError } from "../_lib/http";
 
@@ -12,7 +17,8 @@ function gitConfig(env: AppEnv): GitHubConfig | null {
   return { token, repo, branch: env.GITHUB_BRANCH ?? "main" };
 }
 
-const PAINTING_FILE = /^src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9_.-]*\.md$/;
+const PAINTING_FILE =
+  /^src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9_.-]*\.md$/;
 
 /** Admin: read the banner text, or one painting file (?path=…). Lives in git. */
 export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
@@ -29,7 +35,9 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
       if (content === null) return badRequest("Unknown file");
       return json({ content });
     }
-    return json({ announcement: (await readTextFile(config, BANNER_PATH)) ?? "" });
+    return json({
+      announcement: (await readTextFile(config, BANNER_PATH)) ?? "",
+    });
   } catch (err) {
     console.error(err);
     return serverError();
@@ -62,8 +70,13 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   } catch {
     return badRequest("Invalid JSON");
   }
-  const message = typeof body["message"] === "string" ? body["message"].trim().slice(0, 200) : "";
-  const inputs = Array.isArray(body["files"]) ? (body["files"] as CommitFileInput[]) : [];
+  const message =
+    typeof body["message"] === "string"
+      ? body["message"].trim().slice(0, 200)
+      : "";
+  const inputs = Array.isArray(body["files"])
+    ? (body["files"] as CommitFileInput[])
+    : [];
   const deletes = Array.isArray(body["delete"]) ? body["delete"] : [];
   const deletePaths: string[] = [];
   for (const d of deletes) {
@@ -72,12 +85,23 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     }
     deletePaths.push(d);
   }
-  if (message === "" || inputs.length + deletePaths.length === 0 || inputs.length + deletePaths.length > 12) {
+  if (
+    message === "" ||
+    inputs.length + deletePaths.length === 0 ||
+    inputs.length + deletePaths.length > 12
+  ) {
     return badRequest("A message and 1–12 files are required");
   }
-  const files: Array<{ path: string; content: ArrayBuffer; deleted?: boolean }> = [];
+  const files: Array<{
+    path: string;
+    content: ArrayBuffer;
+    deleted?: boolean;
+  }> = [];
   for (const input of inputs) {
-    if (typeof input.path !== "string" || typeof input.contentBase64 !== "string") {
+    if (
+      typeof input.path !== "string" ||
+      typeof input.contentBase64 !== "string"
+    ) {
       return badRequest("Each file needs a path and base64 content");
     }
     if (!GALLERY_PATH.test(input.path)) {

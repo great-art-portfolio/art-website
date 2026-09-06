@@ -40,7 +40,10 @@ async function vapidHeader(env: AppEnv, endpoint: string): Promise<string> {
   );
   const aud = new URL(endpoint).origin;
   const exp = Math.floor(Date.now() / 1000) + 12 * 60 * 60;
-  const sub = (env.VAPID_CONTACT ?? "").trim() === "" ? "mailto:localhost" : (env.VAPID_CONTACT as string);
+  const sub =
+    (env.VAPID_CONTACT ?? "").trim() === ""
+      ? "mailto:localhost"
+      : (env.VAPID_CONTACT as string);
   const head = b64url(enc.encode(JSON.stringify({ typ: "JWT", alg: "ES256" })));
   const body = b64url(enc.encode(JSON.stringify({ aud, exp, sub })));
   const sig = await crypto.subtle.sign(
@@ -53,7 +56,10 @@ async function vapidHeader(env: AppEnv, endpoint: string): Promise<string> {
 
 export type Tickle = "sent" | "gone" | "retry" | "unconfigured";
 
-export async function sendTickle(env: AppEnv, sub: StoredSubscription): Promise<Tickle> {
+export async function sendTickle(
+  env: AppEnv,
+  sub: StoredSubscription,
+): Promise<Tickle> {
   if (!configured(env)) return "unconfigured";
   let auth: string;
   try {
@@ -78,18 +84,24 @@ export async function sendTickle(env: AppEnv, sub: StoredSubscription): Promise<
     return "retry";
   }
   if (res.status === 404 || res.status === 410) return "gone"; // Expired — delete it.
-  if (!res.ok) console.error("push service error", res.status, await res.text());
+  if (!res.ok)
+    console.error("push service error", res.status, await res.text());
   return res.ok ? "sent" : "retry";
 }
 
-export async function listSubscriptions(env: AppEnv): Promise<StoredSubscription[]> {
+export async function listSubscriptions(
+  env: AppEnv,
+): Promise<StoredSubscription[]> {
   const res = await env.DB.prepare(
     "SELECT endpoint, p256dh, auth FROM push_subscriptions",
   ).all<StoredSubscription>();
   return res.results ?? [];
 }
 
-export async function removeSubscription(env: AppEnv, endpoint: string): Promise<void> {
+export async function removeSubscription(
+  env: AppEnv,
+  endpoint: string,
+): Promise<void> {
   await env.DB.prepare("DELETE FROM push_subscriptions WHERE endpoint = ?")
     .bind(endpoint)
     .run();

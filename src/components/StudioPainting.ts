@@ -86,7 +86,11 @@ let photoGen = 0;
 let previewModels: { sig: string; glb: Blob; usdz: Blob } | null = null;
 let photoReplaced = false;
 
-function readDims(): { widthIn: number | null; heightIn: number | null; depthIn: number | null } {
+function readDims(): {
+  widthIn: number | null;
+  heightIn: number | null;
+  depthIn: number | null;
+} {
   return {
     widthIn: numOrNull(($("de-w") as HTMLInputElement).value),
     heightIn: numOrNull(($("de-h") as HTMLInputElement).value),
@@ -104,12 +108,17 @@ function modelSig(): string | null {
 function refreshPreview(): void {
   const title = ($("de-title") as HTMLInputElement).value.trim();
   const priceRaw = ($("de-price") as HTMLInputElement).value.trim();
-  ($("pv-title") as HTMLElement).textContent = title === "" ? "Untitled" : title;
+  ($("pv-title") as HTMLElement).textContent =
+    title === "" ? "Untitled" : title;
   const cents = dollarsToCents(Number(priceRaw));
-  ($("pv-price") as HTMLElement).textContent = cents === null ? "Price?" : formatCAD(cents);
+  ($("pv-price") as HTMLElement).textContent =
+    cents === null ? "Price?" : formatCAD(cents);
   const { widthIn, heightIn, depthIn } = readDims();
   const medium = ($("de-medium") as HTMLInputElement).value.trim();
-  const meta = [medium === "" ? undefined : medium, formatDimensions(widthIn, heightIn, depthIn)]
+  const meta = [
+    medium === "" ? undefined : medium,
+    formatDimensions(widthIn, heightIn, depthIn),
+  ]
     .filter((s) => s !== undefined && s !== "")
     .join(" · ");
   ($("pv-meta") as HTMLElement).textContent = meta;
@@ -127,7 +136,12 @@ function blobToFile(blob: Blob, name: string, type: string): File {
 }
 
 /** Show the prepared photo wherever this room displays one. */
-function showPhoto(url: string, width: number, height: number, bytes: number): void {
+function showPhoto(
+  url: string,
+  width: number,
+  height: number,
+  bytes: number,
+): void {
   const draftImg = maybe<HTMLImageElement>("de-photo-preview");
   if (draftImg !== null) {
     draftImg.src = url;
@@ -138,9 +152,13 @@ function showPhoto(url: string, width: number, height: number, bytes: number): v
   const frameImg = document.querySelector<HTMLImageElement>("#photo-wrap img");
   if (frameImg !== null) frameImg.src = url;
   const mb = bytes / 1048576;
-  const size = mb >= 1 ? `${mb.toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  const size =
+    mb >= 1
+      ? `${mb.toFixed(1)} MB`
+      : `${Math.max(1, Math.round(bytes / 1024))} KB`;
   const meta = maybe("de-photo-meta");
-  if (meta !== null) meta.textContent = `${width} × ${height} px · ${size} upload`;
+  if (meta !== null)
+    meta.textContent = `${width} × ${height} px · ${size} upload`;
 }
 
 async function ingestPhoto(img: HTMLImageElement): Promise<void> {
@@ -152,7 +170,12 @@ async function ingestPhoto(img: HTMLImageElement): Promise<void> {
   previewModels = null;
   photoReplaced = true;
   lastPreviewUrl = prepared.previewUrl;
-  showPhoto(prepared.previewUrl, prepared.width, prepared.height, prepared.blob.size);
+  showPhoto(
+    prepared.previewUrl,
+    prepared.width,
+    prepared.height,
+    prepared.blob.size,
+  );
   void autoBuildAr();
 }
 
@@ -174,7 +197,8 @@ function heicHint(file: File): string {
 async function autoBuildAr(): Promise<void> {
   if (preparedBlob === null) return;
   const want = modelSig();
-  if (want !== null && previewModels !== null && previewModels.sig === want) return;
+  if (want !== null && previewModels !== null && previewModels.sig === want)
+    return;
   const source = preparedBlob;
   const gen = photoGen;
   const waiting = maybe("de-ar-waiting");
@@ -182,18 +206,25 @@ async function autoBuildAr(): Promise<void> {
   if (stage === null) return;
   if (waiting !== null) waiting.hidden = true;
   stage.hidden = false;
-  stage.innerHTML = '<p class="ar-waiting">Building the 3D preview — about 5 seconds…</p>';
+  stage.innerHTML =
+    '<p class="ar-waiting">Building the 3D preview — about 5 seconds…</p>';
   try {
     const { buildArModels, estimateDims } = await loadArTooling();
     if (gen !== photoGen || preparedBlob !== source) return;
-    const arImg = await loadImageFile(blobToFile(source, "ar-source.jpg", "image/jpeg"));
+    const arImg = await loadImageFile(
+      blobToFile(source, "ar-source.jpg", "image/jpeg"),
+    );
     const { widthIn, heightIn, depthIn } = readDims();
     const dims = estimateDims(arImg, widthIn, heightIn, depthIn);
     const models = await buildArModels(arImg, dims.w, dims.h, dims.d);
     if (gen !== photoGen || preparedBlob !== source) return;
     const sig = modelSig();
-    previewModels = sig === null ? null : { sig, glb: models.glb, usdz: models.usdz };
-    showArViewer(URL.createObjectURL(models.glb), URL.createObjectURL(models.usdz));
+    previewModels =
+      sig === null ? null : { sig, glb: models.glb, usdz: models.usdz };
+    showArViewer(
+      URL.createObjectURL(models.glb),
+      URL.createObjectURL(models.usdz),
+    );
   } catch (err) {
     if (gen !== photoGen || preparedBlob !== source) return;
     previewModels = null;
@@ -212,7 +243,9 @@ function showArViewer(glbUrl: string, usdzUrl: string): void {
       if (!document.contains(stage)) return;
       const title = ($("de-title") as HTMLInputElement).value.trim();
       const alt = ($("de-alt") as HTMLInputElement).value.trim();
-      const el = document.createElement("model-viewer") as unknown as HTMLElement;
+      const el = document.createElement(
+        "model-viewer",
+      ) as unknown as HTMLElement;
       el.setAttribute("src", glbUrl);
       el.setAttribute("ios-src", usdzUrl);
       el.setAttribute("ar", "");
@@ -241,10 +274,14 @@ function buzz(): void {
 }
 
 /** Hand the dashboard its confirmation + share kit, then go there. */
-function goAdmin(flash: string, share?: { title: string; caption: string; pageUrl: string }): void {
+function goAdmin(
+  flash: string,
+  share?: { title: string; caption: string; pageUrl: string },
+): void {
   try {
     window.sessionStorage.setItem("studio-flash", flash);
-    if (share !== undefined) window.sessionStorage.setItem("studio-share", JSON.stringify(share));
+    if (share !== undefined)
+      window.sessionStorage.setItem("studio-share", JSON.stringify(share));
   } catch {
     // ignore
   }
@@ -293,12 +330,15 @@ async function modelBlobs(): Promise<{ glb: Blob; usdz: Blob } | null> {
   try {
     const { buildArModels, estimateDims } = await loadArTooling();
     const source = preparedBlob;
-    const arImg = await loadImageFile(blobToFile(source, "ar-source.jpg", "image/jpeg"));
+    const arImg = await loadImageFile(
+      blobToFile(source, "ar-source.jpg", "image/jpeg"),
+    );
     const { widthIn, heightIn, depthIn } = readDims();
     const dims = estimateDims(arImg, widthIn, heightIn, depthIn);
     const models = await buildArModels(arImg, dims.w, dims.h, dims.d);
     const sig = modelSig();
-    previewModels = sig === null ? null : { sig, glb: models.glb, usdz: models.usdz };
+    previewModels =
+      sig === null ? null : { sig, glb: models.glb, usdz: models.usdz };
     return { glb: models.glb, usdz: models.usdz };
   } catch (err) {
     console.error(err);
@@ -307,7 +347,11 @@ async function modelBlobs(): Promise<{ glb: Blob; usdz: Blob } | null> {
   }
 }
 
-function shareFor(fields: FieldSet, priceCents: number, pageUrl: string): string {
+function shareFor(
+  fields: FieldSet,
+  priceCents: number,
+  pageUrl: string,
+): string {
   return buildCaption({
     title: fields.title,
     priceCents,
@@ -329,7 +373,10 @@ async function saveNew(draft: boolean): Promise<void> {
     return;
   }
   if (usePracticeMode()) {
-    const slug = slugifyTitle(fields.title) === "" ? "untitled" : slugifyTitle(fields.title);
+    const slug =
+      slugifyTitle(fields.title) === ""
+        ? "untitled"
+        : slugifyTitle(fields.title);
     const practice: PracticePainting = {
       slug,
       title: fields.title,
@@ -352,7 +399,11 @@ async function saveNew(draft: boolean): Promise<void> {
     );
     return;
   }
-  setStatus(draft ? "Saving draft…" : "Publishing… (photo, page, and preview in one commit)");
+  setStatus(
+    draft
+      ? "Saving draft…"
+      : "Publishing… (photo, page, and preview in one commit)",
+  );
   try {
     const slug = await uniqueSlug(fields.title);
     const imageFile = `${slug}.jpg`;
@@ -384,14 +435,21 @@ async function saveNew(draft: boolean): Promise<void> {
         { path: `public/models/${slug}.usdz`, blob: models.usdz },
       );
     }
-    await api.commitFiles(draft ? `Save draft: ${fields.title}` : `Add painting: ${fields.title}`, files);
+    await api.commitFiles(
+      draft ? `Save draft: ${fields.title}` : `Add painting: ${fields.title}`,
+      files,
+    );
     buzz();
     const priceCents = Math.round(fields.price * 100);
     goAdmin(
       draft
         ? `Draft "${fields.title}" saved — publish it from the studio when ready.`
         : `Published "${fields.title}" (${formatCAD(priceCents)}) — live in a few minutes.`,
-      { title: fields.title, caption: shareFor(fields, priceCents, pageUrl), pageUrl },
+      {
+        title: fields.title,
+        caption: shareFor(fields, priceCents, pageUrl),
+        pageUrl,
+      },
     );
   } catch (err) {
     setStatus((err as Error).message, true);
@@ -454,14 +512,21 @@ async function saveEdit(
       setStatus("Couldn't load this painting's file.", true);
       return;
     }
-    practiceUpsert({ ...practiceFromInputs(slug, draft), title: fields.title, price: fields.price });
+    practiceUpsert({
+      ...practiceFromInputs(slug, draft),
+      title: fields.title,
+      price: fields.price,
+    });
     buzz();
-    goAdmin(`Saved "${fields.title}" in this tab's practice list — publish it on the live site.`);
+    goAdmin(
+      `Saved "${fields.title}" in this tab's practice list — publish it on the live site.`,
+    );
     return;
   }
   setStatus("Saving… (live in a few minutes)");
   try {
-    const imageFile = base.parsed.image === "" ? `${slug}.jpg` : base.parsed.image;
+    const imageFile =
+      base.parsed.image === "" ? `${slug}.jpg` : base.parsed.image;
     const files: Array<{ path: string; blob: Blob | string }> = [];
     const edits: PaintingEdits = {
       title: fields.title,
@@ -478,8 +543,14 @@ async function saveEdit(
     if (photoReplaced && preparedBlob !== null) {
       // New photo: build its models now and commit everything together.
       const models = await modelBlobs();
-      const glbRef = base.parsed.modelGlb !== "" ? base.parsed.modelGlb : `/models/${slug}.glb`;
-      const usdzRef = base.parsed.modelUsdz !== "" ? base.parsed.modelUsdz : `/models/${slug}.usdz`;
+      const glbRef =
+        base.parsed.modelGlb !== ""
+          ? base.parsed.modelGlb
+          : `/models/${slug}.glb`;
+      const usdzRef =
+        base.parsed.modelUsdz !== ""
+          ? base.parsed.modelUsdz
+          : `/models/${slug}.usdz`;
       files.push(
         {
           path: mdPath,
@@ -500,13 +571,21 @@ async function saveEdit(
       }
     } else {
       // Same photo: dimension fixes rebuild the models from the repo file.
-      const { rebuildForDimFix } = await import("../lib/vendor-loader").then((m) =>
-        m.loadArTooling(),
+      const { rebuildForDimFix } = await import("../lib/vendor-loader").then(
+        (m) => m.loadArTooling(),
       );
-      const fix = await rebuildForDimFix(api.getPhoto, mdPath, base.parsed, edits, () =>
-        setStatus("Rebuilding wall preview… (true size, about 5 seconds)"),
+      const fix = await rebuildForDimFix(
+        api.getPhoto,
+        mdPath,
+        base.parsed,
+        edits,
+        () =>
+          setStatus("Rebuilding wall preview… (true size, about 5 seconds)"),
       );
-      files.push({ path: mdPath, blob: patchPainting(base.content, fix.edits) }, ...fix.files);
+      files.push(
+        { path: mdPath, blob: patchPainting(base.content, fix.edits) },
+        ...fix.files,
+      );
       if (fix.note !== null) {
         setStatus(`Saved "${fields.title}" — but ${fix.note}`, true);
         return;
@@ -531,7 +610,10 @@ function wireDelete(
     if (btn.dataset.armed !== "1") {
       btn.dataset.armed = "1";
       btn.textContent = "Tap again to delete";
-      setStatus(`This removes "${getTitle()}" from the site. Tap again to confirm.`, true);
+      setStatus(
+        `This removes "${getTitle()}" from the site. Tap again to confirm.`,
+        true,
+      );
       return;
     }
     btn.disabled = true;
@@ -564,7 +646,13 @@ function initStudio(): void {
   rotation = 0;
 
   refreshPreview();
-  for (const id of ["de-title", "de-price", "de-medium", "de-desc", "de-sold"]) {
+  for (const id of [
+    "de-title",
+    "de-price",
+    "de-medium",
+    "de-desc",
+    "de-sold",
+  ]) {
     $(id).addEventListener("input", refreshPreview);
   }
   for (const id of ["de-w", "de-h", "de-d"]) {
@@ -581,7 +669,9 @@ function initStudio(): void {
     rotation = 0;
     loadImageFile(file)
       .then((img) => ingestPhoto(img))
-      .catch((err: unknown) => setStatus(`${(err as Error).message}.${heicHint(file)}`, true));
+      .catch((err: unknown) =>
+        setStatus(`${(err as Error).message}.${heicHint(file)}`, true),
+      );
   });
   for (const deg of [90, 270] as const) {
     maybe(`de-rotate-${deg}`)?.addEventListener("click", () => {
@@ -595,7 +685,12 @@ function initStudio(): void {
           previewModels = null;
           photoReplaced = true;
           lastPreviewUrl = prepared.previewUrl;
-          showPhoto(prepared.previewUrl, prepared.width, prepared.height, prepared.blob.size);
+          showPhoto(
+            prepared.previewUrl,
+            prepared.width,
+            prepared.height,
+            prepared.blob.size,
+          );
           await autoBuildAr();
         })
         .catch((err: unknown) => setStatus((err as Error).message, true));
@@ -621,7 +716,9 @@ function initStudio(): void {
     rotation = 0;
     loadImageFile(file)
       .then((img) => ingestPhoto(img))
-      .catch((err: unknown) => setStatus(`${(err as Error).message}.${heicHint(file)}`, true));
+      .catch((err: unknown) =>
+        setStatus(`${(err as Error).message}.${heicHint(file)}`, true),
+      );
   });
 
   // Buttons wire up immediately; the file they act on arrives just behind.
@@ -636,39 +733,45 @@ function initStudio(): void {
       }
     }
   });
-  maybe("de-save")?.addEventListener("click", () =>
-    void basePromise.then((base) => saveEdit(slug, mdPath, base, draft)),
+  maybe("de-save")?.addEventListener(
+    "click",
+    () => void basePromise.then((base) => saveEdit(slug, mdPath, base, draft)),
   );
-  maybe("de-visibility")?.addEventListener("click", () =>
-    void basePromise.then((base) => {
-      const fields = readFields();
-      if (fields === null) return;
-      if (usePracticeMode() || base === null) {
-        if (base === null && !usePracticeMode()) {
-          setStatus("Couldn't load this painting's file.", true);
-          return;
-        }
-        practiceUpsert({ ...practiceFromInputs(slug, !draft), title: fields.title });
-        buzz();
-        goAdmin(
-          draft
-            ? `Published "${fields.title}" in this tab's practice list.`
-            : `Unpublished "${fields.title}" in this tab's practice list.`,
-        );
-        return;
-      }
-      setStatus(draft ? "Publishing…" : "Unpublishing…");
-      patchFlipDraft(mdPath, base, !draft, fields)
-        .then(() => {
+  maybe("de-visibility")?.addEventListener(
+    "click",
+    () =>
+      void basePromise.then((base) => {
+        const fields = readFields();
+        if (fields === null) return;
+        if (usePracticeMode() || base === null) {
+          if (base === null && !usePracticeMode()) {
+            setStatus("Couldn't load this painting's file.", true);
+            return;
+          }
+          practiceUpsert({
+            ...practiceFromInputs(slug, !draft),
+            title: fields.title,
+          });
           buzz();
           goAdmin(
             draft
-              ? `Published "${fields.title}" — live in a few minutes.`
-              : `Unpublished "${fields.title}" — off the site in a few minutes.`,
+              ? `Published "${fields.title}" in this tab's practice list.`
+              : `Unpublished "${fields.title}" in this tab's practice list.`,
           );
-        })
-        .catch((err: unknown) => setStatus((err as Error).message, true));
-    }),
+          return;
+        }
+        setStatus(draft ? "Publishing…" : "Unpublishing…");
+        patchFlipDraft(mdPath, base, !draft, fields)
+          .then(() => {
+            buzz();
+            goAdmin(
+              draft
+                ? `Published "${fields.title}" — live in a few minutes.`
+                : `Unpublished "${fields.title}" — off the site in a few minutes.`,
+            );
+          })
+          .catch((err: unknown) => setStatus((err as Error).message, true));
+      }),
   );
   wireDelete(
     "de-del",
@@ -677,7 +780,9 @@ function initStudio(): void {
       if (usePracticeMode()) {
         practiceDelete(slug);
         buzz();
-        goAdmin("Deleted from this tab's practice list — the real file is untouched.");
+        goAdmin(
+          "Deleted from this tab's practice list — the real file is untouched.",
+        );
         return;
       }
       const base = await basePromise;

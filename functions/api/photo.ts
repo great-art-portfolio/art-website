@@ -23,7 +23,8 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
   if (denied !== null) return denied;
   const token = context.env.GITHUB_TOKEN ?? "";
   const repo = context.env.GITHUB_REPO ?? "";
-  if (token === "" || repo === "") return badRequest("GitHub publishing is not configured");
+  if (token === "" || repo === "")
+    return badRequest("GitHub publishing is not configured");
   const path = new URL(context.request.url).searchParams.get("path") ?? "";
   if (!PHOTO_FILE.test(path)) return badRequest("Unknown photo");
   try {

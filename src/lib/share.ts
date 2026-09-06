@@ -26,7 +26,9 @@ export function buildCaption(painting: ShareablePainting): string {
   const lines = [
     headline,
     "",
-    painting.description === "" ? "Fresh from the Calgary studio." : painting.description,
+    painting.description === ""
+      ? "Fresh from the Calgary studio."
+      : painting.description,
     "",
     `See it here: ${painting.pageUrl}`,
     "",
@@ -42,12 +44,21 @@ export async function sharePainting(input: {
   pageUrl: string;
   imageBlob?: Blob | undefined;
 }): Promise<"shared" | "copied" | "failed"> {
-  const data: ShareData = { title: input.title, text: input.caption, url: input.pageUrl };
+  const data: ShareData = {
+    title: input.title,
+    text: input.caption,
+    url: input.pageUrl,
+  };
   if (input.imageBlob !== undefined) {
     try {
-      const file = new File([input.imageBlob], "painting.jpg", { type: "image/jpeg" });
+      const file = new File([input.imageBlob], "painting.jpg", {
+        type: "image/jpeg",
+      });
       const payload = { files: [file] };
-      if (typeof navigator.canShare === "function" && navigator.canShare(payload)) {
+      if (
+        typeof navigator.canShare === "function" &&
+        navigator.canShare(payload)
+      ) {
         data.files = [file];
       }
     } catch {
@@ -61,7 +72,8 @@ export async function sharePainting(input: {
     }
   } catch (err) {
     // AbortError = she dismissed the sheet; not a failure.
-    if (err instanceof DOMException && err.name === "AbortError") return "shared";
+    if (err instanceof DOMException && err.name === "AbortError")
+      return "shared";
   }
   try {
     await navigator.clipboard.writeText(input.caption);

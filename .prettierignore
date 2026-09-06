@@ -1,0 +1,6 @@
+# Build output and vendored bundles — never reformat.
+dist/
+.astro/
+public/js/
+*.min.js
+pnpm-lock.yaml

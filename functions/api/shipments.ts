@@ -1,6 +1,16 @@
 import type { AppEnv } from "../_lib/env";
-import { badRequest, json, notEnabled, requireAdmin, serverError } from "../_lib/http";
-import { buyShippoLabel, fetchShippoRates, type ShippoAddress } from "../_lib/shipping";
+import {
+  badRequest,
+  json,
+  notEnabled,
+  requireAdmin,
+  serverError,
+} from "../_lib/http";
+import {
+  buyShippoLabel,
+  fetchShippoRates,
+  type ShippoAddress,
+} from "../_lib/shipping";
 
 /**
  * Admin: Shippo rates + label purchase. 501 until enabled.
@@ -20,8 +30,15 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       const rateId = typeof body["rateId"] === "string" ? body["rateId"] : "";
       if (rateId === "") return badRequest("rateId is required");
       const label = await buyShippoLabel(context.env, { rateId });
-      if (!label.enabled) return notEnabled("Shippo", 'Set ENABLE_SHIPPO="true" and SHIPPO_API_TOKEN.');
-      return json({ labelUrl: label.labelUrl, trackingNumber: label.trackingNumber });
+      if (!label.enabled)
+        return notEnabled(
+          "Shippo",
+          'Set ENABLE_SHIPPO="true" and SHIPPO_API_TOKEN.',
+        );
+      return json({
+        labelUrl: label.labelUrl,
+        trackingNumber: label.trackingNumber,
+      });
     }
     const quote = await fetchShippoRates(context.env, {
       to: body["to"] as ShippoAddress,

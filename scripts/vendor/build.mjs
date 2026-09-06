@@ -36,7 +36,10 @@ const esbuild = join(root, "node_modules", ".bin", "esbuild");
 // (The verbatim model-viewer-module.min.js imports bare "three", which
 // browsers can't resolve without an import map — shipping it raw 404s
 // nothing but still never defines <model-viewer>.)
-const mvPkg = join(dirname(require.resolve("@google/model-viewer/package.json")), "dist");
+const mvPkg = join(
+  dirname(require.resolve("@google/model-viewer/package.json")),
+  "dist",
+);
 const mvSrc = join(mvPkg, "model-viewer-module.min.js");
 if (!existsSync(mvSrc)) throw new Error(`model-viewer dist missing: ${mvSrc}`);
 execFileSync(

@@ -10,10 +10,11 @@ https://art-website-cm4.pages.dev/
 
 Astro 7 (static gallery — paintings are markdown + photos in git) +
 Cloudflare Pages Functions (inquiry emails, git publishing, push fan-out)
-+ D1 (one table: push subscriptions). Admin at `/admin`, protected by
-Cloudflare Access (email OTP). Saving publishes to git; the git-connected
-Pages project rebuilds (live in a few minutes). Buyer inquiries email via
-Resend, nothing stored.
+
+- D1 (one table: push subscriptions). Admin at `/admin`, protected by
+  Cloudflare Access (email OTP). Saving publishes to git; the git-connected
+  Pages project rebuilds (live in a few minutes). Buyer inquiries email via
+  Resend, nothing stored.
 
 ## Setup
 

@@ -24,8 +24,10 @@ function localToday(offsetDays = 0): string {
 test("studio banner form offers lifetimes and saves with an expiry", async ({
   page,
 }) => {
-  let posted: { message: string; files: Array<{ path: string; contentBase64: string }> } | null =
-    null;
+  let posted: {
+    message: string;
+    files: Array<{ path: string; contentBase64: string }>;
+  } | null = null;
   await page.route("**/api/commit*", async (route) => {
     if (route.request().method() === "POST") {
       posted = route.request().postDataJSON() as typeof posted;
@@ -44,9 +46,9 @@ test("studio banner form offers lifetimes and saves with an expiry", async ({
     timeout: 15_000,
   });
 
-  const values = await page.locator("#f-duration option").evaluateAll((opts) =>
-    opts.map((o) => (o as HTMLOptionElement).value),
-  );
+  const values = await page
+    .locator("#f-duration option")
+    .evaluateAll((opts) => opts.map((o) => (o as HTMLOptionElement).value));
   expect(values).toEqual(["", "1", "3", "7", "14"]);
   await expect(page.locator("#f-duration")).toHaveValue("7");
 
@@ -59,12 +61,16 @@ test("studio banner form offers lifetimes and saves with an expiry", async ({
   expect(posted?.message).toBe("Update homepage banner");
   expect(posted?.files).toHaveLength(1);
   expect(posted?.files[0]?.path).toBe("src/content/announcement.txt");
-  const body = Buffer.from(posted?.files[0]?.contentBase64 ?? "", "base64").toString("utf8");
+  const body = Buffer.from(
+    posted?.files[0]?.contentBase64 ?? "",
+    "base64",
+  ).toString("utf8");
   expect(body).toBe(`expires: ${localToday(3)}\nLilac Festival this Sunday!`);
 });
 
 test("empty banner text clears the file", async ({ page }) => {
-  let posted: { files: Array<{ path: string; contentBase64: string }> } | null = null;
+  let posted: { files: Array<{ path: string; contentBase64: string }> } | null =
+    null;
   await page.route("**/api/commit*", async (route) => {
     if (route.request().method() === "POST") {
       posted = route.request().postDataJSON() as typeof posted;
@@ -86,7 +92,10 @@ test("empty banner text clears the file", async ({ page }) => {
   await page.locator("#f-announce").fill("");
   await page.locator("#announce-save").click();
   await expect(page.locator("#admin-status")).toContainText("Banner cleared.");
-  const body = Buffer.from(posted?.files[0]?.contentBase64 ?? "", "base64").toString("utf8");
+  const body = Buffer.from(
+    posted?.files[0]?.contentBase64 ?? "",
+    "base64",
+  ).toString("utf8");
   expect(body).toBe("");
 });
 

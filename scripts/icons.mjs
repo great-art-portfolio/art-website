@@ -17,20 +17,25 @@ mkdirSync(out, { recursive: true });
 const art = sharp(join(root, "public", "apple-touch-icon.png"));
 
 // Standard icons: artwork bleeds edge to edge (fine at icon sizes).
-await art.clone().resize(192, 192, { fit: "cover" }).png().toFile(join(out, "icon-192.png"));
-await art.clone().resize(512, 512, { fit: "cover" }).png().toFile(join(out, "icon-512.png"));
+await art
+  .clone()
+  .resize(192, 192, { fit: "cover" })
+  .png()
+  .toFile(join(out, "icon-192.png"));
+await art
+  .clone()
+  .resize(512, 512, { fit: "cover" })
+  .png()
+  .toFile(join(out, "icon-512.png"));
 
 // Maskable: artwork at ~80% centered on the paper wash, so launchers
 // can crop circles/squircles without eating the rust sun.
-const padded = await art
-  .clone()
-  .resize(410, 410, { fit: "cover" })
-  .toBuffer();
+const padded = await art.clone().resize(410, 410, { fit: "cover" }).toBuffer();
 await sharp({
   create: { width: 512, height: 512, channels: 4, background: "#faf7f1" },
 })
   .composite([{ input: padded, left: 51, top: 51 }])
   .png()
-  .toFile(join(out, "maskable-512.png" ));
+  .toFile(join(out, "maskable-512.png"));
 
 console.log("icons written to public/icons/");

@@ -25,8 +25,14 @@ describe("responsive-images contracts", () => {
   });
 
   it("sizes() match the CSS grid slots", () => {
-    assert.equal(gallerySizes(), "(min-width: 60rem) 42vw, (min-width: 40rem) 44vw, 92vw");
-    assert.equal(soldSizes(), "(min-width: 60rem) 22vw, (min-width: 40rem) 44vw, 92vw");
+    assert.equal(
+      gallerySizes(),
+      "(min-width: 60rem) 42vw, (min-width: 40rem) 44vw, 92vw",
+    );
+    assert.equal(
+      soldSizes(),
+      "(min-width: 60rem) 22vw, (min-width: 40rem) 44vw, 92vw",
+    );
     assert.equal(photoSizes(), "(min-width: 48rem) 55vw, 92vw");
   });
 });

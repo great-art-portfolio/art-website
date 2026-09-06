@@ -1,6 +1,10 @@
 import type { AppEnv } from "../_lib/env";
 import { json, requireAdmin, serverError } from "../_lib/http";
-import { listSubscriptions, removeSubscription, sendTickle } from "../_lib/push";
+import {
+  listSubscriptions,
+  removeSubscription,
+  sendTickle,
+} from "../_lib/push";
 
 /**
  * Admin: ping every collector ("there's a new painting, come look").

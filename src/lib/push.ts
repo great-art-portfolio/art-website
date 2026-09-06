@@ -4,7 +4,8 @@
  * sites added to the home screen. Unsupported browsers report as such.
  */
 
-export type PushState = "unsupported" | "denied" | "subscribed" | "unsubscribed";
+export type PushState =
+  "unsupported" | "denied" | "subscribed" | "unsubscribed";
 
 function b64ToU8(base64url: string): Uint8Array {
   const bin = atob(base64url.replace(/-/g, "+").replace(/_/g, "/"));
@@ -15,7 +16,9 @@ function b64ToU8(base64url: string): Uint8Array {
 
 function supported(): boolean {
   return (
-    "serviceWorker" in navigator && "PushManager" in window && "Notification" in window
+    "serviceWorker" in navigator &&
+    "PushManager" in window &&
+    "Notification" in window
   );
 }
 
@@ -34,7 +37,9 @@ export async function pushState(): Promise<PushState> {
 export async function subscribePush(): Promise<boolean> {
   if (!supported()) return false;
   try {
-    const config = (await (await fetch("/api/push")).json()) as { publicKey: string };
+    const config = (await (await fetch("/api/push")).json()) as {
+      publicKey: string;
+    };
     if (config.publicKey === "") return false; // Server keys not set up yet.
     const permission = await Notification.requestPermission();
     if (permission !== "granted") return false;

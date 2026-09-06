@@ -13,7 +13,12 @@ export const AR_TOOLING_URL = "/js/ar-tooling.js";
 
 /** The ar-tooling entry points the admin flows actually call. */
 export interface ArTooling {
-  buildArModels(img: HTMLImageElement, widthIn: number, heightIn: number, depthIn: number): Promise<ArModels>;
+  buildArModels(
+    img: HTMLImageElement,
+    widthIn: number,
+    heightIn: number,
+    depthIn: number,
+  ): Promise<ArModels>;
   estimateDims(
     img: HTMLImageElement,
     widthIn: number | null,

@@ -55,7 +55,16 @@ export async function fetchShippoRates(
         zip: "T2P 0A1",
         country: "CA",
       },
-      parcels: [{ length: "18", width: "14", height: "4", distance_unit: "in", weight: String(input.weightLb), mass_unit: "lb" }],
+      parcels: [
+        {
+          length: "18",
+          width: "14",
+          height: "4",
+          distance_unit: "in",
+          weight: String(input.weightLb),
+          mass_unit: "lb",
+        },
+      ],
       async: false,
     }),
   });
@@ -72,9 +81,20 @@ export async function buyShippoLabel(
   const res = await fetch("https://api.goshippo.com/transactions/", {
     method: "POST",
     headers: { Authorization: auth(env), "Content-Type": "application/json" },
-    body: JSON.stringify({ rate: input.rateId, label_file_type: "PDF", async: false }),
+    body: JSON.stringify({
+      rate: input.rateId,
+      label_file_type: "PDF",
+      async: false,
+    }),
   });
   if (!res.ok) throw new Error(`Shippo error: ${await res.text()}`);
-  const data = (await res.json()) as { label_url: string; tracking_number: string };
-  return { enabled: true, labelUrl: data.label_url, trackingNumber: data.tracking_number };
+  const data = (await res.json()) as {
+    label_url: string;
+    tracking_number: string;
+  };
+  return {
+    enabled: true,
+    labelUrl: data.label_url,
+    trackingNumber: data.tracking_number,
+  };
 }

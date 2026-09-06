@@ -59,7 +59,11 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
     });
     if (!res.ok) throw new Error(`Cloudflare API ${res.status}`);
     const data = (await res.json()) as {
-      data?: { viewer?: { accounts?: Array<{ rumPageloadEventsAdaptiveGroups?: RumRow[] }> } };
+      data?: {
+        viewer?: {
+          accounts?: Array<{ rumPageloadEventsAdaptiveGroups?: RumRow[] }>;
+        };
+      };
       errors?: Array<{ message?: string }>;
     };
     const rows =
@@ -67,7 +71,9 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
     const views = rows
       .filter((r) => (r.dimensions.pathname ?? "").startsWith("/paintings/"))
       .map((r) => ({
-        slug: (r.dimensions.pathname ?? "").replace("/paintings/", "").replace(/\/$/, ""),
+        slug: (r.dimensions.pathname ?? "")
+          .replace("/paintings/", "")
+          .replace(/\/$/, ""),
         views: r.sum.pageViews ?? 0,
       }))
       .filter((v) => v.slug !== "")

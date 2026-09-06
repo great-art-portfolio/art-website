@@ -55,7 +55,9 @@ test("gallery shows one card per available painting, each linked correctly", asy
   const cards = page.locator("#gallery-static .card");
   await expect(cards).toHaveCount(available.length);
   for (const p of available) {
-    const card = page.locator(`#gallery-static .card[href="/paintings/${p.slug}"]`);
+    const card = page.locator(
+      `#gallery-static .card[href="/paintings/${p.slug}"]`,
+    );
     await expect(card).toHaveCount(1);
     await expect(card.locator(".caption-title")).toHaveText(p.title);
     const alt = await card.locator("img").getAttribute("alt");
@@ -104,8 +106,12 @@ test("sold archive matches the collection (absent while nothing is sold)", async
 
 test("clicking a card opens its painting page", async ({ page }) => {
   await page.goto("/");
-  await page.locator(`#gallery-static .card[href="/paintings/${available[0].slug}"]`).click();
-  await expect(page).toHaveURL(new RegExp(`/paintings/${available[0].slug}/?$`));
+  await page
+    .locator(`#gallery-static .card[href="/paintings/${available[0].slug}"]`)
+    .click();
+  await expect(page).toHaveURL(
+    new RegExp(`/paintings/${available[0].slug}/?$`),
+  );
   await expect(page.locator(".info h1")).toHaveText(available[0].title);
 });
 
@@ -145,7 +151,9 @@ for (const p of paintings) {
       await expect(
         page.locator('#inquiry-form input[name="email"]'),
       ).toHaveAttribute("required", "");
-      await expect(page.locator('#inquiry-form input[name="website"]')).toHaveCount(1);
+      await expect(
+        page.locator('#inquiry-form input[name="website"]'),
+      ).toHaveCount(1);
       // AR appears exactly when models are wired in frontmatter.
       if (p.modelGlb === "") {
         await expect(page.locator("#ar-mount")).toHaveCount(0);
@@ -153,9 +161,16 @@ for (const p of paintings) {
         expect(glb ?? "").toBe("");
       } else {
         await expect(page.locator("#ar-mount")).toBeVisible();
-        await expect(page.locator("main.detail")).toHaveAttribute("data-glb", p.modelGlb);
-        // The viewer library loads when the section scrolls into view.
-        await expect(page.locator("#ar-stage img")).toBeVisible();
+        await expect(page.locator("main.detail")).toHaveAttribute(
+          "data-glb",
+          p.modelGlb,
+        );
+        // The stage holds something meaningful immediately (instant poster,
+        // or the viewer itself when the observer fires during load)…
+        await expect(
+          page.locator("#ar-stage img, #ar-stage model-viewer"),
+        ).toBeVisible();
+        // …and the viewer library is certainly there once scrolled to.
         await page.locator("#ar-mount").scrollIntoViewIfNeeded();
         const viewer = page.locator("#ar-stage model-viewer");
         await expect(viewer).toBeAttached({ timeout: 15_000 });
@@ -174,7 +189,9 @@ test("inquiry comes before the wall preview, skeleton holds the stage", async ({
   const [target] = available.filter((p) => p.modelGlb !== "") as [Painting];
   // Skeleton ships in the HTML (the poster swaps it out on load, so assert
   // the source, not the live DOM).
-  const html = await (await page.request.get(`/paintings/${target.slug}`)).text();
+  const html = await (
+    await page.request.get(`/paintings/${target.slug}`)
+  ).text();
   expect(html).toContain("ar-skeleton");
   await page.goto(`/paintings/${target.slug}`);
   // The form opens with the painting still on screen: inquiry precedes AR.
@@ -207,7 +224,9 @@ test("viewing one painting after another shows each painting's own 3D model", as
   );
   await page.locator('.crumbs a[href="/"]').click();
   await expect(page).toHaveURL(/\/$/);
-  await page.locator(`#gallery-static .card[href="/paintings/${second.slug}"]`).click();
+  await page
+    .locator(`#gallery-static .card[href="/paintings/${second.slug}"]`)
+    .click();
   await expect(page).toHaveURL(new RegExp(`/paintings/${second.slug}/?$`));
   await page.locator("#ar-mount").scrollIntoViewIfNeeded();
   await expect(page.locator("#ar-stage model-viewer")).toHaveAttribute(
@@ -217,9 +236,7 @@ test("viewing one painting after another shows each painting's own 3D model", as
   );
 });
 
-test("3D model waits for the visitor to scroll to it", async ({
-  browser,
-}) => {
+test("3D model waits for the visitor to scroll to it", async ({ browser }) => {
   // Small-phone viewport: the AR section starts below the fold.
   const context = await browser.newContext({
     viewport: { width: 360, height: 640 },
@@ -241,19 +258,28 @@ test("3D model waits for the visitor to scroll to it", async ({
   await expect(page.locator("#ar-mount")).toBeVisible();
   // Premise check: the section must actually start out of view, or the
   // zero-request assertions below prove nothing.
-  const mountTop = await page.locator("#ar-mount").evaluate((el) => el.getBoundingClientRect().top);
+  const mountTop = await page
+    .locator("#ar-mount")
+    .evaluate((el) => el.getBoundingClientRect().top);
   expect(mountTop).toBeGreaterThan(640);
   await page.waitForTimeout(2000);
   expect(glbRequests).toBe(0);
   expect(viewerLibRequests).toBe(0);
   await page.locator("#ar-mount").scrollIntoViewIfNeeded();
   await expect.poll(() => glbRequests, { timeout: 15_000 }).toBeGreaterThan(0);
-  await expect.poll(() => viewerLibRequests, { timeout: 15_000 }).toBeGreaterThan(0);
+  await expect
+    .poll(() => viewerLibRequests, { timeout: 15_000 })
+    .toBeGreaterThan(0);
   await expect
     .poll(
       () =>
         page.evaluate(
-          () => (document.querySelector("#ar-stage model-viewer") as { loaded?: boolean } | null)?.loaded === true,
+          () =>
+            (
+              document.querySelector("#ar-stage model-viewer") as {
+                loaded?: boolean;
+              } | null
+            )?.loaded === true,
         ),
       { timeout: 15_000 },
     )
@@ -277,9 +303,7 @@ test("install option stays hidden until the browser offers it", async ({
   await expect(install).toBeHidden();
 });
 
-test("photo lightbox opens on tap and closes on Escape", async ({
-  page,
-}) => {
+test("photo lightbox opens on tap and closes on Escape", async ({ page }) => {
   await page.goto(`/paintings/${available[0].slug}`);
   await expect(page.locator("#lightbox")).toBeHidden();
   await page.locator("#photo-wrap").click();
@@ -301,13 +325,21 @@ test("admin page renders the studio sections and new-painting door", async ({
   page,
 }) => {
   await page.goto("/admin");
-  for (const id of ["#sec-add", "#sec-collection", "#sec-banner", "#sec-views", "#sec-info"]) {
+  for (const id of [
+    "#sec-add",
+    "#sec-collection",
+    "#sec-banner",
+    "#sec-views",
+    "#sec-info",
+  ]) {
     await expect(page.locator(id)).toBeAttached();
   }
   // Grid dashboard, no anchor strip; new paintings start in their own room.
   await expect(page.locator(".subnav")).toHaveCount(0);
   await expect(page.locator(".admin-grid")).toBeVisible();
-  await expect(page.locator('#sec-add a[href="/admin/paintings/new"]')).toBeVisible();
+  await expect(
+    page.locator('#sec-add a[href="/admin/paintings/new"]'),
+  ).toBeVisible();
   await expect(page.locator("#admin-token")).toBeAttached();
 });
 
@@ -337,7 +369,9 @@ test("admin mode opens the painting's studio room from the buyer page", async ({
   );
   const adminPage = await authed.newPage();
   await adminPage.goto(`/paintings/${available[0].slug}`);
-  const door = adminPage.locator(`#admin-bar a[href="/admin/paintings/${available[0].slug}"]`);
+  const door = adminPage.locator(
+    `#admin-bar a[href="/admin/paintings/${available[0].slug}"]`,
+  );
   await expect(door).toHaveText("Edit in the studio");
   await door.click();
   await expect(adminPage.locator("#de-title")).toHaveValue(available[0].title);
@@ -352,8 +386,14 @@ test("studio room toolbar wears the studio styling", async ({ browser }) => {
   const adminPage = await authed.newPage();
   await adminPage.goto(`/admin/paintings/${available[0].slug}`);
   // Primary Save and plain Delete both styled, not browser defaults.
-  await expect(adminPage.locator("#de-save")).toHaveCSS("border-radius", "12px");
-  await expect(adminPage.locator("#de-save")).toHaveCSS("background-color", "rgb(35, 32, 27)");
+  await expect(adminPage.locator("#de-save")).toHaveCSS(
+    "border-radius",
+    "12px",
+  );
+  await expect(adminPage.locator("#de-save")).toHaveCSS(
+    "background-color",
+    "rgb(35, 32, 27)",
+  );
   await expect(adminPage.locator("#de-del")).toHaveCSS("border-radius", "12px");
   await authed.close();
 });
@@ -369,9 +409,7 @@ test("service worker serves the worker script but never caches admin", async ({
       const keys = await caches.keys();
       for (const k of keys) {
         const reqs = await (await caches.open(k)).keys();
-        if (
-          reqs.some((r) => new URL(r.url).pathname.startsWith("/admin"))
-        )
+        if (reqs.some((r) => new URL(r.url).pathname.startsWith("/admin")))
           return true;
       }
       return false;
@@ -395,7 +433,9 @@ test("service worker serves the worker script but never caches admin", async ({
   await page.goto("/admin");
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.goto("/admin");
-  await expect(page.locator('#sec-add a[href="/admin/paintings/new"]')).toBeVisible();
+  await expect(
+    page.locator('#sec-add a[href="/admin/paintings/new"]'),
+  ).toBeVisible();
   expect(await adminCached()).toBe(false);
   await page.goto("/admin/paintings/new");
   expect(await adminCached()).toBe(false);
@@ -421,14 +461,23 @@ test("offline inquiry queues on the phone and sends on reconnect", async ({
   // exercises the reconnect flush instead of the service worker path.
   await page.evaluate(async () => {
     const reg = await navigator.serviceWorker.ready;
-    Object.defineProperty(reg, "sync", { value: undefined, configurable: true });
+    Object.defineProperty(reg, "sync", {
+      value: undefined,
+      configurable: true,
+    });
   });
   await page.locator("#inquiry-reveal").click();
   await page.locator('#inquiry-form input[name="name"]').fill("Review Buyer");
-  await page.locator('#inquiry-form input[name="email"]').fill("buyer@example.com");
-  await page.locator('#inquiry-form textarea[name="message"]').fill("Love this piece.");
+  await page
+    .locator('#inquiry-form input[name="email"]')
+    .fill("buyer@example.com");
+  await page
+    .locator('#inquiry-form textarea[name="message"]')
+    .fill("Love this piece.");
   await page.locator('#inquiry-form button[type="submit"]').click();
-  await expect(page.locator("#inquiry-status")).toContainText("Saved — it will send");
+  await expect(page.locator("#inquiry-status")).toContainText(
+    "Saved — it will send",
+  );
   expect(attempts).toBe(1);
   // Back online: the armed outbox replays without another tap.
   await page.evaluate(() => window.dispatchEvent(new Event("online")));

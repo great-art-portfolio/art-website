@@ -1,5 +1,11 @@
 import type { AppEnv } from "../_lib/env";
-import { badRequest, json, notEnabled, requireAdmin, serverError } from "../_lib/http";
+import {
+  badRequest,
+  json,
+  notEnabled,
+  requireAdmin,
+  serverError,
+} from "../_lib/http";
 import { publishNewPainting } from "../_lib/social";
 
 /** Admin: one-click social post. 501 until enabled (the share kit always works). */
@@ -14,13 +20,14 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   }
   const text = typeof body["text"] === "string" ? body["text"] : "";
   const imageUrl = typeof body["imageUrl"] === "string" ? body["imageUrl"] : "";
-  if (text === "" || imageUrl === "") return badRequest("text and imageUrl are required");
+  if (text === "" || imageUrl === "")
+    return badRequest("text and imageUrl are required");
   try {
     const post = await publishNewPainting(context.env, { text, imageUrl });
     if (!post.enabled) {
       return notEnabled(
         "Auto-posting",
-        "Use the share kit in /admin (no setup needed), or set ENABLE_SOCIAL_POST=\"true\" and AYRSHARE_API_KEY for one-click posting.",
+        'Use the share kit in /admin (no setup needed), or set ENABLE_SOCIAL_POST="true" and AYRSHARE_API_KEY for one-click posting.',
       );
     }
     return json({ id: post.id });

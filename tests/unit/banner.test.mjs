@@ -11,14 +11,20 @@ import {
 
 describe("parseAnnouncement", () => {
   it("reads text with no expiry line", () => {
-    assert.deepEqual(parseAnnouncement("Hello"), { text: "Hello", expires: null });
+    assert.deepEqual(parseAnnouncement("Hello"), {
+      text: "Hello",
+      expires: null,
+    });
   });
 
   it("reads the expires line plus multi-word text", () => {
-    assert.deepEqual(parseAnnouncement("expires: 2026-09-19\nFind me Sunday!"), {
-      text: "Find me Sunday!",
-      expires: "2026-09-19",
-    });
+    assert.deepEqual(
+      parseAnnouncement("expires: 2026-09-19\nFind me Sunday!"),
+      {
+        text: "Find me Sunday!",
+        expires: "2026-09-19",
+      },
+    );
   });
 
   it("treats a malformed first line as banner text", () => {
@@ -77,8 +83,10 @@ describe("expiry", () => {
   });
 
   it("localToday is a local (not UTC) date", () => {
-    assert.match(localToday(new Date(2026, 0, 2, 3, 4, 5)), /^\d{4}-\d{2}-\d{2}$/);
+    assert.match(
+      localToday(new Date(2026, 0, 2, 3, 4, 5)),
+      /^\d{4}-\d{2}-\d{2}$/,
+    );
     assert.equal(localToday(new Date(2026, 0, 2, 3, 4, 5)), "2026-01-02");
   });
-
 });

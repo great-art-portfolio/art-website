@@ -1,12 +1,16 @@
 ---
 import { getCollection, render } from "astro:content";
 import Layout from "../../layouts/Layout.astro";
-import PaintingDetail, { type PaintingDetailData } from "../../components/PaintingDetail.astro";
+import PaintingDetail, {
+  type PaintingDetailData,
+} from "../../components/PaintingDetail.astro";
 import { formatDimensions } from "../../lib/dims";
 import { isPublished, slugifyTitle } from "../../lib/site";
 
 export async function getStaticPaths() {
-  const paintings = (await getCollection("paintings")).filter((p) => isPublished(p.data));
+  const paintings = (await getCollection("paintings")).filter((p) =>
+    isPublished(p.data),
+  );
   return paintings.map((painting) => ({
     params: { id: slugifyTitle(painting.data.title) },
     props: { painting },
@@ -15,11 +19,14 @@ export async function getStaticPaths() {
 
 const { painting } = Astro.props;
 const { Content } = await render(painting);
-const meta = [painting.data.medium, formatDimensions(
-  painting.data.widthIn ?? null,
-  painting.data.heightIn ?? null,
-  painting.data.depthIn ?? null,
-)]
+const meta = [
+  painting.data.medium,
+  formatDimensions(
+    painting.data.widthIn ?? null,
+    painting.data.heightIn ?? null,
+    painting.data.depthIn ?? null,
+  ),
+]
   .filter((s) => s !== undefined && s !== "")
   .join(" · ");
 const data: PaintingDetailData = {
@@ -29,10 +36,13 @@ const data: PaintingDetailData = {
   medium: painting.data.medium ?? "",
   meta,
   alt: painting.data.alt,
-  description: painting.body,
-  widthIn: painting.data.widthIn === undefined ? "" : String(painting.data.widthIn),
-  heightIn: painting.data.heightIn === undefined ? "" : String(painting.data.heightIn),
-  depthIn: painting.data.depthIn === undefined ? "" : String(painting.data.depthIn),
+  description: painting.body ?? "",
+  widthIn:
+    painting.data.widthIn === undefined ? "" : String(painting.data.widthIn),
+  heightIn:
+    painting.data.heightIn === undefined ? "" : String(painting.data.heightIn),
+  depthIn:
+    painting.data.depthIn === undefined ? "" : String(painting.data.depthIn),
   image: painting.data.image,
   modelGlb: painting.data.modelGlb ?? "",
   modelUsdz: painting.data.modelUsdz ?? "",
@@ -61,8 +71,18 @@ const paintingJsonLd = {
   title={`${painting.data.title} — ${painting.data.sold ? "Sold" : "Original Painting"}`}
   description={painting.data.alt}
 >
-  <PaintingDetail mode="buy" data={data} backHref="/" backLabel="← Back to the collection" editHref={`/admin/paintings/${data.slug}`}>
+  <PaintingDetail
+    mode="buy"
+    data={data}
+    backHref="/"
+    backLabel="← Back to the collection"
+    editHref={`/admin/paintings/${data.slug}`}
+  >
     <Content />
   </PaintingDetail>
-  <script type="application/ld+json" is:inline set:html={JSON.stringify(paintingJsonLd)} />
+  <script
+    type="application/ld+json"
+    is:inline
+    set:html={JSON.stringify(paintingJsonLd)}
+  />
 </Layout>

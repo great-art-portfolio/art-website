@@ -1,6 +1,7 @@
 # Redesign: WYSIWYG studio (agreed, not yet built)
 
 ## Verdict
+
 Yes — one shared painting layout, draft/edit routes that look like the buyer
 page, dashboard slimmed to a thumbnail index. Superior because: single
 presentation source, no remember-the-name round trip, thumbnails, no layout
@@ -8,6 +9,7 @@ shift, dev parity. Caution: two admin JS islands (dashboard + painting
 editor) — both must import from lib/, never duplicate logic.
 
 ## Design
+
 - New `src/layouts/PaintingLayout.astro` (props: painting data, mode:
   "buy" | "edit" | "draft"). Sections: photo, title/price/meta,
   description, "Try it on your wall", "Ask about this painting".
@@ -31,6 +33,7 @@ editor) — both must import from lib/, never duplicate logic.
   vendor downloads honestly.
 
 ## Agreed decisions (user, 2026-09-06)
+
 - Drafts are a real feature (none exist yet): `draft: true` frontmatter,
   excluded from gallery/sitemap/[id]; admin shows a Drafts section only when
   drafts > 0. Save-as-draft button on the painting editor; Publish flips the
@@ -40,6 +43,7 @@ editor) — both must import from lib/, never duplicate logic.
   parallel editors).
 
 ## Build order (no big-bang)
+
 1. DONE (20779bf^): draft flag in schema; drafts hidden from gallery,
    painting pages, and static paths.
 2. DONE: `PaintingDetail.astro` extracted; buyer page rebased unchanged.
@@ -58,14 +62,17 @@ editor) — both must import from lib/, never duplicate logic.
    unit green.
 
 ## Crash notes
+
 - Port 4331 serves dist/ via workerd: rebuild after every change.
 - dataset.localEdit (not dataset["local-edit"]).
 - Gates before commit: typecheck, check:inline, build, unit, full Playwright.
 
 ## Done earlier (committed 20779bf)
+
 Single focus ring; accent collection link; 32rem rows; Advanced spacing;
 0.12s underlines; prepopulated 3D slot; nav Add opens form; wordmark to
 /admin; calm add animation; dev practice edit/delete; 6s toast expiry.
 
 ## Still human-gated
+
 Push to main for CI; real upload test on barbart.ca/admin.

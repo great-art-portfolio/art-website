@@ -21,7 +21,9 @@ export function artistLabel(): string {
 }
 
 export function siteTitle(): string {
-  return ARTIST_NAME !== null ? `${ARTIST_NAME} — Original Paintings` : "Calgary & Abstract Original Paintings";
+  return ARTIST_NAME !== null
+    ? `${ARTIST_NAME} — Original Paintings`
+    : "Calgary & Abstract Original Paintings";
 }
 
 /** URL slug from a painting title: "Night Reeds" → "night-reeds". */
@@ -41,7 +43,7 @@ export function workCount(n: number): string {
 
 /** Drafts never reach buyers: gallery, painting pages, and sitemap only
  * ever see entries where the draft flag is absent or false. */
-export function isPublished(data: { draft?: boolean }): boolean {
+export function isPublished(data: { draft?: boolean | undefined }): boolean {
   return data.draft !== true;
 }
 

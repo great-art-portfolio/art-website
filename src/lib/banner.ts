@@ -29,7 +29,10 @@ export function parseAnnouncement(raw: string): Banner {
   return { text: lines.slice(start).join("\n").trim(), expires };
 }
 
-export function formatAnnouncement(text: string, expires: string | null): string {
+export function formatAnnouncement(
+  text: string,
+  expires: string | null,
+): string {
   const body = text.trim().slice(0, 280);
   if (body === "") return "";
   return expires === null ? body : `expires: ${expires}\n${body}`;
@@ -44,19 +47,29 @@ export function localToday(date: Date = new Date()): string {
 }
 
 /** End-of-life date for a banner saved today with the given lifetime. */
-export function expiryForDuration(days: number | null, now: Date = new Date()): string | null {
+export function expiryForDuration(
+  days: number | null,
+  now: Date = new Date(),
+): string | null {
   if (days === null) return null;
   const end = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
   return localToday(end);
 }
 
 /** True once the expiry date has passed (shows through that date). */
-export function isExpired(expires: string | null, today: string = localToday()): boolean {
+export function isExpired(
+  expires: string | null,
+  today: string = localToday(),
+): boolean {
   return expires !== null && today > expires;
 }
 
 /** Whole days from today until expiry (negative when past). */
-export function daysLeft(expires: string, today: string = localToday()): number {
-  const ms = Date.parse(`${expires}T00:00:00`) - Date.parse(`${today}T00:00:00`);
+export function daysLeft(
+  expires: string,
+  today: string = localToday(),
+): number {
+  const ms =
+    Date.parse(`${expires}T00:00:00`) - Date.parse(`${today}T00:00:00`);
   return Math.round(ms / (24 * 60 * 60 * 1000));
 }

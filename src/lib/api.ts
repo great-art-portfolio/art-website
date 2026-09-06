@@ -8,7 +8,11 @@ import { slugifyTitle } from "./site";
  */
 export function getApiToken(): string {
   try {
-    return localStorage.getItem("ADMIN_API_TOKEN") ?? sessionStorage.getItem("ADMIN_API_TOKEN") ?? "";
+    return (
+      localStorage.getItem("ADMIN_API_TOKEN") ??
+      sessionStorage.getItem("ADMIN_API_TOKEN") ??
+      ""
+    );
   } catch {
     return "";
   }
@@ -63,7 +67,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       `The site API didn't answer properly (${res.status}) — use the live /admin to publish.`,
     );
   }
-  if (!res.ok) throw new ApiError(res.status, data.error ?? `Request failed (${res.status})`);
+  if (!res.ok)
+    throw new ApiError(
+      res.status,
+      data.error ?? `Request failed (${res.status})`,
+    );
   return data;
 }
 
@@ -138,7 +146,9 @@ export const api = {
       files.map(async (f) => ({
         path: f.path,
         contentBase64:
-          typeof f.blob === "string" ? textToBase64(f.blob) : await blobToBase64(f.blob),
+          typeof f.blob === "string"
+            ? textToBase64(f.blob)
+            : await blobToBase64(f.blob),
       })),
     );
     await request("/api/commit", {
@@ -167,9 +177,10 @@ export const api = {
   }> {
     return await request("/api/status", { headers: adminHeaders() });
   },
-  async paintingViews(): Promise<
-    { views: Array<{ slug: string; views: number }>; unconfigured: boolean }
-  > {
+  async paintingViews(): Promise<{
+    views: Array<{ slug: string; views: number }>;
+    unconfigured: boolean;
+  }> {
     try {
       const data = await request<{
         views: Array<{ slug: string; views: number }>;

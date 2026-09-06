@@ -8,14 +8,8 @@
     "functions/types.d.ts",
     "functions/globals.d.ts"
   ],
-  "exclude": [
-    "dist",
-    "node_modules",
-    "src/content/**/*"
-  ],
+  "exclude": ["dist", "node_modules", "src/content/**/*"],
   "compilerOptions": {
-    "jsx": "react-jsx",
-    "jsxImportSource": "react",
     "target": "ES2022",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "verbatimModuleSyntax": true,

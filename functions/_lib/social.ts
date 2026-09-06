@@ -25,7 +25,9 @@ export async function publishNewPainting(
 ): Promise<SocialPost> {
   if (!flag(env.ENABLE_SOCIAL_POST)) return { enabled: false };
   if (env.AYRSHARE_API_KEY === undefined || env.AYRSHARE_API_KEY === "") {
-    throw new Error("ENABLE_SOCIAL_POST is true but AYRSHARE_API_KEY is missing");
+    throw new Error(
+      "ENABLE_SOCIAL_POST is true but AYRSHARE_API_KEY is missing",
+    );
   }
   const res = await fetch("https://app.ayrshare.com/api/social/post", {
     method: "POST",

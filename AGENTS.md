@@ -1,0 +1,92 @@
+# art-website — agent handbook
+
+Barbara Straka's gallery + studio. Astro 7, Cloudflare Pages + Functions,
+content collections for paintings. One artist, a few uploads a month.
+
+## The loops
+
+Fast loop (every change): `astro check` → `typecheck` → `test:unit`.
+Next: `check:inline`, then `build`. Playwright (`test:e2e`) only
+pre-commit — it needs a fresh build plus the Pages runtime, so never run
+it per-turn. Gate order is also the CI order:
+`format:check → lint → astro check → typecheck → test:unit → check:inline → build → e2e`.
+
+`format` before committing; `format:check` and `lint` must be clean.
+Never commit with a red gate to "fix later".
+
+## Port 4331 serves dist, not src
+
+`pnpm dev` is `astro build` + `wrangler pages dev dist`. The browser
+always shows the last build — rebuild after every change or you will
+chase stale CSS. (`dev:astro` is live src, but tests and review use 4331.)
+
+## Page scripts: plain JS discipline
+
+Inline `<script>` blocks are plain JavaScript, no TypeScript, no
+`define:vars` (it emits raw — dynamic `import()` becomes a 404ing
+relative URL). Page data flows through `#main data-*` attributes; Vite
+bundles the block and `import("../lib/x")` resolves.
+
+- View Transitions keep modules alive across navigations: the script runs
+  once per document. Read `dataset` live on every use — eval-time consts
+  go stale and the next page inherits the previous one's data. Wire-up
+  functions run immediately AND on `astro:page-load`, guarded so a
+  double-fire on the same DOM wires nothing twice.
+- `check:inline` parses these blocks — keep them parseable.
+
+## TypeScript strictness: do not relax it
+
+`astro/tsconfigs/strictest` plus `exactOptionalPropertyTypes` and
+`noUncheckedIndexedAccess`. You will hit three errors; the fixes are:
+
+1. Optional props assignability — add `| undefined` to the receiving
+   type, don't make the prop required.
+2. Nullable DOM lookups — `getElementById` returns `T | null`; narrow
+   before use. The `$()` helper in the islands throws on missing ids.
+3. Bare `HTMLElement` has no `.alt` / `.reset` / `.focus` / `.value` —
+   narrow with `instanceof` (`el instanceof HTMLInputElement ? el : null`),
+   never a cast. JSDoc annotations do NOT survive `astro check` (comments
+   are stripped when scripts are extracted) — structure the code so it
+   typechecks annotation-free. Window-level browser globals live once in
+   `src/client-globals.d.ts`.
+4. `dataset["data-local-edit"]` is `undefined` — hyphenated data attrs
+   read camelCase (`dataset.localEdit`).
+
+Node unit tests import through the extensionless style the bundler uses
+(`../lib/x`), so `src/lib` must stay importable without an extension —
+never add an extension to satisfy node, and never let a lib module import
+something node can't load (move API-dependent helpers to `lib/api.ts`).
+
+## Where logic lives
+
+- Shared logic in `src/lib/`, never duplicated between islands. There is
+  exactly one editor (the studio rooms) and one painting presentation
+  (`PaintingDetail.astro`, modes buy/edit/draft) — no parallel editors.
+- No React, no islands framework: Astro static markup + small client
+  scripts. Don't add one.
+- Paintings are git content (`src/content/paintings/*.md`). `draft: true`
+  hides a painting from gallery, buyer pages, and static paths until
+  published. Saving commits .md + photo (+ AR models); Pages rebuilds —
+  live in a few minutes.
+- `/admin/*` is behind Cloudflare Access (email OTP) in production;
+  `ADMIN_API_TOKEN` is local backup, remembered per browser.
+- Dev practice: on localhost without a token, studio saves go to a
+  localStorage overlay the dashboard merges — never git. A stored token
+  means the commit, even on localhost. Live hosts never practice.
+
+## Taste (non-negotiable)
+
+- Mom never handles tokens, secrets, or CLIs. Plain words everywhere.
+- Reduced motion kills movement, never fades: slides, lifts, expands go
+  instant; color and opacity transitions still run.
+- One focus ring only (accent outline, never outline + border change).
+- Script-built nodes never carry Astro's scope attribute — style them
+  with whole-selector `:global()` twins, and re-assert `[hidden]` whenever
+  author `display` beats the UA rule.
+
+## Crash recovery
+
+TODO.md mirrors the running plan — read it first, keep it current.
+Port 4331, commit along the way, verify in a real browser before claiming
+done: the repo's own suites (`test:unit`, then the touched spec files,
+then full `test:e2e`) plus a look at the page.

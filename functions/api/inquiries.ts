@@ -4,7 +4,11 @@ import { sendInquiryNotifications } from "../_lib/notify";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-async function turnstileOk(env: AppEnv, token: unknown, ip: string | null): Promise<boolean> {
+async function turnstileOk(
+  env: AppEnv,
+  token: unknown,
+  ip: string | null,
+): Promise<boolean> {
   const secret = env.TURNSTILE_SECRET_KEY ?? "";
   // Keys arrive with the dashboard setup; until then the honeypot covers us.
   if (secret === "") return true;
@@ -14,17 +18,20 @@ async function turnstileOk(env: AppEnv, token: unknown, ip: string | null): Prom
     form.set("secret", secret);
     form.set("response", token);
     if (ip !== null) form.set("remoteip", ip);
-    const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-      method: "POST",
-      body: form,
-    });
+    const res = await fetch(
+      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+      {
+        method: "POST",
+        body: form,
+      },
+    );
     const data = (await res.json()) as { success?: boolean };
     return data.success === true;
   } catch (err) {
     console.error("turnstile verify failed", err);
     return false;
   }
-};
+}
 
 /**
  * Public: a visitor asks about a painting. Nothing is stored — the note is
@@ -43,18 +50,33 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   if (typeof body["website"] === "string" && body["website"] !== "") {
     return json({ ok: true });
   }
-  if (!(await turnstileOk(context.env, body["turnstileToken"], context.request.headers.get("cf-connecting-ip")))) {
+  if (
+    !(await turnstileOk(
+      context.env,
+      body["turnstileToken"],
+      context.request.headers.get("cf-connecting-ip"),
+    ))
+  ) {
     return badRequest("Spam check failed — please try again.");
   }
   const paintingTitle =
-    typeof body["paintingTitle"] === "string" ? body["paintingTitle"].trim().slice(0, 120) : "";
+    typeof body["paintingTitle"] === "string"
+      ? body["paintingTitle"].trim().slice(0, 120)
+      : "";
   const priceCents =
-    typeof body["priceCents"] === "number" && Number.isFinite(body["priceCents"]) && body["priceCents"] > 0
+    typeof body["priceCents"] === "number" &&
+    Number.isFinite(body["priceCents"]) &&
+    body["priceCents"] > 0
       ? Math.round(body["priceCents"])
       : 0;
-  const buyerName = typeof body["name"] === "string" ? body["name"].trim().slice(0, 120) : "";
-  const buyerEmail = typeof body["email"] === "string" ? body["email"].trim().slice(0, 160) : "";
-  const message = typeof body["message"] === "string" ? body["message"].trim().slice(0, 2000) : "";
+  const buyerName =
+    typeof body["name"] === "string" ? body["name"].trim().slice(0, 120) : "";
+  const buyerEmail =
+    typeof body["email"] === "string" ? body["email"].trim().slice(0, 160) : "";
+  const message =
+    typeof body["message"] === "string"
+      ? body["message"].trim().slice(0, 2000)
+      : "";
   if (paintingTitle === "" || buyerName === "" || !EMAIL_RE.test(buyerEmail)) {
     return badRequest("Name, a valid email, and a painting are required");
   }

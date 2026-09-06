@@ -16,7 +16,10 @@ export function serverError(message = "Something went wrong"): Response {
 }
 
 export function notEnabled(feature: string, hint: string): Response {
-  return json({ error: `${feature} is disabled`, howToEnable: hint }, { status: 501 });
+  return json(
+    { error: `${feature} is disabled`, howToEnable: hint },
+    { status: 501 },
+  );
 }
 
 /**
