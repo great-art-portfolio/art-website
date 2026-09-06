@@ -213,10 +213,10 @@ const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
     transition: text-decoration-color 0.25s ease;
   }
   .card:hover .caption-title { text-decoration-color: currentColor; }
-  /* Reduced motion: every state change is instant, matching the
-     site-wide guard in the layout. Lives after the hover rules. */
+  /* Reduced motion kills the rise-and-lift; the caption underline fade
+     still transitions. Lives after the hover rules so it wins ties. */
   @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { transition: none !important; animation: none !important; }
+    .card { animation: none; }
     .card:hover .mat { transform: none; }
   }
   .caption-sub { font-size: 0.95rem; }
