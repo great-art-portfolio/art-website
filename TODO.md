@@ -41,3 +41,16 @@
 - [x] Playwright visits every changed route; buttons get clicked, not just seen.
 - [x] Screenshots at phone + desktop widths before calling a visual done.
 - [x] typecheck, unit tests, inline guard, build, full suite — all green.
+
+## Code review (studio surface + outbox)
+- [x] Publish resets the photo from memory (a second Save can't reuse it).
+- [x] iPhone offline inquiries flush on reconnect (`armOutboxFlush` wired in,
+      single-flight guards so a replay can't send twice).
+- [x] Collection server failure says so with Retry out (no live-site runaround).
+- [x] Card preview hides its image until a photo arrives.
+- [x] API client names the status on non-JSON errors; photo fetch shares auth.
+- [x] Removed dead code: `BANNER_DURATIONS`, unused admin CSS, one-click post
+      button + client (share kit is the posting path; endpoint stays dormant).
+- [x] Tests: publish reset, offline queue + reconnect send, 500 copy, hidden
+      preview image, banner lifetimes; smoke follows the new copy.
+- [x] Full suite 63/63, unit 48/48, typecheck + inline + build green.
