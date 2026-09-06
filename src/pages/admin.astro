@@ -11,7 +11,8 @@ import Layout from "../layouts/Layout.astro";
     <div class="admin-grid">
     <section class="card" id="sec-add">
       <h2>Add a painting</h2>
-      <form id="upload-form">
+      <button type="button" id="add-toggle" class="primary">Add new painting</button>
+      <form id="upload-form" hidden>
         <label>Title
           <input id="f-title" name="title" type="text" autocomplete="off" required maxlength="120" />
         </label>

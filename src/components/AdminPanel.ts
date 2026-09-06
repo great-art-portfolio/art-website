@@ -510,6 +510,16 @@ function init(): void {
     window.location.href = "/";
   });
 
+  // The working form stays out of sight until she means it.
+  const addToggle = $("add-toggle") as HTMLButtonElement;
+  const uploadForm = $("upload-form") as HTMLFormElement;
+  addToggle.addEventListener("click", () => {
+    const opening = uploadForm.hidden;
+    uploadForm.hidden = !opening;
+    addToggle.textContent = opening ? "Close" : "Add new painting";
+    if (opening) ($("f-title") as HTMLInputElement).focus();
+  });
+
   const fileInput = $("photo-file") as HTMLInputElement;
   fileInput.addEventListener("change", () => {
     const file = fileInput.files?.[0];

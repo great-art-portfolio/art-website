@@ -107,6 +107,14 @@ test("collection rows link to their painting pages", async ({ page }) => {
   await expect(page).toHaveURL(new RegExp(`/paintings/${paintings[0].slug}/?$`));
 });
 
+test("add form waits behind its button", async ({ page }) => {
+  await page.goto("/admin");
+  await expect(page.locator("#upload-form")).toBeHidden();
+  await page.locator("#add-toggle").click();
+  await expect(page.locator("#upload-form")).toBeVisible();
+  await expect(page.locator("#add-toggle")).toHaveText("Close");
+});
+
 test("collection names the missing API token when the API refuses", async ({ page }) => {
   await page.route(
     "**/api/commit*",
