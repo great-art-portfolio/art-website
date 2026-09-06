@@ -705,7 +705,7 @@ function init(): void {
         addPhoto.hidden = true;
       };
       if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) hide();
-      else window.setTimeout(hide, 350);
+      else window.setTimeout(hide, 480);
     }
   });
 

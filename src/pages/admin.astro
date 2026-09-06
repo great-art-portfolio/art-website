@@ -182,7 +182,7 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
   }
   #sec-add.open .add-fields,
   #sec-add.open #add-preview {
-    opacity: 1; transform: none; transition-delay: 60ms;
+    opacity: 1; transform: none; transition-delay: 90ms;
   }
   #admin-status[data-tone="error"] {
     border-color: rgb(140 29 24 / 0.4); background: rgb(140 29 24 / 0.08); color: inherit;
@@ -210,6 +210,15 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
     .card summary::before { transition: none; }
   }
   .card summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  /* Advanced drawer eases open where the browser allows it; elsewhere it
+     simply appears, as before. */
+  #sec-info details { interpolate-size: allow-keywords; }
+  #sec-info details::details-content {
+    block-size: 0; overflow: clip;
+    transition: block-size 0.35s ease, content-visibility 0.35s ease;
+    transition-behavior: allow-discrete;
+  }
+  #sec-info details[open]::details-content { block-size: auto; }
   .card {
     background: var(--card); border: 1px solid var(--line);
     border-radius: 1rem; box-shadow: var(--shadow);
@@ -235,13 +244,13 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
   input[type="file"] { width: auto; max-width: 100%; cursor: pointer; }
   /* Author flex beats the UA [hidden] rule — re-hide like the h2 buttons. */
   #photo-tools[hidden] { display: none; }
-  /* Studio links behave like the footer: accent always, the underline
-     fades in on hover only. */
+  /* Studio links behave exactly like the footer: accent always, only
+     the underline fades in on hover — never a color flash. */
   .admin a {
-    transition: color 0.2s ease, text-decoration-color 0.25s ease;
+    transition: text-decoration-color 0.25s ease;
     text-decoration: underline transparent; text-underline-offset: 3px;
   }
-  .admin a:hover { color: var(--ink); text-decoration-color: currentColor; }
+  .admin a:hover { text-decoration-color: currentColor; }
   /* View bars: one accent row per painting, scaled to the top piece. */
   :global(.view-bar) {
     display: block; height: 0.45rem; margin-top: 0.35rem;
@@ -273,7 +282,7 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
   .card h2 button[hidden] { display: none; }
   /* Add form: closed it takes no space; opening animates the card wider
      with the fields left and the photo square right. */
-  #upload-form { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 0.32s ease, opacity 0.25s ease; }
+  #upload-form { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 0.45s ease-out, opacity 0.35s ease; }
   /* Author display beats the UA [hidden] rule — re-hide while closed. */
   #upload-form[hidden] { display: none; }
   #sec-add.open #upload-form { grid-template-rows: 1fr; opacity: 1; }
@@ -282,7 +291,7 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
   /* The photo column follows the fields, as one block. */
   #add-photo {
     opacity: 0; transform: translateY(8px);
-    transition: opacity 0.3s ease 140ms, transform 0.3s ease 140ms;
+    transition: opacity 0.3s ease 220ms, transform 0.3s ease 220ms;
   }
   #sec-add.open #add-photo { opacity: 1; transform: none; }
   #add-photo[hidden] { display: none; }
@@ -323,6 +332,7 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
     #sec-add .add-fields,
     #sec-add #add-photo,
     #sec-add #add-preview { transition: none; }
+    #sec-info details::details-content { transition: none; }
   }
   .hint { font-size: 0.88rem; color: var(--muted); }
   .check { display: flex; gap: 0.6rem; align-items: center; font-weight: 600; }
@@ -337,6 +347,7 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
     color: var(--muted); font-size: 0.9rem; padding: 1rem;
   }
   #views-list, #edit-list { list-style: none; padding: 0; margin: 0.75rem 0 0; display: grid; gap: 0.5rem; }
+  #sec-info ul { list-style: none; padding: 0; margin: 0.75rem 0 0; display: grid; gap: 0.5rem; }
   /* Rows and fields are built by script after load, so they never carry
      the scope attribute — whole-selector :global keeps them styled. */
   :global(#views-list li),
@@ -349,9 +360,9 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
   :global(#edit-list li a:visited) {
     color: var(--accent); text-decoration: underline transparent;
     text-underline-offset: 3px;
-    transition: color 0.2s ease, text-decoration-color 0.25s ease;
+    transition: text-decoration-color 0.25s ease;
   }
-  :global(#edit-list li a:hover) { color: var(--ink); text-decoration-color: currentColor; }
+  :global(#edit-list li a:hover) { text-decoration-color: currentColor; }
   :global(#edit-list label) { display: grid; gap: 0.3rem; margin-block: 0.6rem; font-size: 0.85rem; font-weight: 600; }
   :global(#edit-list input),
   :global(#edit-list textarea) {
@@ -403,6 +414,8 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
     #sec-add.open #add-preview-note { grid-column: 1; }
     #sec-add.open #upload-form { grid-column: 1; min-width: 0; }
     #sec-add.open #add-photo { grid-column: 2; grid-row: 1 / span 4; min-width: 0; }
+    /* Full-width cards, readable lists: rows stop at half the card. */
+    #edit-list, #views-list { max-width: 40rem; }
   }
   .card { scroll-margin-top: 7rem; }
 </style>

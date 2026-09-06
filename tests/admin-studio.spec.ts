@@ -149,6 +149,42 @@ test("admin links wear the accent, never browser blue", async ({ page }) => {
   expect(color).toBe("rgb(164, 74, 36)");
 });
 
+test("studio hovers match the footer: underline only, no color flash", async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/admin");
+  const accent = "rgb(208, 129, 89)";
+  for (const sel of ["#sec-collection .hint a", "#edit-list li a"]) {
+    const link = page.locator(sel).first();
+    await expect(link).toHaveCSS("color", accent);
+    await link.hover();
+    // Underline fades in; the text itself never leaves the accent.
+    await expect(link).toHaveCSS("color", accent);
+    await expect(link).not.toHaveCSS("text-decoration-color", "rgba(0, 0, 0, 0)");
+  }
+});
+
+test("collection rows stop at half the card on desktop", async ({ page }) => {
+  await page.goto("/admin");
+  const list = page.locator("#edit-list");
+  await expect(list).toBeVisible();
+  expect(await list.evaluate((el) => getComputedStyle(el).maxWidth)).toBe("640px");
+  const width = (await list.boundingBox())?.width ?? 0;
+  expect(width).toBeLessThanOrEqual(640);
+  expect(width).toBeGreaterThan(0);
+});
+
+test("info links list plainly, and Advanced eases open", async ({ page }) => {
+  await page.goto("/admin");
+  expect(
+    await page.locator("#sec-info ul").evaluate((el) => getComputedStyle(el).listStyleType),
+  ).toBe("none");
+  await expect(page.locator("#admin-token")).toBeHidden();
+  await page.locator("#sec-info summary").click();
+  await expect(page.locator("#admin-token")).toBeVisible();
+});
+
 test("errors toast over the page wherever she is scrolled", async ({ page }) => {
   await page.goto("/admin");
   await page.locator("#add-toggle").click();
