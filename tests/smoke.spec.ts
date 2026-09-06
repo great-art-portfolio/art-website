@@ -17,6 +17,14 @@ test("painting page shows the Interested button, not the form", async ({ page })
   await expect(page.locator("#inquiry-form")).toBeHidden();
 });
 
+test("reduced motion keeps the nav button planted", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  const cta = page.locator(".nav-cta");
+  await cta.hover();
+  await expect(cta).toHaveCSS("transform", "none");
+});
+
 test("clicking Interested reveals the form and focuses Name", async ({ page }) => {
   await page.goto("/paintings/night-reeds");
   await page.getByRole("button", { name: "Interested?" }).click();

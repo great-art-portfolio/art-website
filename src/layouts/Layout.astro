@@ -263,5 +263,8 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
     *, *::before, *::after { animation: none !important; transition: none !important; }
+    /* The blanket above only makes lifts instant — these remove them.
+       (Matches the .nav-links ancestor so it beats the hover rule.) */
+    .nav-links .nav-cta:hover { transform: none; }
   }
 </style>
