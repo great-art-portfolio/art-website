@@ -20,7 +20,9 @@ const headlineHtml = "Original paintings, from the studio";
       </p>
       <div class="hero-ctas">
         <a href="#collection" class="btn-primary">Browse the collection</a>
-        <a href="#notify" class="btn-ghost">Get notified of new work</a>
+        <a href="#notify-card" class="btn-ghost" id="notify-hero"
+          >Get notified of new work</a
+        >
       </div>
       <dl class="hero-meta">
         <div>
@@ -116,7 +118,13 @@ const headlineHtml = "Original paintings, from the studio";
     const hint = document.getElementById("notify-hint");
     if (card === null || btn === null || hint === null) return;
     const state = await (await push()).pushState();
-    if (state === "unsupported") return; // Older browser — stay invisible.
+    if (state === "unsupported") {
+      // Older browser — the card stays invisible, and so does the hero
+      // button that would scroll to it.
+      const hero = document.getElementById("notify-hero");
+      if (hero !== null) hero.hidden = true;
+      return;
+    }
     card.hidden = false;
     if (state === "subscribed") {
       btn.textContent = "You're on the list — turn off";
@@ -232,6 +240,10 @@ const headlineHtml = "Original paintings, from the studio";
     border: 1px solid var(--line);
     color: var(--ink);
     background: transparent;
+  }
+  /* Author display beats the UA [hidden] rule — re-hide. */
+  #notify-hero[hidden] {
+    display: none;
   }
   button.btn-primary {
     font: inherit;

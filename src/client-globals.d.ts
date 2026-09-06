@@ -15,4 +15,6 @@ interface Window {
   __detailDocWired?: boolean;
   /** PWA install prompt event, stashed until its footer button is tapped. */
   __deferredInstall?: Event | null;
+  /** Page enter-fade listener, registered once per session. */
+  __pageFadeWired?: boolean;
 }

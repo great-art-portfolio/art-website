@@ -61,6 +61,26 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
     <Analytics />
   </head>
   <body>
+    <script>
+      // Every page fades in on arrival — View Transitions swaps included.
+      // Opacity only, never movement: the browser snaps swaps entirely
+      // under reduced motion, so this author-run fade is what keeps them
+      // smooth there. (Web Animations aren't covered by the transition
+      // spec's reduced-motion kill the way pseudo-element keyframes are.)
+      // Inline scripts re-run on every swap — wire once.
+      if (window.__pageFadeWired !== true) {
+        window.__pageFadeWired = true;
+        document.addEventListener("astro:after-swap", () => {
+          const main = document.getElementById("main");
+          if (main !== null && typeof main.animate === "function") {
+            main.animate([{ opacity: 0 }, { opacity: 1 }], {
+              duration: 220,
+              easing: "ease",
+            });
+          }
+        });
+      }
+    </script>
     <a class="skip" href="#main">Skip to content</a>
     <header class="site-header">
       <nav class="site-nav" aria-label="Main">
@@ -88,7 +108,7 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
               <>
                 <a href="/#collection">Collection</a>
                 <a href="/#about">About</a>
-                <a href="/#notify" class="nav-cta">
+                <a href="/#notify-card" class="nav-cta">
                   Notify me
                 </a>
               </>

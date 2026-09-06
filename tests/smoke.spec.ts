@@ -80,6 +80,34 @@ test("homepage renders the notify card and hides the empty banner", async ({
   await expect(page.locator(".announce")).toHaveCount(0);
 });
 
+test("pages fade in on swap, even under reduced motion", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  // Firing the swap event must start an author-run fade on #main —
+  // Web Animations aren't covered by the transition spec's
+  // reduced-motion kill the way pseudo-element keyframes are.
+  const running = await page.evaluate(() => {
+    document.dispatchEvent(new Event("astro:after-swap"));
+    const main = document.getElementById("main");
+    return main === null ? 0 : main.getAnimations().length;
+  });
+  expect(running).toBeGreaterThanOrEqual(1);
+});
+
+test("notify button scrolls to the working signup card", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator("#notify-hero")).toHaveAttribute(
+    "href",
+    "#notify-card",
+  );
+  await page.locator("#notify-hero").click();
+  await expect(page).toHaveURL(/#notify-card/);
+  // The signup card itself answers (headless denies notification
+  // permission, so the button wears its blocked state here).
+  await expect(page.locator("#notify-card")).toBeVisible();
+  await expect(page.locator("#notify-btn")).toBeAttached();
+});
+
 test("inquiry honeypot is accepted without delivery", async ({ request }) => {
   const res = await request.post("/api/inquiries", {
     data: {
