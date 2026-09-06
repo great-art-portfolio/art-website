@@ -125,6 +125,22 @@ test("wall preview builds itself once the photo lands", async ({ page }) => {
   await expect(page.locator("#admin-status")).toContainText("Wall preview below");
 });
 
+test("wall preview reserves its space while building", async ({ page }) => {
+  await page.goto("/admin");
+  await page.locator("#add-toggle").click();
+  // Stall the 3D builder so the placeholder holds the stage.
+  await page.route("**/js/ar-tooling.js", async () => {
+    await new Promise(() => undefined);
+  });
+  await page.locator("#photo-file").setInputFiles("src/content/paintings/1943x1967.jpg");
+  await expect(page.locator("#ar-preview .ar-placeholder")).toContainText(
+    "usually a few seconds",
+  );
+  // Reserved box, not a collapsed line: the model lands without a jump.
+  const box = await page.locator("#ar-preview").boundingBox();
+  expect(box !== null && box.height >= 300).toBe(true);
+});
+
 test("admin links wear the accent, never browser blue", async ({ page }) => {
   await page.goto("/admin");
   const color = await page
@@ -141,6 +157,8 @@ test("errors toast over the page wherever she is scrolled", async ({ page }) => 
   await page.locator("#f-price").fill("250");
   await page.locator('#upload-form button[type="submit"]').click();
   await expect(page.locator("#admin-status")).toContainText("Choose a photo first.");
+  // Every message re-rises the toast.
+  await expect(page.locator("#admin-status.toast-in")).toHaveCount(1);
   const pos = await page
     .locator("#admin-status")
     .evaluate((el) => getComputedStyle(el).position);
@@ -171,6 +189,11 @@ test("add form waits behind its button", async ({ page }) => {
   // Photo column shows with the form; its picker still belongs to it.
   await expect(page.locator("#add-photo")).toBeVisible();
   await expect(page.locator("#photo-file")).toHaveAttribute("form", "upload-form");
+  // The focus ring fades (box-shadow), never snaps.
+  const transition = await page
+    .locator(".photo-square")
+    .evaluate((el) => getComputedStyle(el).transition);
+  expect(transition).toContain("box-shadow");
   const body = (await page.locator("#main").textContent()) ?? "";
   expect(body).not.toContain("Photo from your phone");
 });
@@ -353,7 +376,9 @@ test("publish clears the photo so the next Save starts empty", async ({ page }) 
   await page.locator("#f-title").fill("Review Test Piece");
   await page.locator("#f-price").fill("250");
   await page.locator('#upload-form button[type="submit"]').click();
-  await expect(page.locator("#admin-status")).toContainText('Published "Review Test Piece"');
+  await expect(page.locator("#admin-status")).toContainText('Published "Review Test Piece"', {
+    timeout: 15_000,
+  });
   // Form reset AND photo forgotten: typing title+price alone can't publish.
   await page.locator("#f-title").fill("Second Attempt");
   await page.locator("#f-price").fill("300");

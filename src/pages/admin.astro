@@ -169,6 +169,21 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
     border: 1px solid var(--line); background: var(--card);
     font-size: 0.95rem; box-shadow: var(--shadow);
   }
+  /* Gentle rise on every new message, re-triggered from the panel. */
+  #admin-status.toast-in { animation: toast-in 0.25s ease; }
+  @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 0.5rem); } }
+  /* Staggered entrance for the Add form: fields first, photo column after,
+     so opening reads as an arrival, not a snap. Block-level on purpose —
+     the buttons and the square keep their own hover transitions. */
+  #sec-add .add-fields,
+  #sec-add #add-preview {
+    opacity: 0; transform: translateY(8px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+  #sec-add.open .add-fields,
+  #sec-add.open #add-preview {
+    opacity: 1; transform: none; transition-delay: 60ms;
+  }
   #admin-status[data-tone="error"] {
     border-color: rgb(140 29 24 / 0.4); background: rgb(140 29 24 / 0.08); color: inherit;
   }
@@ -264,9 +279,12 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
   #sec-add.open #upload-form { grid-template-rows: 1fr; opacity: 1; }
   .add-anim { overflow: hidden; min-height: 0; }
   .add-fields button[type="submit"] { margin-top: 0.75rem; }
-  /* The photo column fades in beside the form. */
-  #add-photo { opacity: 0; transition: opacity 0.3s ease 0.05s; }
-  #sec-add.open #add-photo { opacity: 1; }
+  /* The photo column follows the fields, as one block. */
+  #add-photo {
+    opacity: 0; transform: translateY(8px);
+    transition: opacity 0.3s ease 140ms, transform 0.3s ease 140ms;
+  }
+  #sec-add.open #add-photo { opacity: 1; transform: none; }
   #add-photo[hidden] { display: none; }
   .photo-caption { display: block; font-size: 0.9rem; font-weight: 600; margin-block: 0.75rem; }
   /* The whole square is the picker: the file input covers it invisibly. */
@@ -274,10 +292,11 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
     position: relative; aspect-ratio: 1; overflow: hidden;
     border: 1.5px dashed var(--muted); border-radius: 0.75rem;
     background: var(--paper); cursor: pointer;
-    transition: border-color 0.2s ease;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
   .photo-square:hover { border-color: var(--ink); }
-  .photo-square:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+  /* Focus ring as box-shadow so it fades in and out like the hover. */
+  .photo-square:focus-within { outline: none; box-shadow: 0 0 0 2px var(--accent); }
   #photo-file {
     position: absolute; inset: 0; width: 100%; height: 100%;
     opacity: 0; cursor: pointer; border: none; background: none;
@@ -300,11 +319,23 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
     #add-photo { transition: none; }
     .admin a { transition: none; }
     :global(#edit-list li a) { transition: none; }
+    #admin-status.toast-in { animation: none; }
+    #sec-add .add-fields,
+    #sec-add #add-photo,
+    #sec-add #add-preview { transition: none; }
   }
   .hint { font-size: 0.88rem; color: var(--muted); }
   .check { display: flex; gap: 0.6rem; align-items: center; font-weight: 600; }
   .check input { width: auto; min-height: 1.4rem; accent-color: var(--accent); }
   #ar-preview { margin-top: 0.75rem; }
+  /* Reserved while building or live, so the model never shoves the page. */
+  #ar-preview.live { min-height: 22rem; }
+  :global(#ar-preview .ar-placeholder) {
+    min-height: 22rem; box-sizing: border-box; margin: 0;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    border: 1.5px dashed var(--muted); border-radius: 0.75rem;
+    color: var(--muted); font-size: 0.9rem; padding: 1rem;
+  }
   #views-list, #edit-list { list-style: none; padding: 0; margin: 0.75rem 0 0; display: grid; gap: 0.5rem; }
   /* Rows and fields are built by script after load, so they never carry
      the scope attribute — whole-selector :global keeps them styled. */

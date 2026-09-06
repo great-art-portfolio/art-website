@@ -43,6 +43,10 @@ function setStatus(msg: string, isError = false): void {
   const el = $("admin-status");
   el.textContent = msg;
   el.dataset.tone = isError ? "error" : "ok";
+  // Re-rise the toast on every message (no-op motion when reduced).
+  el.classList.remove("toast-in");
+  void el.offsetWidth;
+  el.classList.add("toast-in");
 }
 
 /** Local preview (dev servers), where publishing + analytics genuinely live
@@ -72,7 +76,10 @@ async function refreshPreview(): Promise<void> {
   // the rebuild lands, so she never sees a wrong-size preview.
   photoGen += 1;
   previewModels = null;
-  ($("ar-preview") as HTMLElement).hidden = true;
+  const arMount = $("ar-preview") as HTMLElement;
+  arMount.hidden = true;
+  arMount.classList.remove("live");
+  arMount.innerHTML = "";
   ($("photo-tools") as HTMLDivElement).hidden = false;
   lastPreviewUrl = prepared.previewUrl;
   const img = $<HTMLImageElement>("photo-preview");
@@ -402,6 +409,7 @@ async function autoBuildAr(): Promise<void> {
   const source = preparedBlob;
   const gen = photoGen;
   setStatus("Building wall preview… (true size, takes a few seconds)");
+  showArBuilding();
   try {
     const { buildArModels, estimateDims } = await loadArTooling();
     if (gen !== photoGen || preparedBlob !== source) return;
@@ -420,6 +428,10 @@ async function autoBuildAr(): Promise<void> {
     setStatus("Wall preview below — preview only, nothing published yet.");
   } catch (err) {
     if (gen !== photoGen || preparedBlob !== source) return;
+    // No box reserved for a failure — just the note in the toast.
+    const failed = $("ar-preview");
+    failed.classList.remove("live");
+    failed.innerHTML = "";
     setStatus(
       `Wall preview build failed — you can still save without it. (${(err as Error).message})`,
       true,
@@ -427,10 +439,23 @@ async function autoBuildAr(): Promise<void> {
   }
 }
 
+/**
+ * Placeholder that reserves the viewer's exact box while the models build,
+ * so the page never jumps when they land. Includes the wait, honestly.
+ */
+function showArBuilding(): void {
+  const mount = $("ar-preview");
+  mount.hidden = false;
+  mount.classList.add("live");
+  mount.innerHTML =
+    '<p class="ar-placeholder">Building the 3D preview — usually a few seconds…</p>';
+}
+
 /** Inline <model-viewer> test so she can try AR before buyers do. */
 function showArPreview(glbUrl: string, usdzUrl: string): void {
   const mount = $("ar-preview");
   mount.hidden = false;
+  mount.classList.add("live");
   mount.innerHTML = "";
   // Script tag, not import(): Vite dev won't serve /public files as
   // modules. See src/lib/vendor-loader.ts.
@@ -450,6 +475,7 @@ function showArPreview(glbUrl: string, usdzUrl: string): void {
       mount.appendChild(el);
     })
     .catch(() => {
+      mount.classList.remove("live");
       mount.textContent = "Wall preview unavailable in this browser.";
     });
 }

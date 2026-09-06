@@ -451,6 +451,7 @@ const paintingJsonLd = {
       reveal.hidden = false;
       reveal.addEventListener("click", () => {
         form.hidden = false;
+        form.classList.add("revealed");
         reveal.hidden = true;
         const name = form.querySelector('input[name="name"]');
         if (name !== null) name.focus();
@@ -575,8 +576,9 @@ const paintingJsonLd = {
     background: rgb(20 18 15 / 0.82); color: #fff;
   }
   .badge.sold { background: rgb(140 29 24 / 0.9); }
-  #lightbox { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.94); display: grid; place-items: center; z-index: 50; cursor: zoom-out; }
+  #lightbox { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.94); display: grid; place-items: center; z-index: 50; cursor: zoom-out; animation: lb-in 0.25s ease; }
   #lightbox[hidden] { display: none; }
+  @keyframes lb-in { from { opacity: 0; } }
   #lightbox img { max-width: 100vw; max-height: 100vh; object-fit: contain; border-radius: 0; }
   .eyebrow {
     margin: 0 0 0.6rem; font-size: 0.78rem; font-weight: 700;
@@ -611,6 +613,8 @@ const paintingJsonLd = {
   }
   @media (prefers-reduced-motion: reduce) {
     .ar-skeleton { animation: none; }
+    #lightbox { animation: none; }
+    #inquiry-form.revealed { animation: none; }
   }
   /* The viewer is focusable (keyboard orbit) — keep an accent ring for
      keyboard users, not the browser's default blue after a mouse tap. */
@@ -625,6 +629,9 @@ const paintingJsonLd = {
   #inquiry-reveal[hidden] { display: none; }
   form { display: grid; gap: 0.65rem; margin-top: 1.75rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
   form[hidden] { display: none; }
+  /* Gentle arrival when "Interested?" reveals the form (class added once). */
+  #inquiry-form.revealed { animation: form-in 0.3s ease; }
+  @keyframes form-in { from { opacity: 0; transform: translateY(8px); } }
   form h2 { font-size: 1.25rem; font-weight: 500; margin: 0 0 0.25rem; }
   .ship-note { font-size: 0.88rem; color: var(--muted); margin: 0 0 0.5rem; }
   label { display: grid; gap: 0.3rem; font-size: 0.88rem; font-weight: 600; }
