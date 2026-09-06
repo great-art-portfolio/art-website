@@ -160,6 +160,28 @@ for (const p of paintings) {
   });
 }
 
+test("inquiry comes before the wall preview, skeleton holds the stage", async ({
+  page,
+}) => {
+  const [target] = available.filter((p) => p.modelGlb !== "") as [Painting];
+  // Skeleton ships in the HTML (the poster swaps it out on load, so assert
+  // the source, not the live DOM).
+  const html = await (await page.request.get(`/paintings/${target.slug}`)).text();
+  expect(html).toContain("ar-skeleton");
+  await page.goto(`/paintings/${target.slug}`);
+  // The form opens with the painting still on screen: inquiry precedes AR.
+  const order = await page.evaluate(() => {
+    const info = document.querySelector(".info");
+    const form = document.getElementById("inquiry-form");
+    const ar = document.getElementById("ar-mount");
+    if (info === null || form === null || ar === null) return [] as string[];
+    return Array.from(info.children).map((el) => el.id || el.tagName);
+  });
+  expect(order).toContain("inquiry-form");
+  expect(order).toContain("ar-mount");
+  expect(order.indexOf("inquiry-form")).toBeLessThan(order.indexOf("ar-mount"));
+});
+
 test("viewing one painting after another shows each painting's own 3D model", async ({
   page,
 }) => {

@@ -94,15 +94,6 @@ const paintingJsonLd = {
           <Content />
         </div>
         {
-          !painting.data.sold && (painting.data.modelGlb ?? "") !== "" && (
-            <div id="ar-mount">
-              <h2>Try it on your wall</h2>
-              <p class="hint">True size — on your phone, point it at the wall where it would hang.</p>
-              <div id="ar-stage"></div>
-            </div>
-          )
-        }
-        {
           !painting.data.sold && (
             <>
               <button type="button" id="inquiry-reveal" class="btn-primary" hidden>Interested?</button>
@@ -118,6 +109,15 @@ const paintingJsonLd = {
                 <p id="inquiry-status" role="status"></p>
               </form>
             </>
+          )
+        }
+        {
+          !painting.data.sold && (painting.data.modelGlb ?? "") !== "" && (
+            <div id="ar-mount">
+              <h2>Try it on your wall</h2>
+              <p class="hint">True size — on your phone, point it at the wall where it would hang.</p>
+              <div id="ar-stage"><div class="ar-skeleton" aria-hidden="true"></div></div>
+            </div>
           )
         }
       </div>
@@ -592,6 +592,20 @@ const paintingJsonLd = {
   #ar-mount { margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
   #ar-mount h2 { font-size: 1.25rem; font-weight: 500; margin: 0 0 0.25rem; }
   #ar-mount .hint { margin: 0 0 0.75rem; }
+  /* Loading skeleton: holds the exact viewer box so the swap never flashes
+     or shifts layout. Cleared by replaceChildren on render. */
+  .ar-skeleton {
+    width: 100%; height: 20rem; border-radius: 1rem;
+    background: var(--card); border: 1px solid var(--line);
+    animation: ar-pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes ar-pulse {
+    0%, 100% { opacity: 0.45; }
+    50% { opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ar-skeleton { animation: none; }
+  }
   /* The viewer is focusable (keyboard orbit) — keep an accent ring for
      keyboard users, not the browser's default blue after a mouse tap. */
   #ar-stage model-viewer:focus { outline: none; }
