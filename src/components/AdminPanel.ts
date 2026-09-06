@@ -732,8 +732,8 @@ function init(): void {
     .then((n) => {
       $("collectors-hint").textContent =
         n === 0
-          ? "No collectors subscribed yet — the button appears on the homepage."
-          : `${n} collector${n === 1 ? "" : "s"} will get a push alert.`;
+          ? "No collectors yet — visitors subscribe with “Notify me” on the homepage."
+          : `${n} collector${n === 1 ? "" : "s"} subscribed — “Notify collectors” sends them a phone alert.`;
     })
     .catch(() => undefined);
 
