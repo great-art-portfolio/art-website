@@ -5,6 +5,17 @@ function adminHeaders(): HeadersInit {
   return token === "" ? {} : { Authorization: `Bearer ${token}` };
 }
 
+/** HTTP failure with its status, so callers can tell 401 (needs the API
+ * token) from unreachable (no Functions runtime) from a real error. */
+export class ApiError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, init);
   let data: T & { error?: string };
@@ -13,11 +24,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   } catch {
     // No Functions runtime here (e.g. plain `astro dev`) — the dev server
     // answers API routes with an HTML 404 page instead of JSON.
-    throw new Error(
+    throw new ApiError(
+      res.status,
       `The site API isn't running here — use the live /admin to publish. (${res.status})`,
     );
   }
-  if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);
+  if (!res.ok) throw new ApiError(res.status, data.error ?? `Request failed (${res.status})`);
   return data;
 }
 
@@ -139,7 +151,11 @@ export const api = {
         unconfigured?: boolean;
       }>("/api/analytics", { headers: adminHeaders() });
       return { views: data.views, unconfigured: data.unconfigured === true };
-    } catch {
+    } catch (err) {
+      // 401 means the token is missing/wrong — the caller names that. Every
+      // other failure reads as "not configured" downstream, where the local
+      // preview check sorts dev from live.
+      if (err instanceof ApiError && err.status === 401) throw err;
       return { views: [], unconfigured: true };
     }
   },

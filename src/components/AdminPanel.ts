@@ -1,4 +1,4 @@
-import { api } from "../lib/api";
+import { api, ApiError } from "../lib/api";
 import { loadImageFile, prepareImage } from "../lib/image";
 import { buildCaption, sharePainting } from "../lib/share";
 import { dollarsToCents, formatCAD } from "../lib/money";
@@ -46,6 +46,24 @@ function setStatus(msg: string, isError = false): void {
   el.dataset.tone = isError ? "error" : "ok";
 }
 
+/** Local preview (dev servers), where publishing + analytics genuinely live
+ * only on the production site — never a bug, never a setup step. */
+function isLocalPreview(): boolean {
+  const host = window.location.hostname;
+  return host === "localhost" || host === "127.0.0.1";
+}
+
+/** `/api/status` is public (no token needed), so it doubles as the "is there
+ * an API here at all" probe: true under wrangler/live, false under astro dev. */
+async function apiReachable(): Promise<boolean> {
+  try {
+    await api.status();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function refreshPreview(): Promise<void> {
   if (loadedImage === null) return;
   const prepared = await prepareImage(loadedImage, rotation);
@@ -67,10 +85,23 @@ async function refreshCollection(): Promise<void> {
   try {
     files = (await api.listPaintingFiles()).filter((f) => f.endsWith(".md"));
     ($("collection-refresh") as HTMLButtonElement).hidden = true;
-  } catch {
+  } catch (err) {
+    const retry = $("collection-refresh") as HTMLButtonElement;
+    if (err instanceof ApiError && err.status === 401) {
+      list.innerHTML =
+        "<li>This needs your API token — enter it in Settings below, then tap Retry.</li>";
+      retry.hidden = false;
+      return;
+    }
+    if (await apiReachable()) {
+      list.innerHTML =
+        "<li>Publishing isn't available in this preview — open barbart.ca/admin on the live site to add or edit paintings.</li>";
+      retry.hidden = true;
+      return;
+    }
     list.innerHTML =
       "<li>Couldn't reach the publishing service — open barbart.ca/admin on the live site, then tap Retry.</li>";
-    ($("collection-refresh") as HTMLButtonElement).hidden = false;
+    retry.hidden = false;
     return;
   }
   if (files.length === 0) {
@@ -307,12 +338,16 @@ function showArPreview(glbUrl: string, usdzUrl: string): void {
 
 async function refreshViews(): Promise<void> {
   const list = $("views-list");
+  const retry = $("views-refresh") as HTMLButtonElement;
   try {
     const { views, unconfigured } = await api.paintingViews();
-    ($("views-refresh") as HTMLButtonElement).hidden = true;
+    retry.hidden = true;
     if (unconfigured) {
-      list.innerHTML =
-        "<li>View stats aren't set up yet — the Cloudflare steps in the README finish the job.</li>";
+      // Same response, two meanings: a local preview has no secrets by
+      // design, while live truly needs the Cloudflare setup steps.
+      list.innerHTML = isLocalPreview()
+        ? "<li>View stats only work on the live /admin — this is a local preview.</li>"
+        : "<li>View stats aren't set up yet — the Cloudflare steps in the README finish the job.</li>";
       return;
     }
     if (views.length === 0) {
@@ -325,13 +360,21 @@ async function refreshViews(): Promise<void> {
         return `<li><em>${slug}</em> — ${v.views} views</li>`;
       })
       .join("");
-  } catch {
-    ($("views-refresh") as HTMLButtonElement).hidden = false;
-    const local =
-      window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-    list.innerHTML = local
-      ? "<li>Views only work on the live /admin — this is a local preview.</li>"
-      : "<li>Could not load views — tap Retry.</li>";
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) {
+      list.innerHTML =
+        "<li>Views need your API token — enter it in Settings below, then tap Retry.</li>";
+      retry.hidden = false;
+      return;
+    }
+    if (await apiReachable()) {
+      list.innerHTML = "<li>View stats aren't available right now — tap Retry.</li>";
+    } else {
+      list.innerHTML = isLocalPreview()
+        ? "<li>Views only work on the live /admin — this is a local preview.</li>"
+        : "<li>Could not load views — tap Retry.</li>";
+    }
+    retry.hidden = false;
   }
 }
 
@@ -368,7 +411,10 @@ async function refreshFlags(): Promise<void> {
     $("flag-shippo").textContent = s.shippo ? "on" : "off";
     $("flag-social").textContent = s.socialPost ? "on (auto)" : "share kit";
   } catch {
-    // API not reachable locally until wrangler pages dev.
+    // No API here (e.g. astro dev) — say so instead of leaving "…" dots.
+    for (const id of ["flag-email", "flag-push", "flag-stripe", "flag-shippo", "flag-social"]) {
+      $(id).textContent = "unavailable in this preview";
+    }
   }
 }
 

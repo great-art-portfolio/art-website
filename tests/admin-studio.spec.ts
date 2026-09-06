@@ -106,6 +106,30 @@ test("collection rows link to their painting pages", async ({ page }) => {
   await expect(page).toHaveURL(new RegExp(`/paintings/${paintings[0].slug}/?$`));
 });
 
+test("collection names the missing API token when the API refuses", async ({ page }) => {
+  await page.route(
+    "**/api/commit*",
+    async (route) =>
+      await route.fulfill({
+        status: 401,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "Unauthorized" }),
+      }),
+  );
+  await page.goto("/admin");
+  await expect(page.locator("#edit-list")).toContainText("API token");
+  await expect(page.locator("#collection-refresh")).toBeVisible();
+});
+
+test("views names the local preview when analytics is down", async ({ page }) => {
+  await mockCommitApi(page);
+  // Later routes win: this overrides the mock's analytics success above.
+  await page.route("**/api/analytics*", async (route) => await route.abort("failed"));
+  await page.goto("/admin");
+  await expect(page.locator("#views-list")).toContainText("local preview");
+  await expect(page.locator("#views-refresh")).toBeHidden();
+});
+
 test("admin mode follows her through the whole gallery", async ({ browser }) => {
   const authed = await browser.newContext();
   await authed.addInitScript(() =>
