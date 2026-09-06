@@ -164,11 +164,10 @@ test("reduced motion kills movement, keeps gentle fades", async ({ page }) => {
     "0.12s",
   );
   // Buttons never lift; skeletons hold still.
-  await page.locator("#sec-add .btn-link").hover();
-  await expect(page.locator("#sec-add .btn-link")).toHaveCSS(
-    "transform",
-    "none",
-  );
+  await page.locator('nav a.nav-cta[href="/admin/paintings/new"]').hover();
+  await expect(
+    page.locator('nav a.nav-cta[href="/admin/paintings/new"]'),
+  ).toHaveCSS("transform", "none");
   await expect(page.locator("#edit-list .row-edit").first()).toHaveCSS(
     "color",
     "rgb(164, 74, 36)",
@@ -347,7 +346,11 @@ test("studio dashboard grids without sideways scroll on a phone", async ({
       document.documentElement.clientWidth,
   );
   expect(overflow).toBeLessThanOrEqual(0);
-  await expect(page.locator(".admin-grid .card").first()).toBeVisible();
+  // Share panel stays hidden until the browser offers sharing — the
+  // first card a phone actually shows is the collection.
+  await expect(
+    page.locator(".admin-grid .card:not([hidden])").first(),
+  ).toBeVisible();
   // Her way home stays visible on a phone (non-CTA links hide by default).
   await expect(
     page.locator('.site-nav .nav-links a.keep[href="/"]'),
@@ -367,7 +370,7 @@ test("studio wakes up on every visit, not just full loads", async ({
   // Lists refilled — init ran on the return visit — and the new-painting
   // door still opens its room.
   await expect(page.locator("#views-list")).not.toBeEmpty();
-  await page.locator('#sec-add a[href="/admin/paintings/new"]').click();
+  await page.locator('nav a.nav-cta[href="/admin/paintings/new"]').click();
   await expect(page.locator("#de-title")).toBeVisible();
 });
 

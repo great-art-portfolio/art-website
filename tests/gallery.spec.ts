@@ -326,7 +326,6 @@ test("admin page renders the studio sections and new-painting door", async ({
 }) => {
   await page.goto("/admin");
   for (const id of [
-    "#sec-add",
     "#sec-collection",
     "#sec-banner",
     "#sec-views",
@@ -334,11 +333,12 @@ test("admin page renders the studio sections and new-painting door", async ({
   ]) {
     await expect(page.locator(id)).toBeAttached();
   }
-  // Grid dashboard, no anchor strip; new paintings start in their own room.
+  // Grid dashboard, no anchor strip; new paintings start in their own room
+  // through the header button.
   await expect(page.locator(".subnav")).toHaveCount(0);
   await expect(page.locator(".admin-grid")).toBeVisible();
   await expect(
-    page.locator('#sec-add a[href="/admin/paintings/new"]'),
+    page.locator('nav a.nav-cta[href="/admin/paintings/new"]'),
   ).toBeVisible();
   await expect(page.locator("#admin-token")).toBeAttached();
 });
@@ -434,7 +434,7 @@ test("service worker serves the worker script but never caches admin", async ({
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.goto("/admin");
   await expect(
-    page.locator('#sec-add a[href="/admin/paintings/new"]'),
+    page.locator('nav a.nav-cta[href="/admin/paintings/new"]'),
   ).toBeVisible();
   expect(await adminCached()).toBe(false);
   await page.goto("/admin/paintings/new");

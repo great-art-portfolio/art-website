@@ -27,17 +27,6 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
     <p id="admin-status" role="status" data-tone="ok"></p>
 
     <div class="admin-grid">
-      <section class="card" id="sec-add">
-        <h2>Add a painting</h2>
-        <p class="hint">
-          New paintings start on their own page — it looks exactly like the
-          buyer page, and you fill it in there.
-        </p>
-        <a class="btn-link primary" href="/admin/paintings/new"
-          >Start a new painting</a
-        >
-      </section>
-
       <section class="card" id="share-panel" hidden>
         <h2>Tell social media</h2>
         <textarea id="share-caption" rows="8"></textarea>
@@ -359,8 +348,7 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
     background: var(--accent);
     border-radius: 999px;
   }
-  button:focus-visible,
-  .btn-link:focus-visible {
+  button:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
@@ -430,46 +418,6 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
   .card h2 button[hidden] {
     display: none;
   }
-  /* The new-painting room lives on its own page now — this card is just
-     its front door. */
-  .btn-link {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.92rem;
-    font-weight: 600;
-    text-decoration: none;
-    min-height: 2.9rem;
-    padding: 0.55rem 1.2rem;
-    border-radius: 0.75rem;
-    border: 1px solid var(--ink);
-    background: var(--ink);
-    color: var(--paper);
-    cursor: pointer;
-    transition:
-      background-color 0.25s ease,
-      border-color 0.25s ease,
-      color 0.25s ease,
-      transform 0.2s ease;
-  }
-  .btn-link:hover {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: var(--accent-ink);
-    text-decoration: none;
-  }
-  .btn-link:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
-  @media (hover: hover) {
-    .btn-link:hover {
-      transform: translateY(-1px);
-    }
-  }
-  .btn-link:active {
-    transform: none;
-  }
   /* Reduced motion kills movement, not gentle fades: lifts go instant,
      while color and opacity transitions still run — snapping colors is
      itself jarring. */
@@ -477,8 +425,7 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
     #admin-status.toast-in {
       animation: none;
     }
-    button:hover,
-    .btn-link:hover {
+    button:hover {
       transform: none;
     }
     #sec-info details::details-content {
