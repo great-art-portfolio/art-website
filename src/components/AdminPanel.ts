@@ -34,12 +34,6 @@ let lastPreviewUrl: string | null = null;
 let rotation: 0 | 90 | 180 | 270 = 0;
 let lastShare: { title: string; caption: string; pageUrl: string } | null = null;
 
-function greet(): void {
-  const hour = new Date().getHours();
-  const part = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
-  $("admin-greeting").textContent = `Good ${part}.`;
-}
-
 function setStatus(msg: string, isError = false): void {
   const el = $("admin-status");
   el.textContent = msg;
@@ -70,6 +64,7 @@ async function refreshPreview(): Promise<void> {
   if (lastPreviewUrl !== null) URL.revokeObjectURL(lastPreviewUrl);
   preparedBlob = prepared.blob;
   ($("ar-try-row") as HTMLDivElement).hidden = false;
+  ($("photo-tools") as HTMLDivElement).hidden = false;
   lastPreviewUrl = prepared.previewUrl;
   const img = $<HTMLImageElement>("photo-preview");
   img.src = prepared.previewUrl;
@@ -90,7 +85,7 @@ async function refreshCollection(): Promise<void> {
     const retry = $("collection-refresh") as HTMLButtonElement;
     if (err instanceof ApiError && err.status === 401) {
       list.innerHTML =
-        "<li>This needs your API token — enter it in Settings below, then tap Retry.</li>";
+        "<li>This needs your API token — enter it in Advanced below, then tap Retry.</li>";
       retry.hidden = false;
       return;
     }
@@ -216,7 +211,7 @@ async function openEditForm(path: string): Promise<void> {
         // from the repo photo in the same commit.
         const arMod = await loadArTooling();
         const fix = await arMod.rebuildForDimFix(api.getPhoto, path, p, edits, () =>
-          setStatus("Rebuilding AR preview… (true size, takes a few seconds)"),
+          setStatus("Rebuilding wall preview… (true size, takes a few seconds)"),
         );
         await api.commitFiles(`Edit painting: ${title}`, [
           { path, blob: patchPainting(content, fix.edits) },
@@ -326,14 +321,14 @@ function showArPreview(glbUrl: string, usdzUrl: string): void {
       el.setAttribute("ar-scale", "fixed");
       el.setAttribute("ar-placement", "wall");
       el.setAttribute("camera-controls", "");
-      el.setAttribute("alt", "AR preview");
+      el.setAttribute("alt", "Wall preview");
       el.style.width = "100%";
       el.style.height = "22rem";
       el.style.borderRadius = "0.6rem";
       mount.appendChild(el);
     })
     .catch(() => {
-      mount.textContent = "AR preview unavailable in this browser.";
+      mount.textContent = "Wall preview unavailable in this browser.";
     });
 }
 
@@ -352,19 +347,25 @@ async function refreshViews(): Promise<void> {
       return;
     }
     if (views.length === 0) {
-      list.innerHTML = "<li>No views yet.</li>";
+      // Nothing to report — the card stays out of the way.
+      ($("sec-views") as HTMLElement).hidden = true;
       return;
     }
+    const max = Math.max(...views.map((v) => v.views));
     list.innerHTML = views
       .map((v) => {
         const slug = v.slug.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-        return `<li><em>${slug}</em> — ${v.views} views</li>`;
+        const pct = max > 0 ? Math.round((v.views / max) * 100) : 0;
+        return (
+          `<li><em>${slug}</em> — ${v.views} views` +
+          `<span class="view-bar" aria-hidden="true"><span style="width:${pct}%"></span></span></li>`
+        );
       })
       .join("");
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) {
       list.innerHTML =
-        "<li>Views need your API token — enter it in Settings below, then tap Retry.</li>";
+        "<li>Views need your API token — enter it in Advanced below, then tap Retry.</li>";
       retry.hidden = false;
       return;
     }
@@ -408,13 +409,26 @@ async function refreshFlags(): Promise<void> {
     const s = await api.status();
     $("flag-email").textContent = s.email ? "on" : "off";
     $("flag-push").textContent = s.push ? "on" : "off";
-    $("flag-stripe").textContent = s.stripe ? "on" : "off";
-    $("flag-shippo").textContent = s.shippo ? "on" : "off";
     $("flag-social").textContent = s.socialPost ? "on (auto)" : "share kit";
+    // Off means off — the whole line hides instead of reporting it.
+    const shipFlags = $("ship-flags");
+    if (!s.shippo && !s.stripe) {
+      shipFlags.hidden = true;
+    } else {
+      shipFlags.hidden = false;
+      $("flag-stripe").textContent = s.stripe ? "on" : "off";
+      $("flag-shippo").textContent = s.shippo ? "on" : "off";
+    }
   } catch {
     // No API here (e.g. astro dev) — say so instead of leaving "…" dots.
     for (const id of ["flag-email", "flag-push", "flag-stripe", "flag-shippo", "flag-social"]) {
       $(id).textContent = "unavailable in this preview";
+    }
+    if (isLocalPreview()) {
+      const note = $("add-preview-note");
+      note.textContent =
+        "Publishing needs the live site — everything else here works in this preview.";
+      (note as HTMLParagraphElement).hidden = false;
     }
   }
 }
@@ -435,8 +449,6 @@ function readDims(): { widthIn: number | null; heightIn: number | null; depthIn:
 }
 
 function init(): void {
-  greet();
-
   api
     .getBanner()
     .then((raw) => {
@@ -554,10 +566,10 @@ function init(): void {
 
   $("ar-try").addEventListener("click", () => {
     if (preparedBlob === null) {
-      setStatus("Choose a photo first — then try the AR preview.", true);
+      setStatus("Choose a photo first — then try the wall preview.", true);
       return;
     }
-    setStatus("Building AR preview… (true size, takes a few seconds)");
+    setStatus("Building wall preview… (true size, takes a few seconds)");
     const source = preparedBlob;
     void (async () => {
       try {
@@ -568,7 +580,7 @@ function init(): void {
         const dims = estimateDims(arImg, widthIn, heightIn, depthIn);
         const models = await buildArModels(arImg, dims.w, dims.h, dims.d);
         showArPreview(URL.createObjectURL(models.glb), URL.createObjectURL(models.usdz));
-        setStatus("AR preview below — preview only, nothing published yet.");
+        setStatus("Wall preview below — preview only, nothing published yet.");
       } catch (err) {
         setStatus(
           `AR preview failed: ${(err as Error).message} — you can still save without it.`,
@@ -626,7 +638,7 @@ function init(): void {
         let glbBlob: Blob | null = null;
         let usdzBlob: Blob | null = null;
         if (($("f-ar") as HTMLInputElement).checked) {
-          setStatus("Building AR preview… (true size, takes a few seconds)");
+          setStatus("Building wall preview… (true size, takes a few seconds)");
           try {
             const { buildArModels, estimateDims } = await loadArTooling();
             // Decode the prepared (rotated/cropped) photo so the model
@@ -662,7 +674,7 @@ function init(): void {
             };
           } catch (err) {
             console.error(err);
-            setStatus("AR build failed — publishing without it. Uncheck AR next time to skip the wait.");
+            setStatus("Wall preview build failed — publishing without it. Uncheck the wall preview next time to skip the wait.");
           }
         }
         await api.commitFiles(`Add painting: ${title}`, files);
@@ -768,8 +780,8 @@ function init(): void {
   void refreshCapabilities();
 }
 
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", init);
-} else {
-  init();
-}
+// ClientRouter swaps studio pages without a full load — and skips
+// re-running this bundle (same src), so DOMContentLoaded init leaves every
+// later visit dead. astro:page-load fires on first load AND every visit;
+// its document persists, so one listener covers all visits with no guard.
+document.addEventListener("astro:page-load", () => void init());

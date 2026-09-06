@@ -83,8 +83,8 @@ async function mockCommitApi(page: Page): Promise<void> {
 test("studio header links home, never to visitor funnels", async ({ page }) => {
   await mockCommitApi(page);
   await page.goto("/admin");
-  await expect(page.locator(".site-nav .nav-links a")).toHaveCount(3);
-  await expect(page.locator('.site-nav .nav-links a[href="/admin/gallery"]')).toHaveCount(1);
+  // ← Gallery, Add painting. Gallery doubles as leave (clears the token).
+  await expect(page.locator(".site-nav .nav-links a")).toHaveCount(2);
   await expect(page.locator('nav a[href="/#notify"]')).toHaveCount(0);
   await expect(page.locator(".card .step")).toHaveCount(0);
   // Retry buttons stay hidden while sections load on their own.
@@ -110,9 +110,11 @@ test("collection rows link to their painting pages", async ({ page }) => {
 test("ar try waits for a photo", async ({ page }) => {
   await page.goto("/admin");
   await expect(page.locator("#ar-try-row")).toBeHidden();
+  await expect(page.locator("#photo-tools")).toBeHidden();
   await page.locator("#add-toggle").click();
   await page.locator("#photo-file").setInputFiles("src/content/paintings/1943x1967.jpg");
   await expect(page.locator("#ar-try-row")).toBeVisible();
+  await expect(page.locator("#photo-tools")).toBeVisible();
 });
 
 test("admin links wear the accent, never browser blue", async ({ page }) => {
@@ -152,6 +154,36 @@ test("collection names the missing API token when the API refuses", async ({ pag
   await page.goto("/admin");
   await expect(page.locator("#edit-list")).toContainText("API token");
   await expect(page.locator("#collection-refresh")).toBeVisible();
+});
+
+test("views draws bars, hides when there is nothing to report", async ({ page }) => {
+  await mockCommitApi(page);
+  // Later routes win: this overrides the mock's empty views above.
+  await page.route("**/api/analytics*", async (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        views: [
+          { slug: "first-thaw", views: 10 },
+          { slug: "prairie-moon", views: 5 },
+        ],
+        unconfigured: false,
+      }),
+    }),
+  );
+  await page.goto("/admin");
+  await expect(page.locator("#sec-views")).toBeVisible();
+  const bars = page.locator("#views-list .view-bar > span");
+  await expect(bars).toHaveCount(2);
+  await expect(bars.first()).toHaveAttribute("style", "width:100%");
+  await expect(bars.nth(1)).toHaveAttribute("style", "width:50%");
+});
+
+test("views card hides itself when empty", async ({ page }) => {
+  await mockCommitApi(page); // analytics: unconfigured false, views []
+  await page.goto("/admin");
+  await expect(page.locator("#sec-views")).toBeHidden();
 });
 
 test("views names the local preview when analytics is down", async ({ page }) => {
@@ -214,30 +246,20 @@ test("studio dashboard grids without sideways scroll on a phone", async ({ brows
   await context.close();
 });
 
-test("studio collection links every painting to its admin page", async ({ browser }) => {
-  const authed = await browser.newContext();
-  await authed.addInitScript(() => window.localStorage.setItem("ADMIN_API_TOKEN", "test"));
-  const page = await authed.newPage();
-  await page.goto("/admin/gallery");
-  await expect(page.locator("#studio-notice")).toBeHidden();
-  for (const p of paintings) {
-    await expect(page.locator(`#studio-grid .card[href="/paintings/${p.slug}"]`)).toHaveCount(1);
-  }
-  const first = page.locator("#studio-grid .card").first();
-  const href = await first.getAttribute("href");
-  await first.click();
-  await expect(page).toHaveURL(new RegExp(`${href}/?$`));
-  await expect(page.locator("#admin-bar")).toBeVisible();
-  await authed.close();
+test("studio wakes up on every visit, not just full loads", async ({ page }) => {
+  await page.goto("/admin");
+  // Out through the collection link (client-side hop), back again.
+  await page.locator('#sec-collection .hint a[href="/#collection"]').click();
+  await expect(page).toHaveURL(/#collection/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/admin/);
+  // Lists refilled, buttons wired — init ran on the return visit.
+  await expect(page.locator("#views-list")).not.toBeEmpty();
+  await page.locator("#add-toggle").click();
+  await expect(page.locator("#upload-form")).toBeVisible();
 });
 
-test("visitors meet the studio gate, not the collection", async ({ page }) => {
-  await page.goto("/admin/gallery");
-  await expect(page.locator("#studio-notice")).toBeVisible();
-  await expect(page.locator("#studio-grid")).toBeHidden();
-});
-
-test("leave admin clears the browser and lands home", async ({ browser }) => {
+test("gallery link leaves admin and lands home", async ({ browser }) => {
   const authed = await browser.newContext();
   const page = await authed.newPage();
   await page.goto("/admin");
