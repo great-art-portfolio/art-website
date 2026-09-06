@@ -1,3 +1,14 @@
+## Status (2026-09-06 — complete, approved, executed)
+
+All units built, verified, and committed separately: U1 b848c18, U2 ca115dd,
+U3 ad13041, U4 311834a, U5 de1cf16 (+ follow-up 51b8166: Collection link is
+desktop-only, gallery page has a Back-to-studio crumb — found by 390px
+screenshot), U6 79f715c, U8 66f6e32 (spec; markup rode in U2), U9 abc5768.
+Full board: typecheck clean, unit 49/49, e2e 51 passed (1 cold-boot flake,
+retried green), build 15 pages. Screenshots verified: mobile hero-meta grid,
+mobile admin header, studio gate, desktop AR copy. Remaining human gates:
+mom's real upload on barbart.ca/admin; push to main for CI to confirm U9.
+
 ## Goal
 
 Answer every open item from the 2026-09-06 review in one pass: make the public
