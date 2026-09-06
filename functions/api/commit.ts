@@ -41,9 +41,14 @@ interface CommitFileInput {
   contentBase64?: unknown;
 }
 
+/** Repo paths the admin endpoint may write or delete. */
+const GALLERY_PATH =
+  /^(src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9_.-]*|src\/content\/announcement\.txt|public\/models\/[A-Za-z0-9][A-Za-z0-9_.-]*)$/;
+
 /**
  * Admin: commit a batch of files (painting .md + photo, banner text,
- * AR models). Body: { message, files: [{ path, contentBase64 }] }.
+ * AR models) and/or delete gallery files. Body:
+ * { message, files: [{ path, contentBase64 }], delete: [path] }.
  * Cloudflare Pages rebuilds on push — the change is live ~a minute later.
  */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
@@ -59,19 +64,23 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   }
   const message = typeof body["message"] === "string" ? body["message"].trim().slice(0, 200) : "";
   const inputs = Array.isArray(body["files"]) ? (body["files"] as CommitFileInput[]) : [];
-  if (message === "" || inputs.length === 0 || inputs.length > 12) {
+  const deletes = Array.isArray(body["delete"]) ? body["delete"] : [];
+  const deletePaths: string[] = [];
+  for (const d of deletes) {
+    if (typeof d !== "string" || !GALLERY_PATH.test(d)) {
+      return badRequest(`Refusing to delete outside the gallery: ${String(d)}`);
+    }
+    deletePaths.push(d);
+  }
+  if (message === "" || inputs.length + deletePaths.length === 0 || inputs.length + deletePaths.length > 12) {
     return badRequest("A message and 1–12 files are required");
   }
-  const files: Array<{ path: string; content: ArrayBuffer }> = [];
+  const files: Array<{ path: string; content: ArrayBuffer; deleted?: boolean }> = [];
   for (const input of inputs) {
     if (typeof input.path !== "string" || typeof input.contentBase64 !== "string") {
       return badRequest("Each file needs a path and base64 content");
     }
-    if (
-      !/^(src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9_.-]*|src\/content\/announcement\.txt|public\/models\/[A-Za-z0-9][A-Za-z0-9_.-]*)$/.test(
-        input.path,
-      )
-    ) {
+    if (!GALLERY_PATH.test(input.path)) {
       return badRequest(`Refusing to write outside the gallery: ${input.path}`);
     }
     if (input.contentBase64.length > 24_000_000) {
@@ -85,6 +94,9 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     } catch {
       return badRequest(`${input.path} is not valid base64`);
     }
+  }
+  for (const path of deletePaths) {
+    files.push({ path, content: new ArrayBuffer(0), deleted: true });
   }
   try {
     const sha = await commitFiles(config, message, files);

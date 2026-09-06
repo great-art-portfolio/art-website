@@ -326,6 +326,7 @@ const paintingJsonLd = {
       `</div>` +
       `<label class="ae-check"><input id="ae-sold" type="checkbox"${p.sold ? " checked" : ""} /> Sold</label>` +
       `<div class="ae-row"><button type="button" id="ae-save" class="btn-primary">Save</button> ` +
+      `<button type="button" id="ae-del">Delete…</button> ` +
       `<span id="ae-status" role="status"></span></div>`;
     panel.hidden = false;
     const val = (id) => document.getElementById(id).value.trim();
@@ -367,6 +368,33 @@ const paintingJsonLd = {
         })
         .catch((err) => {
           status.textContent = err instanceof Error ? err.message : "Save failed.";
+        });
+    });
+    document.getElementById("ae-del").addEventListener("click", (e) => {
+      const btn = e.currentTarget;
+      const status = document.getElementById("ae-status");
+      if (!(btn instanceof HTMLButtonElement) || status === null) return;
+      if (btn.dataset.armed !== "1") {
+        btn.dataset.armed = "1";
+        btn.textContent = "Tap again to delete";
+        status.textContent = `This removes "${p.title}" from the site. Tap again to confirm.`;
+        return;
+      }
+      btn.disabled = true;
+      status.textContent = `Deleting "${p.title}"… (gone in a few minutes)`;
+      const livePath = readPageData().mdPath;
+      void import("../../lib/painting-edit")
+        .then((editMod) =>
+          api.deleteFiles(`Delete painting: ${p.title}`, editMod.paintingFilePaths(livePath, p)),
+        )
+        .then(() => {
+          status.textContent = `Deleted "${p.title}" — recoverable from repo history.`;
+        })
+        .catch((err) => {
+          btn.disabled = false;
+          btn.dataset.armed = "";
+          btn.textContent = "Delete…";
+          status.textContent = err instanceof Error ? err.message : "Delete failed.";
         });
     });
   }

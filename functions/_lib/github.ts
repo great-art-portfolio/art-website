@@ -18,8 +18,10 @@ export interface GitHubConfig {
 
 interface RepoFile {
   path: string;
-  /** Raw bytes — text or binary (image, .glb, .usdz). */
+  /** Raw bytes — text or binary (image, .glb, .usdz). Ignored when deleted. */
   content: ArrayBuffer | string;
+  /** True removes the file (git tree entry with null sha). */
+  deleted?: boolean;
 }
 
 const apiBase = "https://api.github.com";
@@ -98,8 +100,9 @@ export async function listDir(config: GitHubConfig, path: string): Promise<strin
 }
 
 /**
- * Commit a batch of files (add or overwrite) in a single commit.
- * Binary-safe: every file goes up as a base64 blob.
+ * Commit a batch of files (add, overwrite, or delete) in a single commit.
+ * Binary-safe: every written file goes up as a base64 blob; deleted files
+ * send a null sha so the path disappears from the tree.
  */
 export async function commitFiles(
   config: GitHubConfig,
@@ -118,12 +121,16 @@ export async function commitFiles(
     method: "POST",
     body: JSON.stringify({
       base_tree: baseCommit.tree.sha,
-      tree: files.map((f) => ({
-        path: f.path,
-        mode: "100644",
-        type: "blob",
-        content: toBase64(f.content),
-      })),
+      tree: files.map((f) =>
+        f.deleted === true
+          ? { path: f.path, mode: "100644", type: "blob", sha: null }
+          : {
+              path: f.path,
+              mode: "100644",
+              type: "blob",
+              content: toBase64(f.content),
+            },
+      ),
     }),
   })) as { sha: string };
 

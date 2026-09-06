@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { resolveDims, stemOf } from "../../src/lib/ar.ts";
 import {
+  paintingFilePaths,
   parsePainting,
   patchPainting,
 } from "../../src/lib/painting-edit.ts";
@@ -112,5 +113,31 @@ describe("patchPainting model refs", () => {
   it("updates dimensions like before", () => {
     const next = patchPainting(SAMPLE, { ...edits, widthIn: "30" });
     assert.match(next, /^widthIn: 30$/m);
+  });
+});
+
+describe("paintingFilePaths", () => {
+  const md = "src/content/paintings/first-thaw.md";
+  const full = {
+    image: "first-thaw.jpg",
+    modelGlb: "/models/first-thaw.glb",
+    modelUsdz: "/models/first-thaw.usdz",
+  };
+  it("removes md + photo + both models", () => {
+    assert.deepEqual(paintingFilePaths(md, full), [
+      md,
+      "src/content/paintings/first-thaw.jpg",
+      "public/models/first-thaw.glb",
+      "public/models/first-thaw.usdz",
+    ]);
+  });
+  it("skips missing photo and model-less paintings", () => {
+    assert.deepEqual(paintingFilePaths(md, { image: "", modelGlb: "", modelUsdz: "" }), [md]);
+  });
+  it("ignores non-model refs", () => {
+    assert.deepEqual(
+      paintingFilePaths(md, { image: "x.jpg", modelGlb: "https://cdn.example/m.glb", modelUsdz: "" }),
+      [md, "src/content/paintings/x.jpg"],
+    );
   });
 });

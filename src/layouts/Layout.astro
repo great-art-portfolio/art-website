@@ -55,9 +55,18 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
           {wordmark === "admin" ? <AdminWordmark /> : <Signature />}
         </a>
         <div class="nav-links">
-          <a href="/#collection">Collection</a>
-          <a href="/#about">About</a>
-          <a href="/#notify" class="nav-cta">Notify me</a>
+          {wordmark === "admin" ? (
+            <>
+              <a href="/">← Gallery</a>
+              <a href="/admin#sec-add" class="nav-cta">Add painting</a>
+            </>
+          ) : (
+            <>
+              <a href="/#collection">Collection</a>
+              <a href="/#about">About</a>
+              <a href="/#notify" class="nav-cta">Notify me</a>
+            </>
+          )}
         </div>
       </nav>
     </header>

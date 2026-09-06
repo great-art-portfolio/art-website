@@ -4,6 +4,7 @@ import { buildCaption, sharePainting } from "../lib/share";
 import { dollarsToCents, formatCAD } from "../lib/money";
 import { slugifyTitle } from "../lib/site";
 import {
+  paintingFilePaths,
   parsePainting,
   patchPainting,
   yamlQuote,
@@ -68,30 +69,38 @@ async function refreshCollection(): Promise<void> {
   let files: string[];
   try {
     files = (await api.listPaintingFiles()).filter((f) => f.endsWith(".md"));
+    ($("collection-refresh") as HTMLButtonElement).hidden = true;
   } catch {
     list.innerHTML =
-      "<li>Publishing needs the live site — this preview can't reach it.</li>";
+      "<li>Couldn't reach the publishing service — open barbart.ca/admin on the live site, then tap Retry.</li>";
+    ($("collection-refresh") as HTMLButtonElement).hidden = false;
     return;
   }
   if (files.length === 0) {
     list.innerHTML = "<li>Nothing here yet — add your first painting above.</li>";
     return;
   }
-  const rows: Array<{ path: string; title: string; price: string; sold: boolean }> = [];
+  const rows: Array<{ path: string; title: string; price: string; sold: boolean; slug: string }> = [];
   for (const f of files) {
     const content = await api.getPaintingFile(`src/content/paintings/${f}`);
     if (content === null) continue;
     const p = parsePainting(content);
     if (p === null || p.title === "") continue;
-    rows.push({ path: `src/content/paintings/${f}`, title: p.title, price: p.price, sold: p.sold });
+    rows.push({
+      path: `src/content/paintings/${f}`,
+      title: p.title,
+      price: p.price,
+      sold: p.sold,
+      slug: slugifyTitle(p.title),
+    });
   }
   rows.sort((a, b) => a.title.localeCompare(b.title));
   list.innerHTML = rows
     .map(
       (r, i) =>
-        `<li><strong>${r.title.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)}</strong>` +
+        `<li><a href="/paintings/${r.slug}"><strong>${r.title.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)}</strong></a>` +
         ` — $${r.price} — ${r.sold ? "sold" : "available"} ` +
-        `<span class="row"><button type="button" data-edit="${i}">Edit</button></span></li>`,
+        `<span class="row"><button type="button" data-edit="${i}">Edit here</button></span></li>`,
     )
     .join("");
   list.querySelectorAll("button[data-edit]").forEach((btn) => {
@@ -127,8 +136,32 @@ async function openEditForm(path: string): Promise<void> {
     `</div>` +
     `<label class="check"><input id="ed-sold" type="checkbox"${p.sold ? " checked" : ""} /> Sold</label>` +
     `<span class="row"><button type="button" id="ed-save" class="primary">Save</button> ` +
-    `<button type="button" id="ed-cancel">Cancel</button></span></li>`;
+    `<button type="button" id="ed-cancel">Cancel</button> ` +
+    `<button type="button" id="ed-del">Delete…</button></span></li>`;
   ($("ed-cancel") as HTMLButtonElement).addEventListener("click", () => void refreshCollection());
+  ($("ed-del") as HTMLButtonElement).addEventListener("click", (e) => {
+    const btn = e.currentTarget as HTMLButtonElement;
+    if (btn.dataset.armed !== "1") {
+      btn.dataset.armed = "1";
+      btn.textContent = "Tap again to delete";
+      setStatus(`This removes "${p.title}" from the site. Tap again to confirm.`, true);
+      return;
+    }
+    btn.disabled = true;
+    setStatus(`Deleting "${p.title}"… (gone in a few minutes)`);
+    api
+      .deleteFiles(`Delete painting: ${p.title}`, paintingFilePaths(path, p))
+      .then(() => {
+        setStatus(`Deleted "${p.title}" — recoverable from repo history.`);
+        return refreshCollection();
+      })
+      .catch((err: unknown) => {
+        btn.disabled = false;
+        btn.dataset.armed = "";
+        btn.textContent = "Delete…";
+        setStatus((err as Error).message, true);
+      });
+  });
   ($("ed-save") as HTMLButtonElement).addEventListener("click", () => {
     const val = (id: string): string => ($(id) as HTMLInputElement).value.trim();
     const title = val("ed-title");
@@ -278,10 +311,10 @@ async function refreshViews(): Promise<void> {
   const list = $("views-list");
   try {
     const { views, unconfigured } = await api.paintingViews();
+    ($("views-refresh") as HTMLButtonElement).hidden = true;
     if (unconfigured) {
       list.innerHTML =
-        "<li>Analytics isn't wired up yet — add the site in Cloudflare Web Analytics, " +
-        "then set the beacon token + API vars (see README).</li>";
+        "<li>View stats aren't set up yet — the Cloudflare steps in the README finish the job.</li>";
       return;
     }
     if (views.length === 0) {
@@ -295,11 +328,12 @@ async function refreshViews(): Promise<void> {
       })
       .join("");
   } catch {
+    ($("views-refresh") as HTMLButtonElement).hidden = false;
     const local =
       window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
     list.innerHTML = local
       ? "<li>Views only work on the live /admin — this is a local preview.</li>"
-      : "<li>Could not load views — try Refresh.</li>";
+      : "<li>Could not load views — tap Retry.</li>";
   }
 }
 
@@ -342,6 +376,17 @@ async function refreshFlags(): Promise<void> {
 
 function blobToFile(blob: Blob, name: string, type: string): File {
   return new File([blob], name, { type });
+}
+
+/** Tape measurements from the Add form (null = unmeasured, AR falls back). */
+function readDims(): { widthIn: number | null; heightIn: number | null; depthIn: number | null } {
+  const numOrNull = (id: string): number | null => {
+    const raw = ($(id) as HTMLInputElement).value.trim();
+    if (raw === "") return null;
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 && n <= 240 ? Math.round(n * 10) / 10 : null;
+  };
+  return { widthIn: numOrNull("f-w"), heightIn: numOrNull("f-h"), depthIn: numOrNull("f-d") };
 }
 
 function init(): void {
@@ -447,6 +492,34 @@ function init(): void {
     });
   }
 
+  $("ar-try").addEventListener("click", () => {
+    if (preparedBlob === null) {
+      setStatus("Choose a photo first — then try the AR preview.", true);
+      return;
+    }
+    setStatus("Building AR preview… (true size, takes a few seconds)");
+    const source = preparedBlob;
+    void (async () => {
+      try {
+        const { buildArModels, estimateDims } = await import(
+          /* @vite-ignore */ AR_TOOLING_URL
+        );
+        // Decode the prepared photo so the preview matches the card.
+        const arImg = await loadImageFile(blobToFile(source, "ar-source.jpg", "image/jpeg"));
+        const { widthIn, heightIn, depthIn } = readDims();
+        const dims = estimateDims(arImg, widthIn, heightIn, depthIn);
+        const models = await buildArModels(arImg, dims.w, dims.h, dims.d);
+        showArPreview(URL.createObjectURL(models.glb), URL.createObjectURL(models.usdz));
+        setStatus("AR preview below — preview only, nothing published yet.");
+      } catch (err) {
+        setStatus(
+          `AR preview failed: ${(err as Error).message} — you can still save without it.`,
+          true,
+        );
+      }
+    })();
+  });
+
   $("upload-form").addEventListener("submit", (e) => {
     e.preventDefault();
     void (async () => {
@@ -461,15 +534,7 @@ function init(): void {
         setStatus("Choose a photo first.", true);
         return;
       }
-      const numOrNull = (id: string): number | null => {
-        const raw = ($(id) as HTMLInputElement).value.trim();
-        if (raw === "") return null;
-        const n = Number(raw);
-        return Number.isFinite(n) && n > 0 && n <= 240 ? Math.round(n * 10) / 10 : null;
-      };
-      const widthIn = numOrNull("f-w");
-      const heightIn = numOrNull("f-h");
-      const depthIn = numOrNull("f-d");
+      const { widthIn, heightIn, depthIn } = readDims();
       const alt = ($("f-alt") as HTMLInputElement).value.trim();
       const description = ($("f-desc") as HTMLTextAreaElement).value.trim();
 

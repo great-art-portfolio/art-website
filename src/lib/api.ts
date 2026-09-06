@@ -103,6 +103,17 @@ export const api = {
       body: JSON.stringify({ message, files: encoded }),
     });
   },
+  /**
+   * Delete a painting's files (.md + photo + models) in one commit.
+   * Recoverable from repo history; the page vanishes on next rebuild.
+   */
+  async deleteFiles(message: string, paths: string[]): Promise<void> {
+    await request("/api/commit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...adminHeaders() },
+      body: JSON.stringify({ message, files: [], delete: paths }),
+    });
+  },
   async status(): Promise<{
     stripe: boolean;
     shippo: boolean;

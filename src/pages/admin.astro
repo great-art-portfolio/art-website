@@ -19,7 +19,7 @@ import Layout from "../layouts/Layout.astro";
     </nav>
 
     <section class="card" id="sec-add">
-      <h2><span class="step">1</span> Add a painting</h2>
+      <h2>Add a painting</h2>
       <form id="upload-form">
         <label>Title
           <input id="f-title" name="title" type="text" autocomplete="off" required maxlength="120" />
@@ -40,6 +40,10 @@ import Layout from "../layouts/Layout.astro";
         </div>
         <p class="hint">Measure with a tape — buyers ask, shippers need it, and AR needs it for true size.</p>
         <label class="check"><input id="f-ar" type="checkbox" checked /> Build “view on your wall” AR preview (recommended)</label>
+        <div class="row">
+          <button type="button" id="ar-try">Try AR preview</button>
+        </div>
+        <p class="hint">Builds the true-size preview from the photo above — nothing publishes until Save.</p>
         <div id="ar-preview" hidden></div>
         <label>Alt text (describe the art)
           <input id="f-alt" name="alt" type="text" autocomplete="off" maxlength="200" />
@@ -69,7 +73,7 @@ import Layout from "../layouts/Layout.astro";
     </section>
 
     <section class="card" id="share-panel" hidden>
-      <h2><span class="step">2</span> Tell social media</h2>
+      <h2>Tell social media</h2>
       <textarea id="share-caption" rows="8"></textarea>
       <div class="row">
         <button type="button" id="share-native" class="primary">Share…</button>
@@ -85,13 +89,13 @@ import Layout from "../layouts/Layout.astro";
     </section>
 
     <section class="card" id="sec-collection">
-      <h2><span class="step">3</span> Collection <button type="button" id="collection-refresh">Refresh</button></h2>
-      <p class="hint">Tap a painting to edit its text, price, or measurements — or mark it sold. Saving republishes the page (live in a few minutes).</p>
+      <h2>Collection <button type="button" id="collection-refresh" hidden>Retry</button></h2>
+      <p class="hint"><a href="/">Open the gallery</a> to see each piece as buyers do — tap one to edit it.</p>
       <ul id="edit-list"><li>Loading…</li></ul>
     </section>
 
     <section class="card" id="sec-banner">
-      <h2><span class="step">4</span> Homepage banner</h2>
+      <h2>Homepage banner</h2>
       <p class="hint">One banner at a time under the gallery — markets, holidays, “studio open”. Saving replaces it; empty hides it. Banners usually end on their own, so a forgotten one doesn't linger.</p>
       <label>Announcement
         <input id="f-announce" type="text" maxlength="280" placeholder="Find me at the Lilac Festival this Sunday!" />
@@ -110,18 +114,18 @@ import Layout from "../layouts/Layout.astro";
     </section>
 
     <section class="card">
-      <h2><span class="step">5</span> Inquiries</h2>
-      <p class="hint">Buyer notes arrive straight in your email (reply-to is the buyer) — nothing is stored on the site, so there is no inbox here. Mark a piece sold from the Collection section above after shipping.</p>
+      <h2>Inquiries</h2>
+      <p class="hint">When a buyer taps Send on a painting page, their note arrives straight in your inbox — just reply to it like any email (the reply goes to the buyer). Nothing is kept on the site, so there is no inbox here. After shipping, open the piece and mark it sold.</p>
     </section>
 
     <section class="card" id="sec-views">
-      <h2><span class="step">6</span> Most viewed <button type="button" id="views-refresh">Refresh</button></h2>
+      <h2>Most viewed <button type="button" id="views-refresh" hidden>Retry</button></h2>
       <p class="hint">Past 30 days, from Cloudflare Analytics.</p>
       <ul id="views-list"><li>Loading…</li></ul>
     </section>
 
     <section class="card" id="sec-ship">
-      <h2><span class="step">7</span> Ship it</h2>
+      <h2>Ship it</h2>
       <ul>
         <li><a href="https://chitchats.com/" rel="noopener">Chit Chats</a> — cheapest tracked Canada/US shipping from Calgary.</li>
         <li><a href="https://www.pirateship.com/" rel="noopener">Pirate Ship</a> — backup for US labels.</li>
@@ -139,9 +143,9 @@ import Layout from "../layouts/Layout.astro";
         <input id="admin-token" type="password" autocomplete="off" />
       </label>
       <p class="hint">
-        This browser: offline mode <span id="cap-sw">…</span> ·
-        background sync <span id="cap-sync">…</span> ·
-        network <span id="cap-net">…</span>
+        This browser can keep working offline: <span id="cap-sw">…</span> ·
+        sending in the background: <span id="cap-sync">…</span> ·
+        network: <span id="cap-net">…</span>
       </p>
     </section>
   </main>
@@ -184,12 +188,6 @@ import Layout from "../layouts/Layout.astro";
     padding-bottom: 0.75rem; border-bottom: 1px solid var(--line); margin-bottom: 1rem;
   }
   .card h3 { font-size: 1.15rem; margin-top: 1.5rem; }
-  .step {
-    display: inline-grid; place-items: center;
-    min-width: 1.9rem; height: 1.9rem; padding-inline: 0.4rem; border-radius: 999px;
-    background: var(--accent); color: var(--accent-ink);
-    font-family: system-ui, sans-serif; font-size: 0.95rem; font-weight: 700;
-  }
   label { display: grid; gap: 0.35rem; margin-block: 0.75rem; font-size: 0.9rem; font-weight: 600; }
   input, textarea {
     width: 100%; box-sizing: border-box; font: inherit; font-weight: 400; font-size: 0.95rem;
@@ -218,6 +216,8 @@ import Layout from "../layouts/Layout.astro";
   button.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
   button.primary:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
   .card h2 button { min-height: 2.2rem; padding: 0.25rem 0.9rem; font-size: 0.82rem; margin-left: auto; }
+  /* Author display:inline-flex beats the UA [hidden] rule — re-hide. */
+  .card h2 button[hidden] { display: none; }
   #photo-preview {
     max-width: 100%; border-radius: 0.6rem; margin-top: 0.5rem;
     border: 1px solid var(--line);
@@ -263,13 +263,14 @@ import Layout from "../layouts/Layout.astro";
   /* Section sub-nav: same quiet link treatment as the site header. */
   .subnav {
     position: sticky; top: 3.75rem; z-index: 5;
-    display: flex; gap: 1.25rem; flex-wrap: wrap;
-    padding: 0.6rem 0; margin: 0 0 0.5rem;
+    display: flex; gap: 1rem; flex-wrap: nowrap;
+    overflow-x: auto; scrollbar-width: thin;
+    padding: 0.6rem 0.25rem; margin: 0 0 0.5rem;
     background: color-mix(in srgb, var(--paper) 88%, transparent);
     backdrop-filter: blur(0.6rem); -webkit-backdrop-filter: blur(0.6rem);
     border-bottom: 1px solid var(--line); font-size: 0.9rem;
   }
-  .subnav a { color: var(--muted); text-decoration: none; }
+  .subnav a { color: var(--muted); text-decoration: none; white-space: nowrap; }
   .subnav a:hover { color: var(--ink); text-decoration: underline; }
   .card { scroll-margin-top: 7rem; }
 </style>

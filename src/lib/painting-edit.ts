@@ -20,6 +20,19 @@ export interface ParsedPainting {
   modelUsdz: string;
 }
 
+/**
+ * Repo paths a full delete removes: the .md plus its photo and AR models.
+ * Model refs look like "/models/<stem>.glb" and live in public/models/.
+ */
+export function paintingFilePaths(mdPath: string, p: ParsedPainting): string[] {
+  const paths = [mdPath];
+  if (p.image !== "") paths.push(`src/content/paintings/${p.image}`);
+  for (const m of [p.modelGlb, p.modelUsdz]) {
+    if (m.startsWith("/models/")) paths.push(`public${m}`);
+  }
+  return paths;
+}
+
 export interface PaintingEdits {
   title: string;
   price: string;
