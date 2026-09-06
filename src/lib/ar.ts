@@ -91,8 +91,9 @@ export async function buildArModels(
 
   const texture = new THREE.CanvasTexture(textureCanvas(img));
   texture.colorSpace = THREE.SRGBColorSpace;
-  // JPEG in both exporters — the default PNG is ~4× the bytes for photos,
-  // which would make every painting page download megabytes of model.
+  // JPEG in both exporters — measured ~7x smaller than the default PNG
+  // for these photos (first-thaw: 267KB JPEG vs 1.9MB PNG at 1012x1024).
+  // PNG would make every painting page download megabytes of model.
   texture.userData.mimeType = "image/jpeg";
 
   const art = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.9 });
