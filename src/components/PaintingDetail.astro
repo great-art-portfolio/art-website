@@ -308,7 +308,7 @@ const eyebrow = data.draft
                     {data.draft ? "Publish" : "Unpublish"}
                   </button>
                   <button type="button" id="de-del">
-                    Delete…
+                    Delete
                   </button>
                 </>
               )}
@@ -1133,8 +1133,9 @@ const eyebrow = data.draft
     padding-top: 1rem;
     border-top: 1px solid var(--line);
   }
-  /* Sold rides beside the save buttons: a real checkbox with a pointer
-     cursor, tall enough to tap. */
+  /* Sold rides beside the save buttons: a custom checkbox with a
+     pointer cursor, tall enough to tap. No browser-default box anywhere
+     in the studio. */
   .de-check {
     display: inline-flex;
     gap: 0.6rem;
@@ -1144,12 +1145,62 @@ const eyebrow = data.draft
     cursor: pointer;
   }
   .de-check input {
-    width: 1.15rem;
-    height: 1.15rem;
+    appearance: none;
+    -webkit-appearance: none;
+    width: 1.3rem;
+    height: 1.3rem;
     margin: 0;
+    padding: 0;
     flex-shrink: 0;
-    accent-color: var(--accent);
+    border: 1.5px solid var(--muted);
+    border-radius: 0.35rem;
+    background: var(--paper);
     cursor: pointer;
+    display: inline-grid;
+    place-content: center;
+    transition:
+      border-color 0.2s ease,
+      background-color 0.2s ease;
+  }
+  .de-check input:hover {
+    border-color: var(--accent);
+  }
+  .de-check input:checked {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .de-check input:checked::before {
+    content: "✓";
+    color: var(--accent-ink);
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .de-check input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  /* Mouse taps leave no ring; keyboard tabs keep it. */
+  .de-check input:focus:not(:focus-visible) {
+    outline: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .de-check input {
+      transition: none;
+    }
+  }
+  /* High-contrast mode draws its own boxes better than CSS can. */
+  @media (forced-colors: active) {
+    .de-check input {
+      appearance: auto;
+      -webkit-appearance: auto;
+      width: auto;
+      height: auto;
+      display: inline-block;
+    }
+    .de-check input::before {
+      content: none;
+    }
   }
   .studio-toolbar {
     display: flex;

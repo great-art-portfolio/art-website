@@ -176,7 +176,7 @@ function renderLocalCollection(): boolean {
   // clear out with one tap. The heading says so — only ever on a local
   // preview, never on the live site.
   $("collection-title").textContent =
-    "Collection (Development only - changes aren't persisted)";
+    "Collection (Development only — changes aren't persisted)";
   const reset = $("practice-reset") as HTMLButtonElement;
   reset.hidden = practiceCount(overlay) === 0;
   if (reset.dataset.wired !== "1") {

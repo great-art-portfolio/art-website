@@ -632,7 +632,7 @@ function wireDelete(
     void doDelete().catch((err: unknown) => {
       btn.disabled = false;
       btn.dataset.armed = "";
-      btn.textContent = "Delete…";
+      btn.textContent = "Delete";
       setStatus((err as Error).message, true);
     });
   });

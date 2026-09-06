@@ -457,6 +457,16 @@ test("banner lifetimes are 1/3/7/14 days plus no end date", async ({
     .locator("#f-duration option")
     .evaluateAll((opts) => opts.map((o) => (o as HTMLOptionElement).value));
   expect(values).toEqual(["", "1", "3", "7", "14"]);
+  // Status sits beside its button, never above it.
+  await expect(page.locator("#announce-save + #announce-meta")).toHaveCount(1);
+  await expect(page.locator("#announce-meta")).not.toBeEmpty();
+  const btnBox = await page.locator("#announce-save").boundingBox();
+  const metaBox = await page.locator("#announce-meta").boundingBox();
+  expect(btnBox !== null && metaBox !== null).toBe(true);
+  if (btnBox !== null && metaBox !== null) {
+    expect(metaBox.x).toBeGreaterThan(btnBox.x + btnBox.width);
+    expect(Math.abs(metaBox.y - btnBox.y)).toBeLessThan(btnBox.height);
+  }
 });
 
 test("collection groups available then sold, never bare statuses", async ({

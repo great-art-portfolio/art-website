@@ -98,7 +98,10 @@ test("edit room arrives prefilled with save, visibility, and delete", async ({
   await expect(page.locator("#pv-title")).toHaveText("First Thaw");
   await expect(page.locator("#pv-price")).toContainText("$125.00");
   await expect(page.locator("#de-save")).toHaveText("Save changes");
-  await expect(page.locator("#de-del")).toHaveText("Delete…");
+  await expect(page.locator("#de-del")).toHaveText("Delete");
+  // Sold is a custom studio checkbox, not the browser default.
+  await expect(page.locator("#de-sold")).toHaveCSS("appearance", "none");
+  await expect(page.locator("#de-sold")).toHaveCSS("cursor", "pointer");
   await expect(page.locator("#de-replace")).toHaveText("Replace photo");
   // The edit room keeps the disabled Interested button with its reason —
   // only drafts (no live page yet) hide it.

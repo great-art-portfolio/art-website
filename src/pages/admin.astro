@@ -135,10 +135,12 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
             <option value="14">2 weeks</option>
           </select>
         </label>
-        <p class="hint" id="announce-meta"></p>
-        <button type="button" id="announce-save" class="primary"
-          >Update banner</button
-        >
+        <div class="row">
+          <button type="button" id="announce-save" class="primary"
+            >Update banner</button
+          >
+          <p class="hint" id="announce-meta"></p>
+        </div>
       </section>
 
       <section class="card" id="sec-views" hidden>
@@ -463,6 +465,13 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
   .hint {
     font-size: 0.88rem;
     color: var(--muted);
+  }
+  /* Banner status sits beside its button, never above it. */
+  #announce-meta {
+    margin: 0;
+  }
+  #announce-meta:empty {
+    display: none;
   }
   #views-list {
     list-style: none;
