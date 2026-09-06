@@ -96,7 +96,7 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
 
     <section class="card" id="sec-collection">
       <h2>Collection <button type="button" id="collection-refresh" hidden>Retry</button></h2>
-      <p class="hint"><a href="/#collection">Open the collection</a> to see what buyers see — then come back here and tap Edit here on any piece below.</p>
+      <p class="hint" id="collection-hint"><a href="/#collection">Open the collection</a> to see what buyers see — then come back here and tap Edit here on any piece below.</p>
       <p class="hint" id="collection-note" hidden></p>
       <ul id="edit-list"><li>Loading…</li></ul>
       <script type="application/json" id="local-collection" set:html={localJson} />
@@ -330,18 +330,18 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
   }
   #photo-preview[hidden], #photo-empty[hidden] { display: none; }
   #photo-meta:empty { display: none; }
-  /* Reduced motion: every state change is instant, matching the
-     site-wide guard in the layout. The :global twins cover script-built
-     nodes, which never carry the scope attribute. */
+  /* Reduced motion kills movement, not gentle fades: slides, lifts, and
+     expands go instant, while color and opacity transitions still run —
+     snapping colors is itself jarring. */
   @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { transition: none !important; animation: none !important; }
-    :global(#edit-list li a),
-    :global(#edit-list button),
-    :global(#ar-preview .ar-placeholder),
-    :global(.view-bar),
-    :global(.view-bar > span) { transition: none !important; animation: none !important; }
+    #upload-form { transition: none; }
+    #sec-add .add-fields,
+    #sec-add #add-photo,
+    #sec-add #add-preview { transform: none; }
+    #admin-status.toast-in { animation: none; }
     button:hover,
     :global(#edit-list button:hover) { transform: none; }
+    #sec-info details::details-content { transition: none; }
   }
   .hint { font-size: 0.88rem; color: var(--muted); }
   .check { display: flex; gap: 0.6rem; align-items: center; font-weight: 600; }
@@ -372,6 +372,16 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
     transition: text-decoration-color 0.25s ease;
   }
   :global(#edit-list li a:hover) { text-decoration-color: currentColor; }
+  /* Subheadings and plain notes sit in the list unboxed. */
+  :global(#edit-list li.list-sub),
+  :global(#edit-list li.list-plain) {
+    background: none; border: none; padding: 0.5rem 0 0;
+  }
+  :global(#edit-list li.list-sub h3) {
+    font-family: Georgia, "Iowan Old Style", Charter, serif;
+    font-size: 1.05rem; font-weight: 500; margin: 0;
+  }
+  :global(#edit-list li.list-plain) { color: var(--muted); font-size: 0.92rem; }
   :global(#edit-list label) { display: grid; gap: 0.3rem; margin-block: 0.6rem; font-size: 0.85rem; font-weight: 600; }
   :global(#edit-list input),
   :global(#edit-list textarea) {

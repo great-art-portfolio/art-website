@@ -611,10 +611,11 @@ const paintingJsonLd = {
     0%, 100% { opacity: 0.45; }
     50% { opacity: 1; }
   }
-  /* Reduced motion: every state change is instant, matching the
-     site-wide guard in the layout. */
+  /* Reduced motion kills movement (skeleton, reveal slide, lifts);
+     the lightbox fade still transitions. */
   @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { transition: none !important; animation: none !important; }
+    .ar-skeleton { animation: none; }
+    #inquiry-form.revealed { animation: none; }
     .btn-primary:hover,
     :global(#admin-edit .btn-primary:hover) { transform: none; }
   }

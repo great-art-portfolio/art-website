@@ -2,7 +2,7 @@ import { api, ApiError, getApiToken, setApiToken } from "../lib/api";
 import { loadImageFile, prepareImage } from "../lib/image";
 import { buildCaption, sharePainting } from "../lib/share";
 import { dollarsToCents, formatCAD } from "../lib/money";
-import { slugifyTitle } from "../lib/site";
+import { groupByAvailability, slugifyTitle } from "../lib/site";
 import {
   paintingFilePaths,
   parsePainting,
@@ -133,16 +133,26 @@ function renderLocalCollection(): boolean {
   const esc = (s: string): string =>
     s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
   clean.sort((a, b) => a.title.localeCompare(b.title));
-  list.innerHTML = clean
-    .map((r) => {
-      const cents = dollarsToCents(Number(r.price));
-      const price = cents === null ? "Price?" : formatCAD(cents);
-      return (
-        `<li><a href="/paintings/${esc(r.slug)}"><strong>${esc(r.title)}</strong></a>` +
-        ` — ${price} — ${r.sold ? "sold" : "available"}</li>`
-      );
-    })
-    .join("");
+  const localRow = (r: LocalRow): string => {
+    const cents = dollarsToCents(Number(r.price));
+    const price = cents === null ? "Price?" : formatCAD(cents);
+    return (
+      `<li><a href="/paintings/${esc(r.slug)}"><strong>${esc(r.title)}</strong></a>` +
+      ` — ${price}</li>`
+    );
+  };
+  const groups = groupByAvailability(clean);
+  let html = `<li class="list-sub"><h3>Available</h3></li>`;
+  html +=
+    groups.available.length === 0
+      ? `<li class="list-plain">Nothing available right now.</li>`
+      : groups.available.map(localRow).join("");
+  if (groups.sold.length > 0) {
+    html += `<li class="list-sub"><h3>Sold</h3></li>` + groups.sold.map(localRow).join("");
+  }
+  list.innerHTML = html;
+  ($("collection-hint") as HTMLParagraphElement).innerHTML =
+    '<a href="/#collection">Open the collection</a> to see what buyers see.';
   // No Edit buttons here on purpose — saving and deleting need the live
   // site's API, so the list stays read-only. The note lives in the
   // Collection card, next to the list it describes.
@@ -201,14 +211,26 @@ async function refreshCollection(): Promise<void> {
     });
   }
   rows.sort((a, b) => a.title.localeCompare(b.title));
-  list.innerHTML = rows
-    .map(
-      (r, i) =>
-        `<li><a href="/paintings/${r.slug}"><strong>${r.title.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)}</strong></a>` +
-        ` — $${r.price} — ${r.sold ? "sold" : "available"} ` +
-        `<span class="row"><button type="button" data-edit="${i}">Edit here</button></span></li>`,
-    )
-    .join("");
+  // Available under its own subheading (with a plain note when empty),
+  // then sold. Edit buttons point back at the flat rows by index.
+  const esc = (s: string): string =>
+    s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  const liveRow = (r: (typeof rows)[number]): string =>
+    `<li><a href="/paintings/${r.slug}"><strong>${esc(r.title)}</strong></a>` +
+    ` — $${r.price} ` +
+    `<span class="row"><button type="button" data-edit="${rows.indexOf(r)}">Edit here</button></span></li>`;
+  const groups = groupByAvailability(rows);
+  let html = `<li class="list-sub"><h3>Available</h3></li>`;
+  html +=
+    groups.available.length === 0
+      ? `<li class="list-plain">Nothing available right now.</li>`
+      : groups.available.map(liveRow).join("");
+  if (groups.sold.length > 0) {
+    html += `<li class="list-sub"><h3>Sold</h3></li>` + groups.sold.map(liveRow).join("");
+  }
+  list.innerHTML = html;
+  ($("collection-hint") as HTMLParagraphElement).innerHTML =
+    '<a href="/#collection">Open the collection</a> to see what buyers see — then come back here and tap Edit here on any piece below.';
   list.querySelectorAll("button[data-edit]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const row = rows[Number((btn as HTMLElement).dataset["edit"])];

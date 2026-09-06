@@ -166,15 +166,16 @@ test("studio hovers match the footer: underline only, no color flash", async ({
   }
 });
 
-test("reduced motion stops all studio motion", async ({ page }) => {
+test("reduced motion kills movement, keeps gentle fades", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await mockCommitApi(page);
   await page.goto("/admin");
-  // Expands, fades, underlines: every state change is instant.
+  // Slides, lifts, expands go instant …
   await expect(page.locator("#upload-form")).toHaveCSS("transition-duration", "0s");
+  // … while color and underline fades still transition.
   await expect(page.locator("#sec-collection .hint a")).toHaveCSS(
     "transition-duration",
-    "0s",
+    "0.25s",
   );
   // Buttons never lift — static or script-built.
   await page.locator("#add-toggle").hover();
@@ -383,6 +384,21 @@ test("banner lifetimes are 1/3/7/14 days plus no end date", async ({ page }) => 
     opts.map((o) => (o as HTMLOptionElement).value),
   );
   expect(values).toEqual(["", "1", "3", "7", "14"]);
+});
+
+test("collection groups available then sold, never bare statuses", async ({
+  page,
+}) => {
+  await mockCommitApi(page);
+  await page.goto("/admin");
+  await expect(page.locator(".list-sub h3").first()).toHaveText("Available");
+  const text = (await page.locator("#edit-list").textContent()) ?? "";
+  expect(text).not.toContain("— available");
+  expect(text).not.toContain("— sold");
+  // Every row still carries its Edit button.
+  const links = await page.locator('#edit-list a[href^="/paintings/"]').count();
+  expect(links).toBeGreaterThan(0);
+  await expect(page.locator("#edit-list button[data-edit]")).toHaveCount(links);
 });
 
 test("collection falls back to the baked-in list when the API fails", async ({

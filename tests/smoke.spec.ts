@@ -19,10 +19,13 @@ test("painting page shows the Interested button, not the form", async ({ page })
 
 test("reduced motion keeps the nav button planted", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/");
-  const cta = page.locator(".nav-cta");
-  await cta.hover();
-  await expect(cta).toHaveCSS("transform", "none");
+  // Both nav variants: Notify me at home, Add painting in the studio.
+  for (const url of ["/", "/admin"]) {
+    await page.goto(url);
+    const cta = page.locator(".nav-cta");
+    await cta.hover();
+    await expect(cta).toHaveCSS("transform", "none");
+  }
 });
 
 test("clicking Interested reveals the form and focuses Name", async ({ page }) => {
@@ -120,6 +123,7 @@ test("admin explains itself gracefully without a publishing backend", async ({
   const rows = page.locator('#edit-list a[href^="/paintings/"]');
   await expect(rows.first()).toBeVisible({ timeout: 15_000 });
   expect(await rows.count()).toBeGreaterThan(0);
+  await expect(page.locator(".list-sub h3").first()).toHaveText("Available");
   await expect(page.locator("#edit-list button")).toHaveCount(0);
   await expect(page.locator("#collection-refresh")).toBeHidden();
   await expect(page.locator("#collection-note")).toContainText("Editing needs the live site");

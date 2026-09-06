@@ -38,3 +38,13 @@ export function slugifyTitle(title: string): string {
 export function workCount(n: number): string {
   return `${n} ${n === 1 ? "work" : "works"}`;
 }
+
+/** Studio collection groups: available first, then sold. Order kept. */
+export function groupByAvailability<T extends { sold: boolean }>(
+  rows: T[],
+): { available: T[]; sold: T[] } {
+  const available: T[] = [];
+  const sold: T[] = [];
+  for (const r of rows) (r.sold ? sold : available).push(r);
+  return { available, sold };
+}
