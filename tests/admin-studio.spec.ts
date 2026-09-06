@@ -107,6 +107,14 @@ test("collection rows link to their painting pages", async ({ page }) => {
   await expect(page).toHaveURL(new RegExp(`/paintings/${paintings[0].slug}/?$`));
 });
 
+test("status bar sticks where she can see it", async ({ page }) => {
+  await page.goto("/admin");
+  const pos = await page
+    .locator("#admin-status")
+    .evaluate((el) => getComputedStyle(el).position);
+  expect(pos).toBe("sticky");
+});
+
 test("add form waits behind its button", async ({ page }) => {
   await page.goto("/admin");
   await expect(page.locator("#upload-form")).toBeHidden();

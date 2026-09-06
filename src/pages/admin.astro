@@ -174,6 +174,8 @@ import Layout from "../layouts/Layout.astro";
     margin: 0 0 1.5rem; padding: 0.8rem 1.1rem; border-radius: var(--radius);
     border: 1px solid var(--line); background: var(--card);
     font-size: 0.95rem;
+    /* Errors land where she is looking, not at the top of a long page. */
+    position: sticky; bottom: 1rem; z-index: 6; box-shadow: var(--shadow);
   }
   #admin-status[data-tone="error"] {
     border-color: rgb(140 29 24 / 0.4); background: rgb(140 29 24 / 0.08); color: inherit;
@@ -205,14 +207,15 @@ import Layout from "../layouts/Layout.astro";
   }
   .card h3 { font-size: 1.15rem; margin-top: 1.5rem; }
   label { display: grid; gap: 0.35rem; margin-block: 0.75rem; font-size: 0.9rem; font-weight: 600; }
-  input, textarea {
+  input, textarea, select {
     width: 100%; box-sizing: border-box; font: inherit; font-weight: 400; font-size: 0.95rem;
     padding: 0.65rem 0.8rem; border-radius: 0.6rem;
     border: 1px solid var(--line); background: var(--paper); color: var(--ink);
     min-height: 3rem;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
-  input:focus-visible, textarea:focus-visible, button:focus-visible {
+  input:hover, textarea:hover, select:hover { border-color: var(--muted); }
+  input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible {
     outline: 2px solid var(--accent); outline-offset: 2px;
   }
   input:focus, textarea:focus { border-color: var(--accent); }
