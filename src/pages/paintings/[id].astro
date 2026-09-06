@@ -611,9 +611,9 @@ const paintingJsonLd = {
     0%, 100% { opacity: 0.45; }
     50% { opacity: 1; }
   }
+  /* Reduced motion kills movement, not the gentle lightbox fade. */
   @media (prefers-reduced-motion: reduce) {
     .ar-skeleton { animation: none; }
-    #lightbox { animation: none; }
     #inquiry-form.revealed { animation: none; }
   }
   /* The viewer is focusable (keyboard orbit) — keep an accent ring for

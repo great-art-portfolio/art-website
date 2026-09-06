@@ -158,13 +158,24 @@ test("studio hovers match the footer: underline only, no color flash", async ({
   for (const sel of ["#sec-collection .hint a", "#edit-list li a"]) {
     const link = page.locator(sel).first();
     await expect(link).toHaveCSS("color", accent);
-    // Slow enough to see coming and going.
-    await expect(link).toHaveCSS("transition-duration", "0.6s");
+    await expect(link).toHaveCSS("transition-duration", "0.25s");
     await link.hover();
     // Underline fades in; the text itself never leaves the accent.
     await expect(link).toHaveCSS("color", accent);
     await expect(link).not.toHaveCSS("text-decoration-color", "rgba(0, 0, 0, 0)");
   }
+});
+
+test("reduced motion kills movement, keeps gentle fades", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/admin");
+  // The expanding form goes instant …
+  await expect(page.locator("#upload-form")).toHaveCSS("transition-duration", "0s");
+  // … while the underline fade still runs.
+  await expect(page.locator("#sec-collection .hint a")).toHaveCSS(
+    "transition-duration",
+    "0.25s",
+  );
 });
 
 test("collection rows stop at half the card on desktop", async ({ page }) => {
