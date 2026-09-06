@@ -1,7 +1,8 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import { getCollection } from "astro:content";
-import { slugifyTitle } from "../lib/site";
+import { groupByAvailability, slugifyTitle } from "../lib/site";
+import { dollarsToCents, formatCAD } from "../lib/money";
 
 // Baked in at build time so the list and links work everywhere, even with
 // no publishing backend (dev). The full editable fields ride along so the
@@ -18,8 +19,22 @@ const localCollection = (await getCollection("paintings")).map((p) => ({
   depthIn: p.data.depthIn ?? null,
   draft: p.data.draft === true,
   image: p.data.image.src,
+  mdPath: `src/content/paintings/${p.id.endsWith(".md") ? p.id : `${p.id}.md`}`,
 }));
 const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
+
+// First paint renders these rows as static markup — the script hydrates
+// over identical HTML, so loading never grows the card or shoves the page
+// (no skeleton flash, no cumulative layout shift).
+const flatCollection = [...localCollection].sort((a, b) =>
+  a.title.localeCompare(b.title),
+);
+const ssrDrafts = flatCollection.filter((p) => p.draft);
+const ssrGroups = groupByAvailability(flatCollection.filter((p) => !p.draft));
+const priceOf = (price: number): string => {
+  const cents = dollarsToCents(Number(price));
+  return cents === null ? "Price?" : formatCAD(cents);
+};
 ---
 
 <Layout title="Artist Studio — Admin" wordmark="admin">
@@ -58,9 +73,137 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
         </p>
         <p class="hint" id="collection-note" hidden></p>
         <ul id="edit-list">
-          <li class="skel" aria-hidden="true"><span></span></li>
-          <li class="skel" aria-hidden="true"><span></span></li>
-          <li class="skel" aria-hidden="true"><span></span></li>
+          <li class="list-group" data-group="available">
+            <div class="list-sub"><h3>Available</h3></div>
+            <ul class="group-rows">
+              {
+                ssrGroups.available.length === 0 ? (
+                  <li class="list-plain">Nothing available right now.</li>
+                ) : (
+                  ssrGroups.available.map((p) => (
+                    <li class="row-card">
+                      {p.image !== "" && (
+                        <img
+                          class="thumb"
+                          src={p.image}
+                          alt=""
+                          loading="lazy"
+                        />
+                      )}
+                      <span class="row-body">
+                        <a href={`/paintings/${p.slug}`}>
+                          <strong>{p.title}</strong>
+                        </a>
+                        <span> — {priceOf(p.price)}</span>
+                        <a class="row-edit" href={`/admin/paintings/${p.slug}`}>
+                          Edit here
+                        </a>
+                        <button
+                          type="button"
+                          class="row-del"
+                          data-slug={p.slug}
+                          data-title={p.title}
+                          data-md={p.mdPath}
+                        >
+                          Delete
+                        </button>
+                      </span>
+                    </li>
+                  ))
+                )
+              }
+            </ul>
+          </li>
+          {
+            (ssrDrafts.length > 0 || ssrGroups.sold.length > 0) && (
+              <li class="list-group" data-group="later">
+                {ssrDrafts.length > 0 && (
+                  <>
+                    <div class="list-sub">
+                      <h3>Drafts</h3>
+                    </div>
+                    <ul class="group-rows">
+                      {ssrDrafts.map((p) => (
+                        <li class="row-card">
+                          {p.image !== "" && (
+                            <img
+                              class="thumb"
+                              src={p.image}
+                              alt=""
+                              loading="lazy"
+                            />
+                          )}
+                          <span class="row-body">
+                            <a href={`/paintings/${p.slug}`}>
+                              <strong>{p.title}</strong>
+                            </a>
+                            <span> — {priceOf(p.price)}</span>
+                            <a
+                              class="row-edit"
+                              href={`/admin/paintings/${p.slug}`}
+                            >
+                              Edit here
+                            </a>
+                            <button
+                              type="button"
+                              class="row-del"
+                              data-slug={p.slug}
+                              data-title={p.title}
+                              data-md={p.mdPath}
+                            >
+                              Delete
+                            </button>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+                {ssrGroups.sold.length > 0 && (
+                  <>
+                    <div class="list-sub">
+                      <h3>Sold</h3>
+                    </div>
+                    <ul class="group-rows">
+                      {ssrGroups.sold.map((p) => (
+                        <li class="row-card">
+                          {p.image !== "" && (
+                            <img
+                              class="thumb"
+                              src={p.image}
+                              alt=""
+                              loading="lazy"
+                            />
+                          )}
+                          <span class="row-body">
+                            <a href={`/paintings/${p.slug}`}>
+                              <strong>{p.title}</strong>
+                            </a>
+                            <span> — {priceOf(p.price)}</span>
+                            <a
+                              class="row-edit"
+                              href={`/admin/paintings/${p.slug}`}
+                            >
+                              Edit here
+                            </a>
+                            <button
+                              type="button"
+                              class="row-del"
+                              data-slug={p.slug}
+                              data-title={p.title}
+                              data-md={p.mdPath}
+                            >
+                              Delete
+                            </button>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </li>
+            )
+          }
         </ul>
         <button type="button" id="practice-reset" hidden
           >Clear practice changes</button
@@ -436,13 +579,30 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
     font-size: 0.88rem;
     color: var(--muted);
   }
-  #views-list,
+  #views-list {
+    list-style: none;
+    padding: 0;
+    margin: 0.75rem 0 0;
+    display: grid;
+    gap: 0.5rem;
+  }
   #edit-list {
     list-style: none;
     padding: 0;
     margin: 0.75rem 0 0;
     display: grid;
     gap: 0.5rem;
+  }
+  /* Group shells vanish on phones so every row flows in one list;
+     on desktop they become the two equal-height columns. */
+  :global(#edit-list .list-group) {
+    display: contents;
+  }
+  :global(#edit-list .group-rows) {
+    display: contents;
+    list-style: none;
+    padding: 0;
+    margin: 0;
   }
   #sec-info ul {
     list-style: none;
@@ -454,7 +614,7 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
   /* Rows and fields are built by script after load, so they never carry
      the scope attribute — whole-selector :global keeps them styled. */
   :global(#views-list li),
-  :global(#edit-list li) {
+  :global(#edit-list li.row-card) {
     list-style: none;
     background: var(--paper);
     border: 1px solid var(--line);
@@ -473,21 +633,53 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
     text-decoration-color: currentColor;
   }
   /* Subheadings and plain notes sit in the list unboxed. */
-  :global(#edit-list li.list-sub),
-  :global(#edit-list li.list-plain) {
+  :global(#edit-list .list-sub),
+  :global(#edit-list .list-plain) {
     background: none;
     border: none;
     padding: 0.5rem 0 0;
   }
-  :global(#edit-list li.list-sub h3) {
+  :global(#edit-list .list-sub h3) {
     font-family: Georgia, "Iowan Old Style", Charter, serif;
     font-size: 1.05rem;
     font-weight: 500;
     margin: 0;
   }
-  :global(#edit-list li.list-plain) {
+  :global(#edit-list .list-plain) {
     color: var(--muted);
     font-size: 0.92rem;
+  }
+  /* Per-row delete: a quiet text button until armed, never a red box —
+     the toast carries the warning in words. */
+  :global(#edit-list .row-del) {
+    font: inherit;
+    font-size: 0.85rem;
+    background: none;
+    border: none;
+    padding: 0;
+    min-height: 0;
+    color: var(--muted);
+    text-decoration: underline transparent;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    justify-self: start;
+    transition:
+      color 0.2s ease,
+      text-decoration-color 0.12s ease;
+  }
+  :global(#edit-list .row-del:hover) {
+    color: var(--accent);
+    text-decoration-color: currentColor;
+  }
+  :global(#edit-list .row-del.armed) {
+    color: var(--accent);
+    font-weight: 700;
+    text-decoration-color: currentColor;
+  }
+  :global(#edit-list .row-del:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
   }
   /* Rows carry a thumbnail, so she sees the piece without remembering
      its name. Practice rows (dev) reuse the same shape. */
@@ -512,34 +704,6 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
   }
   :global(#edit-list .row-edit) {
     font-size: 0.85rem;
-  }
-  /* Loading skeletons hold the list's shape so rows landing never shove
-     the cards below. Static markup, replaced on first render. */
-  :global(#edit-list li.skel) {
-    padding: 0.7rem 1rem;
-  }
-  :global(#edit-list li.skel span) {
-    display: block;
-    height: 2.6rem;
-    border-radius: 0.5rem;
-    background: var(--line);
-    opacity: 0.45;
-    animation: skel-pulse 1.6s ease-in-out infinite;
-  }
-  @keyframes skel-pulse {
-    0%,
-    100% {
-      opacity: 0.3;
-    }
-    50% {
-      opacity: 0.6;
-    }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    :global(#edit-list li.skel span) {
-      animation: none;
-      opacity: 0.45;
-    }
   }
   #practice-reset {
     margin-top: 0.75rem;
@@ -568,8 +732,29 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
     #sec-collection {
       grid-column: 1 / -1;
     }
-    /* Full-width cards, readable lists: rows stop well short of the edge. */
-    #edit-list,
+    /* Collection groups sit side by side — Available on the left,
+       Drafts/Sold on the right — as equal-height columns split by one
+       hairline. Grid stretch keeps them level whatever each holds. */
+    #edit-list {
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      align-items: stretch;
+    }
+    :global(#edit-list .list-group) {
+      display: grid;
+      gap: 0.5rem;
+      align-content: start;
+      min-width: 0;
+    }
+    :global(#edit-list .group-rows) {
+      display: grid;
+      gap: 0.5rem;
+    }
+    :global(#edit-list .list-group[data-group="later"]) {
+      border-left: 1px solid var(--line);
+      padding-left: 1.5rem;
+    }
+    /* Readable view stats: rows stop well short of the edge. */
     #views-list {
       max-width: 32rem;
     }

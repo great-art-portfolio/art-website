@@ -7,8 +7,10 @@ import {
   clearPracticeOverlay,
   loadPracticeOverlay,
   practiceCount,
+  practiceDelete,
   type PracticeOverlay,
 } from "../lib/practice";
+import { paintingFilePaths } from "../lib/painting-edit";
 
 /**
  * Admin island (client-only): studio dashboard — collection index with
@@ -79,6 +81,8 @@ interface LocalPainting {
   heightIn: string;
   depthIn: string;
   medium: string;
+  /** Repo path for live deletes ("" for unsaved practice rows). */
+  mdPath: string;
 }
 
 /** Baked-in list, seeded once per visit (dev practice merges over it). */
@@ -114,6 +118,7 @@ function seedLocalRows(raw: unknown): LocalPainting[] | null {
       heightIn: dim(row["heightIn"]),
       depthIn: dim(row["depthIn"]),
       medium: str(row["medium"]),
+      mdPath: str(row["mdPath"]),
     });
   }
   return clean;
@@ -129,10 +134,14 @@ function mergePractice(
   const kept = rows.filter((r) => !gone.has(r.slug));
   for (const p of Object.values(overlay.upserts)) {
     const at = kept.findIndex((r) => r.slug === p.slug);
-    const row: LocalPainting = { ...p, image: "" };
+    const row: LocalPainting = { ...p, image: "", mdPath: "" };
     if (at >= 0) {
-      const thumb = kept[at]?.image ?? "";
-      kept[at] = { ...row, image: thumb };
+      const prev = kept[at];
+      kept[at] = {
+        ...row,
+        image: prev?.image ?? "",
+        mdPath: prev?.mdPath ?? "",
+      };
     } else {
       kept.push(row);
     }
@@ -185,7 +194,11 @@ function renderLocalCollection(): boolean {
   return true;
 }
 
-/** One row: thumbnail, buyer link, price, and the door to its studio page. */
+/**
+ * One row: thumbnail, buyer link, price, the door to its studio page, and
+ * its own delete. Mirrors the static rows in admin.astro so hydration
+ * swaps identical markup (no flash, no shift).
+ */
 function rowHtml(r: LocalPainting): string {
   const esc = (s: string): string =>
     s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -200,38 +213,123 @@ function rowHtml(r: LocalPainting): string {
     `<a href="/paintings/${esc(r.slug)}"><strong>${esc(r.title)}</strong></a>` +
     `<span> — ${price}</span>` +
     `<a class="row-edit" href="/admin/paintings/${esc(r.slug)}">Edit here</a>` +
+    `<button type="button" class="row-del" data-slug="${esc(r.slug)}" data-title="${esc(r.title)}" data-md="${esc(r.mdPath)}">Delete</button>` +
     `</span></li>`
   );
 }
 
-/** Drafts first (only when they exist), then available, then sold. */
+function subHtml(title: string): string {
+  return `<div class="list-sub"><h3>${title}</h3></div>`;
+}
+
+/**
+ * Two columns on desktop — Available left, Drafts/Sold right — one list
+ * on phones. Mirrors the static markup in admin.astro.
+ */
 function renderRows(rows: LocalPainting[]): void {
   const list = $("edit-list");
   ($("collection-refresh") as HTMLButtonElement).hidden = true;
   if (rows.length === 0) {
     list.innerHTML =
-      '<li class="list-plain">Nothing here yet — start a new painting above.</li>';
+      '<li class="list-plain">Nothing here yet — tap Add painting above.</li>';
     return;
   }
   const flat = [...rows].sort((a, b) => a.title.localeCompare(b.title));
   const drafts = flat.filter((r) => r.draft);
   const groups = groupByAvailability(flat.filter((r) => !r.draft));
   let html =
-    drafts.length === 0
-      ? ""
-      : `<li class="list-sub"><h3>Drafts</h3></li>` +
-        drafts.map(rowHtml).join("");
-  html += `<li class="list-sub"><h3>Available</h3></li>`;
-  html +=
-    groups.available.length === 0
+    `<li class="list-group" data-group="available">` +
+    subHtml("Available") +
+    `<ul class="group-rows">` +
+    (groups.available.length === 0
       ? `<li class="list-plain">Nothing available right now.</li>`
-      : groups.available.map(rowHtml).join("");
-  if (groups.sold.length > 0) {
-    html +=
-      `<li class="list-sub"><h3>Sold</h3></li>` +
-      groups.sold.map(rowHtml).join("");
+      : groups.available.map(rowHtml).join("")) +
+    `</ul></li>`;
+  if (drafts.length > 0 || groups.sold.length > 0) {
+    html += `<li class="list-group" data-group="later">`;
+    if (drafts.length > 0) {
+      html +=
+        subHtml("Drafts") +
+        `<ul class="group-rows">` +
+        drafts.map(rowHtml).join("") +
+        `</ul>`;
+    }
+    if (groups.sold.length > 0) {
+      html +=
+        subHtml("Sold") +
+        `<ul class="group-rows">` +
+        groups.sold.map(rowHtml).join("") +
+        `</ul>`;
+    }
+    html += `</li>`;
   }
   list.innerHTML = html;
+}
+
+/**
+ * Delete straight from a dashboard row. First tap arms the button with an
+ * "Are you sure?" in words; the second tap deletes for real — practice
+ * rows vanish locally, live rows commit a delete of .md + photo + models.
+ */
+async function deleteRow(
+  slug: string,
+  title: string,
+  mdPath: string,
+): Promise<void> {
+  if (isLocalPreview() && getApiToken() === "") {
+    practiceDelete(slug);
+    renderLocalCollection();
+    setStatus(`Deleted "${title}" from this tab's practice list.`);
+    return;
+  }
+  if (mdPath === "") throw new Error("Couldn't find this painting's file.");
+  setStatus(`Deleting "${title}"… (gone in a few minutes)`);
+  const content = await api.getPaintingFile(mdPath);
+  if (content === null) throw new Error("Couldn't load this painting's file.");
+  const parsed = parsePainting(content);
+  if (parsed === null) throw new Error("Couldn't read this painting's file.");
+  await api.deleteFiles(
+    `Delete painting: ${parsed.title}`,
+    paintingFilePaths(mdPath, parsed),
+  );
+  await refreshCollection();
+  setStatus(`Deleted "${parsed.title}" — recoverable from repo history.`);
+}
+
+/** One delegated listener covers every row, including re-renders. */
+function wireRowDelete(): void {
+  const list = $("edit-list");
+  if (list.dataset.delWired === "1") return;
+  list.dataset.delWired = "1";
+  list.addEventListener("click", (e) => {
+    const t = e.target instanceof Element ? e.target.closest(".row-del") : null;
+    const btn = t instanceof HTMLButtonElement ? t : null;
+    if (btn === null || btn.disabled) return;
+    const slug = btn.dataset.slug ?? "";
+    const title =
+      btn.dataset.title === ""
+        ? "this painting"
+        : (btn.dataset.title ?? "this painting");
+    if (btn.dataset.armed !== "1") {
+      btn.dataset.armed = "1";
+      btn.classList.add("armed");
+      btn.textContent = "Are you sure? Tap again to delete";
+      setStatus(
+        `This removes "${title}" from the site. Tap again to confirm.`,
+        true,
+      );
+      return;
+    }
+    btn.disabled = true;
+    btn.classList.remove("armed");
+    btn.textContent = "Deleting…";
+    void deleteRow(slug, title, btn.dataset.md ?? "").catch((err: unknown) => {
+      btn.disabled = false;
+      btn.dataset.armed = "";
+      btn.textContent = "Delete";
+      setStatus((err as Error).message, true);
+    });
+  });
 }
 
 async function refreshCollection(): Promise<void> {
@@ -267,7 +365,7 @@ async function refreshCollection(): Promise<void> {
   }
   if (files.length === 0) {
     list.innerHTML =
-      '<li class="list-plain">Nothing here yet — start a new painting above.</li>';
+      '<li class="list-plain">Nothing here yet — tap Add painting above.</li>';
     return;
   }
   // Thumbnails come from the page's baked-in list (built image URLs the
@@ -317,6 +415,7 @@ async function refreshCollection(): Promise<void> {
       heightIn: p.heightIn,
       depthIn: p.depthIn,
       medium: p.medium,
+      mdPath: `src/content/paintings/${f}`,
     });
   }
   renderRows(rows);
@@ -558,6 +657,7 @@ function init(): void {
     "click",
     () => void refreshCollection(),
   );
+  wireRowDelete();
 
   // Landing here from a painting room: its confirmation toast and, after
   // a publish, a ready-made share caption ride along in session storage.
