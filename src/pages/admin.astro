@@ -6,9 +6,7 @@ import Layout from "../layouts/Layout.astro";
   <main class="admin" id="main">
     <p class="eyebrow">Artist studio</p>
     <h1 id="admin-greeting">Studio</h1>
-    <p id="admin-status" role="status" data-tone="ok">
-      Add a painting below — saving publishes it to the site.
-    </p>
+    <p id="admin-status" role="status" data-tone="ok"></p>
 
     <nav class="subnav" aria-label="Studio sections">
       <a href="#sec-add">Add</a>
@@ -100,7 +98,7 @@ import Layout from "../layouts/Layout.astro";
       <label>Announcement
         <input id="f-announce" type="text" maxlength="280" placeholder="Find me at the Lilac Festival this Sunday!" />
       </label>
-      <label>Shows until
+      <label>Show until
         <select id="f-duration">
           <option value="">No end date</option>
           <option value="1">1 day</option>
@@ -134,19 +132,21 @@ import Layout from "../layouts/Layout.astro";
     </section>
 
     <section class="card">
-      <h2>Settings</h2>
-      <p class="hint">
-        Email alerts <span id="flag-email">…</span> · iOS push <span id="flag-push">…</span> ·
-        auto-post <span id="flag-social">…</span>
-      </p>
-      <label>Local API token (only needed on this device if Access is off)
-        <input id="admin-token" type="password" autocomplete="off" />
-      </label>
-      <p class="hint">
-        This browser can keep working offline: <span id="cap-sw">…</span> ·
-        sending in the background: <span id="cap-sync">…</span> ·
-        network: <span id="cap-net">…</span>
-      </p>
+      <details>
+        <summary>Settings</summary>
+        <p class="hint">
+          Email alerts <span id="flag-email">…</span> · iOS push <span id="flag-push">…</span> ·
+          auto-post <span id="flag-social">…</span>
+        </p>
+        <label>Local API token (only needed on this device if Access is off)
+          <input id="admin-token" type="password" autocomplete="off" />
+        </label>
+        <p class="hint">
+          This browser can keep working offline: <span id="cap-sw">…</span> ·
+          sending in the background: <span id="cap-sync">…</span> ·
+          network: <span id="cap-net">…</span>
+        </p>
+      </details>
     </section>
   </main>
 </Layout>
@@ -173,6 +173,17 @@ import Layout from "../layouts/Layout.astro";
   #admin-status[data-tone="error"] {
     border-color: rgb(140 29 24 / 0.4); background: rgb(140 29 24 / 0.08); color: inherit;
   }
+  /* The status line starts empty (no blurb) and only appears once the
+     studio has something to say. */
+  #admin-status:empty { display: none; }
+  /* Collapsed Settings ("Advanced" drawer): the summary wears the h2 style
+     so the closed card still reads as a section header. */
+  .card summary {
+    font-family: Georgia, "Iowan Old Style", Charter, serif; font-weight: 500;
+    font-size: 1.4rem; cursor: pointer; border-radius: 0.25rem;
+    padding-bottom: 0.75rem; border-bottom: 1px solid var(--line); margin-bottom: 1rem;
+  }
+  .card summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .card {
     background: var(--card); border: 1px solid var(--line);
     border-radius: 1rem; box-shadow: var(--shadow);
