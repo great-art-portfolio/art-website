@@ -403,13 +403,10 @@ function wireRowDelete(): void {
     }
     overlay.hidden = false;
     yes.disabled = true;
-    let left = 3500;
+    // Deadline-based, not tick-counted: a stalled tab still arms ~3.5s in.
+    const end = Date.now() + 3500;
     const tick = () => {
-      yes.textContent = `Delete (${Math.max(1, Math.floor(left / 1000))})`;
-    };
-    tick();
-    timer = window.setInterval(() => {
-      left -= 250;
+      const left = Math.max(0, end - Date.now());
       if (left <= 0) {
         if (timer !== null) window.clearInterval(timer);
         timer = null;
@@ -417,8 +414,10 @@ function wireRowDelete(): void {
         yes.textContent = "Delete";
         return;
       }
-      tick();
-    }, 250);
+      yes.textContent = `Delete (${Math.max(1, Math.floor(left / 1000))})`;
+    };
+    tick();
+    timer = window.setInterval(tick, 250);
     no.focus();
   };
 
