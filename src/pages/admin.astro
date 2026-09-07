@@ -189,24 +189,27 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
       <section class="card" id="sec-info">
         <h2>Good to know</h2>
         <p class="hint">
-          When a buyer taps Send on a painting page, their note lands straight
-          in your inbox — hit reply and it goes to them. Send it from your
-          author@barbart.ca email address. After shipping, open the piece and
-          mark it sold.
+          When a buyer taps “Send inquiry” on a painting page, their note lands
+          straight in your inbox — hit reply and it goes to them. Send it from
+          your author@barbart.ca email address. After shipping, open the piece
+          and mark it sold.
         </p>
         <ul>
           <li>
-            <a href="https://chitchats.com/" rel="noopener">Chit Chats</a> — cheapest
-            tracked Canada/US shipping.
+            <a href="https://chitchats.com/" target="_blank" rel="noopener"
+              >Chit Chats</a
+            > — cheapest tracked Canada/US shipping.
           </li>
           <li>
-            <a href="https://www.pirateship.com/" rel="noopener">Pirate Ship</a> —
-            backup for US labels.
+            <a href="https://www.pirateship.com/" target="_blank" rel="noopener"
+              >Pirate Ship</a
+            > — backup for US labels.
           </li>
         </ul>
-        <p class="hint" id="ship-flags" hidden>
-          In-house Shippo labels are <span id="flag-shippo">…</span>; Stripe
-          checkout is <span id="flag-stripe">…</span>.
+        <p class="hint">
+          Getting paid: start with e-transfer. When a buyer writes back, send
+          them your e-transfer address and hold the painting until the money
+          lands — we can set up a checkout thing later if we want.
         </p>
         <details>
           <summary>Advanced Settings</summary>

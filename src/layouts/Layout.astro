@@ -165,7 +165,7 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
           <button type="button" id="notify-btn" class="btn-primary">
             Notify me with this browser
           </button>
-          <p class="hint" id="notify-hint" />
+          <p class="hint" id="notify-hint" role="status" />
           <div class="email-capture">
             <p>
               Prefer email? One email per new painting, nothing else, and your
@@ -184,6 +184,7 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
                   placeholder="you@example.com"
                 />
               </label>
+              <div id="notify-turnstile-mount" />
               <button type="submit" class="btn-ghost">
                 Join the list
               </button>
@@ -247,14 +248,34 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
         return import("../lib/push");
       }
 
-      // Status words fade in and out under every motion setting. A counter
-      // on the element drops a late fade-out when a newer message lands.
-      function notifySay(el = document.body, msg = "") {
+      let notifyTurnstileToken = "";
+
+      // Spam check, shared with the inquiry form via lib/turnstile-widget.
+      function loadNotifyTurnstile() {
+        void import("../lib/turnstile-widget").then(({ ensureTurnstile }) =>
+          ensureTurnstile("#notify-turnstile-mount", (t) => {
+            notifyTurnstileToken = t;
+          }),
+        );
+      }
+
+      // Status words fade in, then fade back out on their own a few
+      // seconds later — nothing in the modal lingers. A counter on the
+      // element drops a late fade-out when a newer message lands.
+      // Sticky messages (a blocked state she must act on) stay until
+      // replaced. Fades run under every motion setting: they are opacity
+      // only, never movement.
+      function notifySay(el = document.body, msg = "", sticky = false) {
         const n = Number(el.dataset.say ?? "0") + 1;
         el.dataset.say = String(n);
         el.textContent = msg;
         if (typeof el.animate === "function") {
           el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
+        }
+        if (!sticky && msg !== "") {
+          window.setTimeout(() => {
+            if (el.dataset.say === String(n)) notifyUnsay(el);
+          }, 5000);
         }
       }
       function notifyUnsay(el = document.body) {
@@ -280,12 +301,16 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
           if (typeof dlg.showModal === "function") dlg.showModal();
           else dlg.setAttribute("open", "");
         }
+        // The modal renders hidden until opened — render the spam check
+        // on open so it measures correctly. No-op when already rendered.
+        loadNotifyTurnstile();
         const closeEl = document.getElementById("notify-close");
         const closeBtn = closeEl instanceof HTMLButtonElement ? closeEl : null;
         if (closeBtn !== null) closeBtn.focus();
       }
 
       // Email capture needs no browser features — wire it once, always on.
+      // Spam: Cloudflare Turnstile when configured, shared with buy form.
       function wireNotifyEmail() {
         const formEl = document.getElementById("notify-email-form");
         const form = formEl instanceof HTMLFormElement ? formEl : null;
@@ -295,6 +320,7 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
         if (form === null || input === null || hint === null) return;
         if (form.dataset.wired === "1") return;
         form.dataset.wired = "1";
+        loadNotifyTurnstile();
         form.addEventListener("submit", (e) => {
           e.preventDefault();
           const email = input.value.trim();
@@ -310,7 +336,10 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
           fetch("/api/collectors", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email }),
+            body: JSON.stringify({
+              email,
+              turnstileToken: notifyTurnstileToken,
+            }),
           })
             .then((res) => {
               if (res.ok) {
@@ -358,6 +387,7 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
           notifySay(
             hint,
             "You blocked notifications for this site in your browser settings.",
+            true,
           );
         } else {
           btn.textContent = "Notify me with this browser";
@@ -643,10 +673,15 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
     color: var(--muted);
     font-size: 0.95rem;
   }
+  /* Status lines reserve two lines up front: every message in this
+     modal wraps to two at card width, so one line of space meant the
+     card below jumped when words arrived. The empty gap is slightly
+     taller now; nothing ever moves. */
   #notify-dialog .hint {
     font-size: 0.9rem;
     margin: 0.8rem 0 0;
-    min-height: 1.2em;
+    line-height: 1.5;
+    min-height: 3em;
   }
   .notify-close-row {
     display: flex;

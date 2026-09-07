@@ -630,27 +630,11 @@ async function refreshFlags(): Promise<void> {
     $("flag-email").textContent = s.email ? "on" : "off";
     $("flag-push").textContent = s.push ? "on" : "off";
     $("flag-social").textContent = s.socialPost ? "on (auto)" : "share kit";
-    // Off means off — the whole line hides instead of reporting it.
-    const shipFlags = $("ship-flags");
-    if (!s.shippo && !s.stripe) {
-      shipFlags.hidden = true;
-    } else {
-      reveal(shipFlags);
-      $("flag-stripe").textContent = s.stripe ? "on" : "off";
-      $("flag-shippo").textContent = s.shippo ? "on" : "off";
-    }
   } catch {
     // No API here (e.g. astro dev) — say so instead of leaving "…" dots.
-    for (const id of [
-      "flag-email",
-      "flag-push",
-      "flag-stripe",
-      "flag-shippo",
-      "flag-social",
-    ]) {
+    for (const id of ["flag-email", "flag-push", "flag-social"]) {
       $(id).textContent = "unavailable in this preview";
     }
-    reveal($("ship-flags"));
   }
 }
 

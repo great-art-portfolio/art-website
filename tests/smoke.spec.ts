@@ -151,6 +151,62 @@ test("email capture form joins the list", async ({ page }) => {
   await expect(page.locator("#notify-email-hint")).toContainText("on the list");
 });
 
+test("modal status fades away on its own", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("#notify-nav").click();
+  await page.locator("#notify-email").fill("e2e-fan@example.com");
+  await page.locator("#notify-email-form button[type=submit]").click();
+  const hint = page.locator("#notify-email-hint");
+  await expect(hint).toContainText("on the list");
+  await expect(hint).toBeEmpty({ timeout: 10_000 });
+});
+
+test("modal status never moves the signup", async ({ page }) => {
+  // Phone width: the card is narrow, so the status wraps — exactly
+  // when a short reservation would let the signup jump.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.locator("#notify-nav").click();
+  const dialog = page.locator("#notify-dialog");
+  const before = await dialog.evaluate(
+    (el) => el.getBoundingClientRect().height,
+  );
+  // Native validation would block a bad address before the page's own
+  // check runs; stand it down so the real error path answers.
+  await page
+    .locator("#notify-email-form")
+    .evaluate((el) => el.setAttribute("novalidate", ""));
+  await page.locator("#notify-email").fill("not-an-email");
+  await page.locator("#notify-email-form button[type=submit]").click();
+  const hint = page.locator("#notify-email-hint");
+  await expect(hint).not.toBeEmpty();
+  // The message wraps (a Range reports one box per line) — if the
+  // reservation were short, the card would grow to hold it.
+  const lines = await hint.evaluate((el) => {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    return range.getClientRects().length;
+  });
+  expect(lines).toBeGreaterThan(1);
+  const after = await dialog.evaluate(
+    (el) => el.getBoundingClientRect().height,
+  );
+  // Sub-pixel rounding aside, the card holds its size.
+  expect(after).toBeCloseTo(before, 0);
+});
+
+test("blocked push state stays put, not faded", async ({ page }) => {
+  // Headless denies notification permission, so the modal opens
+  // already wearing its blocked state.
+  await page.goto("/");
+  await page.locator("#notify-nav").click();
+  const hint = page.locator("#notify-hint");
+  await expect(hint).toContainText("blocked");
+  // Past the fade delay: a state she must act on never clears itself.
+  await page.waitForTimeout(6000);
+  await expect(hint).toContainText("blocked");
+});
+
 test("collector signup accepts a good address, rejects a bad one", async ({
   request,
 }) => {

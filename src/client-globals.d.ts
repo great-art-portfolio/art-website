@@ -8,7 +8,11 @@ interface Window {
   turnstile?: {
     render: (
       selector: string,
-      options: { sitekey: string; callback: (token: string) => void },
+      options: {
+        sitekey: string;
+        callback: (token: string) => void;
+        "expired-callback"?: () => void;
+      },
     ) => void;
   };
   /** Detail lightbox doc-level listeners, registered once per session. */

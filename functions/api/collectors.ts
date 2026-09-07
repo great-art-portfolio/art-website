@@ -5,6 +5,7 @@ import {
   listCollectorEmails,
   parseCollectorEmail,
 } from "../_lib/collectors";
+import { turnstileOk } from "../_lib/turnstile";
 
 /**
  * Collector email list ("tell me about new paintings" addresses).
@@ -19,6 +20,15 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     body = (await context.request.json()) as Record<string, unknown>;
   } catch {
     return badRequest("Invalid JSON");
+  }
+  if (
+    !(await turnstileOk(
+      context.env,
+      body["turnstileToken"],
+      context.request.headers.get("cf-connecting-ip"),
+    ))
+  ) {
+    return badRequest("Spam check failed — please try again.");
   }
   const email = parseCollectorEmail(body["email"]);
   if (email === null) return badRequest("A valid email address is required");

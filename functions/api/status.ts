@@ -1,7 +1,11 @@
 import { flag, type AppEnv } from "../_lib/env";
 import { json } from "../_lib/http";
 
-/** Admin: which optional integrations are switched on (no secrets leak). */
+/**
+ * Public on purpose (no secrets leak — flags and the site key only): the
+ * buyer page needs the Turnstile key and the admin panel uses it as its
+ * "is there a backend behind this preview" check.
+ */
 export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
   return json({
     stripe: flag(context.env.ENABLE_STRIPE),

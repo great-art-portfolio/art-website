@@ -469,42 +469,13 @@ const eyebrow =
   }
   let turnstileToken = "";
 
-  /** Invisible-ish spam check, loaded only if the site key is configured. */
+  /** Spam check, shared with the collector modal via lib/turnstile-widget. */
   function loadTurnstile() {
-    if (document.getElementById("turnstile-script") !== null) return;
-    fetch("/api/status")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        const raw =
-          data !== null &&
-          typeof data === "object" &&
-          "turnstileSiteKey" in data
-            ? data.turnstileSiteKey
-            : undefined;
-        const key = typeof raw === "string" ? raw : "";
-        if (key === "") return;
-        if (document.getElementById("turnstile-script") !== null) return;
-        const script = document.createElement("script");
-        script.id = "turnstile-script";
-        script.src =
-          "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-        script.async = true;
-        script.defer = true;
-        script.onload = () => {
-          const tApi = window.turnstile;
-          if (tApi === undefined) return;
-          tApi.render("#turnstile-mount", {
-            sitekey: key,
-            callback: (t) => {
-              turnstileToken = t;
-            },
-          });
-        };
-        document.head.appendChild(script);
-      })
-      .catch(() => {
-        // Spam check unavailable — the honeypot still guards the form.
-      });
+    void import("../lib/turnstile-widget").then(({ ensureTurnstile }) =>
+      ensureTurnstile("#turnstile-mount", (t) => {
+        turnstileToken = t;
+      }),
+    );
   }
 
   /** "View on your wall" AR viewer (only rendered when models exist). */
@@ -1121,7 +1092,10 @@ const eyebrow =
      the wrapped field, so "hovering the box" can't be told apart from
      "hovering its Title" — any :hover tint would fire on both. Fields
      answer focus instead (below), which is unambiguous. (The Sold
-     checkbox keeps its own hover: there the label is one target.) */
+     checkbox keeps its own hover: there the label is one target.)
+     Exception: the buyer inquiry form previews a soft ring on hover —
+     buyers expect the box to answer the pointer, and the studio "label
+     text never warms its field" test only guards the editor. */
   /* One ring only: inputs show the outline on any focus, never doubling
      with a border change. */
   input:focus,
@@ -1130,6 +1104,31 @@ const eyebrow =
   textarea:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 1px;
+  }
+  /* Buyer form only: the ring fades in softly on hover so the box
+     answers the pointer. Still one ring — focus takes it to full
+     accent, and the border never changes. Scoped to #inquiry-form so
+     the studio editor keeps its no-hover rule. */
+  #inquiry-form input,
+  #inquiry-form textarea {
+    outline: 2px solid transparent;
+    outline-offset: 1px;
+    transition:
+      outline-color 0.2s ease,
+      border-color 0.2s ease,
+      box-shadow 0.2s ease;
+  }
+  #inquiry-form input:hover,
+  #inquiry-form textarea:hover {
+    /* --accent at 55%: plain rgb (not color-mix) so the computed value
+       serializes deterministically for the hover test. */
+    outline-color: rgb(164 74 36 / 0.55);
+  }
+  #inquiry-form input:focus,
+  #inquiry-form textarea:focus,
+  #inquiry-form input:focus-visible,
+  #inquiry-form textarea:focus-visible {
+    outline-color: var(--accent);
   }
   .hp {
     position: absolute;

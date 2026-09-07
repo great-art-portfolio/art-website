@@ -170,7 +170,12 @@ test("secondary actions fade their hovers", async ({ page }) => {
     .locator("#de-publish")
     .evaluate((el) => getComputedStyle(el).transitionDuration);
   expect(pub).toContain("0.25s");
-  // Hovering the Sold word lights its box.
+  // Hovering the Sold word lights its box — easing in, not snapping.
+  const soldTransition = await page
+    .locator("#de-sold")
+    .evaluate((el) => getComputedStyle(el).transition);
+  expect(soldTransition).toContain("border-color");
+  expect(soldTransition).toContain("0.2s");
   await page.locator(".de-check").hover();
   await expect(page.locator("#de-sold")).toHaveCSS(
     "border-color",

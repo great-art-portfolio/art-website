@@ -1,37 +1,9 @@
 import type { AppEnv } from "../_lib/env";
 import { badRequest, json, serverError } from "../_lib/http";
 import { sendInquiryNotifications } from "../_lib/notify";
+import { turnstileOk } from "../_lib/turnstile";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-async function turnstileOk(
-  env: AppEnv,
-  token: unknown,
-  ip: string | null,
-): Promise<boolean> {
-  const secret = env.TURNSTILE_SECRET_KEY ?? "";
-  // Keys arrive with the dashboard setup; until then the honeypot covers us.
-  if (secret === "") return true;
-  if (typeof token !== "string" || token === "") return false;
-  try {
-    const form = new FormData();
-    form.set("secret", secret);
-    form.set("response", token);
-    if (ip !== null) form.set("remoteip", ip);
-    const res = await fetch(
-      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-      {
-        method: "POST",
-        body: form,
-      },
-    );
-    const data = (await res.json()) as { success?: boolean };
-    return data.success === true;
-  } catch (err) {
-    console.error("turnstile verify failed", err);
-    return false;
-  }
-}
 
 /**
  * Public: a visitor asks about a painting. Nothing is stored — the note is

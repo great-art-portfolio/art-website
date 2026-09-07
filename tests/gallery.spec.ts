@@ -71,6 +71,29 @@ test("gallery shows one card per available painting, each linked correctly", asy
   }
 });
 
+test("inquiry fields preview their ring on hover", async ({ page }) => {
+  expect(available.length).toBeGreaterThan(0);
+  await page.goto(`/paintings/${available[0].slug}`);
+  // The form hides behind "Interested?" once scripts run. Revealing
+  // focuses the name box, so step off it first — this test is about
+  // hover, not focus.
+  await page.locator("#inquiry-reveal").click();
+  await page.locator("#inquiry-form h2").click();
+  const name = page.locator('#inquiry-form input[name="name"]');
+  await expect(name).toBeVisible();
+  // At rest the ring is transparent — the box answers the pointer.
+  await expect(name).toHaveCSS("outline-color", "rgba(0, 0, 0, 0)");
+  await name.hover();
+  await expect(name).toHaveCSS("outline-color", "rgba(164, 74, 36, 0.55)");
+  // The ring fades in — it never snaps. This guards the transition
+  // itself, not just the end state.
+  const preview = await name.evaluate((el) => getComputedStyle(el).transition);
+  expect(preview).toContain("outline-color");
+  expect(preview).toContain("0.2s");
+  // The border never joins in: one ring only.
+  await expect(name).toHaveCSS("border-color", "rgb(229, 220, 203)");
+});
+
 test("hovering a card prefetches its painting page", async ({ page }) => {
   expect(available.length).toBeGreaterThan(0);
   await page.goto("/");

@@ -385,14 +385,19 @@ test("rows stay count-less when analytics is empty", async ({ page }) => {
   await expect(page.locator("#edit-list")).not.toContainText("view");
 });
 
-test("ship flags stay hidden until status resolves", async ({ page }) => {
-  // Hang the status call: the feature flags never arrive.
-  await page.route("**/api/status*", async () => {
-    await new Promise<never>(() => undefined);
-  });
+test("good-to-know names e-transfer, shippers open in a new tab", async ({
+  page,
+}) => {
   await page.goto("/admin");
-  // No flash of "…" dots while loading.
-  await expect(page.locator("#ship-flags")).toBeHidden();
+  await expect(page.locator("#sec-info")).toContainText(
+    "start with e-transfer",
+  );
+  for (const name of ["Chit Chats", "Pirate Ship"]) {
+    await expect(page.getByRole("link", { name })).toHaveAttribute(
+      "target",
+      "_blank",
+    );
+  }
 });
 
 test("collection photos never flicker on load", async ({ page }) => {
@@ -832,6 +837,11 @@ test("studio inputs show one focus ring, never two", async ({ page }) => {
   // The accent outline is the only ring: the border stays the quiet one.
   await expect(title).toHaveCSS("outline-width", "2px");
   await expect(title).toHaveCSS("border-color", "rgb(229, 220, 203)");
+  // And the border eases rather than snapping if it ever does move.
+  const borderEase = await title.evaluate(
+    (el) => getComputedStyle(el).transition,
+  );
+  expect(borderEase).toContain("border-color");
 });
 
 test("gallery link leaves admin and lands home", async ({ browser }) => {
