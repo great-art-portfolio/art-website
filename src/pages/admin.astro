@@ -20,6 +20,9 @@ const localCollection = (await getCollection("paintings")).map((p) => ({
   draft: p.data.draft === true,
   image: p.data.image.src,
   mdPath: `src/content/paintings/${p.id.endsWith(".md") ? p.id : `${p.id}.md`}`,
+  // View counts arrive client-side, after the rows — zero here keeps the
+  // static markup identical to the first hydrated render.
+  views: 0,
 }));
 const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
 
@@ -164,16 +167,6 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
           >
           <p class="hint" id="announce-meta"></p>
         </div>
-      </section>
-
-      <section class="card" id="sec-views" hidden>
-        <h2>
-          Most viewed <button type="button" id="views-refresh" hidden
-            >Retry</button
-          >
-        </h2>
-        <p class="hint">Past 30 days, from Cloudflare Analytics.</p>
-        <ul id="views-list"></ul>
       </section>
 
       <section class="card" id="sec-info">
@@ -393,20 +386,14 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
   .admin a:hover {
     text-decoration-color: currentColor;
   }
-  /* View bars: one accent row per painting, scaled to the top piece. */
-  :global(.view-bar) {
-    display: block;
-    height: 0.45rem;
-    margin-top: 0.35rem;
-    border-radius: 999px;
-    background: rgb(255 255 255 / 0.08);
-    overflow: hidden;
+  /* Row view counts: quiet follow-on to the price, gone entirely
+     until the counts arrive (no flash, no shove). */
+  :global(#edit-list .row-views:empty) {
+    display: none;
   }
-  :global(.view-bar > span) {
-    display: block;
-    height: 100%;
-    background: var(--accent);
-    border-radius: 999px;
+  :global(#edit-list .row-views) {
+    color: var(--muted);
+    font-size: 0.85rem;
   }
   button:focus-visible {
     outline: 2px solid var(--accent);
@@ -503,13 +490,6 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
   #announce-meta:empty {
     display: none;
   }
-  #views-list {
-    list-style: none;
-    padding: 0;
-    margin: 0.75rem 0 0;
-    display: grid;
-    gap: 0.5rem;
-  }
   #edit-list {
     list-style: none;
     padding: 0;
@@ -537,7 +517,6 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
   }
   /* Rows and fields are built by script after load, so they never carry
      the scope attribute — whole-selector :global keeps them styled. */
-  :global(#views-list li),
   :global(#edit-list li.row-card) {
     list-style: none;
     background: var(--paper);
@@ -690,10 +669,6 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
   :global(#edit-list .ico) {
     flex-shrink: 0;
   }
-  /* Hidden until data arrives: no flash of an empty card on the way in. */
-  #sec-views[hidden] {
-    display: none;
-  }
   /* Deferred reveals fade in instead of snapping. Opacity-only, so it
      stays gentle under reduced motion too. */
   .fade-in {
@@ -769,10 +744,6 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
     :global(#edit-list .list-group[data-group="later"]) {
       border-left: 1px solid var(--line);
       padding-left: 1.5rem;
-    }
-    /* Readable view stats: rows stop well short of the edge. */
-    #views-list {
-      max-width: 32rem;
     }
   }
   .card {

@@ -97,9 +97,8 @@ test("studio header links home, never to visitor funnels", async ({ page }) => {
   ).toHaveText("Add painting");
   await expect(page.locator('nav a[href="/#notify"]')).toHaveCount(0);
   await expect(page.locator(".card .step")).toHaveCount(0);
-  // Retry buttons stay hidden while sections load on their own.
+  // The collection Retry stays hidden while the section loads on its own.
   await expect(page.locator("#collection-refresh")).toBeHidden();
-  await expect(page.locator("#views-refresh")).toBeHidden();
   // Plain-words copy, no operator jargon.
   const body = (await page.locator("#main").textContent()) ?? "";
   expect(body).not.toContain("Publishing needs the live site");
@@ -299,9 +298,7 @@ test("collection names the missing API token when the API refuses", async ({
   await expect(page.locator("#collection-refresh")).toBeVisible();
 });
 
-test("views draws bars, hides when there is nothing to report", async ({
-  page,
-}) => {
+test("view counts land in their collection rows", async ({ page }) => {
   await mockCommitApi(page);
   // Later routes win: this overrides the mock's empty views above.
   await page.route("**/api/analytics*", async (route) =>
@@ -311,28 +308,41 @@ test("views draws bars, hides when there is nothing to report", async ({
       body: JSON.stringify({
         views: [
           { slug: "first-thaw", views: 10 },
-          { slug: "prairie-moon", views: 5 },
+          { slug: "prairie-moon", views: 1 },
         ],
         unconfigured: false,
       }),
     }),
   );
   await page.goto("/admin");
-  await expect(page.locator("#sec-views")).toBeVisible();
-  await expect(page.locator("#sec-views")).toHaveClass(/fade-in/);
-  const bars = page.locator("#views-list .view-bar > span");
-  await expect(bars).toHaveCount(2);
-  await expect(bars.first()).toHaveAttribute("style", "width:100%");
-  await expect(bars.nth(1)).toHaveAttribute("style", "width:50%");
-  // Script-built bars actually render (a bar with no height is invisible).
-  const height = await bars.first().boundingBox();
-  expect(height !== null && height.height > 0).toBe(true);
+  // No card anywhere — each count sits inside its own row, words and all.
+  await expect(page.locator("#sec-views")).toHaveCount(0);
+  // Tag a photo before the counts land: patching them in must never
+  // rebuild the rows (photos would flicker).
+  const img = page.locator("#edit-list img.thumb").first();
+  await expect(img).toBeVisible();
+  const handle = await img.elementHandle();
+  await expect(page.locator('.row-card:has-text("First Thaw")')).toContainText(
+    "10 views",
+  );
+  expect(handle !== null).toBe(true);
+  if (handle !== null) {
+    expect(await page.evaluate((el) => el.isConnected, handle)).toBe(true);
+  }
+  await expect(
+    page.locator('.row-card:has-text("Prairie Moon")'),
+  ).toContainText("1 view");
 });
 
-test("views card hides itself when empty", async ({ page }) => {
+test("rows stay count-less when analytics is empty", async ({ page }) => {
   await mockCommitApi(page); // analytics: unconfigured false, views []
+  const analytics = page.waitForResponse("**/api/analytics*");
   await page.goto("/admin");
-  await expect(page.locator("#sec-views")).toBeHidden();
+  await analytics;
+  await expect(page.locator("#sec-views")).toHaveCount(0);
+  // Rows rendered AND the (empty) answer arrived — still no counts.
+  await expect(page.locator("#edit-list")).toContainText("First Thaw");
+  await expect(page.locator("#edit-list")).not.toContainText("view");
 });
 
 test("ship flags stay hidden until status resolves", async ({ page }) => {
@@ -361,19 +371,20 @@ test("collection photos never flicker on load", async ({ page }) => {
   expect(await page.evaluate((el) => el.isConnected, handle)).toBe(true);
 });
 
-test("most viewed stays hidden until data arrives", async ({ page }) => {
+test("rows render count-less while analytics hangs", async ({ page }) => {
   await mockCommitApi(page);
   // Hang the analytics call: the response never arrives.
   await page.route("**/api/analytics*", async () => {
     await new Promise<never>(() => undefined);
   });
   await page.goto("/admin");
-  // No flash of an empty card while loading.
-  await expect(page.locator("#sec-views")).toBeHidden();
-  await expect(page.locator("#views-list")).toBeEmpty();
+  // Rows don't wait for counts — and no card or note appears instead.
+  await expect(page.locator("#sec-views")).toHaveCount(0);
+  await expect(page.locator("#edit-list")).toContainText("First Thaw");
+  await expect(page.locator("#edit-list")).not.toContainText("view");
 });
 
-test("views names the local preview when analytics is down", async ({
+test("dead analytics leaves rows alone, with no card or note", async ({
   page,
 }) => {
   await mockCommitApi(page);
@@ -383,9 +394,9 @@ test("views names the local preview when analytics is down", async ({
     async (route) => await route.abort("failed"),
   );
   await page.goto("/admin");
-  await expect(page.locator("#sec-views")).toBeVisible();
-  await expect(page.locator("#views-list")).toContainText("local preview");
-  await expect(page.locator("#views-refresh")).toBeHidden();
+  await expect(page.locator("#sec-views")).toHaveCount(0);
+  await expect(page.locator("#edit-list")).toContainText("First Thaw");
+  await expect(page.locator("#edit-list")).not.toContainText("preview");
 });
 
 test("admin mode follows her through the whole gallery", async ({
@@ -465,8 +476,10 @@ test("studio wakes up on every visit, not just full loads", async ({
     }),
   );
   await page.goto("/admin");
-  // Bars prove the dashboard init ran on this load…
-  await expect(page.locator("#views-list .view-bar > span")).toHaveCount(2);
+  // Row counts prove the dashboard init ran on this load…
+  await expect(page.locator('.row-card:has-text("First Thaw")')).toContainText(
+    "10 views",
+  );
   // Out through a painting's buyer page (client-side hop), back again.
   await page.locator("#edit-list a.row-title").first().click();
   await expect(page).toHaveURL(/\/paintings\//);
@@ -474,7 +487,9 @@ test("studio wakes up on every visit, not just full loads", async ({
   await expect(page).toHaveURL(/\/admin/);
   // …and again on the return visit — lists refilled, and the new-painting
   // door still opens its room.
-  await expect(page.locator("#views-list .view-bar > span")).toHaveCount(2);
+  await expect(page.locator('.row-card:has-text("First Thaw")')).toContainText(
+    "10 views",
+  );
   await page.locator('nav a.nav-cta[href="/admin/paintings/new"]').click();
   await expect(page.locator("#de-title")).toBeVisible();
 });

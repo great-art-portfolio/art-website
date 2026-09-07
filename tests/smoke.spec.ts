@@ -192,8 +192,8 @@ test("admin explains itself gracefully without a publishing backend", async ({
   );
   // Nothing to toast about on a quiet load.
   await expect(page.locator("#admin-status")).toBeHidden();
-  // No secrets locally: Cloudflare answers 200 with zero rows, so the
-  // views card hides instead of reporting. (The local-preview wording only
-  // appears when the API itself is down — covered in admin-studio.)
-  await expect(page.locator("#sec-views")).toBeHidden();
+  // No Most-viewed card anywhere, in any environment — counts live in
+  // the rows, and an empty answer leaves them count-less with no note.
+  await expect(page.locator("#sec-views")).toHaveCount(0);
+  await expect(page.locator("#edit-list")).not.toContainText("preview");
 });

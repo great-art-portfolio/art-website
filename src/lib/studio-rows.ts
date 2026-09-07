@@ -11,6 +11,8 @@ export interface StudioRowInput {
   price: number;
   image: string;
   mdPath: string;
+  /** Past-30-day views, 0 when unknown — the span hides itself. */
+  views: number;
 }
 
 const pencilIcon =
@@ -19,6 +21,11 @@ const pencilIcon =
 const trashIcon =
   `<svg class="ico" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">` +
   `<path d="M2.5 4h11M6.5 4V2.5h3V4M4 4l.8 10h6.4L12 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>`;
+
+/** Row view counts in words — shared by the renderer and the patch. */
+export function viewsLabel(n: number): string {
+  return n === 1 ? "1 view" : `${n} views`;
+}
 
 export function studioRowHtml(r: StudioRowInput): string {
   const esc = (s: string): string =>
@@ -32,10 +39,18 @@ export function studioRowHtml(r: StudioRowInput): string {
       ? ""
       : `<a class="row-photo" href="/paintings/${esc(r.slug)}" aria-label="${esc(r.title)}">` +
         `<img class="thumb" src="${esc(r.image)}" alt="" loading="lazy" /></a>`;
+  // View counts arrive after the rows (separate fetch) and patch the
+  // hook in place — the span hides itself until then, so loading never
+  // grows the row or shoves the page.
+  const views =
+    `<span class="row-views" data-views-for="${esc(r.slug)}">` +
+    (r.views > 0 ? ` · ${viewsLabel(r.views)}` : "") +
+    `</span>`;
   return (
     `<li class="row-card">${photo}<span class="row-body">` +
     `<a class="row-title" href="/paintings/${esc(r.slug)}"><strong>${esc(r.title)}</strong></a>` +
     `<span> — ${price}</span>` +
+    views +
     `<span class="row-actions">` +
     `<a class="row-edit" href="/admin/paintings/${esc(r.slug)}">${pencilIcon}Edit</a>` +
     `<button type="button" class="row-del" data-slug="${esc(r.slug)}" data-title="${esc(r.title)}" data-md="${esc(r.mdPath)}">${trashIcon}Delete</button>` +

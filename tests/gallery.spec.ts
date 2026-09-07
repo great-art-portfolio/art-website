@@ -325,12 +325,7 @@ test("admin page renders the studio sections and new-painting door", async ({
   page,
 }) => {
   await page.goto("/admin");
-  for (const id of [
-    "#sec-collection",
-    "#sec-banner",
-    "#sec-views",
-    "#sec-info",
-  ]) {
+  for (const id of ["#sec-collection", "#sec-banner", "#sec-info"]) {
     await expect(page.locator(id)).toBeAttached();
   }
   // Grid dashboard, no anchor strip; new paintings start in their own room

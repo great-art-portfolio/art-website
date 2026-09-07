@@ -1,6 +1,6 @@
 import { api, ApiError, getApiToken, setApiToken } from "../lib/api";
 import { sharePainting } from "../lib/share";
-import { studioRowHtml as rowHtml } from "../lib/studio-rows";
+import { studioRowHtml as rowHtml, viewsLabel } from "../lib/studio-rows";
 import { groupByAvailability, slugifyTitle } from "../lib/site";
 import { parsePainting } from "../lib/painting-edit";
 import {
@@ -98,6 +98,8 @@ interface LocalPainting {
   medium: string;
   /** Repo path for live deletes ("" for unsaved practice rows). */
   mdPath: string;
+  /** Past-30-day views, 0 when unknown — the row hides the count. */
+  views: number;
 }
 
 /** Baked-in list, seeded once per visit (dev practice merges over it). */
@@ -134,6 +136,7 @@ function seedLocalRows(raw: unknown): LocalPainting[] | null {
       depthIn: dim(row["depthIn"]),
       medium: str(row["medium"]),
       mdPath: str(row["mdPath"]),
+      views: 0,
     });
   }
   return clean;
@@ -149,14 +152,15 @@ function mergePractice(
   const kept = rows.filter((r) => !gone.has(r.slug));
   for (const p of Object.values(overlay.upserts)) {
     const at = kept.findIndex((r) => r.slug === p.slug);
-    const row: LocalPainting = { ...p, image: "", mdPath: "" };
+    const prev = at >= 0 ? kept[at] : undefined;
+    const row: LocalPainting = {
+      ...p,
+      image: prev?.image ?? "",
+      mdPath: prev?.mdPath ?? "",
+      views: prev?.views ?? 0,
+    };
     if (at >= 0) {
-      const prev = kept[at];
-      kept[at] = {
-        ...row,
-        image: prev?.image ?? "",
-        mdPath: prev?.mdPath ?? "",
-      };
+      kept[at] = row;
     } else {
       kept.push(row);
     }
@@ -210,6 +214,24 @@ function renderLocalCollection(): boolean {
 
 function subHtml(title: string): string {
   return `<div class="list-sub"><h3>${title}</h3></div>`;
+}
+
+/**
+ * Seed the rows key from the baked list before the first API render, so
+ * a matching response skips the rebuild entirely — swapping identical
+ * markup would destroy and rebuild every photo (a visible flicker).
+ * A changed repo still rebuilds, correctly.
+ */
+function seedRowsKey(): void {
+  if (lastRowsKey !== null) return;
+  const el = document.getElementById("local-collection");
+  if (el === null) return;
+  try {
+    const seeded = seedLocalRows(JSON.parse(el.textContent ?? "") as unknown);
+    if (seeded !== null) lastRowsKey = rowsKey(seeded);
+  } catch {
+    // Unparseable — the API render below rebuilds unconditionally.
+  }
 }
 
 /**
@@ -518,63 +540,42 @@ async function refreshCollection(): Promise<void> {
       depthIn: p.depthIn,
       medium: p.medium,
       mdPath: `src/content/paintings/${f}`,
+      views: viewsBySlug[slug] ?? 0,
     });
   }
   renderRows(rows);
 }
 
-async function refreshViews(): Promise<void> {
-  const list = $("views-list");
-  const retry = $("views-refresh") as HTMLButtonElement;
-  // The card starts hidden in markup — it only appears once there is
-  // something to show, so loading never flashes an empty card.
-  const card = $("sec-views") as HTMLElement;
+/**
+ * Past-30-day views by slug. Counts arrive on their own fetch, after the
+ * rows — the cache feeds re-renders, and the patch below fills the hooks
+ * in place (never a rebuild, so photos never flicker).
+ */
+const viewsBySlug: Record<string, number> = {};
+
+/**
+ * View counts live inside the collection rows now — no card, no retry,
+ * no notes. Anything less than real data (unconfigured, down, dev)
+ * simply leaves the rows count-less.
+ */
+async function refreshRowViews(): Promise<void> {
+  let views: Array<{ slug: string; views: number }>;
   try {
-    const { views, unconfigured } = await api.paintingViews();
-    retry.hidden = true;
-    if (unconfigured) {
-      // Same response, two meanings: a local preview has no secrets by
-      // design, while live truly needs the Cloudflare setup steps.
-      list.innerHTML = isLocalPreview()
-        ? "<li>View stats only work on the live /admin — this is a local preview.</li>"
-        : "<li>View stats aren't set up yet — the Cloudflare steps in the README finish the job.</li>";
-      reveal(card);
-      return;
+    views = (await api.paintingViews()).views;
+  } catch {
+    return;
+  }
+  for (const v of views) {
+    if (typeof v.slug === "string" && Number.isFinite(v.views)) {
+      viewsBySlug[v.slug] = v.views;
     }
-    if (views.length === 0) {
-      // Nothing to report — the card stays out of the way.
-      card.hidden = true;
-      return;
-    }
-    const max = Math.max(...views.map((v) => v.views));
-    list.innerHTML = views
-      .map((v) => {
-        const slug = v.slug.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-        const pct = max > 0 ? Math.round((v.views / max) * 100) : 0;
-        return (
-          `<li><em>${slug}</em> — ${v.views} views` +
-          `<span class="view-bar" aria-hidden="true"><span style="width:${pct}%"></span></span></li>`
-        );
-      })
-      .join("");
-    reveal(card);
-  } catch (err) {
-    if (err instanceof ApiError && err.status === 401) {
-      list.innerHTML =
-        "<li>Views need your API token — enter it in Advanced below, then tap Retry.</li>";
-      retry.hidden = false;
-      return;
-    }
-    if (await apiReachable()) {
-      list.innerHTML =
-        "<li>View stats aren't available right now — tap Retry.</li>";
-    } else {
-      list.innerHTML = isLocalPreview()
-        ? "<li>Views only work on the live /admin — this is a local preview.</li>"
-        : "<li>Could not load views — tap Retry.</li>";
-    }
-    retry.hidden = false;
-    reveal(card);
+  }
+  const list = document.getElementById("edit-list");
+  if (list === null) return;
+  for (const el of list.querySelectorAll<HTMLElement>("[data-views-for]")) {
+    const count = viewsBySlug[el.dataset.viewsFor ?? ""] ?? 0;
+    const next = count > 0 ? ` · ${viewsLabel(count)}` : "";
+    if (el.textContent !== next) el.textContent = next;
   }
 }
 
@@ -772,7 +773,6 @@ function init(): void {
       .catch((err: unknown) => setStatus((err as Error).message, true));
   });
 
-  $("views-refresh").addEventListener("click", () => void refreshViews());
   $("collection-refresh").addEventListener(
     "click",
     () => void refreshCollection(),
@@ -803,8 +803,9 @@ function init(): void {
     // Browsers without session storage just miss the handoff.
   }
 
+  seedRowsKey();
   void refreshCollection();
-  void refreshViews();
+  void refreshRowViews();
   void refreshFlags();
   void refreshCapabilities();
 }
