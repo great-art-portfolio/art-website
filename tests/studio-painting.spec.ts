@@ -136,8 +136,18 @@ test("edit room validates before saving", async ({ page }) => {
     "Title and a valid price are required.",
     { timeout: 10_000 },
   );
-  // Toast words fade in, not snap.
+  // Toast words fade in, not snap — and room errors pin to the top.
   await expect(page.locator("#de-status")).toHaveClass(/toast-in/);
+  const pos = await page.locator("#de-status").evaluate((el) => {
+    const s = getComputedStyle(el);
+    return { position: s.position, top: s.top, bottom: s.bottom };
+  });
+  expect(pos.position).toBe("fixed");
+  // Below the sticky header, not behind it. (Chrome reports bottom as a
+  // used pixel value once top pins a fixed box, so top carries the claim.)
+  const top = Number.parseFloat(pos.top);
+  expect(top).toBeGreaterThan(60);
+  expect(top).toBeLessThan(200);
 });
 
 test("preview title and price open their fields", async ({ page }) => {

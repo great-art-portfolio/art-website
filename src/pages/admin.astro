@@ -161,6 +161,7 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
             id="f-announce"
             type="text"
             maxlength="280"
+            autocomplete="off"
             placeholder="Find me at the Lilac Festival this Sunday!"
           />
         </label>
@@ -273,6 +274,10 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
     border-color: rgb(140 29 24 / 0.4);
     background: rgb(140 29 24 / 0.08);
     color: inherit;
+    /* Errors pin to the top, under the sticky header — bad news should
+       never hide where she's already scrolled past. */
+    top: max(5rem, env(safe-area-inset-top, 1rem));
+    bottom: auto;
   }
   /* The status line starts empty (no blurb) and only appears once the
      studio has something to say. */

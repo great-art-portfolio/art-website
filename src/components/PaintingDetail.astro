@@ -1333,6 +1333,26 @@ const eyebrow =
   #de-status:empty {
     display: none;
   }
+  /* Room errors leave the toolbar and pin to the top like the admin
+     toast — same reason: bad news shouldn't sit where she's scrolled
+     past. Everything else stays an inline murmur. */
+  #de-status[data-tone="error"] {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    top: max(5rem, env(safe-area-inset-top, 1rem));
+    z-index: 40;
+    width: min(36rem, calc(100% - 2rem));
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0.8rem 1.1rem;
+    border-radius: var(--radius);
+    border: 1px solid rgb(140 29 24 / 0.4);
+    background: var(--card);
+    box-shadow: var(--shadow);
+    font-size: 0.95rem;
+    color: inherit;
+  }
   /* Studio toast words fade in and out, opacity-only, under every
      motion setting. */
   #de-status.toast-in {

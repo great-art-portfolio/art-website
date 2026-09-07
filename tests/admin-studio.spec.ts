@@ -660,6 +660,9 @@ test("toast words fade in and out, even under reduced motion", async ({
   await page.locator("#practice-reset").click();
   const toast = page.locator("#admin-status");
   await expect(toast).toContainText("Practice changes cleared");
+  // Good news stays low.
+  const low = await toast.evaluate((el) => getComputedStyle(el).bottom);
+  expect(low).not.toBe("auto");
   // Opacity-only fade runs despite reduced motion.
   await expect(toast).toHaveClass(/toast-in/);
   const running = await toast.evaluate((el) => el.getAnimations().length);
@@ -670,6 +673,21 @@ test("toast words fade in and out, even under reduced motion", async ({
   await expect(toast).not.toBeEmpty();
   await page.clock.fastForward(1000);
   await expect(toast).toBeEmpty();
+  // Errors pin to the top, under the sticky header — good news stays low.
+  await toast.evaluate((el) => {
+    el.textContent = "Nope.";
+    el.dataset.tone = "error";
+  });
+  const pos = await toast.evaluate((el) => {
+    const s = getComputedStyle(el);
+    return { position: s.position, top: s.top, bottom: s.bottom };
+  });
+  expect(pos.position).toBe("fixed");
+  // Below the sticky header, not behind it. (Chrome reports bottom as a
+  // used pixel value once top pins a fixed box, so top carries the claim.)
+  const top = Number.parseFloat(pos.top);
+  expect(top).toBeGreaterThan(60);
+  expect(top).toBeLessThan(200);
 });
 
 test("dashboard delete asks first, then removes the row", async ({ page }) => {
