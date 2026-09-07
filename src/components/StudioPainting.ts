@@ -610,29 +610,84 @@ async function saveEdit(
   }
 }
 
+/**
+ * Delete behind a confirmation modal — the button never works double
+ * duty. DELETE stays disabled for 3.5 seconds so the words get read
+ * first; a countdown on the button says why it won't press yet.
+ */
 function wireDelete(
   btnId: string,
   getTitle: () => string,
   doDelete: () => Promise<void>,
 ): void {
   const btn = maybe<HTMLButtonElement>(btnId);
-  if (btn === null) return;
-  btn.addEventListener("click", () => {
-    if (btn.dataset.armed !== "1") {
-      btn.dataset.armed = "1";
-      btn.textContent = "Tap again to delete";
-      setStatus(
-        `This removes "${getTitle()}" from the site. Tap again to confirm.`,
-        true,
-      );
+  const overlay = maybe("de-confirm");
+  const body = maybe("de-confirm-body");
+  const no = maybe<HTMLButtonElement>("de-confirm-no");
+  const yes = maybe<HTMLButtonElement>("de-confirm-yes");
+  if (btn === null || overlay === null || no === null || yes === null) return;
+  let timer: number | null = null;
+
+  const close = () => {
+    if (timer !== null) {
+      window.clearInterval(timer);
+      timer = null;
+    }
+    overlay.hidden = true;
+    btn.focus();
+  };
+  const open = () => {
+    if (body !== null) {
+      body.textContent =
+        `This removes "${getTitle()}" from the site. ` +
+        `It stays recoverable in the repo history.`;
+    }
+    overlay.hidden = false;
+    yes.disabled = true;
+    let left = 3500;
+    const tick = () => {
+      yes.textContent = `Delete (${Math.max(1, Math.floor(left / 1000))})`;
+    };
+    tick();
+    timer = window.setInterval(() => {
+      left -= 250;
+      if (left <= 0) {
+        if (timer !== null) window.clearInterval(timer);
+        timer = null;
+        yes.disabled = false;
+        yes.textContent = "Delete";
+        return;
+      }
+      tick();
+    }, 250);
+    no.focus();
+  };
+
+  btn.addEventListener("click", open);
+  no.addEventListener("click", close);
+  overlay.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      close();
       return;
     }
+    // Keep tab cycling between the modal's two buttons.
+    if (e.key === "Tab") {
+      e.preventDefault();
+      (document.activeElement === no ? yes : no).focus();
+    }
+  });
+  yes.addEventListener("click", () => {
+    if (yes.disabled) return;
+    if (timer !== null) {
+      window.clearInterval(timer);
+      timer = null;
+    }
+    overlay.hidden = true;
     btn.disabled = true;
     setStatus(`Deleting "${getTitle()}"… (gone in a few minutes)`);
     void doDelete().catch((err: unknown) => {
       btn.disabled = false;
-      btn.dataset.armed = "";
-      btn.textContent = "Delete";
       setStatus((err as Error).message, true);
     });
   });

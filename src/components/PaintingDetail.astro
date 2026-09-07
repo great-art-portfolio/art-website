@@ -49,9 +49,14 @@ interface Props {
 const { mode, data, backHref, backLabel, editHref = "" } = Astro.props;
 const studio = mode !== "buy";
 const priceLabel = `$${data.price.toFixed(2)} CAD`;
-const eyebrow = data.draft
-  ? "Draft · only you can see this"
-  : "Original painting · one of a kind";
+const eyebrow =
+  mode === "edit"
+    ? // A live painting keeps its buyer page, but this room — with its
+      // Save and Delete buttons — sits behind /admin, for her eyes only.
+      "EDITING · ONLY YOU CAN SEE THIS"
+    : data.draft
+      ? "Draft · only you can see this"
+      : "Original painting · one of a kind";
 ---
 
 <main
@@ -317,6 +322,30 @@ const eyebrow = data.draft
               </label>
               <span id="de-status" role="status" />
             </div>
+            {mode === "edit" && (
+              <div id="de-confirm" hidden>
+                <div
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="de-confirm-title"
+                  class="de-confirm-card"
+                >
+                  <h2 id="de-confirm-title">Delete this painting?</h2>
+                  <p id="de-confirm-body">
+                    This removes it from the site. It stays recoverable in the
+                    repo history.
+                  </p>
+                  <div class="de-confirm-actions">
+                    <button type="button" id="de-confirm-no">
+                      Keep it
+                    </button>
+                    <button type="button" id="de-confirm-yes" disabled>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <>
@@ -816,6 +845,47 @@ const eyebrow = data.draft
   }
   #lightbox[hidden] {
     display: none;
+  }
+  /* Delete confirmation: a plain-words modal in the middle of the
+     screen. It appears instantly under every motion setting — no
+     entrance animation to wait through or disable. */
+  #de-confirm {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 60;
+  }
+  #de-confirm[hidden] {
+    display: none;
+  }
+  .de-confirm-card {
+    background: var(--paper);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    max-width: 26rem;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .de-confirm-card h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1.25rem;
+  }
+  .de-confirm-card p {
+    margin: 0 0 1.25rem;
+  }
+  .de-confirm-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+  }
+  #de-confirm-yes:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
   }
   @keyframes lb-in {
     from {

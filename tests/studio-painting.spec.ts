@@ -195,18 +195,37 @@ test("reduced motion keeps the save button planted", async ({ page }) => {
   await expect(page.locator("#de-save-draft")).toHaveCSS("transform", "none");
 });
 
-test("delete arms before firing, never on one tap", async ({ page }) => {
+test("delete asks in a modal, never on one tap", async ({ page }) => {
   await page.goto("/admin/paintings/first-thaw");
   await expect(page.locator("#main")).toHaveAttribute(
     "data-studio-wired",
     /edit/,
   );
-  const del = page.locator("#de-del");
-  await del.click();
-  await expect(del).toHaveText("Tap again to delete");
-  await expect(page.locator("#de-status")).toContainText(
-    "Tap again to confirm",
+  // The room says what it is, in words.
+  await expect(page.locator(".eyebrow")).toHaveText(
+    "EDITING · ONLY YOU CAN SEE THIS",
   );
-  // Still in the room — nothing deleted, nowhere navigated.
+  const del = page.locator("#de-del");
+  const modal = page.locator("#de-confirm");
+  const yes = page.locator("#de-confirm-yes");
+  await del.click();
+  await expect(modal).toBeVisible();
+  await expect(page.locator("#de-confirm-body")).toContainText("recoverable");
+  // DELETE starts disabled with a countdown — one tap fires nothing, and
+  // the room button never changes its meaning.
+  await expect(yes).toBeDisabled();
+  await expect(yes).toHaveText(/Delete \(\d\)/);
+  await expect(del).toHaveText("Delete");
   await expect(page).toHaveURL(/\/admin\/paintings\/first-thaw/);
+  // "Keep it" backs out; Escape does too.
+  await page.locator("#de-confirm-no").click();
+  await expect(modal).toBeHidden();
+  await del.click();
+  await expect(modal).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(modal).toBeHidden();
+  // After 3.5 seconds of reading time the button arms for real.
+  await del.click();
+  await expect(yes).toBeEnabled({ timeout: 8000 });
+  await expect(yes).toHaveText("Delete");
 });
