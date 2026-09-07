@@ -657,13 +657,24 @@ test("dashboard delete asks first, then removes the row", async ({ page }) => {
   const row = page.locator('.row-card:has-text("Doomed Piece")');
   await expect(row).toBeVisible();
   const del = row.locator(".row-del");
-  // First tap arms — nothing deleted, nowhere navigated.
+  const modal = page.locator("#row-confirm");
+  const yes = page.locator("#row-confirm-yes");
+  // One tap opens the question — nothing deleted, nowhere navigated.
   await del.click();
-  await expect(del).toHaveText("Are you sure? Tap again to delete");
+  await expect(modal).toBeVisible();
+  await expect(page.locator("#row-confirm-body")).toContainText("Doomed Piece");
+  await expect(yes).toBeDisabled();
+  await expect(yes).toHaveText(/Delete \(\d\)/);
   await expect(row).toBeVisible();
   await expect(page).toHaveURL(/\/admin\/?$/);
-  // Second tap deletes for real.
+  // "Keep it" backs out with the row untouched.
+  await page.locator("#row-confirm-no").click();
+  await expect(modal).toBeHidden();
+  await expect(row).toBeVisible();
+  // After 3.5 seconds of reading time, DELETE arms and fires for real.
   await del.click();
+  await expect(yes).toBeEnabled({ timeout: 8000 });
+  await yes.click();
   await expect(row).toHaveCount(0);
   await expect(page.locator("#admin-status")).toContainText(
     'Deleted "Doomed Piece"',

@@ -285,9 +285,9 @@ function renderRows(rows: LocalPainting[]): void {
 }
 
 /**
- * Delete straight from a dashboard row. First tap arms the button with an
- * "Are you sure?" in words; the second tap deletes for real — practice
- * rows vanish locally, live rows commit a delete of .md + photo + models.
+ * Delete straight from a dashboard row, after the confirmation modal.
+ * Practice rows vanish locally, live rows commit a delete of .md + photo
+ * + models.
  */
 async function deleteRow(
   slug: string,
@@ -314,36 +314,121 @@ async function deleteRow(
   setStatus(`Deleted "${parsed.title}" — recoverable from repo history.`);
 }
 
-/** One delegated listener covers every row, including re-renders. */
+/**
+ * Row delete behind one shared confirmation modal — the row button never
+ * works double duty. DELETE stays disabled for 3.5 seconds so the words
+ * get read first; a countdown on the button says why it won't press yet.
+ * One delegated listener covers every row, including re-renders.
+ */
 function wireRowDelete(): void {
   const list = $("edit-list");
+  const overlay = document.getElementById("row-confirm");
+  const body = document.getElementById("row-confirm-body");
+  const no = document.getElementById("row-confirm-no");
+  const yes = document.getElementById("row-confirm-yes");
+  if (
+    overlay === null ||
+    no === null ||
+    !(no instanceof HTMLButtonElement) ||
+    yes === null ||
+    !(yes instanceof HTMLButtonElement)
+  ) {
+    return;
+  }
   if (list.dataset.delWired === "1") return;
   list.dataset.delWired = "1";
-  list.addEventListener("click", (e) => {
-    const t = e.target instanceof Element ? e.target.closest(".row-del") : null;
-    const btn = t instanceof HTMLButtonElement ? t : null;
-    if (btn === null || btn.disabled) return;
-    const slug = btn.dataset.slug ?? "";
+  let timer: number | null = null;
+  let pending: {
+    slug: string;
+    title: string;
+    md: string;
+    btn: HTMLButtonElement;
+  } | null = null;
+
+  const close = () => {
+    if (timer !== null) {
+      window.clearInterval(timer);
+      timer = null;
+    }
+    pending = null;
+    overlay.hidden = true;
+  };
+  const open = (btn: HTMLButtonElement) => {
     const title =
       btn.dataset.title === ""
         ? "this painting"
         : (btn.dataset.title ?? "this painting");
-    if (btn.dataset.armed !== "1") {
-      btn.dataset.armed = "1";
-      btn.classList.add("armed");
-      btn.textContent = "Are you sure? Tap again to delete";
-      setStatus(
-        `This removes "${title}" from the site. Tap again to confirm.`,
-        true,
-      );
+    pending = {
+      slug: btn.dataset.slug ?? "",
+      title,
+      md: btn.dataset.md ?? "",
+      btn,
+    };
+    if (body !== null) {
+      body.textContent =
+        `This removes "${title}" from the site. ` +
+        `It stays recoverable in the repo history.`;
+    }
+    overlay.hidden = false;
+    yes.disabled = true;
+    let left = 3500;
+    const tick = () => {
+      yes.textContent = `Delete (${Math.max(1, Math.floor(left / 1000))})`;
+    };
+    tick();
+    timer = window.setInterval(() => {
+      left -= 250;
+      if (left <= 0) {
+        if (timer !== null) window.clearInterval(timer);
+        timer = null;
+        yes.disabled = false;
+        yes.textContent = "Delete";
+        return;
+      }
+      tick();
+    }, 250);
+    no.focus();
+  };
+
+  list.addEventListener("click", (e) => {
+    const t = e.target instanceof Element ? e.target.closest(".row-del") : null;
+    const btn = t instanceof HTMLButtonElement ? t : null;
+    if (btn === null || btn.disabled) return;
+    open(btn);
+  });
+  no.addEventListener("click", () => {
+    const btn = pending?.btn;
+    close();
+    // Back to the row that asked — unless it re-rendered away.
+    if (btn !== undefined && btn.isConnected) btn.focus();
+  });
+  overlay.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      const btn = pending?.btn;
+      close();
+      if (btn !== undefined && btn.isConnected) btn.focus();
       return;
     }
+    // Keep tab cycling between the modal's two buttons.
+    if (e.key === "Tab") {
+      e.preventDefault();
+      (document.activeElement === no ? yes : no).focus();
+    }
+  });
+  yes.addEventListener("click", () => {
+    if (yes.disabled || pending === null) return;
+    if (timer !== null) {
+      window.clearInterval(timer);
+      timer = null;
+    }
+    const { slug, title, md, btn } = pending;
+    pending = null;
+    overlay.hidden = true;
     btn.disabled = true;
-    btn.classList.remove("armed");
     btn.textContent = "Deleting…";
-    void deleteRow(slug, title, btn.dataset.md ?? "").catch((err: unknown) => {
+    void deleteRow(slug, title, md).catch((err: unknown) => {
       btn.disabled = false;
-      btn.dataset.armed = "";
       btn.textContent = "Delete";
       setStatus((err as Error).message, true);
     });
