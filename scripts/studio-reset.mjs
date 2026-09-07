@@ -49,7 +49,14 @@ async function main() {
           // Vanished mid-reset — nothing to do.
         }
       }
-    } else if (flag[1] === "M" || flag[0] === "M") {
+    } else if (
+      flag[1] === "M" ||
+      flag[1] === "D" ||
+      flag[0] === "M" ||
+      flag[0] === "D"
+    ) {
+      // Modified or deleted (worktree or staged) — checkout brings back
+      // the HEAD version, which also undeletes.
       restore.push(file);
     }
   }

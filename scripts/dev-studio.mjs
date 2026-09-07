@@ -8,6 +8,30 @@
 import { spawn } from "node:child_process";
 
 export const STUDIO_DEV_PORT = 4332;
+const STUDIO_DEV_API = "http://127.0.0.1:4333";
+
+/**
+ * Anything already serving here — mine, a leftover, the user's own — is
+ * reused. Rebinding would just crash with EADDRINUSE and take the other
+ * half of the loop down with it.
+ */
+async function contentApiAlive() {
+  try {
+    const res = await fetch(`${STUDIO_DEV_API}/api/studio-dev`);
+    return res.ok && (await res.json()).local === true;
+  } catch {
+    return false;
+  }
+}
+
+async function astroAlive() {
+  try {
+    const res = await fetch(`http://127.0.0.1:${STUDIO_DEV_PORT}/`);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
 
 const children = new Set();
 
@@ -41,12 +65,32 @@ function shutdown() {
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 
-console.log("Studio dev loop:");
-console.log(`  site: http://127.0.0.1:${STUDIO_DEV_PORT}/admin`);
-console.log("  writes land uncommitted — reset with `pnpm studio:reset`.");
-run(process.execPath, ["scripts/studio-dev-server.mjs"], "content-api");
-run(
-  "pnpm",
-  ["astro", "dev", "--port", String(STUDIO_DEV_PORT), "--host", "127.0.0.1"],
-  "astro",
-);
+async function main() {
+  console.log("Studio dev loop:");
+  console.log(`  site: http://127.0.0.1:${STUDIO_DEV_PORT}/admin`);
+  console.log("  writes land uncommitted — reset with `pnpm studio:reset`.");
+  if (await contentApiAlive()) {
+    console.log("  content API already running — reusing it.");
+  } else {
+    run(process.execPath, ["scripts/studio-dev-server.mjs"], "content-api");
+  }
+  if (await astroAlive()) {
+    console.log("  site already running — reusing it.");
+    if (children.size === 0) return;
+  } else {
+    run(
+      "pnpm",
+      [
+        "astro",
+        "dev",
+        "--port",
+        String(STUDIO_DEV_PORT),
+        "--host",
+        "127.0.0.1",
+      ],
+      "astro",
+    );
+  }
+}
+
+main();

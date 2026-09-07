@@ -1,4 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { isExpired, localToday, parseAnnouncement } from "../src/lib/banner";
 
 /**
  * Smoke suite: the regressions that previously shipped silently
@@ -72,7 +76,7 @@ test("without JS the inquiry form stays open (progressive enhancement)", async (
   await context.close();
 });
 
-test("homepage keeps signup in a modal and hides the empty banner", async ({
+test("homepage keeps signup in a modal and shows the baked banner as-is", async ({
   page,
 }) => {
   await page.goto("/");
@@ -80,7 +84,25 @@ test("homepage keeps signup in a modal and hides the empty banner", async ({
   await expect(page.locator("#notify-dialog")).toBeAttached();
   await expect(page.locator("#notify-dialog")).toBeHidden();
   await expect(page.locator("#notify-card")).toHaveCount(0);
-  await expect(page.locator(".announce")).toHaveCount(0);
+  // Whatever the working tree baked: an empty (or expired) banner hides,
+  // a live one shows with its wording — dev may hold a real banner.
+  const raw = readFileSync(
+    join(
+      dirname(fileURLToPath(import.meta.url)),
+      "..",
+      "src",
+      "content",
+      "announcement.txt",
+    ),
+    "utf8",
+  );
+  const parsed = parseAnnouncement(raw);
+  const expected = isExpired(parsed.expires, localToday()) ? "" : parsed.text;
+  if (expected === "") {
+    await expect(page.locator(".announce")).toHaveCount(0);
+  } else {
+    await expect(page.locator(".announce")).toHaveText(expected);
+  }
 });
 
 test("pages fade in on swap, even under reduced motion", async ({ page }) => {
@@ -196,8 +218,10 @@ test("admin explains itself gracefully without a publishing backend", async ({
   expect(await rows.count()).toBeGreaterThan(0);
   await expect(page.locator(".list-sub h3").first()).toHaveText("Available");
   await expect(page.locator("#edit-list img.thumb").first()).toBeVisible();
-  const doors = page.locator('#edit-list a[href^="/admin/paintings/"]');
-  await expect(doors).toHaveCount(await rows.count());
+  // One studio door per card — drafts link their titles to the room.
+  await expect(page.locator("#edit-list .row-edit")).toHaveCount(
+    await page.locator("#edit-list .row-card").count(),
+  );
   await expect(page.locator("#collection-refresh")).toBeHidden();
   await expect(page.locator("#collection-dev")).toContainText(
     "Development only",

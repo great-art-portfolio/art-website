@@ -175,12 +175,15 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
             <option value="14">2 weeks</option>
           </select>
         </label>
-        <div class="row">
+        <div class="row banner-actions">
           <button type="button" id="announce-save" class="primary"
             >Update banner</button
           >
-          <p class="hint" id="announce-meta"></p>
+          <button type="button" id="announce-clear" hidden>
+            Remove banner
+          </button>
         </div>
+        <p class="hint" id="announce-meta"></p>
       </section>
 
       <section class="card" id="sec-info">
@@ -502,11 +505,20 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
     font-size: 0.88rem;
     color: var(--muted);
   }
-  /* Banner status sits beside its button, never above it. */
+  /* Banner status always sits below both buttons, never between them. */
   #announce-meta {
-    margin: 0;
+    margin: 0.75rem 0 0;
   }
   #announce-meta:empty {
+    display: none;
+  }
+  /* The banner actions sit clear of the lifetime dropdown above. */
+  #sec-banner .row {
+    margin-top: 1.25rem;
+  }
+  /* Author display:inline-flex beats the UA [hidden] rule — re-hide the
+     Remove button until a banner exists to remove. */
+  #announce-clear[hidden] {
     display: none;
   }
   #edit-list {

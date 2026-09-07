@@ -16,13 +16,33 @@ Cloudflare Pages Functions (inquiry emails, git publishing, push fan-out)
   Pages project rebuilds (live in a few minutes). Buyer inquiries email via
   Resend, nothing stored.
 
+## Deleting a painting
+
+Delete — dashboard row or studio room, always behind a confirmation —
+commits one `Delete painting: <title>` commit removing the `.md`, its
+photo, and its AR models together. The page vanishes on the next Pages
+rebuild, minutes later.
+
+Nothing is purged: photos are plain git blobs (no LFS), so every version
+stays in history. To bring a painting back, find the delete commit
+(`git log -- <path>`) and revert it — or check the files out from the
+commit before it (`git checkout <sha> -- <paths>`); push, and the page
+returns on rebuild. Only destroying history itself (force-push, branch
+deletion) makes a deletion permanent — ordinary commits never do.
+
+In the studio dev loop (`pnpm dev:studio`) delete removes working-tree
+files instead of committing; `pnpm studio:reset` brings them back.
+
 ## Setup
 
 ```sh
 pnpm install
-pnpm dev            # full site + API: builds, then serves dist on :4331
-                    # (rebuilds on restart — rerun after editing content)
+pnpm dev            # daily driver = dev:studio: astro on :4332 + local
+                    # content API, so banner/painting/photo saves write real
+                    # (uncommitted) working-tree files instead of git commits
 pnpm dev:astro      # markup-only fast path (no API: admin/views publish paths 404)
+pnpm dev:prod       # prod simulator: builds, then serves dist on :4331
+                    # (frozen at the last build — rerun after editing content)
                     # dev uploads: copy .dev.vars.example to .dev.vars with
                     # real secrets to test publishing end to end locally
 pnpm check          # astro check

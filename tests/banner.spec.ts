@@ -45,6 +45,8 @@ test("studio banner form offers lifetimes and saves with an expiry", async ({
   await expect(page.locator("#announce-meta")).toContainText("No banner", {
     timeout: 15_000,
   });
+  // Nothing to remove: the button stays out of the way.
+  await expect(page.locator("#announce-clear")).toBeHidden();
 
   const values = await page
     .locator("#f-duration option")
@@ -107,13 +109,14 @@ test("active banner shows above the collection", async ({ page }) => {
     const res = await route.fetch();
     const html = (await res.text()).replace(
       '<section class="collection" id="collection"',
-      `<p class="announce" data-expires="${localToday(7)}">${text}</p>` +
+      `<p class="announce" data-e2e="banner" data-expires="${localToday(7)}">${text}</p>` +
         '<section class="collection" id="collection"',
     );
     await route.fulfill({ response: res, body: html });
   });
   await page.goto("/");
-  const banner = page.locator(".announce");
+  // Scoped to the injected node: a real baked banner may share the page.
+  const banner = page.locator('.announce[data-e2e="banner"]');
   await expect(banner).toBeVisible();
   await expect(banner).toHaveText(text);
   const bannerBox = await banner.boundingBox();
@@ -158,18 +161,53 @@ test("dev without a backend keeps a banner preview for this browser", async ({
   expect(bannerBox?.y ?? 0).toBeLessThan(collectionBox?.y ?? 0);
 });
 
+test("remove banner clears it without typing", async ({ page }) => {
+  let posted: { files: Array<{ path: string; contentBase64: string }> } | null =
+    null;
+  await page.route("**/api/commit*", async (route) => {
+    if (route.request().method() === "POST") {
+      posted = route.request().postDataJSON() as typeof posted;
+      await route.fulfill({ json: { ok: true, commit: "test" }, status: 201 });
+    } else {
+      await route.fulfill({
+        json: { announcement: `expires: ${localToday(7)}\nOld news` },
+      });
+    }
+  });
+  await page.route("**/api/status", async (route) => {
+    await route.fulfill({ json: flags });
+  });
+
+  await page.goto("/admin");
+  await expect(page.locator("#announce-meta")).toContainText("Showing now", {
+    timeout: 15_000,
+  });
+  await expect(page.locator("#f-announce")).not.toHaveValue("");
+  // Remove only offers itself while a banner exists to remove.
+  await expect(page.locator("#announce-clear")).toBeVisible();
+  await page.locator("#announce-clear").click();
+  await expect(page.locator("#announce-clear")).toBeHidden();
+  await expect(page.locator("#admin-status")).toContainText("Banner cleared.");
+  await expect(page.locator("#f-announce")).toHaveValue("");
+  const body = Buffer.from(
+    posted?.files[0]?.contentBase64 ?? "",
+    "base64",
+  ).toString("utf8");
+  expect(body).toBe("");
+});
+
 test("forgotten banner hides itself past its end date", async ({ page }) => {
   await page.route("http://127.0.0.1:4331/", async (route) => {
     const res = await route.fetch();
     const html = (await res.text()).replace(
       '<section class="collection" id="collection"',
-      `<p class="announce" data-expires="${localToday(-2)}">Old news</p>` +
+      `<p class="announce" data-e2e="banner" data-expires="${localToday(-2)}">Old news</p>` +
         '<section class="collection" id="collection"',
     );
     await route.fulfill({ response: res, body: html });
   });
   await page.goto("/");
-  await expect(page.locator(".announce")).toHaveCount(0);
+  await expect(page.locator('.announce[data-e2e="banner"]')).toHaveCount(0);
   // The gallery is unaffected — still the full collection.
   await expect(page.locator("#gallery-static .card").first()).toBeVisible();
 });

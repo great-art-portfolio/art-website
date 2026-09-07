@@ -180,7 +180,9 @@ test("secondary actions fade their hovers", async ({ page }) => {
 
 test("label text never warms its field", async ({ page }) => {
   await page.goto("/admin/paintings/new");
-  // Hover the "Title" words themselves, not the box.
+  // Hover the "Title" words themselves, not the box. Text fields carry
+  // no hover tint at all (label hover forwards to the field, so a tint
+  // could never tell the two apart) — the border stays the line color.
   await page
     .locator(".studio-fields label")
     .first()

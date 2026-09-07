@@ -100,9 +100,6 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
                 <a href="/" class="keep" id="leave-admin">
                   ← Leave Admin
                 </a>
-                <a href="/admin#sec-collection" id="nav-metrics">
-                  Metrics
-                </a>
                 <a href="/admin/paintings/new" class="nav-cta">
                   Add painting
                 </a>
@@ -166,7 +163,7 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
             One tap — your browser tells you when something new is hung.
           </p>
           <button type="button" id="notify-btn" class="btn-primary">
-            Notify me
+            Notify me with this browser
           </button>
           <p class="hint" id="notify-hint" />
           <div class="email-capture">
@@ -337,7 +334,7 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
         });
       }
 
-      function paintNotify() {
+      async function paintNotify() {
         const btnEl = document.getElementById("notify-btn");
         const btn = btnEl instanceof HTMLButtonElement ? btnEl : null;
         const hint = document.getElementById("notify-hint");
@@ -346,29 +343,27 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
         wireNotifyEmail();
         // Email works for everyone; the push button only appears where
         // push can work.
-        const state = notifyPush().then((api) => api.pushState());
-        state.then((s) => {
-          if (s === "unsupported") {
-            btn.hidden = true;
-            if (blurb !== null) blurb.hidden = true;
-            return;
-          }
-          if (s === "subscribed") {
-            btn.textContent = "You're on the list — turn off";
-            notifyUnsay(hint);
-          } else if (s === "denied") {
-            btn.textContent = "Notifications blocked";
-            btn.disabled = true;
-            notifySay(
-              hint,
-              "You blocked notifications for this site in your browser settings.",
-            );
-          } else {
-            btn.textContent = "Notify me";
-            btn.disabled = false;
-            notifyUnsay(hint);
-          }
-        });
+        const s = await notifyPush().then((api) => api.pushState());
+        if (s === "unsupported") {
+          btn.hidden = true;
+          if (blurb !== null) blurb.hidden = true;
+          return;
+        }
+        if (s === "subscribed") {
+          btn.textContent = "Notifying this browser — turn off";
+          notifyUnsay(hint);
+        } else if (s === "denied") {
+          btn.textContent = "Browser notifications blocked";
+          btn.disabled = true;
+          notifySay(
+            hint,
+            "You blocked notifications for this site in your browser settings.",
+          );
+        } else {
+          btn.textContent = "Notify me with this browser";
+          btn.disabled = false;
+          notifyUnsay(hint);
+        }
       }
 
       function initNotify() {
@@ -404,20 +399,34 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
               void notifyPush().then((api) =>
                 api.pushState().then((state) => {
                   if (state === "subscribed") {
-                    void api.unsubscribePush().then(() => paintNotify());
+                    void api.unsubscribePush().then(() => void paintNotify());
                   } else {
                     if (hint !== null)
                       notifySay(hint, "Waiting for your browser…");
-                    void api.subscribePush().then((ok) => {
-                      if (hint !== null) {
+                    // Repaint first, then report: painting clears the
+                    // "Waiting…" line, and the verdict below survives
+                    // because nothing runs after it.
+                    void api.subscribePush().then(async (result) => {
+                      await paintNotify();
+                      if (hint === null) return;
+                      if (result === "subscribed") {
                         notifySay(
                           hint,
-                          ok
-                            ? "You're on the list."
-                            : "That didn't work — push alerts aren't set up on the server yet.",
+                          "You're on the list — this browser will alert you.",
+                        );
+                      } else if (result === "cancelled") {
+                        notifySay(
+                          hint,
+                          "Cancelled — nothing was saved. Tap again any time.",
+                        );
+                      } else if (result === "blocked") {
+                        // paintNotify already said it, in plain words.
+                      } else {
+                        notifySay(
+                          hint,
+                          "That didn't work — push alerts aren't set up on the server yet.",
                         );
                       }
-                      paintNotify();
                     });
                   }
                 }),
@@ -425,7 +434,7 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
             });
           }
         }
-        if (dlg !== null) paintNotify();
+        if (dlg !== null) void paintNotify();
       }
 
       initNotify();
@@ -589,12 +598,20 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
     flex-shrink: 0;
   }
   /* The studio "Notify me" is a button wearing the link style — it
-     opens the signup modal instead of scrolling anywhere. */
+     opens the signup modal instead of scrolling anywhere. Same
+     transitions as the links, or its hover snaps instead of fading. */
   .nav-links button.nav-cta {
     font: inherit;
     background: transparent;
     cursor: pointer;
     color: var(--ink);
+    transition:
+      opacity 0.2s ease,
+      background-color 0.25s ease,
+      color 0.25s ease,
+      text-decoration-color 0.12s ease,
+      border-color 0.25s ease,
+      transform 0.2s ease;
   }
   .nav-links button.nav-cta:focus-visible {
     outline: 2px solid var(--accent);

@@ -130,14 +130,15 @@ export function patchPainting(md: string, edits: PaintingEdits): string {
       next = patchKey(next, key, String(Math.round(n * 10) / 10));
     }
   }
-  const bodyMatch = next.match(/^---\r?\n[\s\S]*?\r?\n---\r?\n?([\s\S]*)$/);
-  const oldBody = bodyMatch?.[1] ?? null;
-  if (oldBody !== null) {
+  // A blank line after the fence: prettier-clean, like the committed
+  // files, so every studio save keeps `format:check` green.
+  const fenceAt = next.search(/\r?\n---\r?\n?[\s\S]*$/);
+  if (fenceAt >= 0) {
     const body =
       edits.description.trim() === ""
         ? "Fresh from the studio."
         : edits.description.trim();
-    next = `${next.slice(0, next.length - oldBody.length)}${body}\n`;
+    next = `${next.slice(0, fenceAt)}\n---\n\n${body}\n`;
   }
   return next;
 }
@@ -179,6 +180,7 @@ export function buildMarkdown(input: {
     lines.push(`modelUsdz: ${yamlQuote(input.modelUsdz)}`);
   lines.push(
     "---",
+    "",
     input.description === "" ? "Fresh from the studio." : input.description,
     "",
   );

@@ -205,6 +205,16 @@ export function createStudioDevApi(root) {
     return json({ error: "Method not allowed" }, { status: 405 });
   }
 
+  /**
+   * Presence probe: the studio islands call this before deciding practice
+   * (localStorage overlay) vs live (persist through the backend). Only the
+   * sidecar answers `{ local: true }` — production has no such route, so a
+   * missing/negative answer always means practice mode there.
+   */
+  async function handleProbe() {
+    return json({ local: true });
+  }
+
   async function handlePhoto(req) {
     if (req.method !== "GET") {
       return json({ error: "Method not allowed" }, { status: 405 });
@@ -226,5 +236,5 @@ export function createStudioDevApi(root) {
     });
   }
 
-  return { handleCommit, handlePhoto };
+  return { handleCommit, handlePhoto, handleProbe };
 }

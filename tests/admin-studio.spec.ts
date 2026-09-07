@@ -21,14 +21,18 @@ function loadPaintings(): Array<{ slug: string; title: string }> {
     "content",
     "paintings",
   );
-  return readdirSync(dir)
-    .filter((f) => f.endsWith(".md"))
-    .map((f) => {
-      const raw = readFileSync(join(dir, f), "utf8");
-      const title = raw.match(/^title:\s*"([^"]+)"/m)?.[1] ?? "";
-      return { slug: slugifyTitle(title), title };
-    })
-    .filter((p) => p.title !== "");
+  return (
+    readdirSync(dir)
+      .filter((f) => f.endsWith(".md"))
+      .map((f) => {
+        const raw = readFileSync(join(dir, f), "utf8");
+        const title = raw.match(/^title:\s*"([^"]+)"/m)?.[1] ?? "";
+        const draft = /^draft:\s*true/m.test(raw);
+        return { slug: slugifyTitle(title), title, draft };
+      })
+      // Buyer links below: drafts link to the studio room instead.
+      .filter((p) => p.title !== "" && !p.draft)
+  );
 }
 
 const paintings = loadPaintings();
@@ -90,14 +94,11 @@ async function mockCommitApi(page: Page): Promise<void> {
 test("studio header links home, never to visitor funnels", async ({ page }) => {
   await mockCommitApi(page);
   await page.goto("/admin");
-  // ← Leave Admin, Metrics, Add painting. Leave doubles as logout (clears
-  // the token); Metrics jumps to the collection rows with their view counts.
-  await expect(page.locator(".site-nav .nav-links a")).toHaveCount(3);
-  await expect(page.locator("#nav-metrics")).toHaveText("Metrics");
-  await expect(page.locator("#nav-metrics")).toHaveAttribute(
-    "href",
-    "/admin#sec-collection",
-  );
+  // ← Leave Admin, Add painting. Leave doubles as logout (clears the token).
+  // View counts live inside the collection rows themselves, so the nav
+  // carries no metrics link.
+  await expect(page.locator(".site-nav .nav-links a")).toHaveCount(2);
+  await expect(page.locator("#nav-metrics")).toHaveCount(0);
   await expect(
     page.locator('nav a.nav-cta[href="/admin/paintings/new"]'),
   ).toHaveText("Add painting");
@@ -109,6 +110,35 @@ test("studio header links home, never to visitor funnels", async ({ page }) => {
   const body = (await page.locator("#main").textContent()) ?? "";
   expect(body).not.toContain("Publishing needs the live site");
   expect(body).not.toContain("Analytics isn't wired up");
+});
+
+test("draft rows link photo and title to the studio room", async ({ page }) => {
+  // Drafts have no buyer page: their links must open the room, never a
+  // 404. Stubbed file so the test needs no real draft in the tree.
+  await page.route("**/api/commit*", async (route) => {
+    if (route.request().method() === "PUT") {
+      await route.fulfill({
+        json: { files: ["drafty.md"] },
+      });
+    } else if (route.request().method() === "GET") {
+      await route.fulfill({
+        json: {
+          content: `---\ntitle: "Drafty"\nprice: 10\ndraft: true\n---\n\nBody.\n`,
+        },
+      });
+    } else {
+      await route.continue();
+    }
+  });
+  await page.goto("/admin");
+  // Scoped to the stubbed row: the baked static rows paint first and the
+  // client render swaps them moments later.
+  const row = page.locator(".row-card", { hasText: "Drafty" });
+  await expect(row.locator(".row-title")).toHaveAttribute(
+    "href",
+    "/admin/paintings/drafty",
+  );
+  await expect(row.locator(".row-photo")).toHaveCount(0);
 });
 
 test("collection rows link to their painting pages", async ({ page }) => {
@@ -211,17 +241,21 @@ test("collection rows stop well short of the card edge on desktop", async ({
   // Rows arrive as static markup — no skeleton flash, no layout shift.
   await expect(page.locator("#edit-list .row-card").first()).toBeVisible();
   await expect(page.locator("#edit-list .skel")).toHaveCount(0);
-  // One group alone fills the whole card — no empty half.
+  // The groups together fill the whole card — no empty half. Summed
+  // (not just the available group) so drafting in dev can't fail it:
+  // a drafts group simply takes its own column beside the rest.
   const card =
     (await page.locator("#sec-collection").boundingBox())?.width ?? 0;
-  const group =
-    (
-      await page
-        .locator('#edit-list .list-group[data-group="available"]')
-        .boundingBox()
-    )?.width ?? 0;
-  expect(group).toBeGreaterThan(0);
-  expect(group).toBeGreaterThan(card * 0.85);
+  const groups = page.locator("#edit-list .list-group");
+  await expect(
+    page.locator('#edit-list .list-group[data-group="available"]'),
+  ).toBeVisible();
+  let total = 0;
+  for (let i = 0; i < (await groups.count()); i++) {
+    total += (await groups.nth(i).boundingBox())?.width ?? 0;
+  }
+  expect(total).toBeGreaterThan(0);
+  expect(total).toBeGreaterThan(card * 0.85);
   // A grid of paintings, not a 1D list: cards sit side by side.
   const cards = page.locator(
     '#edit-list .list-group[data-group="available"] .row-card',
@@ -508,8 +542,8 @@ test("banner lifetimes are 1/3/7/14 days plus no end date", async ({
     .locator("#f-duration option")
     .evaluateAll((opts) => opts.map((o) => (o as HTMLOptionElement).value));
   expect(values).toEqual(["", "1", "3", "7", "14"]);
-  // Status sits beside its button, never above it.
-  await expect(page.locator("#announce-save + #announce-meta")).toHaveCount(1);
+  // Actions side by side, status always below them.
+  await expect(page.locator("#announce-save + #announce-clear")).toHaveCount(1);
   await expect(page.locator("#announce-meta")).not.toBeEmpty();
   // …and fades in instead of snapping.
   await expect(page.locator("#announce-meta")).toHaveClass(/fade-in/);
@@ -517,8 +551,7 @@ test("banner lifetimes are 1/3/7/14 days plus no end date", async ({
   const metaBox = await page.locator("#announce-meta").boundingBox();
   expect(btnBox !== null && metaBox !== null).toBe(true);
   if (btnBox !== null && metaBox !== null) {
-    expect(metaBox.x).toBeGreaterThan(btnBox.x + btnBox.width);
-    expect(Math.abs(metaBox.y - btnBox.y)).toBeLessThan(btnBox.height);
+    expect(metaBox.y).toBeGreaterThanOrEqual(btnBox.y + btnBox.height - 4);
   }
 });
 
@@ -531,14 +564,15 @@ test("collection groups available then sold, never bare statuses", async ({
   const text = (await page.locator("#edit-list").textContent()) ?? "";
   expect(text).not.toContain("— available");
   expect(text).not.toContain("— sold");
-  // Every row carries its thumbnail and its studio door.
+  // Every row carries its thumbnail and its studio door (one Edit link
+  // per card — drafts link their titles to the room instead of buyers).
   const links = await page
     .locator('#edit-list a.row-title[href^="/paintings/"]')
     .count();
   expect(links).toBeGreaterThan(0);
-  await expect(
-    page.locator('#edit-list a[href^="/admin/paintings/"]'),
-  ).toHaveCount(links);
+  await expect(page.locator("#edit-list .row-edit")).toHaveCount(
+    await page.locator("#edit-list .row-card").count(),
+  );
   await expect(page.locator("#edit-list img.thumb").first()).toBeVisible();
 });
 
@@ -557,11 +591,11 @@ test("collection falls back to the baked-in list when the API fails", async ({
   await page.goto("/admin");
   const rows = page.locator('#edit-list a.row-title[href^="/paintings/"]');
   await expect(rows.first()).toBeVisible();
-  // Every row still carries its thumbnail and its studio door.
-  const links = await rows.count();
-  await expect(
-    page.locator('#edit-list a[href^="/admin/paintings/"]'),
-  ).toHaveCount(links);
+  // Every row still carries its thumbnail and its studio door (one Edit
+  // link per card — drafts link their titles to the room instead).
+  await expect(page.locator("#edit-list .row-edit")).toHaveCount(
+    await page.locator("#edit-list .row-card").count(),
+  );
   await expect(page.locator("#edit-list img.thumb").first()).toBeVisible();
   await expect(page.locator("#collection-refresh")).toBeHidden();
   await expect(page.locator("#collection-dev")).toContainText(

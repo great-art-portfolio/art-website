@@ -177,6 +177,24 @@ export const api = {
   }> {
     return await request("/api/status", { headers: adminHeaders() });
   },
+  /**
+   * True only when the studio dev sidecar answers (working-tree backend).
+   * Production has no such route, so a missing answer always reads false —
+   * the caller practices instead. One localhost round trip per decision;
+   * decisions happen on taps, never in a loop.
+   */
+  async localBackend(): Promise<boolean> {
+    try {
+      const res = await fetch("/api/studio-dev", {
+        headers: adminHeaders(),
+      });
+      if (!res.ok) return false;
+      const data = (await res.json()) as { local?: unknown };
+      return data.local === true;
+    } catch {
+      return false;
+    }
+  },
   async paintingViews(): Promise<{
     views: Array<{ slug: string; views: number }>;
     unconfigured: boolean;

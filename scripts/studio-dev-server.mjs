@@ -44,6 +44,9 @@ const server = createServer((req, res) => {
         if (path === "/api/photo" || path === "/api/photo/") {
           return api.handlePhoto(request);
         }
+        if (path === "/api/studio-dev" || path === "/api/studio-dev/") {
+          return api.handleProbe();
+        }
         return json404();
       })
       .catch((err) => {
@@ -59,6 +62,17 @@ const server = createServer((req, res) => {
         res.end(buf);
       });
   });
+});
+
+server.on("error", (err) => {
+  if (err instanceof Error && "code" in err && err.code === "EADDRINUSE") {
+    console.error(
+      `Port ${STUDIO_DEV_API_PORT} is already in use — another program (maybe a leftover \`pnpm dev\`) is holding it. Stop it and retry.`,
+    );
+  } else {
+    console.error(err);
+  }
+  process.exit(1);
 });
 
 server.listen(STUDIO_DEV_API_PORT, "127.0.0.1", () => {

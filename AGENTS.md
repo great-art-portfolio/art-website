@@ -16,10 +16,10 @@ Never commit with a red gate to "fix later".
 
 ## Port 4331 serves dist, not src
 
-`pnpm dev` is `astro build` + `wrangler pages dev dist`. The browser
+`pnpm dev:prod` is `astro build` + `wrangler pages dev dist`. The browser
 always shows the last build — rebuild after every change or you will
-chase stale CSS. (`dev:astro` is live src, but tests and review use 4331;
-studio work uses `dev:studio` below.)
+chase stale CSS. (`dev:astro` is live src; `dev` is the studio loop below;
+tests and review use 4331.)
 
 ## Studio dev loop (writable content without prod)
 

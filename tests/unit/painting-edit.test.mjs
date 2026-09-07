@@ -96,6 +96,8 @@ describe("patchPainting model refs", () => {
     const next = patchPainting(SAMPLE, edits);
     assert.match(next, /modelGlb: "\/models\/2122x2118\.glb"/);
     assert.match(next, /modelUsdz: "\/models\/2122x2118\.usdz"/);
+    // Patched files keep the blank line after the fence (format:check).
+    assert.match(next, /---\n\nRain over dark water\.\n$/);
   });
 
   it("writes fresh refs after a rebuild", () => {
@@ -177,6 +179,8 @@ describe("buildMarkdown", () => {
     assert.match(md, /^draft: true$/m);
     assert.match(md, /^medium: "Oil on canvas"$/m);
     assert.match(md, /^price: 125\.00$/m);
+    // Blank line after the fence: prettier-clean, like the committed files.
+    assert.match(md, /---\n\nLate snow\.\n$/);
     const round = parsePainting(md);
     assert.equal(round.title, "First Thaw");
     assert.equal(round.draft, true);

@@ -34,15 +34,24 @@ export async function pushState(): Promise<PushState> {
   }
 }
 
-export async function subscribePush(): Promise<boolean> {
-  if (!supported()) return false;
+/**
+ * Why a subscribe attempt ended: granted and stored, the visitor dismissed
+ * the browser prompt, the visitor (or an earlier choice) blocks alerts, or
+ * something genuinely failed. Callers message each case in plain words —
+ * a dismissal is never reported as a server problem.
+ */
+export type SubscribeResult = "subscribed" | "cancelled" | "blocked" | "failed";
+
+export async function subscribePush(): Promise<SubscribeResult> {
+  if (!supported()) return "failed";
   try {
     const config = (await (await fetch("/api/push")).json()) as {
       publicKey: string;
     };
-    if (config.publicKey === "") return false; // Server keys not set up yet.
+    if (config.publicKey === "") return "failed"; // Server keys not set up yet.
     const permission = await Notification.requestPermission();
-    if (permission !== "granted") return false;
+    if (permission === "default") return "cancelled";
+    if (permission !== "granted") return "blocked";
     const reg = await navigator.serviceWorker.ready;
     const sub =
       (await reg.pushManager.getSubscription()) ??
@@ -55,9 +64,9 @@ export async function subscribePush(): Promise<boolean> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "subscribe", subscription: sub.toJSON() }),
     });
-    return res.ok;
+    return res.ok ? "subscribed" : "failed";
   } catch {
-    return false;
+    return "failed";
   }
 }
 

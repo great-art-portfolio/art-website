@@ -9,8 +9,6 @@ import {
   soldSizes,
 } from "../lib/responsive-images";
 import { SHOW_PRICES, isPublished, slugifyTitle, workCount } from "../lib/site";
-import { isExpired, localToday, parseAnnouncement } from "../lib/banner";
-import bannerRaw from "../content/announcement.txt?raw";
 
 type Painting = CollectionEntry<"paintings">;
 const dimsOf = (p: Painting): string =>
@@ -26,84 +24,11 @@ const paintings = (await getCollection("paintings")).filter((p) =>
 const available = paintings.filter((p) => !p.data.sold);
 const sold = paintings.filter((p) => p.data.sold);
 
-// One homepage banner at a time, edited from /admin (git). Empty = hidden.
-// Expired at build time = not rendered; expiry between deploys is hidden
-// by the script below (data-expires).
-const banner = parseAnnouncement(bannerRaw);
-const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
 const NEW_MS = 7 * 24 * 60 * 60 * 1000;
 const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
 
 const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
 ---
-
-{
-  announcement !== "" && (
-    <p class="announce" data-expires={banner.expires ?? ""}>
-      {announcement}
-    </p>
-  )
-}
-
-<script>
-  // Time-limited banners hide themselves once past their end date, so a
-  // forgotten banner doesn't linger until the next site update.
-  const bannerEl = document.querySelector(".announce[data-expires]");
-  if (bannerEl !== null) {
-    const end = bannerEl.getAttribute("data-expires");
-    if (end !== null && end !== "") {
-      const now = new Date();
-      const today =
-        now.getFullYear() +
-        "-" +
-        String(now.getMonth() + 1).padStart(2, "0") +
-        "-" +
-        String(now.getDate()).padStart(2, "0");
-      if (today > end) bannerEl.remove();
-    }
-  }
-  // Dev-only banner preview: the studio keeps banner wording in this
-  // browser when there is no publishing backend, so it can be tried on
-  // the homepage for real. It renders above the collection, like the
-  // real banner — and never leaves the device.
-  try {
-    const raw = window.localStorage.getItem("studio-banner-preview-v1");
-    if (raw !== null) {
-      const preview = JSON.parse(raw);
-      const text =
-        preview !== null && typeof preview === "object"
-          ? String(preview.text ?? "")
-          : "";
-      const expires =
-        preview !== null && typeof preview === "object"
-          ? String(preview.expires ?? "")
-          : "";
-      const now = new Date();
-      const today =
-        now.getFullYear() +
-        "-" +
-        String(now.getMonth() + 1).padStart(2, "0") +
-        "-" +
-        String(now.getDate()).padStart(2, "0");
-      if (text.trim() !== "" && (expires === "" || today <= expires)) {
-        const collection = document.getElementById("collection");
-        let el = document.querySelector(".announce");
-        if (el === null && collection !== null) {
-          el = document.createElement("p");
-          el.className = "announce";
-          collection.insertAdjacentElement("beforebegin", el);
-        }
-        if (el !== null) {
-          el.textContent = text.trim().slice(0, 280);
-          if (expires !== "") el.setAttribute("data-expires", expires);
-          else el.removeAttribute("data-expires");
-        }
-      }
-    }
-  } catch {
-    // No preview stored — the baked banner (if any) stands.
-  }
-</script>
 
 <section class="collection" id="collection" aria-label="Available paintings">
   <div class="section-head">
@@ -198,17 +123,6 @@ const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
 }
 
 <style>
-  .announce {
-    max-width: 76rem;
-    margin: 0 auto 1.5rem;
-    padding: 0.8rem 1.5rem;
-    text-align: center;
-    font-size: 0.95rem;
-    color: var(--ink);
-    background: var(--card);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-  }
   .collection {
     max-width: 76rem;
     margin: 0 auto;
@@ -264,22 +178,40 @@ const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
       gap: 3.5rem 2.5rem;
     }
   }
-  /* Desktop: editorial rhythm — a large feature, an offset companion, then trios. */
+  /* Desktop: repeating editorial rhythm on a 12-column grid. Each
+     10-card cycle tiles exactly (7+5, 4+4+4, 5+7, 4+4+4), alternating a
+     feature-left pair, a trio with the middle pushed down, a mirrored
+     feature-right pair, and a trio with the edges pushed down. */
   @media (min-width: 60rem) {
     #gallery-static {
       grid-template-columns: repeat(12, 1fr);
     }
-    #gallery-static > .card:nth-child(1) {
+    #gallery-static > .card:nth-child(10n + 1) {
       grid-column: span 7;
     }
-    #gallery-static > .card:nth-child(2) {
+    #gallery-static > .card:nth-child(10n + 2) {
       grid-column: span 5;
       margin-top: 5rem;
     }
-    #gallery-static > .card:nth-child(n + 3) {
+    #gallery-static > .card:nth-child(10n + 3),
+    #gallery-static > .card:nth-child(10n + 5),
+    #gallery-static > .card:nth-child(10n + 9) {
       grid-column: span 4;
     }
-    #gallery-static > .card:nth-child(n + 6) {
+    #gallery-static > .card:nth-child(10n + 4) {
+      grid-column: span 4;
+      margin-top: 2.5rem;
+    }
+    #gallery-static > .card:nth-child(10n + 6) {
+      grid-column: span 5;
+      margin-top: 5rem;
+    }
+    #gallery-static > .card:nth-child(10n + 7) {
+      grid-column: span 7;
+    }
+    #gallery-static > .card:nth-child(10n + 8),
+    #gallery-static > .card:nth-child(10n + 10) {
+      grid-column: span 4;
       margin-top: 2.5rem;
     }
   }

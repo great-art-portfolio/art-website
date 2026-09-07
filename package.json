@@ -3,10 +3,10 @@
   "type": "module",
   "version": "0.0.1",
   "scripts": {
-    "predev": "astro build",
-    "dev": "wrangler pages dev dist --port 4331 --ip 127.0.0.1",
+    "dev": "node scripts/dev-studio.mjs",
     "dev:astro": "astro dev",
     "dev:studio": "node scripts/dev-studio.mjs",
+    "dev:prod": "astro build && wrangler pages dev dist --port 4331 --ip 127.0.0.1",
     "studio:reset": "node scripts/studio-reset.mjs",
     "build": "astro build",
     "preview": "astro preview",

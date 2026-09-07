@@ -2,28 +2,45 @@
 import Layout from "../layouts/Layout.astro";
 import Gallery from "../components/Gallery.astro";
 import { ARTIST_LOCATION, ARTIST_NAME, TAGLINE } from "../lib/site";
+import { isExpired, localToday, parseAnnouncement } from "../lib/banner";
+import bannerRaw from "../content/announcement.txt?raw";
 
 // The header wordmark already carries the artist's name, so the hero
 // headline stays generic instead of repeating "by …".
 const headlineHtml = "Original paintings, from the studio";
+
+// One studio note at a time, set from /admin (git). Empty = hidden.
+// Expired at build time = not rendered; expiry between deploys is hidden
+// by the script below (data-expires).
+const banner = parseAnnouncement(bannerRaw);
+const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
 ---
 
 <Layout>
   <main id="main">
-    <section class="hero">
-      <p class="eyebrow">{TAGLINE} · {ARTIST_LOCATION}</p>
-      <h1 set:html={headlineHtml} />
-      <p class="lede">
-        Nature and abstract originals, painted by hand and sold directly from
-        the studio. What you see is the actual painting — and when an original
-        sells, only its prints remain.
-      </p>
-      <div class="hero-ctas">
-        <a href="#collection" class="btn-primary">Browse the collection</a>
-        <button type="button" class="btn-ghost" id="notify-hero"
-          >Get notified of new work</button
-        >
+    <section class:list={["hero", announcement !== "" && "hero-note"]}>
+      <div class="hero-main">
+        <p class="eyebrow">{TAGLINE} · {ARTIST_LOCATION}</p>
+        <h1 set:html={headlineHtml} />
+        <p class="lede">
+          Nature and abstract originals, painted by hand and sold directly from
+          the studio. What you see is the actual painting — and when an original
+          sells, only its prints remain.
+        </p>
+        <div class="hero-ctas">
+          <a href="#collection" class="btn-primary">Browse the collection</a>
+          <button type="button" class="btn-ghost" id="notify-hero"
+            >Get notified of new work</button
+          >
+        </div>
       </div>
+      {
+        announcement !== "" && (
+          <aside class="announce" data-expires={banner.expires ?? ""}>
+            {announcement}
+          </aside>
+        )
+      }
       <dl class="hero-meta">
         <div>
           <dt>Originals &amp; prints</dt><dd>painted once, printed to order</dd>
@@ -59,11 +76,130 @@ const headlineHtml = "Original paintings, from the studio";
   </main>
 </Layout>
 
+<script>
+  // Time-limited studio notes hide themselves once past their end date,
+  // so a forgotten note doesn't linger until the next site update. Every
+  // expired node goes: baked and preview can share the page in dev.
+  // (Inline scripts are plain JS — annotations don't survive astro check,
+  // so this stays annotation-free on purpose.)
+  const notes = document.querySelectorAll(".announce[data-expires]");
+  const now = new Date();
+  const today =
+    now.getFullYear() +
+    "-" +
+    String(now.getMonth() + 1).padStart(2, "0") +
+    "-" +
+    String(now.getDate()).padStart(2, "0");
+  for (const note of notes) {
+    const end = note.getAttribute("data-expires");
+    if (end !== null && end !== "" && today > end) note.remove();
+  }
+  // Dev-only banner preview: the studio keeps banner wording in this
+  // browser when there is no publishing backend, so it can be tried on
+  // the homepage for real — in the same side card the real note uses.
+  try {
+    const raw = window.localStorage.getItem("studio-banner-preview-v1");
+    if (raw !== null) {
+      const preview = JSON.parse(raw);
+      const text =
+        preview !== null && typeof preview === "object"
+          ? String(preview.text ?? "")
+          : "";
+      const expires =
+        preview !== null && typeof preview === "object"
+          ? String(preview.expires ?? "")
+          : "";
+      const now = new Date();
+      const today =
+        now.getFullYear() +
+        "-" +
+        String(now.getMonth() + 1).padStart(2, "0") +
+        "-" +
+        String(now.getDate()).padStart(2, "0");
+      if (text.trim() !== "" && (expires === "" || today <= expires)) {
+        let el = document.querySelector(".announce");
+        if (el === null) {
+          const hero = document.querySelector("#main .hero");
+          const main = document.querySelector("#main .hero-main");
+          if (hero !== null && main !== null) {
+            el = document.createElement("aside");
+            el.className = "announce";
+            hero.classList.add("hero-note");
+            main.insertAdjacentElement("afterend", el);
+          }
+        }
+        if (el !== null) {
+          el.textContent = text.trim().slice(0, 280);
+          if (expires !== "") el.setAttribute("data-expires", expires);
+          else el.removeAttribute("data-expires");
+        }
+      }
+    }
+  } catch {
+    // No preview stored — the baked note (if any) stands.
+  }
+</script>
+
 <style>
   .hero {
     max-width: 76rem;
     margin: 0 auto;
     padding: clamp(3.5rem, 8vw, 6.5rem) 1.5rem 3rem;
+  }
+  /* With a studio note, the hero splits: words left, the note card
+     right. Without one the hero is exactly as before. */
+  .hero-note {
+    display: grid;
+    gap: 2rem;
+    align-content: start;
+  }
+  @media (min-width: 60rem) {
+    .hero-note {
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 0 3rem;
+      align-items: center;
+    }
+    .hero-note .hero-meta {
+      grid-column: 1 / -1;
+    }
+  }
+  /* The studio note: a taped-up card, not a full-width bar — the kind
+     of thing pinned to a studio wall. Narrow enough that short news
+     never leaves a wide empty box. */
+  .announce {
+    position: relative;
+    margin: 0;
+    width: fit-content;
+    max-width: 22rem;
+    box-sizing: border-box;
+    justify-self: center;
+    transform: rotate(-1.2deg);
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 0.25rem;
+    box-shadow: var(--shadow);
+    padding: 1.4rem 1.3rem 1.1rem;
+    font-family: Georgia, "Iowan Old Style", Charter, serif;
+    font-size: 1.08rem;
+  }
+  /* One masking-tape strip holding the note up. */
+  .announce::before {
+    content: "";
+    position: absolute;
+    top: -0.7rem;
+    left: 50%;
+    width: 5.5rem;
+    height: 1.4rem;
+    transform: translateX(-50%) rotate(-4deg);
+    background: color-mix(in srgb, var(--accent) 28%, transparent);
+    opacity: 0.85;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.15);
+  }
+  /* Reduced motion keeps the note planted straight. */
+  @media (prefers-reduced-motion: reduce) {
+    .announce {
+      transform: none;
+    }
   }
   .eyebrow {
     margin: 0 0 1rem;

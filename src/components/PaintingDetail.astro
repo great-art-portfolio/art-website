@@ -982,7 +982,7 @@ const eyebrow =
   #ar-mount h2 {
     font-size: 1.25rem;
     font-weight: 500;
-    margin: 0 0 0.25rem;
+    margin: 0 0 1.25rem;
   }
   #ar-mount .hint {
     margin: 0 0 0.75rem;
@@ -1117,19 +1117,11 @@ const eyebrow =
       border-color 0.2s ease,
       box-shadow 0.2s ease;
   }
-  /* Hover drafts the focus ring: the border warms toward the text color
-     before the accent outline lands on focus. */
-  input:hover,
-  textarea:hover {
-    border-color: var(--muted);
-  }
-  /* Browsers forward label hover to the field — hovering "Title" must
-     not warm its box. Only the field itself earns the hover. (The Sold
-     row opts out: there the label is one target on purpose.) */
-  .studio-fields label:hover:not(.de-check) input:not(:hover),
-  .studio-fields label:hover:not(.de-check) textarea:not(:hover) {
-    border-color: var(--line);
-  }
+  /* No hover warming on text fields: browsers forward label hover to
+     the wrapped field, so "hovering the box" can't be told apart from
+     "hovering its Title" — any :hover tint would fire on both. Fields
+     answer focus instead (below), which is unambiguous. (The Sold
+     checkbox keeps its own hover: there the label is one target.) */
   /* One ring only: inputs show the outline on any focus, never doubling
      with a border change. */
   input:focus,

@@ -82,6 +82,15 @@ function isLocalPreview(): boolean {
   return host === "localhost" || host === "127.0.0.1";
 }
 
+/** Throwaway browser overlay unless something real can persist: a stored
+ * token means the commit, even on localhost — and under `pnpm dev` the
+ * local content API persists to the working tree, so rows go live with no
+ * token at all. */
+async function useOverlayMode(): Promise<boolean> {
+  if (!isLocalPreview() || getApiToken() !== "") return false;
+  return !(await api.localBackend());
+}
+
 /** `/api/status` is public (no token needed), so it doubles as the "is there
  * an API here at all" probe: true under wrangler/live, false under astro dev. */
 async function apiReachable(): Promise<boolean> {
@@ -114,8 +123,8 @@ interface LocalPainting {
 
 /** Baked-in list, seeded once per visit (dev practice merges over it). */
 let localRows: LocalPainting[] | null = null;
-/** Built thumbnail URLs by slug, parsed once from the baked-in list. */
-let thumbBySlug: Record<string, string> | null = null;
+/** Built thumbnail URLs by repo file, parsed once from the baked-in list. */
+let thumbByMd: Record<string, string> | null = null;
 
 function seedLocalRows(raw: unknown): LocalPainting[] | null {
   if (!Array.isArray(raw)) return null;
@@ -326,7 +335,7 @@ async function deleteRow(
   title: string,
   mdPath: string,
 ): Promise<void> {
-  if (isLocalPreview() && getApiToken() === "") {
+  if (await useOverlayMode()) {
     practiceDelete(slug);
     renderLocalCollection();
     setStatus(`Deleted "${title}" from this tab's practice list.`);
@@ -502,9 +511,10 @@ async function refreshCollection(): Promise<void> {
     return;
   }
   // Thumbnails come from the page's baked-in list (built image URLs the
-  // API can't hand out) — matched by slug, missing ones simply unshown.
-  if (thumbBySlug === null) {
-    thumbBySlug = {};
+  // API can't hand out) — matched by repo file, not title slug, so a
+  // renamed painting keeps its photo. Missing ones simply unshown.
+  if (thumbByMd === null) {
+    thumbByMd = {};
     const el = document.getElementById("local-collection");
     if (el !== null) {
       try {
@@ -514,10 +524,10 @@ async function refreshCollection(): Promise<void> {
             if (
               typeof r === "object" &&
               r !== null &&
-              typeof (r as { slug?: unknown }).slug === "string" &&
+              typeof (r as { mdPath?: unknown }).mdPath === "string" &&
               typeof (r as { image?: unknown }).image === "string"
             ) {
-              thumbBySlug[(r as { slug: string }).slug] = (
+              thumbByMd[(r as { mdPath: string }).mdPath] = (
                 r as { image: string }
               ).image;
             }
@@ -530,7 +540,8 @@ async function refreshCollection(): Promise<void> {
   }
   const rows: LocalPainting[] = [];
   for (const f of files) {
-    const content = await api.getPaintingFile(`src/content/paintings/${f}`);
+    const mdPath = `src/content/paintings/${f}`;
+    const content = await api.getPaintingFile(mdPath);
     if (content === null) continue;
     const p = parsePainting(content);
     if (p === null || p.title === "") continue;
@@ -541,7 +552,7 @@ async function refreshCollection(): Promise<void> {
       price: Number(p.price),
       sold: p.sold,
       draft: p.draft,
-      image: thumbBySlug[slug] ?? "",
+      image: (thumbByMd ?? {})[mdPath] ?? "",
       alt: p.alt,
       description: p.description,
       widthIn: p.widthIn,
@@ -689,6 +700,11 @@ function clearBannerPreview(): void {
   }
 }
 
+/** Remove only offers itself while a banner exists to remove. */
+function setBannerRemovable(has: boolean): void {
+  $("announce-clear").hidden = !has;
+}
+
 function init(): void {
   api
     .getBanner()
@@ -712,6 +728,7 @@ function init(): void {
             meta.textContent =
               "Preview kept in this browser — open the homepage to see it.";
             fadeIn(meta);
+            setBannerRemovable(true);
             return;
           }
         }
@@ -720,8 +737,10 @@ function init(): void {
         if (banner.text === "") {
           meta.textContent = "No banner showing right now.";
           fadeIn(meta);
+          setBannerRemovable(false);
           return;
         }
+        setBannerRemovable(true);
         if (banner.expires === null) {
           meta.textContent = "Showing now, with no end date.";
           fadeIn(meta);
@@ -753,6 +772,13 @@ function init(): void {
       // Publishing not configured yet — the editor still works once it is.
     });
 
+  // Removing is saving empty: the same commit clears the file (or the
+  // dev preview), with the same confirmation words.
+  $("announce-clear").addEventListener("click", () => {
+    ($("f-announce") as HTMLInputElement).value = "";
+    $("announce-save").click();
+  });
+
   $("announce-save").addEventListener("click", () => {
     const text = ($("f-announce") as HTMLInputElement).value
       .trim()
@@ -773,6 +799,7 @@ function init(): void {
         ])
         .then(() => {
           clearBannerPreview();
+          setBannerRemovable(body !== "");
           setStatus(
             body === "" ? "Banner cleared." : "Banner updated on the homepage.",
           );
@@ -792,6 +819,7 @@ function init(): void {
                 ? "No banner showing right now."
                 : "Preview kept in this browser — open the homepage to see it.";
             fadeIn(meta);
+            setBannerRemovable(parsed.text !== "");
             setStatus(
               parsed.text === ""
                 ? "Banner cleared in this browser."

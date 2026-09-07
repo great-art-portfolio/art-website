@@ -1,4 +1,5 @@
 import { dollarsToCents, formatCAD } from "./money";
+import { viewsLabel } from "./views";
 
 /**
  * One dashboard collection row. Shared by the static rows in admin.astro
@@ -11,6 +12,8 @@ export interface StudioRowInput {
   price: number;
   image: string;
   mdPath: string;
+  /** Drafts link photo + title to the studio room (no buyer page). */
+  draft: boolean;
   /** Past-30-day views, 0 when unknown — the span hides itself. */
   views: number;
 }
@@ -22,22 +25,25 @@ const trashIcon =
   `<svg class="ico" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">` +
   `<path d="M2.5 4h11M6.5 4V2.5h3V4M4 4l.8 10h6.4L12 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>`;
 
-/** Row view counts in words — shared by the renderer and the patch. */
-export function viewsLabel(n: number): string {
-  return n === 1 ? "1 view" : `${n} views`;
-}
+export { viewsLabel } from "./views";
 
 export function studioRowHtml(r: StudioRowInput): string {
   const esc = (s: string): string =>
     s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
   const cents = dollarsToCents(Number(r.price));
   const price = cents === null ? "Price?" : formatCAD(cents);
-  // Photo and title are separate links to the buyer page — the title
-  // never stretches, so empty space beside it stays dead.
+  // Photo and title are separate links — the buyer page, or the studio
+  // room for file-backed drafts (which have no buyer page; unsaved
+  // practice rows keep the buyer target like before). The title never
+  // stretches, so empty space beside it stays dead.
+  const viewHref =
+    r.draft && r.mdPath !== ""
+      ? `/admin/paintings/${esc(r.slug)}`
+      : `/paintings/${esc(r.slug)}`;
   const photo =
     r.image === ""
       ? ""
-      : `<a class="row-photo" href="/paintings/${esc(r.slug)}" aria-label="${esc(r.title)}">` +
+      : `<a class="row-photo" href="${viewHref}" aria-label="${esc(r.title)}">` +
         `<img class="thumb" src="${esc(r.image)}" alt="" loading="lazy" /></a>`;
   // View counts arrive after the rows (separate fetch) and patch the
   // hook in place — the span hides itself until then, so loading never
@@ -48,7 +54,7 @@ export function studioRowHtml(r: StudioRowInput): string {
     `</span>`;
   return (
     `<li class="row-card">${photo}<span class="row-body">` +
-    `<a class="row-title" href="/paintings/${esc(r.slug)}"><strong>${esc(r.title)}</strong></a>` +
+    `<a class="row-title" href="${viewHref}"><strong>${esc(r.title)}</strong></a>` +
     `<span> — ${price}</span>` +
     views +
     `<span class="row-actions">` +

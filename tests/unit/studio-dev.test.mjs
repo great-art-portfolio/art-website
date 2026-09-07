@@ -168,6 +168,12 @@ describe("studio dev api", () => {
     assert.equal(photo.status, 400);
   });
 
+  it("answers the studio-dev presence probe", async () => {
+    const res = await api.handleProbe();
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), { local: true });
+  });
+
   it("requires a message and 1–12 files", async () => {
     let res = await api.handleCommit(post({ message: "", files: [] }));
     assert.equal(res.status, 400);

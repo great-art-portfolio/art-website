@@ -73,12 +73,15 @@ function isLocalPreview(): boolean {
   return host === "localhost" || host === "127.0.0.1";
 }
 
-/** Dev practice unless she configured publishing: a stored API token means
- * the commit, even on localhost (which is also how the stubbed suites run
- * the live paths). Live hosts never practice — failures surface as errors.
+/** Throwaway browser overlay unless something real can persist: a stored
+ * API token means the commit, even on localhost (which is also how the
+ * stubbed suites run the live paths) — and under `pnpm dev` the local
+ * content API persists to the working tree, so the rooms go live with no
+ * token at all. Live hosts never overlay — failures surface as errors.
  */
-function usePracticeMode(): boolean {
-  return isLocalPreview() && getApiToken() === "";
+async function useOverlayMode(): Promise<boolean> {
+  if (!isLocalPreview() || getApiToken() !== "") return false;
+  return !(await api.localBackend());
 }
 
 function escHtml(s: string): string {
@@ -405,7 +408,7 @@ async function saveNew(draft: boolean): Promise<void> {
     setStatus("Choose a photo first.", true);
     return;
   }
-  if (usePracticeMode()) {
+  if (await useOverlayMode()) {
     const slug =
       slugifyTitle(fields.title) === ""
         ? "untitled"
@@ -540,8 +543,8 @@ async function saveEdit(
 ): Promise<void> {
   const fields = readFields();
   if (fields === null) return;
-  if (usePracticeMode() || base === null) {
-    if (base === null && !usePracticeMode()) {
+  if ((await useOverlayMode()) || base === null) {
+    if (base === null && !(await useOverlayMode())) {
       setStatus("Couldn't load this painting's file.", true);
       return;
     }
@@ -846,11 +849,11 @@ function initStudio(): void {
   maybe("de-visibility")?.addEventListener(
     "click",
     () =>
-      void basePromise.then((base) => {
+      void basePromise.then(async (base) => {
         const fields = readFields();
         if (fields === null) return;
-        if (usePracticeMode() || base === null) {
-          if (base === null && !usePracticeMode()) {
+        if ((await useOverlayMode()) || base === null) {
+          if (base === null && !(await useOverlayMode())) {
             setStatus("Couldn't load this painting's file.", true);
             return;
           }
@@ -883,7 +886,7 @@ function initStudio(): void {
     "de-del",
     () => ($("de-title") as HTMLInputElement).value.trim(),
     async () => {
-      if (usePracticeMode()) {
+      if (await useOverlayMode()) {
         practiceDelete(slug);
         buzz();
         goAdmin(

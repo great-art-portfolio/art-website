@@ -16,6 +16,7 @@ interface Painting {
   slug: string;
   title: string;
   sold: boolean;
+  draft: boolean;
   price: string;
   modelGlb: string;
 }
@@ -37,6 +38,7 @@ function loadPaintings(): Painting[] {
         slug: slugifyTitle(title),
         title,
         sold: /^sold:\s*true/m.test(raw),
+        draft: /^draft:\s*true/m.test(raw),
         price: raw.match(/^price:\s*([\d.]+)/m)?.[1] ?? "0",
         modelGlb: raw.match(/^modelGlb:\s*"([^"]+)"/m)?.[1] ?? "",
       };
@@ -44,8 +46,12 @@ function loadPaintings(): Painting[] {
 }
 
 const paintings = loadPaintings();
-const available = paintings.filter((p) => !p.sold);
-const sold = paintings.filter((p) => p.sold);
+// Drafts are studio-only: no gallery card, no buyer page, no static path.
+// Every buyer-facing assertion below runs over published pieces only.
+const published = paintings.filter((p) => !p.draft);
+const drafts = paintings.filter((p) => p.draft);
+const available = published.filter((p) => !p.sold);
+const sold = published.filter((p) => p.sold);
 
 test("gallery shows one card per available painting, each linked correctly", async ({
   page,
@@ -115,7 +121,7 @@ test("clicking a card opens its painting page", async ({ page }) => {
   await expect(page.locator(".info h1")).toHaveText(available[0].title);
 });
 
-for (const p of paintings) {
+for (const p of published) {
   test(`painting page for "${p.title}" carries its contract`, async ({
     page,
   }) => {
@@ -318,7 +324,20 @@ test("unknown painting slug is a real 404 with a way back", async ({
   const res = await page.goto("/paintings/no-such-painting");
   expect(res?.status()).toBe(404);
   await expect(page.locator(".missing h1")).toBeVisible();
+  await expect(page.locator(".missing .eyebrow")).toHaveText(/404/);
   await expect(page.locator('.missing a[href="/#collection"]')).toBeVisible();
+});
+
+test("drafts stay out of the gallery and buyer pages", async ({ page }) => {
+  // Vacuous on a clean tree; real the moment anyone drafts in dev.
+  await page.goto("/");
+  for (const d of drafts) {
+    await expect(
+      page.locator(`#gallery-static .card[href="/paintings/${d.slug}"]`),
+    ).toHaveCount(0);
+    const res = await page.goto(`/paintings/${d.slug}`);
+    expect(res?.status()).toBe(404);
+  }
 });
 
 test("admin page renders the studio sections and new-painting door", async ({
