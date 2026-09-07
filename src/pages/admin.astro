@@ -1,8 +1,21 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import { getCollection } from "astro:content";
+import { readdirSync } from "node:fs";
 import { groupByAvailability, slugifyTitle } from "../lib/site";
 import { studioRowHtml } from "../lib/studio-rows";
+
+// Astro lowercases content ids (img_5667.md) while the repo path stays
+// case-sensitive (IMG_5667.md). Resolve the true filename at build time
+// so baked rows match the API rows exactly — no re-render flicker — and
+// row deletes point at a file that exists.
+const diskNames = new Map(
+  readdirSync("src/content/paintings").map((f) => [f.toLowerCase(), f]),
+);
+const mdFile = (id: string): string => {
+  const withExt = id.endsWith(".md") ? id : `${id}.md`;
+  return diskNames.get(withExt.toLowerCase()) ?? withExt;
+};
 
 // Baked in at build time so the list and links work everywhere, even with
 // no publishing backend (dev). The full editable fields ride along so the
@@ -19,7 +32,7 @@ const localCollection = (await getCollection("paintings")).map((p) => ({
   depthIn: p.data.depthIn ?? null,
   draft: p.data.draft === true,
   image: p.data.image.src,
-  mdPath: `src/content/paintings/${p.id.endsWith(".md") ? p.id : `${p.id}.md`}`,
+  mdPath: `src/content/paintings/${mdFile(p.id)}`,
   // View counts arrive client-side, after the rows — zero here keeps the
   // static markup identical to the first hydrated render.
   views: 0,
