@@ -108,6 +108,30 @@ test("notify button scrolls to the working signup card", async ({ page }) => {
   await expect(page.locator("#notify-btn")).toBeAttached();
 });
 
+test("email capture form joins the list", async ({ page }) => {
+  await page.goto("/");
+  // The email channel shows in every browser — no push needed.
+  await expect(page.locator("#notify-email-form")).toBeVisible();
+  await page.locator("#notify-email").fill("e2e-fan@example.com");
+  await page.locator("#notify-email-form button[type=submit]").click();
+  await expect(page.locator("#notify-email-hint")).toContainText("on the list");
+});
+
+test("collector signup accepts a good address, rejects a bad one", async ({
+  request,
+}) => {
+  const ok = await request.post("/api/collectors", {
+    data: { email: "api-fan@example.com" },
+  });
+  expect(ok.status()).toBe(201);
+  expect((await ok.json()).ok).toBe(true);
+
+  const bad = await request.post("/api/collectors", {
+    data: { email: "not-an-email" },
+  });
+  expect(bad.status()).toBe(400);
+});
+
 test("inquiry honeypot is accepted without delivery", async ({ request }) => {
   const res = await request.post("/api/inquiries", {
     data: {

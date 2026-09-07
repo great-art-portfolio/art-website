@@ -659,13 +659,15 @@ function init(): void {
       .catch(() => setStatus("Copy failed — select the text manually.", true));
   });
 
-  api
-    .collectorCount()
-    .then((n) => {
+  Promise.all([api.collectorCount(), api.emailCollectorCount()])
+    .then(([pushN, emailN]) => {
+      const bits: string[] = [];
+      if (pushN > 0) bits.push(`${pushN} phone alert${pushN === 1 ? "" : "s"}`);
+      if (emailN > 0) bits.push(`${emailN} email${emailN === 1 ? "" : "s"}`);
       $("collectors-hint").textContent =
-        n === 0
-          ? "No collectors yet — visitors subscribe with “Notify me” on the homepage."
-          : `${n} collector${n === 1 ? "" : "s"} subscribed — “Notify collectors” sends them a phone alert.`;
+        bits.length === 0
+          ? "No collectors yet — visitors sign up with “Notify me” on the homepage."
+          : `${bits.join(" + ")} on the list — “Notify collectors” alerts them all.`;
     })
     .catch(() => undefined);
 
@@ -673,7 +675,15 @@ function init(): void {
     setStatus("Notifying collectors…");
     api
       .notifyCollectors()
-      .then((r) => setStatus(`Notified ${r.sent} of ${r.total} collectors.`))
+      .then((r) => {
+        let msg = `Notified ${r.sent} of ${r.total} collectors.`;
+        if (r.emailTotal > 0) {
+          msg += r.emailed
+            ? ` Emailed ${r.emailTotal}.`
+            : ` Email not sent (mail isn't set up).`;
+        }
+        setStatus(msg);
+      })
       .catch((err: unknown) => setStatus((err as Error).message, true));
   });
 

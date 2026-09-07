@@ -79,6 +79,41 @@ async function sendEmail(
   return res.ok;
 }
 
+/**
+ * Collector broadcast: one send to mom, blind-copied to every collector.
+ * BCC keeps addresses private from each other; replies (including
+ * "stop these emails") land in her inbox, which is the unsubscribe path.
+ */
+export async function sendCollectorBroadcast(
+  env: AppEnv,
+  subject: string,
+  text: string,
+  bcc: string[],
+): Promise<boolean> {
+  if (env.RESEND_API_KEY === undefined || env.RESEND_API_KEY === "")
+    return false;
+  if (env.NOTIFY_EMAIL_TO === undefined || env.NOTIFY_EMAIL_TO === "")
+    return false;
+  if (bcc.length === 0) return false;
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: env.NOTIFY_EMAIL_FROM ?? "Gallery <onboarding@resend.dev>",
+      to: [env.NOTIFY_EMAIL_TO],
+      bcc,
+      reply_to: env.NOTIFY_EMAIL_TO,
+      subject,
+      text,
+    }),
+  });
+  if (!res.ok) console.error("resend broadcast error", await res.text());
+  return res.ok;
+}
+
 async function sendPush(
   env: AppEnv,
   title: string,

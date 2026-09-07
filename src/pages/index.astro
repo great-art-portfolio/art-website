@@ -56,11 +56,35 @@ const headlineHtml = "Original paintings, from the studio";
         </p>
         <div class="notify-inline" id="notify-card" hidden>
           <h3>Never miss a new painting</h3>
-          <p>One tap — your browser tells you when something new is hung.</p>
+          <p id="notify-push-blurb">
+            One tap — your browser tells you when something new is hung.
+          </p>
           <button type="button" id="notify-btn" class="btn-primary"
             >Notify me</button
           >
           <p class="hint" id="notify-hint"></p>
+          <div class="email-capture">
+            <p>
+              Prefer email? One email per new painting, nothing else, and your
+              address is never shared. Unsubscribe any time with one click.
+            </p>
+            <form id="notify-email-form">
+              <label
+                >Email address
+                <input
+                  type="email"
+                  id="notify-email"
+                  name="email"
+                  required
+                  maxlength="254"
+                  autocomplete="email"
+                  placeholder="you@example.com"
+                />
+              </label>
+              <button type="submit" class="btn-ghost">Join the list</button>
+            </form>
+            <p class="hint" id="notify-email-hint" role="status"></p>
+          </div>
         </div>
       </div>
     </section>
@@ -111,21 +135,70 @@ const headlineHtml = "Original paintings, from the studio";
     await paintNotify();
   }
 
+  // Email capture needs no browser features — wire it once, always on.
+  function wireEmailForm() {
+    const formEl = document.getElementById("notify-email-form");
+    const form = formEl instanceof HTMLFormElement ? formEl : null;
+    const inputEl = document.getElementById("notify-email");
+    const input = inputEl instanceof HTMLInputElement ? inputEl : null;
+    const hint = document.getElementById("notify-email-hint");
+    if (form === null || input === null || hint === null) return;
+    if (form.dataset.wired === "1") return;
+    form.dataset.wired = "1";
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const email = input.value.trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        hint.textContent =
+          "That email doesn't look right — check it and try again.";
+        input.focus();
+        return;
+      }
+      hint.textContent = "Joining…";
+      fetch("/api/collectors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+        .then((res) => {
+          if (res.ok) {
+            hint.textContent =
+              "You're on the list — one email per new painting.";
+            input.value = "";
+          } else if (res.status === 400) {
+            hint.textContent =
+              "That email doesn't look right — check it and try again.";
+          } else {
+            hint.textContent = "That didn't work — try again in a bit.";
+          }
+        })
+        .catch(() => {
+          hint.textContent = "That didn't work — try again in a bit.";
+        });
+    });
+  }
+
   async function paintNotify() {
     const card = document.getElementById("notify-card");
     const btnEl = document.getElementById("notify-btn");
     const btn = btnEl instanceof HTMLButtonElement ? btnEl : null;
     const hint = document.getElementById("notify-hint");
+    const blurb = document.getElementById("notify-push-blurb");
     if (card === null || btn === null || hint === null) return;
+    wireEmailForm();
+    // Email works for everyone, so the card always shows; the push
+    // button only appears where push can work.
+    card.hidden = false;
     const state = await (await push()).pushState();
     if (state === "unsupported") {
-      // Older browser — the card stays invisible, and so does the hero
-      // button that would scroll to it.
+      // Older browser — no push parts at all, and neither does the hero
+      // button that would scroll to them.
+      btn.hidden = true;
+      if (blurb !== null) blurb.hidden = true;
       const hero = document.getElementById("notify-hero");
       if (hero !== null) hero.hidden = true;
       return;
     }
-    card.hidden = false;
     if (state === "subscribed") {
       btn.textContent = "You're on the list — turn off";
       hint.textContent = "";
@@ -340,5 +413,51 @@ const headlineHtml = "Original paintings, from the studio";
     font-size: 0.9rem;
     margin: 0.8rem 0 0;
     min-height: 1.2em;
+  }
+  /* Author display beats the UA [hidden] rule — re-hide. */
+  #notify-btn[hidden] {
+    display: none;
+  }
+  /* Email capture: the channel that works in every browser. */
+  .email-capture {
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--line);
+  }
+  .email-capture p {
+    margin: 0 0 0.75rem;
+  }
+  .email-capture form {
+    display: grid;
+    gap: 0.75rem;
+    justify-items: start;
+  }
+  .email-capture label {
+    display: grid;
+    gap: 0.3rem;
+    width: 100%;
+    max-width: 24rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+  }
+  .email-capture input {
+    font: inherit;
+    font-weight: 400;
+    padding: 0.6rem 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease;
+  }
+  .email-capture input:hover {
+    border-color: var(--muted);
+  }
+  .email-capture input:focus,
+  .email-capture input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
   }
 </style>

@@ -205,12 +205,32 @@ export const api = {
       return 0;
     }
   },
-  async notifyCollectors(): Promise<{ sent: number; total: number }> {
-    const data = await request<{ sent: number; total: number }>("/api/notify", {
+  async notifyCollectors(): Promise<{
+    sent: number;
+    total: number;
+    emailed: boolean;
+    emailTotal: number;
+  }> {
+    const data = await request<{
+      sent: number;
+      total: number;
+      emailed: boolean;
+      emailTotal: number;
+    }>("/api/notify", {
       method: "POST",
       headers: adminHeaders(),
     });
     return data;
+  },
+  async emailCollectorCount(): Promise<number> {
+    try {
+      const data = await request<{ total: number }>("/api/collectors", {
+        headers: adminHeaders(),
+      });
+      return data.total;
+    } catch {
+      return 0;
+    }
   },
 };
 

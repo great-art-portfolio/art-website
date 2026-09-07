@@ -1,8 +1,10 @@
 /** Shared Cloudflare Pages bindings for the gallery API. */
 
 export interface AppEnv {
-  /** One tiny table: push_subscriptions. Everything else lives in git. */
+  /** Two tiny tables: push_subscriptions + email_collectors. Everything else lives in git. */
   DB: D1Database;
+  /** Canonical site URL for links in collector emails. */
+  SITE_URL?: string;
   ADMIN_API_TOKEN?: string;
   GITHUB_TOKEN?: string;
   GITHUB_REPO?: string;
