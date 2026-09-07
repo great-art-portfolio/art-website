@@ -111,11 +111,11 @@ test("edit room arrives prefilled with save, visibility, and delete", async ({
   await expect(page.locator("#de-sold")).toHaveCSS("appearance", "none");
   await expect(page.locator("#de-sold")).toHaveCSS("cursor", "pointer");
   await expect(page.locator("#de-replace")).toHaveText("Replace photo");
-  // The edit room keeps the disabled Interested button with its reason —
-  // only drafts (no live page yet) hide it.
-  await expect(page.locator(".inquiry-off .btn-primary")).toBeDisabled();
+  // No Interested button anywhere in the studio — just a note saying
+  // buyers still get one on the live page. Drafts hide even that.
+  await expect(page.locator(".inquiry-off button")).toHaveCount(0);
   await expect(page.locator(".inquiry-off .hint")).toContainText(
-    "Off while you edit",
+    "off while you edit",
   );
   await expect(page.locator(".crumbs a")).toHaveAttribute("href", "/admin");
   // Live preview follows edits.

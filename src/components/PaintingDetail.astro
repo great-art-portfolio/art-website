@@ -423,11 +423,9 @@ const eyebrow =
       {
         studio && mode !== "draft" && !data.sold && (
           <div class="inquiry-off">
-            <button type="button" class="btn-primary" disabled>
-              Interested?
-            </button>
             <p class="hint">
-              Off while you edit — buyers see this button on the live page.
+              Buyers see an “Interested?” button on the live page — it's off
+              while you edit, so there's nothing to press here.
             </p>
           </div>
         )
@@ -1329,11 +1327,8 @@ const eyebrow =
     padding-top: 1.5rem;
     border-top: 1px solid var(--line);
   }
-  .inquiry-off .btn-primary {
-    width: 100%;
-  }
   .inquiry-off .hint {
-    margin: 0.6rem 0 0;
+    margin: 0;
   }
   /* Draft photo tile: the whole square is the picker, labeled inside. */
   .upload-tile {
