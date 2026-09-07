@@ -289,9 +289,8 @@ const eyebrow =
               </p>
               <label class="de-desc-label">
                 Description
-                <textarea id="de-desc" rows="4" maxlength="2000">
-                  {data.description}
-                </textarea>
+                {/* prettier-ignore */}
+                <textarea id="de-desc" rows="4" maxlength="2000">{data.description}</textarea>
               </label>
             </div>
             <div class="studio-toolbar">
@@ -606,6 +605,16 @@ const eyebrow =
     bar.hidden = false;
   }
 
+  // Status words fade in under every motion setting. Defaults only
+  // carry the types (never called bare): inline scripts stay
+  // annotation-free on purpose.
+  function say(el = document.body, msg = "") {
+    el.textContent = msg;
+    if (typeof el.animate === "function") {
+      el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
+    }
+  }
+
   function initDetail() {
     initAr();
     initAdmin();
@@ -625,7 +634,7 @@ const eyebrow =
         if ((data.get("website") ?? "") !== "") return; // honeypot
         const status = document.getElementById("inquiry-status");
         if (status === null) return;
-        status.textContent = "Sending…";
+        say(status, "Sending…");
         const live = readPageData();
         void import("../lib/queue").then(({ queuePost }) =>
           queuePost("/api/inquiries", {
@@ -637,12 +646,14 @@ const eyebrow =
             website: "",
             turnstileToken,
           }).then((result) => {
-            status.textContent =
+            say(
+              status,
               result === "sent"
                 ? "Thanks! The artist will reply by email."
                 : result === "queued"
                   ? "Saved — it will send automatically when you're back online."
-                  : "That didn't go through — check your email address and try again.";
+                  : "That didn't go through — check your email address and try again.",
+            );
             if (result === "sent") form.reset();
           }),
         );
@@ -1321,6 +1332,20 @@ const eyebrow =
   }
   #de-status:empty {
     display: none;
+  }
+  /* Studio toast words fade in and out, opacity-only, under every
+     motion setting. */
+  #de-status.toast-in {
+    animation: de-toast-in 0.25s ease;
+  }
+  @keyframes de-toast-in {
+    from {
+      opacity: 0;
+    }
+  }
+  #de-status.toast-out {
+    opacity: 0;
+    transition: opacity 0.25s ease;
   }
   .inquiry-off {
     margin-top: 1.75rem;

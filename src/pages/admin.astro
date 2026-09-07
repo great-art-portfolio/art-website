@@ -252,15 +252,20 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
     font-size: 0.95rem;
     box-shadow: var(--shadow);
   }
-  /* Gentle rise on every new message, re-triggered from the panel. */
+  /* Opacity-only, both directions: a fade-in on every new message
+     (re-triggered from the panel) and a fade-out on its way away.
+     No travel — so it runs under every motion setting. */
   #admin-status.toast-in {
     animation: toast-in 0.25s ease;
   }
   @keyframes toast-in {
     from {
       opacity: 0;
-      transform: translate(-50%, 0.5rem);
     }
+  }
+  #admin-status.toast-out {
+    opacity: 0;
+    transition: opacity 0.25s ease;
   }
   /* The Add form arrives as one calm motion: the card expands and fades,
      with no per-field stagger to fall out of sync on the way back out. */
@@ -482,9 +487,8 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
      while color and opacity transitions still run — snapping colors is
      itself jarring. */
   @media (prefers-reduced-motion: reduce) {
-    #admin-status.toast-in {
-      animation: none;
-    }
+    /* The toast fade deliberately stays on: opacity-only, and a snap
+       is itself jarring. */
     button:hover {
       transform: none;
     }

@@ -33,20 +33,30 @@ let lastShare: { title: string; caption: string; pageUrl: string } | null =
  * stale complaint never sits over the page. Each new message restarts the
  * clock, and clearing an already-empty line is a no-op. */
 let statusTimer = 0;
+/**
+ * Toast words fade in on arrival and fade out on their way away — under
+ * every motion setting, since a snap is itself jarring. One timer covers
+ * both phases, so a new message mid-fade-out cancels the goodbye.
+ */
 function setStatus(msg: string, isError = false): void {
   const el = $("admin-status");
+  window.clearTimeout(statusTimer);
+  el.classList.remove("toast-out");
   el.textContent = msg;
   el.dataset.tone = isError ? "error" : "ok";
-  // Re-rise the toast on every message (no-op motion when reduced).
   el.classList.remove("toast-in");
   void el.offsetWidth;
   el.classList.add("toast-in");
-  window.clearTimeout(statusTimer);
   statusTimer = window.setTimeout(() => {
     const live = document.getElementById("admin-status");
     if (live === null) return;
-    live.textContent = "";
-    live.classList.remove("toast-in");
+    live.classList.add("toast-out");
+    statusTimer = window.setTimeout(() => {
+      const gone = document.getElementById("admin-status");
+      if (gone === null) return;
+      gone.textContent = "";
+      gone.classList.remove("toast-in", "toast-out");
+    }, 260);
   }, 6000);
 }
 

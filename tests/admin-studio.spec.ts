@@ -628,6 +628,50 @@ test("practice reset clears the overlay back to the repo list", async ({
   await expect(page.locator("#practice-reset")).toBeHidden();
 });
 
+test("toast words fade in and out, even under reduced motion", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.clock.install();
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "studio-practice-v1",
+      JSON.stringify({
+        upserts: {
+          "seeded-practice": {
+            slug: "seeded-practice",
+            title: "Seeded Practice",
+            price: 10,
+            sold: false,
+            alt: "",
+            description: "",
+            widthIn: "",
+            heightIn: "",
+            depthIn: "",
+            medium: "",
+            draft: true,
+          },
+        },
+        deletes: [],
+      }),
+    );
+  });
+  await page.goto("/admin");
+  await page.locator("#practice-reset").click();
+  const toast = page.locator("#admin-status");
+  await expect(toast).toContainText("Practice changes cleared");
+  // Opacity-only fade runs despite reduced motion.
+  await expect(toast).toHaveClass(/toast-in/);
+  const running = await toast.evaluate((el) => el.getAnimations().length);
+  expect(running).toBeGreaterThanOrEqual(1);
+  // Six seconds later it fades out instead of snapping away.
+  await page.clock.fastForward(6000);
+  await expect(toast).toHaveClass(/toast-out/);
+  await expect(toast).not.toBeEmpty();
+  await page.clock.fastForward(1000);
+  await expect(toast).toBeEmpty();
+});
+
 test("dashboard delete asks first, then removes the row", async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem(

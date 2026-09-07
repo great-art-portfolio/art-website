@@ -130,11 +130,14 @@ test("edit room validates before saving", async ({ page }) => {
     /edit/,
   );
   await page.locator("#de-title").fill("");
+  await expect(page.locator("#de-desc")).toHaveValue(/^\S/);
   await page.locator("#de-save").click();
   await expect(page.locator("#de-status")).toContainText(
     "Title and a valid price are required.",
     { timeout: 10_000 },
   );
+  // Toast words fade in, not snap.
+  await expect(page.locator("#de-status")).toHaveClass(/toast-in/);
 });
 
 test("preview title and price open their fields", async ({ page }) => {

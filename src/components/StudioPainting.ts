@@ -38,17 +38,33 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string): T => {
 const maybe = <T extends HTMLElement = HTMLElement>(id: string): T | null =>
   document.getElementById(id) as T | null;
 
-/** Studio toasts clear themselves — errors included. */
+/**
+ * Studio toasts clear themselves — errors included. Words fade in on
+ * arrival and fade out on their way away, under every motion setting.
+ * One timer covers both phases, so a new message mid-fade-out cancels
+ * the goodbye.
+ */
 let statusTimer = 0;
 function setStatus(msg: string, isError = false): void {
   const el = maybe("de-status");
   if (el === null) return;
+  window.clearTimeout(statusTimer);
+  el.classList.remove("toast-out");
   el.textContent = msg;
   el.dataset.tone = isError ? "error" : "ok";
-  window.clearTimeout(statusTimer);
+  el.classList.remove("toast-in");
+  void el.offsetWidth;
+  el.classList.add("toast-in");
   statusTimer = window.setTimeout(() => {
     const live = document.getElementById("de-status");
-    if (live !== null) live.textContent = "";
+    if (live === null) return;
+    live.classList.add("toast-out");
+    statusTimer = window.setTimeout(() => {
+      const gone = document.getElementById("de-status");
+      if (gone === null) return;
+      gone.textContent = "";
+      gone.classList.remove("toast-in", "toast-out");
+    }, 260);
   }, 6000);
 }
 

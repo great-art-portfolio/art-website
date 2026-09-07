@@ -103,6 +103,33 @@ const headlineHtml = "Original paintings, from the studio";
     return import("../lib/push");
   }
 
+  // Status words fade in and out under every motion setting. A counter
+  // on the element drops a late fade-out when a newer message lands.
+  // Defaults only carry the types (never called bare): inline scripts
+  // stay annotation-free on purpose.
+  function say(el = document.body, msg = "") {
+    const n = Number(el.dataset.say ?? "0") + 1;
+    el.dataset.say = String(n);
+    el.textContent = msg;
+    if (typeof el.animate === "function") {
+      el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
+    }
+  }
+  function unsay(el = document.body) {
+    const n = Number(el.dataset.say ?? "0") + 1;
+    el.dataset.say = String(n);
+    if (el.textContent === "" || typeof el.animate !== "function") {
+      el.textContent = "";
+      return;
+    }
+    const out = el.animate([{ opacity: 1 }, { opacity: 0 }], {
+      duration: 150,
+    });
+    out.onfinish = () => {
+      if (el.dataset.say === String(n)) el.textContent = "";
+    };
+  }
+
   // Runs on full loads AND View-Transitions navigations. The dataset flag
   // keeps a double-fire on the same DOM from wiring the button twice.
   async function initNotify() {
@@ -120,11 +147,14 @@ const headlineHtml = "Original paintings, from the studio";
             if (state === "subscribed") {
               void api.unsubscribePush().then(() => void paintNotify());
             } else {
-              hint.textContent = "Waiting for your browser…";
+              say(hint, "Waiting for your browser…");
               void api.subscribePush().then((ok) => {
-                hint.textContent = ok
-                  ? "You're on the list."
-                  : "That didn't work — push alerts aren't set up on the server yet.";
+                say(
+                  hint,
+                  ok
+                    ? "You're on the list."
+                    : "That didn't work — push alerts aren't set up on the server yet.",
+                );
                 void paintNotify();
               });
             }
@@ -149,12 +179,11 @@ const headlineHtml = "Original paintings, from the studio";
       e.preventDefault();
       const email = input.value.trim();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        hint.textContent =
-          "That email doesn't look right — check it and try again.";
+        say(hint, "That email doesn't look right — check it and try again.");
         input.focus();
         return;
       }
-      hint.textContent = "Joining…";
+      say(hint, "Joining…");
       fetch("/api/collectors", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -162,18 +191,19 @@ const headlineHtml = "Original paintings, from the studio";
       })
         .then((res) => {
           if (res.ok) {
-            hint.textContent =
-              "You're on the list — one email per new painting.";
+            say(hint, "You're on the list — one email per new painting.");
             input.value = "";
           } else if (res.status === 400) {
-            hint.textContent =
-              "That email doesn't look right — check it and try again.";
+            say(
+              hint,
+              "That email doesn't look right — check it and try again.",
+            );
           } else {
-            hint.textContent = "That didn't work — try again in a bit.";
+            say(hint, "That didn't work — try again in a bit.");
           }
         })
         .catch(() => {
-          hint.textContent = "That didn't work — try again in a bit.";
+          say(hint, "That didn't work — try again in a bit.");
         });
     });
   }
@@ -201,16 +231,18 @@ const headlineHtml = "Original paintings, from the studio";
     }
     if (state === "subscribed") {
       btn.textContent = "You're on the list — turn off";
-      hint.textContent = "";
+      unsay(hint);
     } else if (state === "denied") {
       btn.textContent = "Notifications blocked";
       btn.disabled = true;
-      hint.textContent =
-        "You blocked notifications for this site in your browser settings.";
+      say(
+        hint,
+        "You blocked notifications for this site in your browser settings.",
+      );
     } else {
       btn.textContent = "Notify me";
       btn.disabled = false;
-      hint.textContent = "";
+      unsay(hint);
     }
   }
 
