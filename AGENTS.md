@@ -18,7 +18,20 @@ Never commit with a red gate to "fix later".
 
 `pnpm dev` is `astro build` + `wrangler pages dev dist`. The browser
 always shows the last build — rebuild after every change or you will
-chase stale CSS. (`dev:astro` is live src, but tests and review use 4331.)
+chase stale CSS. (`dev:astro` is live src, but tests and review use 4331;
+studio work uses `dev:studio` below.)
+
+## Studio dev loop (writable content without prod)
+
+`pnpm dev:studio` runs astro dev on :4332 plus a localhost content API
+on :4333 (`scripts/studio-dev-server.mjs`), which the dev-only Vite
+proxy answers `/api/*` from. Same contract as the Pages Functions, but
+backed by the working tree: banner, painting, photo, and model writes
+land as uncommitted files. Never test publish flows in prod.
+`pnpm studio:reset` restores gallery paths (`src/content`,
+`public/models`) and deletes new studio outputs — nothing else is
+touched. The sidecar never ships; the static build and 4331 are
+unaffected, and with it stopped the client falls back to practice mode.
 
 ## Page scripts: plain JS discipline
 
@@ -73,6 +86,9 @@ something node can't load (move API-dependent helpers to `lib/api.ts`).
 - Dev practice: on localhost without a token, studio saves go to a
   localStorage overlay the dashboard merges — never git. A stored token
   means the commit, even on localhost. Live hosts never practice.
+  Exception: under `pnpm dev:studio` the local content API is the backend,
+  so saves write real working-tree files (still uncommitted) — no overlay,
+  no token needed.
 
 ## Taste (non-negotiable)
 

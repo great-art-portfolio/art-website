@@ -6,6 +6,8 @@
     "predev": "astro build",
     "dev": "wrangler pages dev dist --port 4331 --ip 127.0.0.1",
     "dev:astro": "astro dev",
+    "dev:studio": "node scripts/dev-studio.mjs",
+    "studio:reset": "node scripts/studio-reset.mjs",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",

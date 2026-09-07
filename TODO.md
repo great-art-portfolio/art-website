@@ -90,3 +90,10 @@ Push to main for CI; real upload test on barbart.ca/admin.
 - Admin nav has a Metrics link (`/admin#sec-collection`, where view counts
   live in the rows). Gates green: format, lint, astro check, typecheck,
   62 unit, check:inline, build, 95 e2e + 1 flaky-pass.
+
+## Studio dev loop (2026-09-07, uncommitted)
+
+- `pnpm dev:studio` (astro on :4332 + working-tree content API on :4333)
+  so publish flows are testable without prod; writes stay uncommitted,
+  `pnpm studio:reset` restores gallery paths. Verified live: banner POST
+  through the proxy rendered on the dev homepage, reset restored it.
