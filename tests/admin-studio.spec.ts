@@ -660,9 +660,14 @@ test("toast words fade in and out, even under reduced motion", async ({
   await page.locator("#practice-reset").click();
   const toast = page.locator("#admin-status");
   await expect(toast).toContainText("Practice changes cleared");
-  // Good news stays low.
-  const low = await toast.evaluate((el) => getComputedStyle(el).bottom);
-  expect(low).not.toBe("auto");
+  // All news rides high, under the sticky header — nothing hides low.
+  const high = await toast.evaluate((el) => {
+    const s = getComputedStyle(el);
+    return { position: s.position, top: Number.parseFloat(s.top) };
+  });
+  expect(high.position).toBe("fixed");
+  expect(high.top).toBeGreaterThan(60);
+  expect(high.top).toBeLessThan(200);
   // Opacity-only fade runs despite reduced motion.
   await expect(toast).toHaveClass(/toast-in/);
   const running = await toast.evaluate((el) => el.getAnimations().length);
@@ -673,7 +678,7 @@ test("toast words fade in and out, even under reduced motion", async ({
   await expect(toast).not.toBeEmpty();
   await page.clock.fastForward(1000);
   await expect(toast).toBeEmpty();
-  // Errors pin to the top, under the sticky header — good news stays low.
+  // Errors ride the same high line, tinted red.
   await toast.evaluate((el) => {
     el.textContent = "Nope.";
     el.dataset.tone = "error";
