@@ -4,10 +4,17 @@
  * sites added to the home screen. Unsupported browsers report as such.
  */
 
+import { pushConfigSchema } from "./schemas";
+
 export type PushState =
   "unsupported" | "denied" | "subscribed" | "unsubscribed";
 
-function b64ToU8(base64url: string): Uint8Array {
+/**
+ * Fresh decoded bytes always sit in their own ArrayBuffer (never shared),
+ * so the result qualifies as a BufferSource for PushManager — say so in
+ * the return type instead of casting at the call site.
+ */
+function b64ToU8(base64url: string): Uint8Array<ArrayBuffer> {
   const bin = atob(base64url.replace(/-/g, "+").replace(/_/g, "/"));
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i += 1) out[i] = bin.charCodeAt(i);
@@ -45,10 +52,9 @@ export type SubscribeResult = "subscribed" | "cancelled" | "blocked" | "failed";
 export async function subscribePush(): Promise<SubscribeResult> {
   if (!supported()) return "failed";
   try {
-    const config = (await (await fetch("/api/push")).json()) as {
-      publicKey: string;
-    };
-    if (config.publicKey === "") return "failed"; // Server keys not set up yet.
+    const raw = (await (await fetch("/api/push")).json()) as unknown;
+    const parsed = pushConfigSchema.safeParse(raw);
+    if (!parsed.success || parsed.data.publicKey === "") return "failed"; // Server keys not set up yet.
     const permission = await Notification.requestPermission();
     if (permission === "default") return "cancelled";
     if (permission !== "granted") return "blocked";
@@ -57,7 +63,7 @@ export async function subscribePush(): Promise<SubscribeResult> {
       (await reg.pushManager.getSubscription()) ??
       (await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: b64ToU8(config.publicKey).buffer as ArrayBuffer,
+        applicationServerKey: b64ToU8(parsed.data.publicKey),
       }));
     const res = await fetch("/api/push", {
       method: "POST",

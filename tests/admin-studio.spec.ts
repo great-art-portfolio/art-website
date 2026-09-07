@@ -338,7 +338,7 @@ test("dragging Available rows commits the new gallery order", async ({
   await page.route("**/api/commit*", async (route) => {
     if (route.request().method() === "POST") {
       posted = route.request().postDataJSON();
-      await route.fulfill({ json: { ok: true }, status: 201 });
+      await route.fulfill({ json: { ok: true, commit: "test" }, status: 201 });
     } else {
       await route.fallback();
     }

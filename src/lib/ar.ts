@@ -115,9 +115,15 @@ export async function buildArModels(
   scene.add(face);
 
   const gltf = new GLTFExporter();
-  const glbBuf = (await gltf.parseAsync(scene, {
+  const glbResult = await gltf.parseAsync(scene, {
     binary: true,
-  })) as ArrayBuffer;
+  });
+  // Binary export resolves an ArrayBuffer; anything else is a failed
+  // export, not a model — narrow instead of casting.
+  if (!(glbResult instanceof ArrayBuffer)) {
+    throw new Error("The 3D preview didn't build.");
+  }
+  const glbBuf = glbResult;
 
   const usdz = new USDZExporter();
   const anchor = {
@@ -135,14 +141,12 @@ export async function buildArModels(
   }
 
   scene.traverse((obj) => {
-    const mesh = obj as THREE.Mesh;
-    if (mesh.isMesh === true) {
-      mesh.geometry.dispose();
-      for (const m of Array.isArray(mesh.material)
-        ? mesh.material
-        : [mesh.material]) {
-        m.dispose();
-      }
+    if (!(obj instanceof THREE.Mesh)) return;
+    obj.geometry.dispose();
+    for (const m of Array.isArray(obj.material)
+      ? obj.material
+      : [obj.material]) {
+      m.dispose();
     }
   });
   texture.dispose();

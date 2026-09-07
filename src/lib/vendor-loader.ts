@@ -59,10 +59,10 @@ export function loadModelViewer(): Promise<void> {
   return loadScript(MODEL_VIEWER_URL, true);
 }
 
-/** Builder namespace off window.ArTooling (IIFE global). */
+/** Builder namespace off window.ArTooling (IIFE global, typed in client-globals). */
 export async function loadArTooling(): Promise<ArTooling> {
   await loadScript(AR_TOOLING_URL, false);
-  const api = (window as unknown as { ArTooling?: ArTooling }).ArTooling;
+  const api = window.ArTooling;
   if (api === undefined) throw new Error("The AR builder didn't start.");
   return api;
 }

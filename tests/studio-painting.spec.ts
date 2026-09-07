@@ -102,7 +102,7 @@ test("publishing a draft fires only the checked channels", async ({
   await page.route("**/api/commit*", async (route) => {
     const req = route.request();
     if (req.method() === "POST") {
-      await route.fulfill({ json: { ok: true }, status: 201 });
+      await route.fulfill({ json: { ok: true, commit: "test" }, status: 201 });
     } else if (req.method() === "GET" && req.url().includes("path=")) {
       await route.fulfill({ json: { content: draftMd } });
     } else {

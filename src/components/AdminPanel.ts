@@ -1,4 +1,11 @@
 import { api, ApiError, getApiToken, setApiToken } from "../lib/api";
+import { $, maybe, maybeButton } from "../lib/dom";
+import { errorMessage } from "../lib/errors";
+import {
+  parseBakedCollection,
+  parseBannerPreview,
+  type BakedRow,
+} from "../lib/schemas";
 import { studioRowHtml as rowHtml, viewsLabel } from "../lib/studio-rows";
 import {
   compareGalleryOrder,
@@ -23,12 +30,6 @@ import { paintingFilePaths } from "../lib/painting-edit";
  * back here. Protected in production by Cloudflare Access;
  * ADMIN_API_TOKEN is local backup.
  */
-
-const $ = <T extends HTMLElement = HTMLElement>(id: string): T => {
-  const el = document.getElementById(id);
-  if (el === null) throw new Error(`Missing #${id}`);
-  return el as T;
-};
 
 /** Toasts clear themselves after a few seconds — errors included, so a
  * stale complaint never sits over the page. Each new message restarts the
@@ -129,42 +130,35 @@ let localRows: LocalPainting[] | null = null;
 /** Built thumbnail URLs by repo file, parsed once from the baked-in list. */
 let thumbByMd: Record<string, string> | null = null;
 
-function seedLocalRows(raw: unknown): LocalPainting[] | null {
-  if (!Array.isArray(raw)) return null;
-  const str = (v: unknown): string => (typeof v === "string" ? v : "");
-  const num = (v: unknown): number | null =>
-    typeof v === "number" && Number.isInteger(v) ? v : null;
-  const dim = (v: unknown): string =>
-    typeof v === "number" && Number.isFinite(v) && v > 0 ? String(v) : "";
-  const clean: LocalPainting[] = [];
-  for (const r of raw) {
-    if (typeof r !== "object" || r === null) continue;
-    const row = r as Record<string, unknown>;
-    if (typeof row["slug"] !== "string" || typeof row["title"] !== "string")
-      continue;
-    if ((row["title"] as string) === "") continue;
-    clean.push({
-      slug: row["slug"] as string,
-      title: row["title"] as string,
-      price:
-        typeof row["price"] === "number"
-          ? (row["price"] as number)
-          : Number(row["price"]),
-      sold: row["sold"] === true,
-      draft: row["draft"] === true,
-      image: str(row["image"]),
-      alt: str(row["alt"]),
-      description: str(row["description"]),
-      widthIn: dim(row["widthIn"]),
-      heightIn: dim(row["heightIn"]),
-      depthIn: dim(row["depthIn"]),
-      medium: str(row["medium"]),
-      mdPath: str(row["mdPath"]),
+/**
+ * Normalize validated baked rows for the dashboard: dims arrive as numbers
+ * (or null) and edit as display strings. The input already passed the
+ * baked-collection schema, so this is total — no `unknown` checks, no
+ * casts, nothing silently skipped.
+ */
+function seedLocalRows(raw: BakedRow[]): LocalPainting[] {
+  const dim = (v: number | null): string =>
+    v !== null && Number.isFinite(v) && v > 0 ? String(v) : "";
+  return raw
+    .filter((r) => r.title !== "")
+    .map((r) => ({
+      slug: r.slug,
+      title: r.title,
+      price: r.price,
+      sold: r.sold,
+      draft: r.draft,
+      image: r.image,
+      alt: r.alt,
+      description: r.description,
+      widthIn: dim(r.widthIn),
+      heightIn: dim(r.heightIn),
+      depthIn: dim(r.depthIn),
+      // The baked list carries no medium (as before — it read absent).
+      medium: "",
+      mdPath: r.mdPath,
       views: 0,
-      order: num(row["order"]),
-    });
-  }
-  return clean;
+      order: r.order,
+    }));
 }
 
 /** Dev practice overlay over the baked list: deletes drop rows, upserts
@@ -205,15 +199,9 @@ function renderLocalCollection(): boolean {
   if (localRows === null) {
     const el = document.getElementById("local-collection");
     if (el === null) return false;
-    let rows: unknown;
-    try {
-      rows = JSON.parse(el.textContent ?? "") as unknown;
-    } catch {
-      return false;
-    }
-    const seeded = seedLocalRows(rows);
-    if (seeded === null) return false;
-    localRows = seeded;
+    const baked = parseBakedCollection(el.textContent ?? "");
+    if (baked === null) return false;
+    localRows = seedLocalRows(baked);
     // The static markup already shows these rows — record it so the first
     // render below doesn't swap identical HTML (photos would flicker).
     if (lastRowsKey === null) lastRowsKey = rowsKey(localRows);
@@ -225,7 +213,7 @@ function renderLocalCollection(): boolean {
   // itself is never touched — and only ever on a local preview, never
   // on the live site.
   reveal($("collection-dev"));
-  const reset = $("practice-reset") as HTMLButtonElement;
+  const reset = $("practice-reset");
   reset.hidden = practiceCount(overlay) === 0;
   if (reset.dataset.wired !== "1") {
     reset.dataset.wired = "1";
@@ -252,12 +240,9 @@ function seedRowsKey(): void {
   if (lastRowsKey !== null) return;
   const el = document.getElementById("local-collection");
   if (el === null) return;
-  try {
-    const seeded = seedLocalRows(JSON.parse(el.textContent ?? "") as unknown);
-    if (seeded !== null) lastRowsKey = rowsKey(seeded);
-  } catch {
-    // Unparseable — the API render below rebuilds unconditionally.
-  }
+  const baked = parseBakedCollection(el.textContent ?? "");
+  // Unparseable — the API render below rebuilds unconditionally.
+  if (baked !== null) lastRowsKey = rowsKey(seedLocalRows(baked));
 }
 
 /**
@@ -296,7 +281,7 @@ let lastRenderedRows: LocalPainting[] = [];
 
 function renderRows(rows: LocalPainting[]): void {
   const list = $("edit-list");
-  ($("collection-refresh") as HTMLButtonElement).hidden = true;
+  $("collection-refresh").hidden = true;
   lastRenderedRows = rows;
   // Delegated + idempotent: also joins the SSR first paint, where no
   // re-render happens (photos must not flicker).
@@ -510,7 +495,7 @@ async function persistOrder(
     await refreshCollection();
     setStatus("Gallery order saved — live in a few minutes.");
   } catch (err) {
-    setStatus((err as Error).message, true);
+    setStatus(errorMessage(err), true);
     await refreshCollection().catch(() => undefined);
   }
 }
@@ -553,17 +538,11 @@ async function deleteRow(
  */
 function wireRowDelete(): void {
   const list = $("edit-list");
-  const overlay = document.getElementById("row-confirm");
-  const body = document.getElementById("row-confirm-body");
-  const no = document.getElementById("row-confirm-no");
-  const yes = document.getElementById("row-confirm-yes");
-  if (
-    overlay === null ||
-    no === null ||
-    !(no instanceof HTMLButtonElement) ||
-    yes === null ||
-    !(yes instanceof HTMLButtonElement)
-  ) {
+  const overlay = maybe("row-confirm");
+  const body = maybe("row-confirm-body");
+  const no = maybeButton("row-confirm-no");
+  const yes = maybeButton("row-confirm-yes");
+  if (overlay === null || no === null || yes === null) {
     return;
   }
   if (list.dataset.delWired === "1") return;
@@ -660,7 +639,7 @@ function wireRowDelete(): void {
     void deleteRow(slug, title, md).catch((err: unknown) => {
       btn.disabled = false;
       btn.textContent = "Delete";
-      setStatus((err as Error).message, true);
+      setStatus(errorMessage(err), true);
     });
   });
 }
@@ -670,9 +649,9 @@ async function refreshCollection(): Promise<void> {
   let files: string[];
   try {
     files = (await api.listPaintingFiles()).filter((f) => f.endsWith(".md"));
-    ($("collection-refresh") as HTMLButtonElement).hidden = true;
+    $("collection-refresh").hidden = true;
   } catch (err) {
-    const retry = $("collection-refresh") as HTMLButtonElement;
+    const retry = $("collection-refresh");
     if (err instanceof ApiError && err.status === 401) {
       list.innerHTML =
         "<li>This needs your API token — enter it in Advanced below, then tap Retry.</li>";
@@ -706,25 +685,12 @@ async function refreshCollection(): Promise<void> {
   if (thumbByMd === null) {
     thumbByMd = {};
     const el = document.getElementById("local-collection");
-    if (el !== null) {
-      try {
-        const baked = JSON.parse(el.textContent ?? "") as unknown;
-        if (Array.isArray(baked)) {
-          for (const r of baked) {
-            if (
-              typeof r === "object" &&
-              r !== null &&
-              typeof (r as { mdPath?: unknown }).mdPath === "string" &&
-              typeof (r as { image?: unknown }).image === "string"
-            ) {
-              thumbByMd[(r as { mdPath: string }).mdPath] = (
-                r as { image: string }
-              ).image;
-            }
-          }
-        }
-      } catch {
-        // No thumbnails — rows still render with links and prices.
+    // No thumbnails — rows still render with links and prices.
+    const baked =
+      el === null ? null : parseBakedCollection(el.textContent ?? "");
+    if (baked !== null) {
+      for (const r of baked) {
+        thumbByMd[r.mdPath] = r.image;
       }
     }
   }
@@ -795,11 +761,10 @@ async function refreshCapabilities(): Promise<void> {
   const sw = "serviceWorker" in navigator ? "on" : "unavailable";
   let sync = "unavailable";
   try {
-    const reg = (await navigator.serviceWorker
-      .ready) as ServiceWorkerRegistration & {
-      sync?: unknown;
-    };
-    sync = reg.sync === undefined ? "unavailable" : "on";
+    const reg = await navigator.serviceWorker.ready;
+    // Background Sync rides an undocumented member — probe it with `in`,
+    // never a cast, so a missing API reads "unavailable", not a crash.
+    sync = "sync" in reg && reg.sync !== undefined ? "on" : "unavailable";
   } catch {
     // No service worker — offline mode unavailable.
   }
@@ -838,18 +803,12 @@ function loadBannerPreview(): { text: string; expires: string | null } | null {
   try {
     const raw = window.localStorage.getItem(BANNER_PREVIEW_KEY);
     if (raw === null) return null;
-    const parsed = JSON.parse(raw) as {
-      text?: unknown;
-      expires?: unknown;
-    };
-    if (typeof parsed.text !== "string" || parsed.text.trim() === "")
-      return null;
+    const preview = parseBannerPreview(JSON.parse(raw) as unknown);
+    if (preview === null || preview.text.trim() === "") return null;
+    const expires = preview.expires ?? null;
     return {
-      text: parsed.text.slice(0, 280),
-      expires:
-        typeof parsed.expires === "string" && parsed.expires !== ""
-          ? parsed.expires
-          : null,
+      text: preview.text.slice(0, 280),
+      expires: expires === "" ? null : expires,
     };
   } catch {
     return null;
@@ -897,8 +856,8 @@ function init(): void {
             preview !== null &&
             !bannerMod.isExpired(preview.expires, bannerMod.localToday())
           ) {
-            ($("f-announce") as HTMLInputElement).value = preview.text;
-            ($("f-duration") as unknown as HTMLSelectElement).value = "";
+            $("f-announce").value = preview.text;
+            $("f-duration").value = "";
             const meta = $("announce-meta");
             meta.textContent =
               "Preview kept in this browser — open the homepage to see it.";
@@ -907,7 +866,7 @@ function init(): void {
             return;
           }
         }
-        ($("f-announce") as HTMLInputElement).value = banner.text;
+        $("f-announce").value = banner.text;
         const meta = $("announce-meta");
         if (banner.text === "") {
           meta.textContent = "No banner showing right now.";
@@ -919,7 +878,7 @@ function init(): void {
         if (banner.expires === null) {
           meta.textContent = "Showing now, with no end date.";
           fadeIn(meta);
-          ($("f-duration") as unknown as HTMLSelectElement).value = "";
+          $("f-duration").value = "";
           return;
         }
         const left = bannerMod.daysLeft(banner.expires);
@@ -930,7 +889,7 @@ function init(): void {
         fadeIn(meta);
         // Preselect the lifetime closest to what's left, so saving
         // without touching the dropdown roughly keeps the end date.
-        const select = $("f-duration") as unknown as HTMLSelectElement;
+        const select = $("f-duration");
         let best = "";
         let bestGap = Number.POSITIVE_INFINITY;
         for (const opt of ["1", "3", "7", "14"]) {
@@ -951,7 +910,7 @@ function init(): void {
   // dev preview), with the same confirmation words. Updating refuses an
   // empty announcement — clearing is Remove's job, with its own words.
   $("announce-clear").addEventListener("click", () => {
-    ($("f-announce") as HTMLInputElement).value = "";
+    $("f-announce").value = "";
     saveBanner(true);
   });
 
@@ -960,16 +919,14 @@ function init(): void {
   });
 
   function saveBanner(allowEmpty: boolean): void {
-    const text = ($("f-announce") as HTMLInputElement).value
-      .trim()
-      .slice(0, 280);
+    const text = $("f-announce").value.trim().slice(0, 280);
     if (text === "" && !allowEmpty) {
       // A nudge, not news: gone quickly.
       setStatus("Write the announcement first — or Remove banner.", true, 3500);
-      ($("f-announce") as HTMLInputElement).focus();
+      $("f-announce").focus();
       return;
     }
-    const durationRaw = ($("f-duration") as unknown as HTMLSelectElement).value;
+    const durationRaw = $("f-duration").value;
     setStatus("Publishing banner… (live in a few minutes)");
     void import("../lib/banner").then((bannerMod) => {
       const days = durationRaw === "" ? null : Number(durationRaw);
@@ -1013,12 +970,12 @@ function init(): void {
             );
             return;
           }
-          setStatus((err as Error).message, true);
+          setStatus(errorMessage(err), true);
         });
     });
   }
 
-  const tokenInput = $("admin-token") as HTMLInputElement;
+  const tokenInput = $("admin-token");
   tokenInput.value = getApiToken();
   tokenInput.addEventListener("change", () => {
     setApiToken(tokenInput.value.trim());

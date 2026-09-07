@@ -91,7 +91,10 @@ async function request<T>(
     throw notJson(res.status);
   }
   if (!res.ok)
-    throw new ApiError(res.status, errorField(raw) ?? `Request failed (${res.status})`);
+    throw new ApiError(
+      res.status,
+      errorField(raw) ?? `Request failed (${res.status})`,
+    );
   const parsed = schema.safeParse(raw);
   if (!parsed.success) throw notJson(res.status);
   return parsed.data;
@@ -158,7 +161,7 @@ export const api = {
     }
   },
   async listPaintingFiles(): Promise<string[]> {
-    const data = await request<{ files: string[] }>("/api/commit", {
+    const data = await request("/api/commit", paintingFilesSchema, {
       method: "PUT",
       headers: adminHeaders(),
     });
@@ -181,7 +184,7 @@ export const api = {
             : await blobToBase64(f.blob),
       })),
     );
-    await request("/api/commit", {
+    await request("/api/commit", commitSchema, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...adminHeaders() },
       body: JSON.stringify({ message, files: encoded }),
@@ -192,7 +195,7 @@ export const api = {
    * Recoverable from repo history; the page vanishes on next rebuild.
    */
   async deleteFiles(message: string, paths: string[]): Promise<void> {
-    await request("/api/commit", {
+    await request("/api/commit", commitSchema, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...adminHeaders() },
       body: JSON.stringify({ message, files: [], delete: paths }),
@@ -205,7 +208,9 @@ export const api = {
     email: boolean;
     push: boolean;
   }> {
-    return await request("/api/status", { headers: adminHeaders() });
+    return await request("/api/status", statusSchema, {
+      headers: adminHeaders(),
+    });
   },
   /**
    * True only when the studio dev sidecar answers (working-tree backend).
@@ -219,8 +224,9 @@ export const api = {
         headers: adminHeaders(),
       });
       if (!res.ok) return false;
-      const data = (await res.json()) as { local?: unknown };
-      return data.local === true;
+      const raw = (await res.json()) as unknown;
+      const parsed = localBackendSchema.safeParse(raw);
+      return parsed.success && parsed.data.local === true;
     } catch {
       return false;
     }
@@ -230,10 +236,9 @@ export const api = {
     unconfigured: boolean;
   }> {
     try {
-      const data = await request<{
-        views: Array<{ slug: string; views: number }>;
-        unconfigured?: boolean;
-      }>("/api/analytics", { headers: adminHeaders() });
+      const data = await request("/api/analytics", viewsSchema, {
+        headers: adminHeaders(),
+      });
       return { views: data.views, unconfigured: data.unconfigured === true };
     } catch (err) {
       // 401 means the token is missing/wrong — the caller names that. Every
@@ -256,12 +261,7 @@ export const api = {
     emailed: boolean;
     emailTotal: number;
   }> {
-    const data = await request<{
-      sent: number;
-      total: number;
-      emailed: boolean;
-      emailTotal: number;
-    }>("/api/notify", {
+    const data = await request("/api/notify", notifySchema, {
       method: "POST",
       headers: { ...adminHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({

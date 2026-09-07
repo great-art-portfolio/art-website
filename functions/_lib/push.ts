@@ -1,4 +1,5 @@
 import type { AppEnv } from "./env";
+import { parseJwk } from "./validation";
 
 /**
  * Web Push, payload-free ("tickle") style. The server only pings the
@@ -29,8 +30,17 @@ function configured(env: AppEnv): boolean {
   );
 }
 
+function envJwk(raw: string | undefined): JsonWebKey | null {
+  try {
+    return parseJwk(JSON.parse(raw ?? "") as unknown);
+  } catch {
+    return null;
+  }
+}
+
 async function vapidHeader(env: AppEnv, endpoint: string): Promise<string> {
-  const jwk = JSON.parse(env.VAPID_PRIVATE_JWK as string) as JsonWebKey;
+  const jwk = envJwk(env.VAPID_PRIVATE_JWK);
+  if (jwk === null) throw new Error("Bad VAPID key");
   const key = await crypto.subtle.importKey(
     "jwk",
     jwk,
@@ -40,10 +50,8 @@ async function vapidHeader(env: AppEnv, endpoint: string): Promise<string> {
   );
   const aud = new URL(endpoint).origin;
   const exp = Math.floor(Date.now() / 1000) + 12 * 60 * 60;
-  const sub =
-    (env.VAPID_CONTACT ?? "").trim() === ""
-      ? "mailto:localhost"
-      : (env.VAPID_CONTACT as string);
+  const contact = (env.VAPID_CONTACT ?? "").trim();
+  const sub = contact === "" ? "mailto:localhost" : contact;
   const head = b64url(enc.encode(JSON.stringify({ typ: "JWT", alg: "ES256" })));
   const body = b64url(enc.encode(JSON.stringify({ aud, exp, sub })));
   const sig = await crypto.subtle.sign(

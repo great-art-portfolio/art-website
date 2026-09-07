@@ -10,6 +10,8 @@
  * ever talks to our own admin endpoint behind Cloudflare Access.
  */
 
+import { parseGitHubDir, parseGitHubFile } from "./validation";
+
 export interface GitHubConfig {
   token: string;
   repo: string; // "owner/name"
@@ -65,10 +67,12 @@ export async function readTextFile(
   config: GitHubConfig,
   path: string,
 ): Promise<string | null> {
-  const data = (await gh(
-    config,
-    `/repos/${config.repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(config.branch)}`,
-  )) as { content?: string; encoding?: string } | null;
+  const data = parseGitHubFile(
+    await gh(
+      config,
+      `/repos/${config.repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(config.branch)}`,
+    ),
+  );
   if (data === null || data.content === undefined || data.encoding !== "base64")
     return null;
   const bin = atob(data.content.replace(/\n/g, ""));
@@ -81,10 +85,12 @@ export async function readBinaryFile(
   config: GitHubConfig,
   path: string,
 ): Promise<Uint8Array | null> {
-  const data = (await gh(
-    config,
-    `/repos/${config.repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(config.branch)}`,
-  )) as { content?: string; encoding?: string } | null;
+  const data = parseGitHubFile(
+    await gh(
+      config,
+      `/repos/${config.repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(config.branch)}`,
+    ),
+  );
   if (data === null || data.content === undefined || data.encoding !== "base64")
     return null;
   const bin = atob(data.content.replace(/\n/g, ""));
@@ -96,11 +102,12 @@ export async function listDir(
   config: GitHubConfig,
   path: string,
 ): Promise<string[]> {
-  const data = (await gh(
-    config,
-    `/repos/${config.repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(config.branch)}`,
-  )) as Array<{ name?: string }> | { message?: string } | null;
-  if (data === null || !Array.isArray(data)) return [];
+  const data = parseGitHubDir(
+    await gh(
+      config,
+      `/repos/${config.repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(config.branch)}`,
+    ),
+  );
   return data.map((e) => e.name ?? "").filter((n) => n !== "");
 }
 

@@ -34,7 +34,8 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
     );
     if (bytes === null) return badRequest("Unknown photo");
     const ext = (path.split(".").pop() ?? "jpg").toLowerCase();
-    return new Response(bytes.buffer as ArrayBuffer, {
+    // Copy into an exact-length ArrayBuffer body — no cast, no shared tail.
+    return new Response(bytes.slice().buffer, {
       headers: { "Content-Type": IMAGE_TYPE[ext] ?? "image/jpeg" },
     });
   } catch (err) {

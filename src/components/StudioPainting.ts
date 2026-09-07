@@ -23,20 +23,13 @@ import {
   type ParsedPainting,
 } from "../lib/painting-edit";
 import { loadArTooling, loadModelViewer } from "../lib/vendor-loader";
+import { $, maybe, maybeButton, studioMode } from "../lib/dom";
+import { errorMessage } from "../lib/errors";
 import {
   practiceDelete,
   practiceUpsert,
   type PracticePainting,
 } from "../lib/practice";
-
-const $ = <T extends HTMLElement = HTMLElement>(id: string): T => {
-  const el = document.getElementById(id);
-  if (el === null) throw new Error(`Missing #${id}`);
-  return el as T;
-};
-
-const maybe = <T extends HTMLElement = HTMLElement>(id: string): T | null =>
-  document.getElementById(id) as T | null;
 
 /**
  * Studio toasts clear themselves — errors included. Words fade in on
@@ -111,9 +104,9 @@ function readDims(): {
   depthIn: number | null;
 } {
   return {
-    widthIn: numOrNull(($("de-w") as HTMLInputElement).value),
-    heightIn: numOrNull(($("de-h") as HTMLInputElement).value),
-    depthIn: numOrNull(($("de-d") as HTMLInputElement).value),
+    widthIn: numOrNull($("de-w").value),
+    heightIn: numOrNull($("de-h").value),
+    depthIn: numOrNull($("de-d").value),
   };
 }
 
@@ -125,24 +118,22 @@ function modelSig(): string | null {
 
 /** Live buyer preview while she types: title, price, measurements, words. */
 function refreshPreview(): void {
-  const title = ($("de-title") as HTMLInputElement).value.trim();
-  const priceRaw = ($("de-price") as HTMLInputElement).value.trim();
-  ($("pv-title") as HTMLElement).textContent =
-    title === "" ? "Untitled" : title;
+  const title = $("de-title").value.trim();
+  const priceRaw = $("de-price").value.trim();
+  $("pv-title").textContent = title === "" ? "Untitled" : title;
   const cents = dollarsToCents(Number(priceRaw));
-  ($("pv-price") as HTMLElement).textContent =
-    cents === null ? "Price?" : formatCAD(cents);
+  $("pv-price").textContent = cents === null ? "Price?" : formatCAD(cents);
   const { widthIn, heightIn, depthIn } = readDims();
-  const medium = ($("de-medium") as HTMLInputElement).value.trim();
+  const medium = $("de-medium").value.trim();
   const meta = [
     medium === "" ? undefined : medium,
     formatDimensions(widthIn, heightIn, depthIn),
   ]
     .filter((s) => s !== undefined && s !== "")
     .join(" · ");
-  ($("pv-meta") as HTMLElement).textContent = meta;
-  const raw = ($("de-desc") as HTMLTextAreaElement).value;
-  ($("pv-desc") as HTMLElement).innerHTML = raw
+  $("pv-meta").textContent = meta;
+  const raw = $("de-desc").value;
+  $("pv-desc").innerHTML = raw
     .split(/\n\s*\n/)
     .map((para) => para.trim())
     .filter((para) => para !== "")
@@ -150,11 +141,9 @@ function refreshPreview(): void {
     .join("");
   // Alt text never shows on the page, but the preview photos wear it live
   // so what a screen reader announces matches what buyers will hear.
-  const altText = ($("de-alt") as HTMLInputElement).value.trim();
+  const altText = $("de-alt").value.trim();
   const liveAlt =
-    altText === ""
-      ? (($("pv-title") as HTMLElement).textContent ?? "Painting")
-      : altText;
+    altText === "" ? ($("pv-title").textContent ?? "Painting") : altText;
   for (const sel of ["#de-photo-preview", "#photo-wrap img"]) {
     const img = document.querySelector<HTMLImageElement>(sel);
     if (img !== null) img.alt = liveAlt;
@@ -172,12 +161,12 @@ function showPhoto(
   height: number,
   bytes: number,
 ): void {
-  const draftImg = maybe<HTMLImageElement>("de-photo-preview");
+  const draftImg = maybe("de-photo-preview");
   if (draftImg !== null) {
     draftImg.src = url;
     draftImg.hidden = false;
-    ($("de-photo-empty") as HTMLElement).hidden = true;
-    ($("de-photo-tools") as HTMLElement).hidden = false;
+    $("de-photo-empty").hidden = true;
+    $("de-photo-tools").hidden = false;
   }
   const frameImg = document.querySelector<HTMLImageElement>("#photo-wrap img");
   if (frameImg !== null) {
@@ -277,11 +266,10 @@ function showArViewer(glbUrl: string, usdzUrl: string): void {
   void loadModelViewer()
     .then(() => {
       if (!document.contains(stage)) return;
-      const title = ($("de-title") as HTMLInputElement).value.trim();
-      const alt = ($("de-alt") as HTMLInputElement).value.trim();
-      const el = document.createElement(
-        "model-viewer",
-      ) as unknown as HTMLElement;
+      const title = $("de-title").value.trim();
+      const alt = $("de-alt").value.trim();
+      // Typed via HTMLElementTagNameMap in client-globals — no cast.
+      const el = document.createElement("model-viewer");
       el.setAttribute("src", glbUrl);
       el.setAttribute("ios-src", usdzUrl);
       el.setAttribute("ar", "");
@@ -325,8 +313,8 @@ function goAdmin(flash: string): void {
  * in the confirmation instead of failing the publish.
  */
 async function publishAlerts(): Promise<string> {
-  const push = maybe<HTMLInputElement>("de-notify-push")?.checked ?? false;
-  const email = maybe<HTMLInputElement>("de-notify-email")?.checked ?? false;
+  const push = maybe("de-notify-push")?.checked ?? false;
+  const email = maybe("de-notify-email")?.checked ?? false;
   if (!push && !email) return "";
   try {
     const r = await api.notifyCollectors({ push, email });
@@ -343,7 +331,7 @@ async function publishAlerts(): Promise<string> {
     }
     return ` ${bits.join(" ")}`;
   } catch (err) {
-    return ` Couldn't send the alerts: ${(err as Error).message}`;
+    return ` Couldn't send the alerts: ${errorMessage(err)}`;
   }
 }
 
@@ -360,8 +348,8 @@ interface FieldSet {
 }
 
 function readFields(): FieldSet | null {
-  const title = ($("de-title") as HTMLInputElement).value.trim();
-  const price = Number(($("de-price") as HTMLInputElement).value);
+  const title = $("de-title").value.trim();
+  const price = Number($("de-price").value);
   if (title === "" || !(Number.isFinite(price) && price > 0)) {
     setStatus("Title and a valid price are required.", true);
     return null;
@@ -369,11 +357,11 @@ function readFields(): FieldSet | null {
   return {
     title,
     price,
-    alt: ($("de-alt") as HTMLInputElement).value.trim(),
-    description: ($("de-desc") as HTMLTextAreaElement).value.trim(),
-    medium: ($("de-medium") as HTMLInputElement).value.trim(),
+    alt: $("de-alt").value.trim(),
+    description: $("de-desc").value.trim(),
+    medium: $("de-medium").value.trim(),
     ...readDims(),
-    sold: ($("de-sold") as HTMLInputElement).checked,
+    sold: $("de-sold").checked,
   };
 }
 
@@ -489,7 +477,7 @@ async function saveNew(draft: boolean): Promise<void> {
         : `Published "${fields.title}" (${formatCAD(priceCents)}) — live in a few minutes.${alerts}`,
     );
   } catch (err) {
-    setStatus((err as Error).message, true);
+    setStatus(errorMessage(err), true);
   }
 }
 
@@ -632,7 +620,7 @@ async function saveEdit(
     buzz();
     goAdmin(`Saved "${fields.title}" — live in a few minutes.`);
   } catch (err) {
-    setStatus((err as Error).message, true);
+    setStatus(errorMessage(err), true);
   }
 }
 
@@ -646,11 +634,12 @@ function wireDelete(
   getTitle: () => string,
   doDelete: () => Promise<void>,
 ): void {
-  const btn = maybe<HTMLButtonElement>(btnId);
+  // Dynamic id (a parameter, not a literal) — narrow by tag, never a cast.
+  const btn = maybeButton(btnId);
   const overlay = maybe("de-confirm");
   const body = maybe("de-confirm-body");
-  const no = maybe<HTMLButtonElement>("de-confirm-no");
-  const yes = maybe<HTMLButtonElement>("de-confirm-yes");
+  const no = maybe("de-confirm-no");
+  const yes = maybe("de-confirm-yes");
   if (btn === null || overlay === null || no === null || yes === null) return;
   let timer: number | null = null;
 
@@ -713,7 +702,7 @@ function wireDelete(
     setStatus(`Deleting "${getTitle()}"… (gone in a few minutes)`);
     void doDelete().catch((err: unknown) => {
       btn.disabled = false;
-      setStatus((err as Error).message, true);
+      setStatus(errorMessage(err), true);
     });
   });
 }
@@ -721,8 +710,10 @@ function wireDelete(
 function initStudio(): void {
   const main = document.getElementById("main");
   if (main === null) return;
-  const mode = main.dataset.mode ?? "";
-  if (mode !== "edit" && mode !== "draft") return;
+  // data-mode is "buy" | "edit" | "draft" in markup — the helper narrows
+  // to the studio rooms, so a renamed mode fails here, not downstream.
+  const mode = studioMode(main);
+  if (mode === null) return;
   const key = `${mode}|${main.dataset.slug ?? ""}|${main.dataset.mdPath ?? ""}`;
   if (main.dataset.studioWired === key) return;
   main.dataset.studioWired = key;
@@ -754,7 +745,7 @@ function initStudio(): void {
     });
   }
 
-  const draftInput = maybe<HTMLInputElement>("de-photo");
+  const draftInput = maybe("de-photo");
   draftInput?.addEventListener("change", () => {
     const file = draftInput.files?.[0];
     if (file === undefined) return;
@@ -762,12 +753,16 @@ function initStudio(): void {
     loadImageFile(file)
       .then((img) => ingestPhoto(img))
       .catch((err: unknown) =>
-        setStatus(`${(err as Error).message}.${heicHint(file)}`, true),
+        setStatus(`${errorMessage(err)}.${heicHint(file)}`, true),
       );
   });
   for (const deg of [90, 270] as const) {
     maybe(`de-rotate-${deg}`)?.addEventListener("click", () => {
-      rotation = ((rotation + deg) % 360) as 0 | 90 | 180 | 270;
+      // Quarter turns from a quarter turn stay quarter turns — enumerate
+      // instead of casting, so a new rotation step is a compiler error
+      // here rather than a tilted preview.
+      const next = (rotation + deg) % 360;
+      rotation = next === 0 ? 0 : next === 90 ? 90 : next === 180 ? 180 : 270;
       if (loadedImage === null) return;
       prepareImage(loadedImage, rotation)
         .then(async (prepared) => {
@@ -785,7 +780,7 @@ function initStudio(): void {
           );
           await autoBuildAr();
         })
-        .catch((err: unknown) => setStatus((err as Error).message, true));
+        .catch((err: unknown) => setStatus(errorMessage(err), true));
     });
   }
 
@@ -796,7 +791,7 @@ function initStudio(): void {
       ["pv-price", "de-price", "price"],
     ] as const) {
       const pv = maybe(pvId);
-      const field = maybe<HTMLInputElement>(fieldId);
+      const field = maybe(fieldId);
       if (pv === null || field === null) continue;
       pv.tabIndex = 0;
       pv.title = `Edit the ${name} below`;
@@ -817,8 +812,8 @@ function initStudio(): void {
   const slug = main.dataset.slug ?? "";
   const mdPath = main.dataset.mdPath ?? "";
   const draft = (main.dataset.draft ?? "") === "1";
-  const replaceBtn = maybe<HTMLButtonElement>("de-replace");
-  const replaceFile = maybe<HTMLInputElement>("de-replace-file");
+  const replaceBtn = maybe("de-replace");
+  const replaceFile = maybe("de-replace-file");
   replaceBtn?.addEventListener("click", () => replaceFile?.click());
   replaceFile?.addEventListener("change", () => {
     const file = replaceFile.files?.[0];
@@ -827,7 +822,7 @@ function initStudio(): void {
     loadImageFile(file)
       .then((img) => ingestPhoto(img))
       .catch((err: unknown) =>
-        setStatus(`${(err as Error).message}.${heicHint(file)}`, true),
+        setStatus(`${errorMessage(err)}.${heicHint(file)}`, true),
       );
   });
 
@@ -837,8 +832,9 @@ function initStudio(): void {
   void basePromise.then((base) => {
     if (base === null && !isLocalPreview()) {
       setStatus("Couldn't load this painting's file.", true);
-      for (const id of ["de-save", "de-visibility", "de-del"]) {
-        const b = maybe<HTMLButtonElement>(id);
+      // Literals, not strings: maybe() resolves each to HTMLButtonElement.
+      for (const id of ["de-save", "de-visibility", "de-del"] as const) {
+        const b = maybe(id);
         if (b !== null) b.disabled = true;
       }
     }
@@ -881,12 +877,12 @@ function initStudio(): void {
                 : `Unpublished "${fields.title}" — off the site in a few minutes.`,
             );
           })
-          .catch((err: unknown) => setStatus((err as Error).message, true));
+          .catch((err: unknown) => setStatus(errorMessage(err), true));
       }),
   );
   wireDelete(
     "de-del",
-    () => ($("de-title") as HTMLInputElement).value.trim(),
+    () => $("de-title").value.trim(),
     async () => {
       if (await useOverlayMode()) {
         practiceDelete(slug);

@@ -6,6 +6,7 @@ import {
 } from "../_lib/github";
 import type { AppEnv } from "../_lib/env";
 import { badRequest, json, requireAdmin, serverError } from "../_lib/http";
+import { parseCommitBody } from "../_lib/validation";
 
 /** Repo path of the homepage banner (empty file = hidden). */
 export const BANNER_PATH = "src/content/announcement.txt";
@@ -44,11 +45,6 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
   }
 };
 
-interface CommitFileInput {
-  path?: unknown;
-  contentBase64?: unknown;
-}
-
 /** Repo paths the admin endpoint may write or delete. */
 const GALLERY_PATH =
   /^(src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9_.-]*|src\/content\/announcement\.txt|public\/models\/[A-Za-z0-9][A-Za-z0-9_.-]*)$/;
@@ -64,22 +60,18 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   if (denied !== null) return denied;
   const config = gitConfig(context.env);
   if (config === null) return badRequest("GitHub publishing is not configured");
-  let body: Record<string, unknown>;
+  let raw: unknown;
   try {
-    body = (await context.request.json()) as Record<string, unknown>;
+    raw = (await context.request.json()) as unknown;
   } catch {
     return badRequest("Invalid JSON");
   }
-  const message =
-    typeof body["message"] === "string"
-      ? body["message"].trim().slice(0, 200)
-      : "";
-  const inputs = Array.isArray(body["files"])
-    ? (body["files"] as CommitFileInput[])
-    : [];
-  const deletes = Array.isArray(body["delete"]) ? body["delete"] : [];
+  const body = parseCommitBody(raw);
+  if (body === null) return badRequest("Invalid JSON");
+  const message = body.message.trim().slice(0, 200);
+  const inputs = body.inputs;
   const deletePaths: string[] = [];
-  for (const d of deletes) {
+  for (const d of body.deletes) {
     if (typeof d !== "string" || !GALLERY_PATH.test(d)) {
       return badRequest(`Refusing to delete outside the gallery: ${String(d)}`);
     }
@@ -114,7 +106,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       const bin = atob(input.contentBase64);
       const bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
-      files.push({ path: input.path, content: bytes.buffer as ArrayBuffer });
+      files.push({ path: input.path, content: bytes.buffer });
     } catch {
       return badRequest(`${input.path} is not valid base64`);
     }
