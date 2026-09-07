@@ -72,11 +72,14 @@ test("without JS the inquiry form stays open (progressive enhancement)", async (
   await context.close();
 });
 
-test("homepage renders the notify card and hides the empty banner", async ({
+test("homepage keeps signup in a modal and hides the empty banner", async ({
   page,
 }) => {
   await page.goto("/");
-  await expect(page.locator("#notify-card")).toBeAttached();
+  // The signup lives in a closed modal, not a page section.
+  await expect(page.locator("#notify-dialog")).toBeAttached();
+  await expect(page.locator("#notify-dialog")).toBeHidden();
+  await expect(page.locator("#notify-card")).toHaveCount(0);
   await expect(page.locator(".announce")).toHaveCount(0);
 });
 
@@ -94,22 +97,31 @@ test("pages fade in on swap, even under reduced motion", async ({ page }) => {
   expect(running).toBeGreaterThanOrEqual(1);
 });
 
-test("notify button scrolls to the working signup card", async ({ page }) => {
+test("notify buttons open the signup modal", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator("#notify-hero")).toHaveAttribute(
-    "href",
-    "#notify-card",
-  );
-  await page.locator("#notify-hero").click();
-  await expect(page).toHaveURL(/#notify-card/);
-  // The signup card itself answers (headless denies notification
-  // permission, so the button wears its blocked state here).
-  await expect(page.locator("#notify-card")).toBeVisible();
-  await expect(page.locator("#notify-btn")).toBeAttached();
+  // Nav and hero open a modal — the page never scrolls anywhere.
+  for (const opener of ["#notify-nav", "#notify-hero"]) {
+    await page.locator(opener).click();
+    await expect(page.locator("#notify-dialog")).toBeVisible();
+    // The signup itself answers (headless denies notification
+    // permission, so the button wears its blocked state here).
+    await expect(page.locator("#notify-btn")).toBeAttached();
+    await expect(page).not.toHaveURL(/#notify-card/);
+    await page.locator("#notify-close").click();
+    await expect(page.locator("#notify-dialog")).toBeHidden();
+  }
+  // The same modal answers from a painting page — the nav owns it
+  // everywhere, not just at home.
+  await page.goto("/paintings/night-reeds");
+  await page.locator("#notify-nav").click();
+  await expect(page.locator("#notify-dialog")).toBeVisible();
+  await expect(page.locator("#notify-email-form")).toBeVisible();
 });
 
 test("email capture form joins the list", async ({ page }) => {
   await page.goto("/");
+  await page.locator("#notify-nav").click();
+  await expect(page.locator("#notify-dialog")).toBeVisible();
   // The email channel shows in every browser — no push needed.
   await expect(page.locator("#notify-email-form")).toBeVisible();
   await page.locator("#notify-email").fill("e2e-fan@example.com");

@@ -122,6 +122,42 @@ test("active banner shows above the collection", async ({ page }) => {
   expect(bannerBox?.y ?? 0).toBeLessThan(collectionBox?.y ?? 0);
 });
 
+test("dev without a backend keeps a banner preview for this browser", async ({
+  page,
+}) => {
+  await page.route("**/api/commit*", async (route) => {
+    if (route.request().method() === "POST") {
+      await route.fulfill({
+        json: { error: "GitHub publishing is not configured" },
+        status: 400,
+      });
+    } else {
+      await route.fulfill({ json: { announcement: "" } });
+    }
+  });
+  await page.route("**/api/status", async (route) => {
+    await route.fulfill({ json: flags });
+  });
+
+  await page.goto("/admin");
+  await expect(page.locator("#announce-meta")).toContainText("No banner", {
+    timeout: 15_000,
+  });
+  await page.locator("#f-announce").fill("Preview market Saturday!");
+  await page.locator("#announce-save").click();
+  // No backend here, so the wording stays in this browser — and the
+  // homepage shows it above the collection, like the real banner.
+  await expect(page.locator("#admin-status")).toContainText("preview kept");
+  await page.goto("/");
+  await expect(page.locator(".announce")).toHaveText(
+    "Preview market Saturday!",
+  );
+  const bannerBox = await page.locator(".announce").boundingBox();
+  const collectionBox = await page.locator("#collection").boundingBox();
+  expect(bannerBox !== null && collectionBox !== null).toBe(true);
+  expect(bannerBox?.y ?? 0).toBeLessThan(collectionBox?.y ?? 0);
+});
+
 test("forgotten banner hides itself past its end date", async ({ page }) => {
   await page.route("http://127.0.0.1:4331/", async (route) => {
     const res = await route.fetch();

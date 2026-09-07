@@ -90,8 +90,14 @@ async function mockCommitApi(page: Page): Promise<void> {
 test("studio header links home, never to visitor funnels", async ({ page }) => {
   await mockCommitApi(page);
   await page.goto("/admin");
-  // ← Leave Admin, Add painting. Leave doubles as logout (clears the token).
-  await expect(page.locator(".site-nav .nav-links a")).toHaveCount(2);
+  // ← Leave Admin, Metrics, Add painting. Leave doubles as logout (clears
+  // the token); Metrics jumps to the collection rows with their view counts.
+  await expect(page.locator(".site-nav .nav-links a")).toHaveCount(3);
+  await expect(page.locator("#nav-metrics")).toHaveText("Metrics");
+  await expect(page.locator("#nav-metrics")).toHaveAttribute(
+    "href",
+    "/admin#sec-collection",
+  );
   await expect(
     page.locator('nav a.nav-cta[href="/admin/paintings/new"]'),
   ).toHaveText("Add painting");

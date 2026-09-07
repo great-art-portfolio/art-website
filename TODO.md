@@ -76,3 +76,17 @@ Single focus ring; accent collection link; 32rem rows; Advanced spacing;
 ## Still human-gated
 
 Push to main for CI; real upload test on barbart.ca/admin.
+
+## Follow-ups (2026-09-07, uncommitted)
+
+- Banner preview in dev: saving without a backend keeps the wording in
+  `studio-banner-preview-v1` (this browser) and the homepage renders it
+  above the collection. A stored token still means the real commit.
+- Edit-room photo replace drops `srcset`/`sizes` before the blob swap, so
+  the frame shows the new upload (was: stale srcset candidate on screen).
+- Collector signup is a modal (`#notify-dialog` in Layout, opened from nav
+  - hero) — the about section is text only. Specs updated (scroll
+    assertions became modal assertions).
+- Admin nav has a Metrics link (`/admin#sec-collection`, where view counts
+  live in the rows). Gates green: format, lint, astro check, typecheck,
+  62 unit, check:inline, build, 95 e2e + 1 flaky-pass.

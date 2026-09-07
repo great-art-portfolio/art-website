@@ -242,3 +242,21 @@ test("delete asks in a modal, never on one tap", async ({ page }) => {
   await expect(yes).toBeEnabled({ timeout: 8000 });
   await expect(yes).toHaveText("Delete");
 });
+
+test("edit room replace swaps the framed photo", async ({ page }) => {
+  await page.goto("/admin/paintings/first-thaw");
+  await expect(page.locator("#main")).toHaveAttribute(
+    "data-studio-wired",
+    /edit/,
+  );
+  const frame = page.locator("#photo-wrap img");
+  const before = await frame.getAttribute("src");
+  expect(before === null || !before.startsWith("blob:")).toBe(true);
+  await page
+    .locator("#de-replace-file")
+    .setInputFiles("src/content/paintings/2122x2118.jpg");
+  // The frame shows the new upload (blob) — a bare src swap would leave
+  // the old srcset candidate on screen, so both go.
+  await expect(frame).toHaveAttribute("src", /^blob:/);
+  await expect(frame).not.toHaveAttribute("srcset", /./);
+});

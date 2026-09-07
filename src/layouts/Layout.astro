@@ -100,6 +100,9 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
                 <a href="/" class="keep" id="leave-admin">
                   ← Leave Admin
                 </a>
+                <a href="/admin#sec-collection" id="nav-metrics">
+                  Metrics
+                </a>
                 <a href="/admin/paintings/new" class="nav-cta">
                   Add painting
                 </a>
@@ -108,9 +111,9 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
               <>
                 <a href="/#collection">Collection</a>
                 <a href="/#about">About</a>
-                <a href="/#notify-card" class="nav-cta">
+                <button type="button" id="notify-nav" class="nav-cta">
                   Notify me
-                </a>
+                </button>
               </>
             )
           }
@@ -141,6 +144,58 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
       </p>
       <p class="footer-sub">© {year} {artistLabel}</p>
     </footer>
+
+    {
+      wordmark === "signature" && (
+        <dialog
+          id="notify-dialog"
+          aria-labelledby="notify-dialog-title"
+          closedby="any"
+        >
+          <form method="dialog" class="notify-close-row">
+            <button
+              type="submit"
+              id="notify-close"
+              aria-label="Close notifications"
+            >
+              ×
+            </button>
+          </form>
+          <h3 id="notify-dialog-title">Never miss a new painting</h3>
+          <p id="notify-push-blurb">
+            One tap — your browser tells you when something new is hung.
+          </p>
+          <button type="button" id="notify-btn" class="btn-primary">
+            Notify me
+          </button>
+          <p class="hint" id="notify-hint" />
+          <div class="email-capture">
+            <p>
+              Prefer email? One email per new painting, nothing else, and your
+              address is never shared. Unsubscribe any time with one click.
+            </p>
+            <form id="notify-email-form">
+              <label>
+                Email address
+                <input
+                  type="email"
+                  id="notify-email"
+                  name="email"
+                  required
+                  maxlength="254"
+                  autocomplete="email"
+                  placeholder="you@example.com"
+                />
+              </label>
+              <button type="submit" class="btn-ghost">
+                Join the list
+              </button>
+            </form>
+            <p class="hint" id="notify-email-hint" role="status" />
+          </div>
+        </dialog>
+      )
+    }
 
     <script>
       // Offline support: cached gallery shell + artwork, queued posts.
@@ -178,6 +233,206 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
         t.hidden = true;
         ask.prompt();
       });
+    </script>
+
+    <script>
+      // Collector signup lives in a modal, not a page section: the nav
+      // "Notify me" and hero buttons open it wherever they appear. No
+      // static imports — inline page scripts ship as classic scripts, so
+      // `import` kills the whole block; dynamic import() is bundled fine.
+      // View Transitions keep this module alive across navigations (it
+      // runs once per document), so elements are read live on every use
+      // and wiring runs immediately AND on astro:page-load, guarded so a
+      // double-fire on the same DOM wires nothing twice.
+      // (Inline scripts are plain JS — annotations don't survive astro
+      // check, so this stays annotation-free on purpose.)
+      function notifyPush() {
+        return import("../lib/push");
+      }
+
+      // Status words fade in and out under every motion setting. A counter
+      // on the element drops a late fade-out when a newer message lands.
+      function notifySay(el = document.body, msg = "") {
+        const n = Number(el.dataset.say ?? "0") + 1;
+        el.dataset.say = String(n);
+        el.textContent = msg;
+        if (typeof el.animate === "function") {
+          el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
+        }
+      }
+      function notifyUnsay(el = document.body) {
+        const n = Number(el.dataset.say ?? "0") + 1;
+        el.dataset.say = String(n);
+        if (el.textContent === "" || typeof el.animate !== "function") {
+          el.textContent = "";
+          return;
+        }
+        const out = el.animate([{ opacity: 1 }, { opacity: 0 }], {
+          duration: 150,
+        });
+        out.onfinish = () => {
+          if (el.dataset.say === String(n)) el.textContent = "";
+        };
+      }
+
+      function openNotify() {
+        const dlgEl = document.getElementById("notify-dialog");
+        const dlg = dlgEl instanceof HTMLDialogElement ? dlgEl : null;
+        if (dlg === null) return;
+        if (!dlg.open) {
+          if (typeof dlg.showModal === "function") dlg.showModal();
+          else dlg.setAttribute("open", "");
+        }
+        const closeEl = document.getElementById("notify-close");
+        const closeBtn = closeEl instanceof HTMLButtonElement ? closeEl : null;
+        if (closeBtn !== null) closeBtn.focus();
+      }
+
+      // Email capture needs no browser features — wire it once, always on.
+      function wireNotifyEmail() {
+        const formEl = document.getElementById("notify-email-form");
+        const form = formEl instanceof HTMLFormElement ? formEl : null;
+        const inputEl = document.getElementById("notify-email");
+        const input = inputEl instanceof HTMLInputElement ? inputEl : null;
+        const hint = document.getElementById("notify-email-hint");
+        if (form === null || input === null || hint === null) return;
+        if (form.dataset.wired === "1") return;
+        form.dataset.wired = "1";
+        form.addEventListener("submit", (e) => {
+          e.preventDefault();
+          const email = input.value.trim();
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            notifySay(
+              hint,
+              "That email doesn't look right — check it and try again.",
+            );
+            input.focus();
+            return;
+          }
+          notifySay(hint, "Joining…");
+          fetch("/api/collectors", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email }),
+          })
+            .then((res) => {
+              if (res.ok) {
+                notifySay(
+                  hint,
+                  "You're on the list — one email per new painting.",
+                );
+                input.value = "";
+              } else if (res.status === 400) {
+                notifySay(
+                  hint,
+                  "That email doesn't look right — check it and try again.",
+                );
+              } else {
+                notifySay(hint, "That didn't work — try again in a bit.");
+              }
+            })
+            .catch(() => {
+              notifySay(hint, "That didn't work — try again in a bit.");
+            });
+        });
+      }
+
+      function paintNotify() {
+        const btnEl = document.getElementById("notify-btn");
+        const btn = btnEl instanceof HTMLButtonElement ? btnEl : null;
+        const hint = document.getElementById("notify-hint");
+        const blurb = document.getElementById("notify-push-blurb");
+        if (btn === null || hint === null) return;
+        wireNotifyEmail();
+        // Email works for everyone; the push button only appears where
+        // push can work.
+        const state = notifyPush().then((api) => api.pushState());
+        state.then((s) => {
+          if (s === "unsupported") {
+            btn.hidden = true;
+            if (blurb !== null) blurb.hidden = true;
+            return;
+          }
+          if (s === "subscribed") {
+            btn.textContent = "You're on the list — turn off";
+            notifyUnsay(hint);
+          } else if (s === "denied") {
+            btn.textContent = "Notifications blocked";
+            btn.disabled = true;
+            notifySay(
+              hint,
+              "You blocked notifications for this site in your browser settings.",
+            );
+          } else {
+            btn.textContent = "Notify me";
+            btn.disabled = false;
+            notifyUnsay(hint);
+          }
+        });
+      }
+
+      function initNotify() {
+        const navEl = document.getElementById("notify-nav");
+        const nav = navEl instanceof HTMLButtonElement ? navEl : null;
+        if (nav !== null && nav.dataset.wired !== "1") {
+          nav.dataset.wired = "1";
+          nav.addEventListener("click", () => {
+            openNotify();
+          });
+        }
+        const heroEl = document.getElementById("notify-hero");
+        const hero = heroEl instanceof HTMLButtonElement ? heroEl : null;
+        if (hero !== null && hero.dataset.wired !== "1") {
+          hero.dataset.wired = "1";
+          hero.addEventListener("click", () => {
+            openNotify();
+          });
+        }
+        const dlgEl = document.getElementById("notify-dialog");
+        const dlg = dlgEl instanceof HTMLDialogElement ? dlgEl : null;
+        if (dlg !== null && dlg.dataset.wired !== "1") {
+          dlg.dataset.wired = "1";
+          // Tapping the backdrop dismisses, like the × button.
+          dlg.addEventListener("click", (e) => {
+            if (e.target === dlg) dlg.close();
+          });
+          const btnEl = document.getElementById("notify-btn");
+          const btn = btnEl instanceof HTMLButtonElement ? btnEl : null;
+          if (btn !== null) {
+            btn.addEventListener("click", () => {
+              const hint = document.getElementById("notify-hint");
+              void notifyPush().then((api) =>
+                api.pushState().then((state) => {
+                  if (state === "subscribed") {
+                    void api.unsubscribePush().then(() => paintNotify());
+                  } else {
+                    if (hint !== null)
+                      notifySay(hint, "Waiting for your browser…");
+                    void api.subscribePush().then((ok) => {
+                      if (hint !== null) {
+                        notifySay(
+                          hint,
+                          ok
+                            ? "You're on the list."
+                            : "That didn't work — push alerts aren't set up on the server yet.",
+                        );
+                      }
+                      paintNotify();
+                    });
+                  }
+                }),
+              );
+            });
+          }
+        }
+        if (dlg !== null) paintNotify();
+      }
+
+      initNotify();
+      if (window.__notifyWired !== true) {
+        window.__notifyWired = true;
+        document.addEventListener("astro:page-load", initNotify);
+      }
     </script>
   </body>
 </html>
@@ -332,6 +587,159 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
   .nav-links .nav-cta {
     white-space: nowrap;
     flex-shrink: 0;
+  }
+  /* The studio "Notify me" is a button wearing the link style — it
+     opens the signup modal instead of scrolling anywhere. */
+  .nav-links button.nav-cta {
+    font: inherit;
+    background: transparent;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  .nav-links button.nav-cta:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 0.35rem;
+  }
+
+  /* Collector signup modal: one small card, dimmed page behind. */
+  #notify-dialog {
+    border: 1px solid var(--line);
+    border-radius: 1rem;
+    background: var(--card);
+    color: var(--ink);
+    padding: 1.5rem;
+    width: min(26rem, calc(100% - 2rem));
+    box-sizing: border-box;
+    box-shadow: var(--shadow);
+  }
+  #notify-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.6);
+  }
+  #notify-dialog h3 {
+    margin: 0 0 0.4rem;
+    font-size: 1.2rem;
+    font-weight: 500;
+  }
+  #notify-dialog p {
+    margin: 0 0 1rem;
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+  #notify-dialog .hint {
+    font-size: 0.9rem;
+    margin: 0.8rem 0 0;
+    min-height: 1.2em;
+  }
+  .notify-close-row {
+    display: flex;
+    justify-content: flex-end;
+    margin: 0 0 0.25rem;
+  }
+  .notify-close-row button {
+    font: inherit;
+    font-size: 1.4rem;
+    line-height: 1;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition:
+      border-color 0.2s ease,
+      color 0.2s ease;
+  }
+  .notify-close-row button:hover {
+    border-color: var(--ink);
+    color: var(--ink);
+  }
+  .notify-close-row button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  #notify-dialog .btn-primary,
+  #notify-dialog .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 3rem;
+    border-radius: 0.75rem;
+    padding: 0.75rem 1.7rem;
+    font-weight: 600;
+    font-size: 1rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition:
+      background-color 0.25s ease,
+      border-color 0.25s ease,
+      color 0.25s ease;
+  }
+  #notify-dialog .btn-primary {
+    background: var(--ink);
+    color: var(--paper);
+    border: 1px solid var(--ink);
+  }
+  #notify-dialog .btn-primary:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+  }
+  #notify-dialog .btn-ghost {
+    border: 1px solid var(--line);
+    color: var(--ink);
+    background: transparent;
+  }
+  #notify-dialog .btn-ghost:hover {
+    border-color: var(--ink);
+  }
+  #notify-dialog .btn-primary:focus-visible,
+  #notify-dialog .btn-ghost:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  /* Author display beats the UA [hidden] rule — re-hide. */
+  #notify-dialog #notify-btn[hidden],
+  #notify-dialog #notify-push-blurb[hidden] {
+    display: none;
+  }
+  #notify-dialog .email-capture {
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--line);
+  }
+  #notify-dialog .email-capture form {
+    display: grid;
+    gap: 0.75rem;
+    justify-items: start;
+  }
+  #notify-dialog .email-capture label {
+    display: grid;
+    gap: 0.3rem;
+    width: 100%;
+    font-size: 0.88rem;
+    font-weight: 600;
+  }
+  #notify-dialog .email-capture input {
+    font: inherit;
+    font-weight: 400;
+    padding: 0.6rem 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease;
+  }
+  #notify-dialog .email-capture input:hover {
+    border-color: var(--muted);
+  }
+  #notify-dialog .email-capture input:focus,
+  #notify-dialog .email-capture input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
   }
   @media (max-width: 38rem) {
     /* The studio keeps its way home: .keep links stay visible. */

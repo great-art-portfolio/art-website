@@ -17,4 +17,6 @@ interface Window {
   __deferredInstall?: Event | null;
   /** Page enter-fade listener, registered once per session. */
   __pageFadeWired?: boolean;
+  /** Notify modal wiring, registered once per session. */
+  __notifyWired?: boolean;
 }

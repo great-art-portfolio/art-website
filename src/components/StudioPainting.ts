@@ -177,7 +177,13 @@ function showPhoto(
     ($("de-photo-tools") as HTMLElement).hidden = false;
   }
   const frameImg = document.querySelector<HTMLImageElement>("#photo-wrap img");
-  if (frameImg !== null) frameImg.src = url;
+  if (frameImg !== null) {
+    // The room photo is a responsive astro:image: assigning src alone
+    // leaves the old srcset candidate on screen, so drop both first.
+    frameImg.removeAttribute("srcset");
+    frameImg.removeAttribute("sizes");
+    frameImg.src = url;
+  }
   const mb = bytes / 1048576;
   const size =
     mb >= 1

@@ -643,12 +643,78 @@ async function refreshFlags(): Promise<void> {
   }
 }
 
+/** Dev-only banner preview: no publishing backend here, so the studio
+ * keeps the banner in this browser and the homepage renders it on top of
+ * (or instead of) the baked one. Never leaves the device. */
+const BANNER_PREVIEW_KEY = "studio-banner-preview-v1";
+
+function loadBannerPreview(): { text: string; expires: string | null } | null {
+  try {
+    const raw = window.localStorage.getItem(BANNER_PREVIEW_KEY);
+    if (raw === null) return null;
+    const parsed = JSON.parse(raw) as {
+      text?: unknown;
+      expires?: unknown;
+    };
+    if (typeof parsed.text !== "string" || parsed.text.trim() === "")
+      return null;
+    return {
+      text: parsed.text.slice(0, 280),
+      expires:
+        typeof parsed.expires === "string" && parsed.expires !== ""
+          ? parsed.expires
+          : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function storeBannerPreview(text: string, expires: string | null): void {
+  try {
+    window.localStorage.setItem(
+      BANNER_PREVIEW_KEY,
+      JSON.stringify({ text, expires }),
+    );
+  } catch {
+    // Private mode — the preview only lasts for this page.
+  }
+}
+
+function clearBannerPreview(): void {
+  try {
+    window.localStorage.removeItem(BANNER_PREVIEW_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 function init(): void {
   api
     .getBanner()
     .then((raw) => {
       void import("../lib/banner").then((bannerMod) => {
         const banner = bannerMod.parseAnnouncement(raw);
+        if (banner.text === "") {
+          // No published banner: a dev preview from this browser stands
+          // in, so the wording can be tried on the homepage for real.
+          const preview =
+            isLocalPreview() && getApiToken() === ""
+              ? loadBannerPreview()
+              : null;
+          if (
+            preview !== null &&
+            !bannerMod.isExpired(preview.expires, bannerMod.localToday())
+          ) {
+            ($("f-announce") as HTMLInputElement).value = preview.text;
+            ($("f-duration") as unknown as HTMLSelectElement).value = "";
+            const meta = $("announce-meta");
+            meta.textContent =
+              "Preview kept in this browser — open the homepage to see it.";
+            fadeIn(meta);
+            return;
+          }
+        }
         ($("f-announce") as HTMLInputElement).value = banner.text;
         const meta = $("announce-meta");
         if (banner.text === "") {
@@ -705,12 +771,36 @@ function init(): void {
         .commitFiles("Update homepage banner", [
           { path: "src/content/announcement.txt", blob: body },
         ])
-        .then(() =>
+        .then(() => {
+          clearBannerPreview();
           setStatus(
             body === "" ? "Banner cleared." : "Banner updated on the homepage.",
-          ),
-        )
-        .catch((err: unknown) => setStatus((err as Error).message, true));
+          );
+        })
+        .catch((err: unknown) => {
+          // Dev has no publishing backend: keep the banner in this
+          // browser instead, so the wording can still be tried on the
+          // homepage for real. A stored token means the commit, so this
+          // path only runs while practicing.
+          if (isLocalPreview() && getApiToken() === "") {
+            const parsed = bannerMod.parseAnnouncement(body);
+            if (parsed.text === "") clearBannerPreview();
+            else storeBannerPreview(parsed.text, parsed.expires);
+            const meta = $("announce-meta");
+            meta.textContent =
+              parsed.text === ""
+                ? "No banner showing right now."
+                : "Preview kept in this browser — open the homepage to see it.";
+            fadeIn(meta);
+            setStatus(
+              parsed.text === ""
+                ? "Banner cleared in this browser."
+                : "Banner preview kept in this browser — open the homepage to see it.",
+            );
+            return;
+          }
+          setStatus((err as Error).message, true);
+        });
     });
   });
 

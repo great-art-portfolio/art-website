@@ -62,6 +62,47 @@ const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
       if (today > end) bannerEl.remove();
     }
   }
+  // Dev-only banner preview: the studio keeps banner wording in this
+  // browser when there is no publishing backend, so it can be tried on
+  // the homepage for real. It renders above the collection, like the
+  // real banner — and never leaves the device.
+  try {
+    const raw = window.localStorage.getItem("studio-banner-preview-v1");
+    if (raw !== null) {
+      const preview = JSON.parse(raw);
+      const text =
+        preview !== null && typeof preview === "object"
+          ? String(preview.text ?? "")
+          : "";
+      const expires =
+        preview !== null && typeof preview === "object"
+          ? String(preview.expires ?? "")
+          : "";
+      const now = new Date();
+      const today =
+        now.getFullYear() +
+        "-" +
+        String(now.getMonth() + 1).padStart(2, "0") +
+        "-" +
+        String(now.getDate()).padStart(2, "0");
+      if (text.trim() !== "" && (expires === "" || today <= expires)) {
+        const collection = document.getElementById("collection");
+        let el = document.querySelector(".announce");
+        if (el === null && collection !== null) {
+          el = document.createElement("p");
+          el.className = "announce";
+          collection.insertAdjacentElement("beforebegin", el);
+        }
+        if (el !== null) {
+          el.textContent = text.trim().slice(0, 280);
+          if (expires !== "") el.setAttribute("data-expires", expires);
+          else el.removeAttribute("data-expires");
+        }
+      }
+    }
+  } catch {
+    // No preview stored — the baked banner (if any) stands.
+  }
 </script>
 
 <section class="collection" id="collection" aria-label="Available paintings">

@@ -20,8 +20,8 @@ const headlineHtml = "Original paintings, from the studio";
       </p>
       <div class="hero-ctas">
         <a href="#collection" class="btn-primary">Browse the collection</a>
-        <a href="#notify-card" class="btn-ghost" id="notify-hero"
-          >Get notified of new work</a
+        <button type="button" class="btn-ghost" id="notify-hero"
+          >Get notified of new work</button
         >
       </div>
       <dl class="hero-meta">
@@ -54,201 +54,10 @@ const headlineHtml = "Original paintings, from the studio";
           > — your note goes straight to the artist. Pieces are sold directly, so
           the price you see is the price — shipping is arranged together after purchase.
         </p>
-        <div class="notify-inline" id="notify-card" hidden>
-          <h3>Never miss a new painting</h3>
-          <p id="notify-push-blurb">
-            One tap — your browser tells you when something new is hung.
-          </p>
-          <button type="button" id="notify-btn" class="btn-primary"
-            >Notify me</button
-          >
-          <p class="hint" id="notify-hint"></p>
-          <div class="email-capture">
-            <p>
-              Prefer email? One email per new painting, nothing else, and your
-              address is never shared. Unsubscribe any time with one click.
-            </p>
-            <form id="notify-email-form">
-              <label
-                >Email address
-                <input
-                  type="email"
-                  id="notify-email"
-                  name="email"
-                  required
-                  maxlength="254"
-                  autocomplete="email"
-                  placeholder="you@example.com"
-                />
-              </label>
-              <button type="submit" class="btn-ghost">Join the list</button>
-            </form>
-            <p class="hint" id="notify-email-hint" role="status"></p>
-          </div>
-        </div>
       </div>
     </section>
   </main>
 </Layout>
-
-<script>
-  // NOTE: no static imports here — inline page scripts ship as classic
-  // scripts, so `import` kills the whole block (see painting template).
-  // Dynamic import() is bundled fine.
-  // No cache variable: dynamic import() is already module-cached, and a
-  // cache local would trip implicit-any across the async boundary.
-  // (Inline scripts are plain JS — annotations don't survive astro check,
-  // so this stays annotation-free on purpose.)
-  async function push() {
-    return import("../lib/push");
-  }
-
-  // Status words fade in and out under every motion setting. A counter
-  // on the element drops a late fade-out when a newer message lands.
-  // Defaults only carry the types (never called bare): inline scripts
-  // stay annotation-free on purpose.
-  function say(el = document.body, msg = "") {
-    const n = Number(el.dataset.say ?? "0") + 1;
-    el.dataset.say = String(n);
-    el.textContent = msg;
-    if (typeof el.animate === "function") {
-      el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
-    }
-  }
-  function unsay(el = document.body) {
-    const n = Number(el.dataset.say ?? "0") + 1;
-    el.dataset.say = String(n);
-    if (el.textContent === "" || typeof el.animate !== "function") {
-      el.textContent = "";
-      return;
-    }
-    const out = el.animate([{ opacity: 1 }, { opacity: 0 }], {
-      duration: 150,
-    });
-    out.onfinish = () => {
-      if (el.dataset.say === String(n)) el.textContent = "";
-    };
-  }
-
-  // Runs on full loads AND View-Transitions navigations. The dataset flag
-  // keeps a double-fire on the same DOM from wiring the button twice.
-  async function initNotify() {
-    const card = document.getElementById("notify-card");
-    const btnEl = document.getElementById("notify-btn");
-    const btn = btnEl instanceof HTMLButtonElement ? btnEl : null;
-    const hint = document.getElementById("notify-hint");
-    if (card === null || btn === null || hint === null) return;
-
-    if (btn.dataset.wired !== "1") {
-      btn.dataset.wired = "1";
-      btn.addEventListener("click", () => {
-        void push().then((api) =>
-          api.pushState().then((state) => {
-            if (state === "subscribed") {
-              void api.unsubscribePush().then(() => void paintNotify());
-            } else {
-              say(hint, "Waiting for your browser…");
-              void api.subscribePush().then((ok) => {
-                say(
-                  hint,
-                  ok
-                    ? "You're on the list."
-                    : "That didn't work — push alerts aren't set up on the server yet.",
-                );
-                void paintNotify();
-              });
-            }
-          }),
-        );
-      });
-    }
-    await paintNotify();
-  }
-
-  // Email capture needs no browser features — wire it once, always on.
-  function wireEmailForm() {
-    const formEl = document.getElementById("notify-email-form");
-    const form = formEl instanceof HTMLFormElement ? formEl : null;
-    const inputEl = document.getElementById("notify-email");
-    const input = inputEl instanceof HTMLInputElement ? inputEl : null;
-    const hint = document.getElementById("notify-email-hint");
-    if (form === null || input === null || hint === null) return;
-    if (form.dataset.wired === "1") return;
-    form.dataset.wired = "1";
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const email = input.value.trim();
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        say(hint, "That email doesn't look right — check it and try again.");
-        input.focus();
-        return;
-      }
-      say(hint, "Joining…");
-      fetch("/api/collectors", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      })
-        .then((res) => {
-          if (res.ok) {
-            say(hint, "You're on the list — one email per new painting.");
-            input.value = "";
-          } else if (res.status === 400) {
-            say(
-              hint,
-              "That email doesn't look right — check it and try again.",
-            );
-          } else {
-            say(hint, "That didn't work — try again in a bit.");
-          }
-        })
-        .catch(() => {
-          say(hint, "That didn't work — try again in a bit.");
-        });
-    });
-  }
-
-  async function paintNotify() {
-    const card = document.getElementById("notify-card");
-    const btnEl = document.getElementById("notify-btn");
-    const btn = btnEl instanceof HTMLButtonElement ? btnEl : null;
-    const hint = document.getElementById("notify-hint");
-    const blurb = document.getElementById("notify-push-blurb");
-    if (card === null || btn === null || hint === null) return;
-    wireEmailForm();
-    // Email works for everyone, so the card always shows; the push
-    // button only appears where push can work.
-    card.hidden = false;
-    const state = await (await push()).pushState();
-    if (state === "unsupported") {
-      // Older browser — no push parts at all, and neither does the hero
-      // button that would scroll to them.
-      btn.hidden = true;
-      if (blurb !== null) blurb.hidden = true;
-      const hero = document.getElementById("notify-hero");
-      if (hero !== null) hero.hidden = true;
-      return;
-    }
-    if (state === "subscribed") {
-      btn.textContent = "You're on the list — turn off";
-      unsay(hint);
-    } else if (state === "denied") {
-      btn.textContent = "Notifications blocked";
-      btn.disabled = true;
-      say(
-        hint,
-        "You blocked notifications for this site in your browser settings.",
-      );
-    } else {
-      btn.textContent = "Notify me";
-      btn.disabled = false;
-      unsay(hint);
-    }
-  }
-
-  void initNotify();
-  document.addEventListener("astro:page-load", () => void initNotify());
-</script>
 
 <style>
   .hero {
@@ -346,11 +155,8 @@ const headlineHtml = "Original paintings, from the studio";
     color: var(--ink);
     background: transparent;
   }
-  /* Author display beats the UA [hidden] rule — re-hide. */
-  #notify-hero[hidden] {
-    display: none;
-  }
-  button.btn-primary {
+  button.btn-primary,
+  button.btn-ghost {
     font: inherit;
     font-weight: 600;
   }
@@ -422,74 +228,5 @@ const headlineHtml = "Original paintings, from the studio";
   }
   .about-inner strong {
     color: var(--ink);
-  }
-
-  .notify-inline {
-    margin-top: 1.75rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--line);
-    scroll-margin-top: 5rem;
-  }
-  .notify-inline[hidden] {
-    display: none;
-  }
-  .notify-inline h3 {
-    margin: 0 0 0.4rem;
-    font-size: 1.2rem;
-    font-weight: 500;
-  }
-  .notify-inline p {
-    margin: 0 0 1rem;
-  }
-  .notify-inline .hint {
-    font-size: 0.9rem;
-    margin: 0.8rem 0 0;
-    min-height: 1.2em;
-  }
-  /* Author display beats the UA [hidden] rule — re-hide. */
-  #notify-btn[hidden] {
-    display: none;
-  }
-  /* Email capture: the channel that works in every browser. */
-  .email-capture {
-    margin-top: 1.5rem;
-    padding-top: 1.25rem;
-    border-top: 1px solid var(--line);
-  }
-  .email-capture p {
-    margin: 0 0 0.75rem;
-  }
-  .email-capture form {
-    display: grid;
-    gap: 0.75rem;
-    justify-items: start;
-  }
-  .email-capture label {
-    display: grid;
-    gap: 0.3rem;
-    width: 100%;
-    max-width: 24rem;
-    font-size: 0.88rem;
-    font-weight: 600;
-  }
-  .email-capture input {
-    font: inherit;
-    font-weight: 400;
-    padding: 0.6rem 0.75rem;
-    border-radius: 0.5rem;
-    border: 1px solid var(--line);
-    background: var(--paper);
-    color: var(--ink);
-    width: 100%;
-    box-sizing: border-box;
-    transition: border-color 0.2s ease;
-  }
-  .email-capture input:hover {
-    border-color: var(--muted);
-  }
-  .email-capture input:focus,
-  .email-capture input:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
   }
 </style>
