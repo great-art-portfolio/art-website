@@ -6,6 +6,7 @@ import {
   paintingFilePaths,
   parsePainting,
   patchPainting,
+  setOrder,
 } from "../../src/lib/painting-edit.ts";
 
 describe("resolveDims", () => {
@@ -224,6 +225,34 @@ describe("paintingFilePaths", () => {
         modelUsdz: "",
       }),
       [md, "src/content/paintings/x.jpg"],
+    );
+  });
+});
+
+describe("setOrder", () => {
+  const md = '---\ntitle: "A"\nprice: 10.00\ndraft: false\n---\n\nBody.\n';
+
+  it("adds the key after the title, parses back", () => {
+    const next = setOrder(md, 2);
+    assert.match(next, /^title: "A"\norder: 2$/m);
+    assert.equal(parsePainting(next).order, 2);
+  });
+
+  it("replaces the existing number in place", () => {
+    assert.match(setOrder(setOrder(md, 2), 0), /^order: 0$/m);
+  });
+
+  it("clearing removes the line with no blank left behind", () => {
+    const next = setOrder(setOrder(md, 2), null);
+    assert.doesNotMatch(next, /^order:/m);
+    assert.doesNotMatch(next, /\n\n(?=price)/);
+    assert.equal(parsePainting(next).order, null);
+  });
+
+  it("garbled numbers parse as unordered", () => {
+    assert.equal(
+      parsePainting(md.replace("price:", "order: lots\nprice:")).order,
+      null,
     );
   });
 });

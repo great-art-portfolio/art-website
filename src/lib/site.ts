@@ -56,3 +56,23 @@ export function groupByAvailability<T extends { sold: boolean }>(
   for (const r of rows) (r.sold ? sold : available).push(r);
   return { available, sold };
 }
+
+/**
+ * Gallery order, set by dragging Available rows on /admin and stored per
+ * painting in frontmatter (`order:`). Ordered works come first by number;
+ * unordered ones trail alphabetically — so a painting published before
+ * anyone drags simply lands at the end.
+ */
+export function compareGalleryOrder(
+  a: { order?: number | null; title: string },
+  b: { order?: number | null; title: string },
+): number {
+  const ao = typeof a.order === "number" ? a.order : null;
+  const bo = typeof b.order === "number" ? b.order : null;
+  if (ao !== null && bo !== null) {
+    return ao !== bo ? ao - bo : a.title.localeCompare(b.title);
+  }
+  if (ao !== null) return -1;
+  if (bo !== null) return 1;
+  return a.title.localeCompare(b.title);
+}

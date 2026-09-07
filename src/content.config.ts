@@ -14,6 +14,9 @@ const paintings = defineCollection({
       alt: z.string(),
       sold: z.boolean(),
       price: z.number().positive(),
+      // Gallery position, set by dragging Available rows on /admin.
+      // Absent = unordered (trails alphabetically, see compareGalleryOrder).
+      order: z.number().int().optional(),
       // Physical measurements in inches — optional until Barbara measures each
       // piece. Powers the "24 × 36 in" labels, grid scale cues, and AR true-size.
       widthIn: z.number().positive().optional(),

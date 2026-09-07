@@ -69,10 +69,10 @@ from Calgary.
 
 ## Social
 
-The share kit (generated caption + native iOS share sheet) needs no Meta
-setup. Automatic posting needs a business/creator IG account + approved
-Facebook app, so it stays behind `ENABLE_SOCIAL_POST` (Ayrshare) until
-she wants it.
+The share kit is gone (the "Tell social media" card was removed in favour
+of publish-time subscriber alerts). Automatic posting needs a business /
+creator IG account + approved Facebook app, so it stays behind
+`ENABLE_SOCIAL_POST` (Ayrshare) until she wants it.
 
 ## Toolchain (Sep 2026)
 

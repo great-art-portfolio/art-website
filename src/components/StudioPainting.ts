@@ -10,7 +10,7 @@
  */
 import { api, getApiToken, uniqueSlug } from "../lib/api";
 import { loadImageFile, prepareImage } from "../lib/image";
-import { buildCaption } from "../lib/share";
+
 import { dollarsToCents, formatCAD } from "../lib/money";
 import { formatDimensions } from "../lib/dims";
 import { slugifyTitle } from "../lib/site";
@@ -309,19 +309,42 @@ function buzz(): void {
   }
 }
 
-/** Hand the dashboard its confirmation + share kit, then go there. */
-function goAdmin(
-  flash: string,
-  share?: { title: string; caption: string; pageUrl: string },
-): void {
+/** Hand the dashboard its confirmation, then go there. */
+function goAdmin(flash: string): void {
   try {
     window.sessionStorage.setItem("studio-flash", flash);
-    if (share !== undefined)
-      window.sessionStorage.setItem("studio-share", JSON.stringify(share));
   } catch {
     // ignore
   }
   window.location.href = "/admin";
+}
+
+/**
+ * Fire the checked subscriber channels after a publish — never drafts,
+ * never plain saves. Unchecked boxes mean silence; failures ride along
+ * in the confirmation instead of failing the publish.
+ */
+async function publishAlerts(): Promise<string> {
+  const push = maybe<HTMLInputElement>("de-notify-push")?.checked ?? false;
+  const email = maybe<HTMLInputElement>("de-notify-email")?.checked ?? false;
+  if (!push && !email) return "";
+  try {
+    const r = await api.notifyCollectors({ push, email });
+    const bits: string[] = [];
+    if (push) bits.push(`Notified ${r.sent} of ${r.total} subscribers.`);
+    if (email) {
+      bits.push(
+        r.emailTotal === 0
+          ? "Email list is empty."
+          : r.emailed
+            ? `Emailed ${r.emailTotal}.`
+            : "Email not sent (mail isn't set up).",
+      );
+    }
+    return ` ${bits.join(" ")}`;
+  } catch (err) {
+    return ` Couldn't send the alerts: ${(err as Error).message}`;
+  }
 }
 
 interface FieldSet {
@@ -383,23 +406,6 @@ async function modelBlobs(): Promise<{ glb: Blob; usdz: Blob } | null> {
   }
 }
 
-function shareFor(
-  fields: FieldSet,
-  priceCents: number,
-  pageUrl: string,
-): string {
-  return buildCaption({
-    title: fields.title,
-    priceCents,
-    alt: fields.alt,
-    description: fields.description,
-    pageUrl,
-    widthIn: fields.widthIn,
-    heightIn: fields.heightIn,
-    depthIn: fields.depthIn,
-  });
-}
-
 /** Commit a brand-new painting (draft or published) and head to /admin. */
 async function saveNew(draft: boolean): Promise<void> {
   const fields = readFields();
@@ -443,7 +449,6 @@ async function saveNew(draft: boolean): Promise<void> {
   try {
     const slug = await uniqueSlug(fields.title);
     const imageFile = `${slug}.jpg`;
-    const pageUrl = `${window.location.origin}/paintings/${slug}`;
     const models = await modelBlobs();
     const files: Array<{ path: string; blob: Blob | string }> = [
       {
@@ -477,15 +482,11 @@ async function saveNew(draft: boolean): Promise<void> {
     );
     buzz();
     const priceCents = Math.round(fields.price * 100);
+    const alerts = draft ? "" : await publishAlerts();
     goAdmin(
       draft
         ? `Draft "${fields.title}" saved — publish it from the studio when ready.`
-        : `Published "${fields.title}" (${formatCAD(priceCents)}) — live in a few minutes.`,
-      {
-        title: fields.title,
-        caption: shareFor(fields, priceCents, pageUrl),
-        pageUrl,
-      },
+        : `Published "${fields.title}" (${formatCAD(priceCents)}) — live in a few minutes.${alerts}`,
     );
   } catch (err) {
     setStatus((err as Error).message, true);
@@ -871,11 +872,12 @@ function initStudio(): void {
         }
         setStatus(draft ? "Publishing…" : "Unpublishing…");
         patchFlipDraft(mdPath, base, !draft, fields)
-          .then(() => {
+          .then(async () => {
             buzz();
+            const alerts = draft ? await publishAlerts() : "";
             goAdmin(
               draft
-                ? `Published "${fields.title}" — live in a few minutes.`
+                ? `Published "${fields.title}" — live in a few minutes.${alerts}`
                 : `Unpublished "${fields.title}" — off the site in a few minutes.`,
             );
           })

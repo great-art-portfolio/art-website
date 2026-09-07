@@ -5,24 +5,10 @@
  * keeps practicing against the same overlay until it is cleared.
  */
 
-export interface PracticePainting {
-  slug: string;
-  title: string;
-  price: number;
-  sold: boolean;
-  alt: string;
-  description: string;
-  widthIn: string;
-  heightIn: string;
-  depthIn: string;
-  medium: string;
-  draft: boolean;
-}
+import { parsePracticeOverlay } from "./schemas";
+import type { PracticeOverlay, PracticePainting } from "./schemas";
 
-export interface PracticeOverlay {
-  upserts: Record<string, PracticePainting>;
-  deletes: string[];
-}
+export type { PracticeOverlay, PracticePainting } from "./schemas";
 
 const KEY = "studio-practice-v1";
 
@@ -34,25 +20,7 @@ export function loadPracticeOverlay(): PracticeOverlay {
   try {
     const raw = window.localStorage.getItem(KEY);
     if (raw === null) return empty();
-    const parsed = JSON.parse(raw) as Partial<PracticeOverlay>;
-    if (typeof parsed !== "object" || parsed === null) return empty();
-    const upserts: Record<string, PracticePainting> = {};
-    const src = parsed.upserts;
-    if (typeof src === "object" && src !== null) {
-      for (const [slug, p] of Object.entries(src)) {
-        if (
-          typeof p === "object" &&
-          p !== null &&
-          typeof (p as PracticePainting).title === "string"
-        ) {
-          upserts[slug] = p as PracticePainting;
-        }
-      }
-    }
-    const deletes = Array.isArray(parsed.deletes)
-      ? parsed.deletes.filter((d): d is string => typeof d === "string")
-      : [];
-    return { upserts, deletes };
+    return parsePracticeOverlay(JSON.parse(raw) as unknown) ?? empty();
   } catch {
     return empty();
   }

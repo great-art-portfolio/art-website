@@ -72,7 +72,7 @@ test("studio banner form offers lifetimes and saves with an expiry", async ({
   expect(body).toBe(`expires: ${localToday(3)}\nLilac Festival this Sunday!`);
 });
 
-test("empty banner text clears the file", async ({ page }) => {
+test("empty update is refused, Remove clears the file", async ({ page }) => {
   let posted: { files: Array<{ path: string; contentBase64: string }> } | null =
     null;
   await page.route("**/api/commit*", async (route) => {
@@ -94,7 +94,16 @@ test("empty banner text clears the file", async ({ page }) => {
     timeout: 15_000,
   });
   await page.locator("#f-announce").fill("");
+  // Updating empty is refused — and nothing is committed behind it.
   await page.locator("#announce-save").click();
+  await expect(page.locator("#admin-status")).toContainText(
+    "Write the announcement first",
+  );
+  expect(posted).toBe(null);
+  // A nudge, not news: gone again within a few seconds.
+  await expect(page.locator("#admin-status")).toBeEmpty({ timeout: 8000 });
+  // Clearing is Remove's job: same empty commit, its own words.
+  await page.locator("#announce-clear").click();
   await expect(page.locator("#admin-status")).toContainText("Banner cleared.");
   const body = Buffer.from(
     posted?.files[0]?.contentBase64 ?? "",

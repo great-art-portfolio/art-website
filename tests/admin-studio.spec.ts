@@ -273,6 +273,131 @@ test("collection rows stop well short of the card edge on desktop", async ({
   await expect(cards.first().locator(".row-del svg")).toBeAttached();
 });
 
+test("sold gets its own foldable row under everything", async ({ page }) => {
+  await page.goto("/admin");
+  const fold = page.locator("#edit-list .sold-fold");
+  await expect(fold).toBeVisible();
+  await expect(fold.locator("summary")).toContainText(/sold$/);
+  // Full width under the groups, not a third column.
+  const listW = (await page.locator("#edit-list").boundingBox())?.width ?? 0;
+  const foldW = (await fold.boundingBox())?.width ?? 0;
+  const availY =
+    (
+      await page
+        .locator('#edit-list .list-group[data-group="available"]')
+        .boundingBox()
+    )?.y ?? 0;
+  const foldY = (await fold.boundingBox())?.y ?? 0;
+  expect(foldW).toBeGreaterThan(listW * 0.9);
+  expect(foldY).toBeGreaterThan(availY);
+  // Folding hides the rows; opening brings them back.
+  await fold.locator("summary").click();
+  await expect(fold.locator(".row-card").first()).toBeHidden();
+  await fold.locator("summary").click();
+  await expect(fold.locator(".row-card").first()).toBeVisible();
+});
+
+async function dragFirstOntoLast(page: Page): Promise<{
+  n: number;
+  firstMd: string | null;
+}> {
+  const cards = page.locator('[data-group="available"] .row-card');
+  // The dashboard wires dragging after its first collection pass — a
+  // native drag before that is just a link drag, so wait for the flag.
+  await expect(cards.first()).toHaveAttribute("draggable", "true", {
+    timeout: 15_000,
+  });
+  const n = await cards.count();
+  expect(n).toBeGreaterThan(1);
+  const first = cards.nth(0);
+  const last = cards.nth(n - 1);
+  const firstMd = await first.locator(".row-del").getAttribute("data-md");
+  // Drop onto the last card's center: the dragged card lands before it.
+  // (dragTo drives a real native drag; manual mouse steps never
+  // dispatch drop in this Chromium.)
+  await first.dragTo(last);
+  return { n, firstMd };
+}
+
+test("dragging Available rows commits the new gallery order", async ({
+  browser,
+}) => {
+  // Stored token means the live path: a real commit, not the practice tab.
+  const authed = await browser.newContext();
+  await authed.addInitScript(() =>
+    sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
+  );
+  const page = await authed.newPage();
+  let posted: {
+    message: string;
+    files: Array<{ path: string; contentBase64: string }>;
+  } | null = null;
+  await mockCommitApi(page);
+  // Registered after the mock so POST lands here first; everything else
+  // falls back through to it.
+  await page.route("**/api/commit*", async (route) => {
+    if (route.request().method() === "POST") {
+      posted = route.request().postDataJSON();
+      await route.fulfill({ json: { ok: true }, status: 201 });
+    } else {
+      await route.fallback();
+    }
+  });
+  await page.goto("/admin");
+  const { n, firstMd } = await dragFirstOntoLast(page);
+  await expect
+    .poll(() => posted?.message ?? null, { timeout: 15_000 })
+    .toBe("Reorder gallery");
+  expect(posted?.files.length).toBe(n);
+  // The moved painting now sits just before the last card.
+  const moved = posted?.files.find((f) => f.path === firstMd);
+  expect(moved).not.toBe(undefined);
+  const body = Buffer.from(moved?.contentBase64 ?? "", "base64").toString(
+    "utf8",
+  );
+  expect(body).toMatch(new RegExp(`^order: ${n - 2}$`, "m"));
+  await expect(page.locator("#admin-status")).toContainText(
+    "Gallery order saved",
+  );
+  await authed.close();
+});
+
+test("dragging in practice keeps the order in this tab", async ({ page }) => {
+  // No token on a local preview: the practice overlay, never a commit.
+  await mockCommitApi(page);
+  await page.goto("/admin");
+  const { n } = await dragFirstOntoLast(page);
+  await expect(page.locator("#admin-status")).toContainText(
+    "kept in this tab",
+    {
+      timeout: 15_000,
+    },
+  );
+  const overlay = await page.evaluate(() =>
+    window.localStorage.getItem("studio-practice-v1"),
+  );
+  expect(overlay).not.toBe(null);
+  const upserts = (
+    JSON.parse(overlay ?? "{}") as {
+      upserts: Record<string, { order?: number }>;
+    }
+  ).upserts;
+  const orders = Object.values(upserts ?? {}).map((u) => u.order);
+  expect(orders.length).toBe(n);
+  expect(new Set(orders).size).toBe(n);
+});
+
+test("delete warms to clay red, never brand orange", async ({ page }) => {
+  await page.goto("/admin");
+  const del = page.locator("#edit-list .row-del").first();
+  await expect(del).toBeVisible();
+  // The ease is on the color itself, not just the end state.
+  const ease = await del.evaluate((el) => getComputedStyle(el).transition);
+  expect(ease).toContain("color");
+  await del.hover();
+  await expect(del).toHaveCSS("color", "rgb(179, 85, 69)");
+});
+
 test("info links list plainly, and Advanced eases open", async ({ page }) => {
   await page.goto("/admin");
   expect(
@@ -773,13 +898,13 @@ test("dashboard delete asks first, then removes the row", async ({ page }) => {
           .locator('#edit-list .list-group[data-group="available"]')
           .boundingBox()
       )?.x ?? 0;
-    const laterX =
+    const draftsX =
       (
         await page
-          .locator('#edit-list .list-group[data-group="later"]')
+          .locator('#edit-list .list-group[data-group="drafts"]')
           .boundingBox()
       )?.x ?? 0;
-    expect(laterX).toBeGreaterThan(availX);
+    expect(draftsX).toBeGreaterThan(availX);
   }).toPass();
   const row = page.locator('.row-card:has-text("Doomed Piece")');
   await expect(row).toBeVisible();

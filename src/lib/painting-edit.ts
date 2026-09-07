@@ -20,6 +20,8 @@ export interface ParsedPainting {
   image: string;
   modelGlb: string;
   modelUsdz: string;
+  /** Gallery position (order:), null when the painting was never dragged. */
+  order: number | null;
 }
 
 /**
@@ -88,7 +90,28 @@ export function parsePainting(md: string): ParsedPainting | null {
     image: data["image"] ?? "",
     modelGlb: data["modelGlb"] ?? "",
     modelUsdz: data["modelUsdz"] ?? "",
+    order: parseOrder(data["order"]),
   };
+}
+
+/** Gallery position: a plain integer, or null when absent/garbled. */
+function parseOrder(raw: string | undefined): number | null {
+  if (raw === undefined) return null;
+  const n = Number(raw.trim());
+  return Number.isInteger(n) ? n : null;
+}
+
+/**
+ * Set (or clear, with null) the gallery `order:` key, preserving every
+ * other line. New keys land right after the title, where they read
+ * naturally; removals leave no blank line behind.
+ */
+export function setOrder(md: string, order: number | null): string {
+  const re = /^order:.*(\r?\n?)/m;
+  if (order === null) return md.replace(re, "");
+  const line = `order: ${order}`;
+  if (re.test(md)) return md.replace(re, `${line}$1`);
+  return md.replace(/^(title:.*)(\r?\n)/m, `$1$2${line}$2`);
 }
 
 /** Rewrite one frontmatter key in place, preserving every other line. */

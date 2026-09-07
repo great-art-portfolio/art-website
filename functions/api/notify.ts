@@ -9,57 +9,75 @@ import {
 } from "../_lib/push";
 
 /**
- * Admin: ping every collector ("there's a new painting, come look").
- * Two channels, one tap: the push tickle (the service worker fetches the
- * latest piece and shows it — the server sends no message body, so no
- * per-message encryption is needed) plus one email to the whole email
- * list. Either channel missing just skips quietly.
+ * Admin: ping collectors ("there's a new painting, come look"). Body picks
+ * channels — { push: false } skips the browser tickles, { email: false }
+ * skips the email broadcast; both default on. The push tickle carries no
+ * message body (the service worker fetches the latest piece and shows
+ * it), so no per-message encryption is needed. Either channel missing
+ * just skips quietly.
  */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   const denied = requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
+  let body: Record<string, unknown>;
   try {
-    const subs = await listSubscriptions(context.env);
+    body = (await context.request.json()) as Record<string, unknown>;
+  } catch {
+    body = {};
+  }
+  const wantPush = body["push"] !== false;
+  const wantEmail = body["email"] !== false;
+  try {
     let sent = 0;
     let gone = 0;
     let failed = 0;
-    await Promise.all(
-      subs.map(async (sub) => {
-        const result = await sendTickle(context.env, sub);
-        if (result === "sent") sent += 1;
-        else if (result === "gone") {
-          gone += 1;
-          await removeSubscription(context.env, sub.endpoint);
-        } else if (result === "retry") failed += 1;
-        // "unconfigured" shouldn't happen (button hidden) — count as failed.
-        else failed += 1;
-      }),
-    );
-    const emails = await listCollectorEmails(context.env).catch(() => []);
-    const site = context.env.SITE_URL ?? "https://barbart.ca";
-    const emailed =
-      emails.length === 0
-        ? false
-        : await sendCollectorBroadcast(
-            context.env,
-            "New painting at Barbara Straka's studio",
-            [
-              "A new painting is hung in the gallery — come look:",
-              site,
-              "",
-              "— Barbara",
-              "",
-              "(Reply to this email to stop these alerts.)",
-            ].join("\n"),
-            emails,
-          ).catch(() => false);
+    let total = 0;
+    if (wantPush) {
+      const subs = await listSubscriptions(context.env);
+      total = subs.length;
+      await Promise.all(
+        subs.map(async (sub) => {
+          const result = await sendTickle(context.env, sub);
+          if (result === "sent") sent += 1;
+          else if (result === "gone") {
+            gone += 1;
+            await removeSubscription(context.env, sub.endpoint);
+          } else if (result === "retry") failed += 1;
+          // "unconfigured" shouldn't happen (button hidden) — count as failed.
+          else failed += 1;
+        }),
+      );
+    }
+    let emailed = false;
+    let emailTotal = 0;
+    if (wantEmail) {
+      const emails = await listCollectorEmails(context.env).catch(() => []);
+      emailTotal = emails.length;
+      const site = context.env.SITE_URL ?? "https://barbart.ca";
+      emailed =
+        emails.length === 0
+          ? false
+          : await sendCollectorBroadcast(
+              context.env,
+              "New painting at Barbara Straka's studio",
+              [
+                "A new painting is hung in the gallery — come look:",
+                site,
+                "",
+                "— Barbara",
+                "",
+                "(Reply to this email to stop these alerts.)",
+              ].join("\n"),
+              emails,
+            ).catch(() => false);
+    }
     return json({
       sent,
       gone,
       failed,
-      total: subs.length,
+      total,
       emailed,
-      emailTotal: emails.length,
+      emailTotal,
     });
   } catch (err) {
     console.error(err);

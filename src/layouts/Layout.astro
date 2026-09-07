@@ -155,7 +155,19 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
               id="notify-close"
               aria-label="Close notifications"
             >
-              ×
+              <svg
+                viewBox="0 0 16 16"
+                width="14"
+                height="14"
+                aria-hidden="true"
+              >
+                <path
+                  d="M2 2l12 12M14 2L2 14"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
+              </svg>
             </button>
           </form>
           <h3 id="notify-dialog-title">Never miss a new painting</h3>
@@ -165,7 +177,6 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
           <button type="button" id="notify-btn" class="btn-primary">
             Notify me with this browser
           </button>
-          <p class="hint" id="notify-hint" role="status" />
           <div class="email-capture">
             <p>
               Prefer email? One email per new painting, nothing else, and your
@@ -186,10 +197,12 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
               </label>
               <div id="notify-turnstile-mount" />
               <button type="submit" class="btn-ghost">
-                Join the list
+                Join the list <span aria-hidden="true">📨</span>
               </button>
             </form>
-            <p class="hint" id="notify-email-hint" role="status" />
+          </div>
+          <div class="status-wrap" id="notify-status-wrap">
+            <p class="hint" id="notify-status" role="status" />
           </div>
         </dialog>
       )
@@ -269,8 +282,16 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
         const n = Number(el.dataset.say ?? "0") + 1;
         el.dataset.say = String(n);
         el.textContent = msg;
-        if (typeof el.animate === "function") {
-          el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
+        const wrap =
+          el instanceof HTMLElement ? el.closest(".status-wrap") : null;
+        if (wrap !== null) wrap.classList.toggle("open", msg !== "");
+        if (typeof el.animate === "function" && msg !== "") {
+          // A beat behind the unfold, so words arrive once their room
+          // exists instead of squeezing through mid-animation.
+          el.animate([{ opacity: 0 }, { opacity: 1 }], {
+            duration: 200,
+            delay: 100,
+          });
         }
         if (!sticky && msg !== "") {
           window.setTimeout(() => {
@@ -281,6 +302,9 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
       function notifyUnsay(el = document.body) {
         const n = Number(el.dataset.say ?? "0") + 1;
         el.dataset.say = String(n);
+        const wrap =
+          el instanceof HTMLElement ? el.closest(".status-wrap") : null;
+        if (wrap !== null) wrap.classList.remove("open");
         if (el.textContent === "" || typeof el.animate !== "function") {
           el.textContent = "";
           return;
@@ -316,7 +340,7 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
         const form = formEl instanceof HTMLFormElement ? formEl : null;
         const inputEl = document.getElementById("notify-email");
         const input = inputEl instanceof HTMLInputElement ? inputEl : null;
-        const hint = document.getElementById("notify-email-hint");
+        const hint = document.getElementById("notify-status");
         if (form === null || input === null || hint === null) return;
         if (form.dataset.wired === "1") return;
         form.dataset.wired = "1";
@@ -366,7 +390,7 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
       async function paintNotify() {
         const btnEl = document.getElementById("notify-btn");
         const btn = btnEl instanceof HTMLButtonElement ? btnEl : null;
-        const hint = document.getElementById("notify-hint");
+        const hint = document.getElementById("notify-status");
         const blurb = document.getElementById("notify-push-blurb");
         if (btn === null || hint === null) return;
         wireNotifyEmail();
@@ -386,7 +410,7 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
           btn.disabled = true;
           notifySay(
             hint,
-            "You blocked notifications for this site in your browser settings.",
+            "Notifications for this site are blocked. Go to your browser settings and reset permissions for this website.",
             true,
           );
         } else {
@@ -425,7 +449,7 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
           const btn = btnEl instanceof HTMLButtonElement ? btnEl : null;
           if (btn !== null) {
             btn.addEventListener("click", () => {
-              const hint = document.getElementById("notify-hint");
+              const hint = document.getElementById("notify-status");
               void notifyPush().then((api) =>
                 api.pushState().then((state) => {
                   if (state === "subscribed") {
@@ -445,10 +469,7 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
                           "You're on the list — this browser will alert you.",
                         );
                       } else if (result === "cancelled") {
-                        notifySay(
-                          hint,
-                          "Cancelled — nothing was saved. Tap again any time.",
-                        );
+                        notifySay(hint, "Request cancelled.");
                       } else if (result === "blocked") {
                         // paintNotify already said it, in plain words.
                       } else {
@@ -485,6 +506,9 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
     --line: #e5dccb;
     --accent: #a44a24;
     --accent-ink: #ffffff;
+    /* Delete hover only: a soft clay red, clearly not the brand
+       orange and nowhere near alarm red. */
+    --danger: #b35545;
     --card: #fffdf8;
     --wash: radial-gradient(120% 60% at 50% -10%, #f1e7d4 0%, transparent 60%);
     --shadow: 0 24px 60px -30px rgb(60 42 20 / 0.35);
@@ -673,25 +697,57 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
     color: var(--muted);
     font-size: 0.95rem;
   }
-  /* Status lines reserve two lines up front: every message in this
-     modal wraps to two at card width, so one line of space meant the
-     card below jumped when words arrived. The empty gap is slightly
-     taller now; nothing ever moves. */
-  #notify-dialog .hint {
+  /* One shared status line for both signup paths, in the theme's
+     accent so it reads as a response, not more body copy. No space is
+     reserved: the wrapper unfolds with a grid-rows animation and the
+     words fade in on a beat behind it, so text only appears once its
+     room exists. Reduced motion skips the unfold; the opacity fade
+     still runs. */
+  #notify-dialog .status-wrap {
+    display: grid;
+    grid-template-rows: 0fr;
+    margin-top: 0;
+    transition:
+      grid-template-rows 0.25s ease,
+      margin-top 0.25s ease;
+  }
+  #notify-dialog .status-wrap.open {
+    grid-template-rows: 1fr;
+    margin-top: 0.8rem;
+  }
+  #notify-dialog .status-wrap > .hint {
+    overflow: hidden;
+    min-height: 0;
+    margin: 0;
     font-size: 0.9rem;
-    margin: 0.8rem 0 0;
     line-height: 1.5;
-    min-height: 3em;
+    color: var(--accent);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #notify-dialog .status-wrap {
+      transition: none;
+    }
+  }
+  /* The × floats in the top-right corner instead of owning a full
+     row, so the title starts at the card's own padding. The heading
+     keeps a matching gutter on the right so long titles never slide
+     under the button. */
+  #notify-dialog {
+    position: relative;
   }
   .notify-close-row {
-    display: flex;
-    justify-content: flex-end;
-    margin: 0 0 0.25rem;
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    margin: 0;
+  }
+  #notify-dialog h3 {
+    padding-right: 2.5rem;
   }
   .notify-close-row button {
-    font: inherit;
-    font-size: 1.4rem;
-    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     width: 2.5rem;
     height: 2.5rem;
     border-radius: 999px;
@@ -716,6 +772,7 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    box-sizing: border-box;
     min-height: 3rem;
     border-radius: 0.75rem;
     padding: 0.75rem 1.7rem;
@@ -761,17 +818,33 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
     padding-top: 1.25rem;
     border-top: 1px solid var(--line);
   }
+  /* Email field and button share one row, bottom-aligned so the
+     button sits level with the box. The field claims first share and
+     wraps underneath on widths where side-by-side would squeeze it. */
   #notify-dialog .email-capture form {
-    display: grid;
-    gap: 0.75rem;
-    justify-items: start;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: end;
   }
   #notify-dialog .email-capture label {
     display: grid;
     gap: 0.3rem;
-    width: 100%;
+    flex: 1 1 10rem;
+    min-width: 0;
     font-size: 0.88rem;
     font-weight: 600;
+  }
+  #notify-dialog .email-capture .btn-ghost {
+    flex-shrink: 0;
+    /* Fixed (not min) height: the emoji fattens the line box past 3rem,
+       so min-height alone leaves this button 4px taller than the field. */
+    height: 3rem;
+    /* Narrower than the modal default, with a real gap so the emoji
+       never rides against the words. */
+    padding-left: 1rem;
+    padding-right: 1rem;
+    gap: 0.4rem;
   }
   #notify-dialog .email-capture input {
     font: inherit;
@@ -783,6 +856,8 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
     color: var(--ink);
     width: 100%;
     box-sizing: border-box;
+    /* Same 3rem height as the button beside it: equal boxes, one row. */
+    min-height: 3rem;
     transition: border-color 0.2s ease;
   }
   #notify-dialog .email-capture input:hover {

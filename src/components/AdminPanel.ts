@@ -1,20 +1,24 @@
 import { api, ApiError, getApiToken, setApiToken } from "../lib/api";
-import { sharePainting } from "../lib/share";
 import { studioRowHtml as rowHtml, viewsLabel } from "../lib/studio-rows";
-import { groupByAvailability, slugifyTitle } from "../lib/site";
-import { parsePainting } from "../lib/painting-edit";
+import {
+  compareGalleryOrder,
+  groupByAvailability,
+  slugifyTitle,
+} from "../lib/site";
+import { parsePainting, setOrder } from "../lib/painting-edit";
 import {
   clearPracticeOverlay,
   loadPracticeOverlay,
   practiceCount,
   practiceDelete,
+  practiceUpsert,
   type PracticeOverlay,
 } from "../lib/practice";
 import { paintingFilePaths } from "../lib/painting-edit";
 
 /**
  * Admin island (client-only): studio dashboard — collection index with
- * thumbnails, share kit, homepage banner, collector push. Painting rooms
+ * thumbnails, homepage banner, and gallery ordering. Painting rooms
  * (new + edit) live on their own routes; saving happens there and lands
  * back here. Protected in production by Cloudflare Access;
  * ADMIN_API_TOKEN is local backup.
@@ -26,9 +30,6 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string): T => {
   return el as T;
 };
 
-let lastShare: { title: string; caption: string; pageUrl: string } | null =
-  null;
-
 /** Toasts clear themselves after a few seconds — errors included, so a
  * stale complaint never sits over the page. Each new message restarts the
  * clock, and clearing an already-empty line is a no-op. */
@@ -38,7 +39,7 @@ let statusTimer = 0;
  * every motion setting, since a snap is itself jarring. One timer covers
  * both phases, so a new message mid-fade-out cancels the goodbye.
  */
-function setStatus(msg: string, isError = false): void {
+function setStatus(msg: string, isError = false, durationMs = 6000): void {
   const el = $("admin-status");
   window.clearTimeout(statusTimer);
   el.classList.remove("toast-out");
@@ -57,7 +58,7 @@ function setStatus(msg: string, isError = false): void {
       gone.textContent = "";
       gone.classList.remove("toast-in", "toast-out");
     }, 260);
-  }, 6000);
+  }, durationMs);
 }
 
 /** A reveal fades instead of snapping (opacity-only, stays gentle). */
@@ -119,6 +120,8 @@ interface LocalPainting {
   mdPath: string;
   /** Past-30-day views, 0 when unknown — the row hides the count. */
   views: number;
+  /** Gallery position (order:), null when never dragged. */
+  order: number | null;
 }
 
 /** Baked-in list, seeded once per visit (dev practice merges over it). */
@@ -129,6 +132,8 @@ let thumbByMd: Record<string, string> | null = null;
 function seedLocalRows(raw: unknown): LocalPainting[] | null {
   if (!Array.isArray(raw)) return null;
   const str = (v: unknown): string => (typeof v === "string" ? v : "");
+  const num = (v: unknown): number | null =>
+    typeof v === "number" && Number.isInteger(v) ? v : null;
   const dim = (v: unknown): string =>
     typeof v === "number" && Number.isFinite(v) && v > 0 ? String(v) : "";
   const clean: LocalPainting[] = [];
@@ -156,6 +161,7 @@ function seedLocalRows(raw: unknown): LocalPainting[] | null {
       medium: str(row["medium"]),
       mdPath: str(row["mdPath"]),
       views: 0,
+      order: num(row["order"]),
     });
   }
   return clean;
@@ -177,6 +183,7 @@ function mergePractice(
       image: prev?.image ?? "",
       mdPath: prev?.mdPath ?? "",
       views: prev?.views ?? 0,
+      order: p.order ?? prev?.order ?? null,
     };
     if (at >= 0) {
       kept[at] = row;
@@ -261,7 +268,7 @@ function seedRowsKey(): void {
 function rowsKey(rows: LocalPainting[]): string {
   return JSON.stringify(
     [...rows]
-      .sort((a, b) => a.title.localeCompare(b.title))
+      .sort(compareGalleryOrder)
       .map((r) => [
         r.slug,
         r.title,
@@ -270,6 +277,7 @@ function rowsKey(rows: LocalPainting[]): string {
         r.draft,
         r.image,
         r.mdPath,
+        r.order,
       ]),
   );
 }
@@ -278,13 +286,21 @@ function rowsKey(rows: LocalPainting[]): string {
 let lastRowsKey: string | null = null;
 
 /**
- * Two columns on desktop — Available left, Drafts/Sold right — one list
- * on phones. Same renderer as the static markup (studioRowHtml), so
- * hydration swaps identical HTML.
+ * Two columns on desktop — Available left, Drafts right — with Sold in a
+ * foldable full-width row underneath; one list on phones. Same renderer
+ * as the static markup (studioRowHtml), so hydration swaps identical
+ * HTML. Available rows carry the gallery order and drag to re-sort it.
  */
+/** Rows behind the current render, for drag-to-reorder lookups. */
+let lastRenderedRows: LocalPainting[] = [];
+
 function renderRows(rows: LocalPainting[]): void {
   const list = $("edit-list");
   ($("collection-refresh") as HTMLButtonElement).hidden = true;
+  lastRenderedRows = rows;
+  // Delegated + idempotent: also joins the SSR first paint, where no
+  // re-render happens (photos must not flicker).
+  wireReorder(list);
   const key = rowsKey(rows);
   if (key === lastRowsKey) return;
   lastRowsKey = key;
@@ -293,36 +309,210 @@ function renderRows(rows: LocalPainting[]): void {
       '<li class="list-plain">Nothing here yet — tap Add painting above.</li>';
     return;
   }
-  const flat = [...rows].sort((a, b) => a.title.localeCompare(b.title));
-  const drafts = flat.filter((r) => r.draft);
-  const groups = groupByAvailability(flat.filter((r) => !r.draft));
+  const byTitle = (a: LocalPainting, b: LocalPainting): number =>
+    a.title.localeCompare(b.title);
+  const drafts = [...rows].filter((r) => r.draft).sort(byTitle);
+  const groups = groupByAvailability(rows.filter((r) => !r.draft));
+  const available = [...groups.available].sort(compareGalleryOrder);
+  const sold = [...groups.sold].sort(byTitle);
   let html =
     `<li class="list-group" data-group="available">` +
     subHtml("Available") +
+    `<p class="list-hint">Drag cards to reorder — the homepage follows this order.</p>` +
     `<ul class="group-rows">` +
-    (groups.available.length === 0
+    (available.length === 0
       ? `<li class="list-plain">Nothing available right now.</li>`
-      : groups.available.map(rowHtml).join("")) +
+      : available.map(rowHtml).join("")) +
     `</ul></li>`;
-  if (drafts.length > 0 || groups.sold.length > 0) {
-    html += `<li class="list-group" data-group="later">`;
-    if (drafts.length > 0) {
-      html +=
-        subHtml("Drafts") +
-        `<ul class="group-rows">` +
-        drafts.map(rowHtml).join("") +
-        `</ul>`;
-    }
-    if (groups.sold.length > 0) {
-      html +=
-        subHtml("Sold") +
-        `<ul class="group-rows">` +
-        groups.sold.map(rowHtml).join("") +
-        `</ul>`;
-    }
-    html += `</li>`;
+  if (drafts.length > 0) {
+    html +=
+      `<li class="list-group" data-group="drafts">` +
+      subHtml("Drafts") +
+      `<ul class="group-rows">` +
+      drafts.map(rowHtml).join("") +
+      `</ul></li>`;
+  }
+  if (sold.length > 0) {
+    html +=
+      `<details class="sold-fold" open>` +
+      `<summary>${sold.length === 1 ? "1 sold" : `${sold.length} sold`}</summary>` +
+      `<ul class="group-rows">` +
+      sold.map(rowHtml).join("") +
+      `</ul></details>`;
   }
   list.innerHTML = html;
+  wireReorder(list);
+}
+
+/**
+ * Gallery drag-to-reorder: Available cards drag; dropping writes 0..n
+ * into each painting's `order:` frontmatter (one live commit) or the
+ * practice overlay in dev. Drafts and sold never drag. Listeners attach
+ * once to the list (delegation survives re-renders); per-card flags
+ * re-apply on every render including the SSR first paint.
+ */
+let reorderWired = false;
+let dragSlug: string | null = null;
+
+function reorderCard(target: EventTarget | null): Element | null {
+  // Element, not HTMLElement: drop points land on SVG icon paths too,
+  // and those must count the same as the card around them.
+  if (!(target instanceof Element)) return null;
+  const card = target.closest(".row-card");
+  if (card === null) return null;
+  if (card.closest('[data-group="available"]') === null) return null;
+  return card;
+}
+
+function reorderSlug(card: Element): string | null {
+  const slug = card.querySelector(".row-del")?.getAttribute("data-slug");
+  return typeof slug === "string" && slug !== "" ? slug : null;
+}
+
+function clearDropMarks(list: HTMLElement): void {
+  for (const el of list.querySelectorAll(".drop-before, .drop-after")) {
+    el.classList.remove("drop-before", "drop-after");
+  }
+}
+
+function wireReorder(list: HTMLElement): void {
+  for (const card of list.querySelectorAll(
+    '[data-group="available"] .row-card',
+  )) {
+    if (card instanceof HTMLElement) card.draggable = true;
+  }
+  if (reorderWired) return;
+  reorderWired = true;
+  list.addEventListener("dragstart", (e) => {
+    const card = reorderCard(e.target);
+    const slug = card === null ? null : reorderSlug(card);
+    if (card === null || slug === null) {
+      e.preventDefault();
+      return;
+    }
+    dragSlug = slug;
+    if (e.dataTransfer !== null) {
+      e.dataTransfer.effectAllowed = "move";
+      try {
+        e.dataTransfer.setData("text/plain", slug);
+      } catch {
+        // Some browsers need the try — the drag still works.
+      }
+    }
+  });
+  list.addEventListener("dragover", (e) => {
+    const card = reorderCard(e.target);
+    if (card === null || dragSlug === null || reorderSlug(card) === dragSlug) {
+      return;
+    }
+    e.preventDefault();
+    const rect = card.getBoundingClientRect();
+    const after = (e.clientY - rect.top) / rect.height > 0.5;
+    card.classList.toggle("drop-after", after);
+    card.classList.toggle("drop-before", !after);
+  });
+  list.addEventListener("dragleave", (e) => {
+    const card = reorderCard(e.target);
+    if (card !== null) card.classList.remove("drop-before", "drop-after");
+  });
+  list.addEventListener("drop", (e) => {
+    const card = reorderCard(e.target);
+    if (card === null || dragSlug === null) return;
+    e.preventDefault();
+    const rows = card.closest(".group-rows");
+    const dragged =
+      rows
+        ?.querySelector(`.row-del[data-slug="${dragSlug}"]`)
+        ?.closest(".row-card") ?? null;
+    clearDropMarks(list);
+    if (!(dragged instanceof Element) || dragged === card) {
+      dragSlug = null;
+      return;
+    }
+    const rect = card.getBoundingClientRect();
+    const after = (e.clientY - rect.top) / rect.height > 0.5;
+    rows?.insertBefore(dragged, after ? card.nextSibling : card);
+    const slug = dragSlug;
+    dragSlug = null;
+    void persistOrder(rows, slug);
+  });
+  list.addEventListener("dragend", () => {
+    dragSlug = null;
+    clearDropMarks(list);
+  });
+}
+
+/** Write the Available DOM order back as 0..n `order:` frontmatter. */
+async function persistOrder(
+  rows: Element | null,
+  moved: string,
+): Promise<void> {
+  if (rows === null) return;
+  const slugs: string[] = [];
+  for (const card of rows.querySelectorAll(":scope > .row-card")) {
+    if (!(card instanceof HTMLElement)) continue;
+    const slug = reorderSlug(card);
+    if (slug !== null) slugs.push(slug);
+  }
+  if (!slugs.includes(moved)) return;
+  const bySlug = new Map(lastRenderedRows.map((r) => [r.slug, r]));
+  try {
+    if (await useOverlayMode()) {
+      let changed = 0;
+      for (const [i, slug] of slugs.entries()) {
+        const row = bySlug.get(slug);
+        if (row === undefined || row.order === i) continue;
+        practiceUpsert({
+          slug: row.slug,
+          title: row.title,
+          price: row.price,
+          sold: row.sold,
+          alt: row.alt,
+          description: row.description,
+          widthIn: row.widthIn,
+          heightIn: row.heightIn,
+          depthIn: row.depthIn,
+          medium: row.medium,
+          draft: row.draft,
+          order: i,
+        });
+        changed += 1;
+      }
+      if (changed === 0) {
+        setStatus("That's already the gallery order.");
+        return;
+      }
+      renderLocalCollection();
+      setStatus(
+        "Gallery order kept in this tab — publish it on the live site.",
+      );
+      return;
+    }
+    const files: Array<{ path: string; blob: string }> = [];
+    for (const [i, slug] of slugs.entries()) {
+      const row = bySlug.get(slug);
+      if (row === undefined || row.order === i) continue;
+      if (row.mdPath === "") {
+        throw new Error("Couldn't find this painting's file.");
+      }
+      const content = await api.getPaintingFile(row.mdPath);
+      if (content === null) {
+        throw new Error(`Couldn't load "${row.title}".`);
+      }
+      files.push({ path: row.mdPath, blob: setOrder(content, i) });
+    }
+    if (files.length === 0) {
+      setStatus("That's already the gallery order.");
+      return;
+    }
+    setStatus("Saving the gallery order… (live in a few minutes)");
+    await api.commitFiles("Reorder gallery", files);
+    await refreshCollection();
+    setStatus("Gallery order saved — live in a few minutes.");
+  } catch (err) {
+    setStatus((err as Error).message, true);
+    await refreshCollection().catch(() => undefined);
+  }
 }
 
 /**
@@ -561,6 +751,7 @@ async function refreshCollection(): Promise<void> {
       medium: p.medium,
       mdPath: `src/content/paintings/${f}`,
       views: viewsBySlug[slug] ?? 0,
+      order: p.order,
     });
   }
   renderRows(rows);
@@ -629,7 +820,7 @@ async function refreshFlags(): Promise<void> {
     const s = await api.status();
     $("flag-email").textContent = s.email ? "on" : "off";
     $("flag-push").textContent = s.push ? "on" : "off";
-    $("flag-social").textContent = s.socialPost ? "on (auto)" : "share kit";
+    $("flag-social").textContent = s.socialPost ? "on (auto)" : "off";
   } catch {
     // No API here (e.g. astro dev) — say so instead of leaving "…" dots.
     for (const id of ["flag-email", "flag-push", "flag-social"]) {
@@ -757,16 +948,27 @@ function init(): void {
     });
 
   // Removing is saving empty: the same commit clears the file (or the
-  // dev preview), with the same confirmation words.
+  // dev preview), with the same confirmation words. Updating refuses an
+  // empty announcement — clearing is Remove's job, with its own words.
   $("announce-clear").addEventListener("click", () => {
     ($("f-announce") as HTMLInputElement).value = "";
-    $("announce-save").click();
+    saveBanner(true);
   });
 
   $("announce-save").addEventListener("click", () => {
+    saveBanner(false);
+  });
+
+  function saveBanner(allowEmpty: boolean): void {
     const text = ($("f-announce") as HTMLInputElement).value
       .trim()
       .slice(0, 280);
+    if (text === "" && !allowEmpty) {
+      // A nudge, not news: gone quickly.
+      setStatus("Write the announcement first — or Remove banner.", true, 3500);
+      ($("f-announce") as HTMLInputElement).focus();
+      return;
+    }
     const durationRaw = ($("f-duration") as unknown as HTMLSelectElement).value;
     setStatus("Publishing banner… (live in a few minutes)");
     void import("../lib/banner").then((bannerMod) => {
@@ -814,7 +1016,7 @@ function init(): void {
           setStatus((err as Error).message, true);
         });
     });
-  });
+  }
 
   const tokenInput = $("admin-token") as HTMLInputElement;
   tokenInput.value = getApiToken();
@@ -829,86 +1031,19 @@ function init(): void {
     window.location.href = "/";
   });
 
-  $("share-native").addEventListener("click", () => {
-    if (lastShare === null) return;
-    const caption = ($("share-caption") as HTMLTextAreaElement).value;
-    void sharePainting({
-      title: lastShare.title,
-      caption,
-      pageUrl: lastShare.pageUrl,
-    }).then((result) => {
-      setStatus(
-        result === "shared"
-          ? "Share sheet opened — post it to Instagram/Facebook."
-          : result === "copied"
-            ? "Caption copied — paste it into your post."
-            : "Sharing failed on this device; copy the caption manually.",
-        result === "failed",
-      );
-    });
-  });
-
-  $("share-copy").addEventListener("click", () => {
-    const caption = ($("share-caption") as HTMLTextAreaElement).value;
-    navigator.clipboard
-      .writeText(caption)
-      .then(() => setStatus("Caption copied."))
-      .catch(() => setStatus("Copy failed — select the text manually.", true));
-  });
-
-  Promise.all([api.collectorCount(), api.emailCollectorCount()])
-    .then(([pushN, emailN]) => {
-      const bits: string[] = [];
-      if (pushN > 0) bits.push(`${pushN} phone alert${pushN === 1 ? "" : "s"}`);
-      if (emailN > 0) bits.push(`${emailN} email${emailN === 1 ? "" : "s"}`);
-      $("collectors-hint").textContent =
-        bits.length === 0
-          ? "No collectors yet — visitors sign up with “Notify me” on the homepage."
-          : `${bits.join(" + ")} on the list — “Notify collectors” alerts them all.`;
-    })
-    .catch(() => undefined);
-
-  $("notify-collectors").addEventListener("click", () => {
-    setStatus("Notifying collectors…");
-    api
-      .notifyCollectors()
-      .then((r) => {
-        let msg = `Notified ${r.sent} of ${r.total} collectors.`;
-        if (r.emailTotal > 0) {
-          msg += r.emailed
-            ? ` Emailed ${r.emailTotal}.`
-            : ` Email not sent (mail isn't set up).`;
-        }
-        setStatus(msg);
-      })
-      .catch((err: unknown) => setStatus((err as Error).message, true));
-  });
-
   $("collection-refresh").addEventListener(
     "click",
     () => void refreshCollection(),
   );
   wireRowDelete();
 
-  // Landing here from a painting room: its confirmation toast and, after
-  // a publish, a ready-made share caption ride along in session storage.
+  // Landing here from a painting room: its confirmation toast rides
+  // along in session storage.
   try {
     const flash = window.sessionStorage.getItem("studio-flash");
     if (flash !== null) {
       window.sessionStorage.removeItem("studio-flash");
       setStatus(flash);
-    }
-    const shareRaw = window.sessionStorage.getItem("studio-share");
-    if (shareRaw !== null) {
-      window.sessionStorage.removeItem("studio-share");
-      const share = JSON.parse(shareRaw) as {
-        title: string;
-        caption: string;
-        pageUrl: string;
-      };
-      lastShare = share;
-      ($("share-caption") as HTMLTextAreaElement).value = share.caption;
-      ($("share-panel") as HTMLElement).hidden = false;
     }
   } catch {
     // Browsers without session storage just miss the handoff.

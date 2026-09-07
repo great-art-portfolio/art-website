@@ -2,7 +2,11 @@
 import Layout from "../layouts/Layout.astro";
 import { getCollection } from "astro:content";
 import { readdirSync } from "node:fs";
-import { groupByAvailability, slugifyTitle } from "../lib/site";
+import {
+  compareGalleryOrder,
+  groupByAvailability,
+  slugifyTitle,
+} from "../lib/site";
 import { studioRowHtml } from "../lib/studio-rows";
 
 // Astro lowercases content ids (img_5667.md) while the repo path stays
@@ -32,6 +36,7 @@ const localCollection = (await getCollection("paintings")).map((p) => ({
   depthIn: p.data.depthIn ?? null,
   draft: p.data.draft === true,
   image: p.data.image.src,
+  order: p.data.order ?? null,
   mdPath: `src/content/paintings/${mdFile(p.id)}`,
   // View counts arrive client-side, after the rows — zero here keeps the
   // static markup identical to the first hydrated render.
@@ -42,19 +47,22 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
 // First paint renders these rows as static markup — the script hydrates
 // over identical HTML, so loading never grows the card or shoves the page
 // (no skeleton flash, no cumulative layout shift).
-const flatCollection = [...localCollection].sort((a, b) =>
-  a.title.localeCompare(b.title),
-);
-const ssrDrafts = flatCollection.filter((p) => p.draft);
-const ssrGroups = groupByAvailability(flatCollection.filter((p) => !p.draft));
+const byTitle = (a: { title: string }, b: { title: string }): number =>
+  a.title.localeCompare(b.title);
+const ssrDrafts = [...localCollection].filter((p) => p.draft).sort(byTitle);
+const ssrGroups = groupByAvailability(localCollection.filter((p) => !p.draft));
+const ssrAvailable = [...ssrGroups.available].sort(compareGalleryOrder);
+const ssrSold = [...ssrGroups.sold].sort(byTitle);
 // Row HTML comes from the same renderer the client uses, so hydration
 // swaps identical markup.
 const availableHtml =
-  ssrGroups.available.length === 0
+  ssrAvailable.length === 0
     ? `<li class="list-plain">Nothing available right now.</li>`
-    : ssrGroups.available.map(studioRowHtml).join("");
+    : ssrAvailable.map(studioRowHtml).join("");
 const draftsHtml = ssrDrafts.map(studioRowHtml).join("");
-const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
+const soldHtml = ssrSold.map(studioRowHtml).join("");
+const soldCount = ssrSold.length;
+const soldLabel = soldCount === 1 ? "1 sold" : `${soldCount} sold`;
 ---
 
 <Layout title="Artist Studio — Admin" wordmark="admin">
@@ -62,26 +70,6 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
     <p id="admin-status" role="status" data-tone="ok"></p>
 
     <div class="admin-grid">
-      <section class="card" id="share-panel" hidden>
-        <h2>Tell social media</h2>
-        <textarea id="share-caption" rows="8"></textarea>
-        <div class="row">
-          <button type="button" id="share-native" class="primary">Share…</button
-          >
-          <button type="button" id="share-copy">Copy caption</button>
-          <button type="button" id="notify-collectors">Notify collectors</button
-          >
-        </div>
-        <p class="hint" id="collectors-hint"></p>
-        <p class="hint">
-          “Share…” opens the iPhone/iPad share sheet — post straight to
-          Instagram or Facebook. No business account needed. “Notify collectors”
-          is separate: one tap alerts the whole collectors list — a phone alert
-          for “Notify me” taps, an email for the email list. Nothing to do with
-          the inbox notes buyers send you.
-        </p>
-      </section>
-
       <section class="card" id="sec-collection">
         <h2>
           <span id="collection-title">Collection</span>
@@ -93,28 +81,27 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
         <ul id="edit-list">
           <li class="list-group" data-group="available">
             <div class="list-sub"><h3>Available</h3></div>
+            <p class="list-hint">
+              Drag cards to reorder — the homepage follows this order.
+            </p>
             <ul class="group-rows" set:html={availableHtml} />
           </li>
           {
-            (ssrDrafts.length > 0 || ssrGroups.sold.length > 0) && (
-              <li class="list-group" data-group="later">
-                {ssrDrafts.length > 0 && (
-                  <>
-                    <div class="list-sub">
-                      <h3>Drafts</h3>
-                    </div>
-                    <ul class="group-rows" set:html={draftsHtml} />
-                  </>
-                )}
-                {ssrGroups.sold.length > 0 && (
-                  <>
-                    <div class="list-sub">
-                      <h3>Sold</h3>
-                    </div>
-                    <ul class="group-rows" set:html={soldHtml} />
-                  </>
-                )}
+            ssrDrafts.length > 0 && (
+              <li class="list-group" data-group="drafts">
+                <div class="list-sub">
+                  <h3>Drafts</h3>
+                </div>
+                <ul class="group-rows" set:html={draftsHtml} />
               </li>
+            )
+          }
+          {
+            soldCount > 0 && (
+              <details class="sold-fold" open>
+                <summary>{soldLabel}</summary>
+                <ul class="group-rows" set:html={soldHtml} />
+              </details>
             )
           }
         </ul>
@@ -152,8 +139,8 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
         <h2>Homepage banner</h2>
         <p class="hint">
           One banner at a time under the gallery — markets, holidays, “studio
-          open”. Saving replaces it; empty hides it. Banners usually end on
-          their own, so a forgotten one doesn't linger.
+          open”. Saving replaces it; Remove banner hides it. Banners usually end
+          on their own, so a forgotten one doesn't linger.
         </p>
         <label
           >Announcement
@@ -256,7 +243,10 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
     padding: 0.8rem 1.1rem;
     border-radius: var(--radius);
     border: 1px solid var(--line);
-    background: var(--card);
+    /* Inverted and fully solid: it floats over busy page content, so a
+       card-colored pill lets the page bleed through behind the words. */
+    background: var(--ink);
+    color: var(--paper);
     font-size: 0.95rem;
     box-shadow: var(--shadow);
   }
@@ -278,9 +268,7 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
   /* The Add form arrives as one calm motion: the card expands and fades,
      with no per-field stagger to fall out of sync on the way back out. */
   #admin-status[data-tone="error"] {
-    border-color: rgb(140 29 24 / 0.4);
-    background: rgb(140 29 24 / 0.08);
-    color: inherit;
+    border-color: var(--danger);
   }
   /* The status line starts empty (no blurb) and only appears once the
      studio has something to say. */
@@ -587,7 +575,9 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
     font-size: 0.92rem;
   }
   /* Per-row delete: a quiet text button, never a red box — the
-     confirmation modal carries the warning in words. */
+     confirmation modal carries the warning in words. On hover the word
+     and its trash can warm to a soft clay red (never the brand orange,
+     never alarm red). */
   :global(#edit-list .row-del) {
     font: inherit;
     font-size: 0.85rem;
@@ -605,7 +595,7 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
       text-decoration-color 0.12s ease;
   }
   :global(#edit-list .row-del:hover) {
-    color: var(--accent);
+    color: var(--danger);
     text-decoration-color: currentColor;
   }
   /* Row delete confirmation: a plain-words modal in the middle of the
@@ -736,21 +726,61 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
       gap: 0 1.5rem;
       align-items: start;
     }
-    #share-panel,
     #sec-collection {
       grid-column: 1 / -1;
     }
     /* Collection groups sit side by side — Available on the left,
-       Drafts/Sold on the right — as equal-height columns split by one
-       hairline. Grid stretch keeps them level whatever each holds. */
+       Drafts on the right — as equal-height columns split by one
+       hairline. Grid stretch keeps them level whatever each holds.
+       Weighted 2:1 because Available flows two card columns to the
+       right side's one; an even split parks the divider in dead space. */
     #edit-list {
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 2fr 1fr;
       gap: 1.5rem;
       align-items: stretch;
     }
     /* One group alone takes the whole card — no empty half. */
     :global(#edit-list .list-group:only-child) {
       grid-column: 1 / -1;
+    }
+    /* Sold gets its own full-width row below, folded open by default —
+       one tap on the count folds it away. */
+    :global(#edit-list .sold-fold) {
+      grid-column: 1 / -1;
+      border-top: 1px solid var(--line);
+      padding-top: 1rem;
+    }
+    :global(#edit-list .sold-fold summary) {
+      font-family: Georgia, "Iowan Old Style", Charter, serif;
+      font-size: 1.05rem;
+      font-weight: 500;
+      cursor: pointer;
+      width: fit-content;
+      border-radius: 0.25rem;
+    }
+    :global(#edit-list .sold-fold summary:focus-visible) {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    :global(#edit-list .sold-fold .group-rows) {
+      margin-top: 0.75rem;
+    }
+    /* Plain-words hint under Available: the order is the homepage. */
+    :global(#edit-list .list-hint) {
+      color: var(--muted);
+      font-size: 0.88rem;
+      margin: 0 0 0.5rem;
+    }
+    /* Drag-to-reorder: grabbable cards, one accent edge where the
+       card will land. Script-built classes get whole-selector twins. */
+    :global(#edit-list [draggable="true"]) {
+      cursor: grab;
+    }
+    :global(#edit-list .row-card.drop-before) {
+      box-shadow: inset 0 3px 0 var(--accent);
+    }
+    :global(#edit-list .row-card.drop-after) {
+      box-shadow: inset 0 -3px 0 var(--accent);
     }
     :global(#edit-list .list-group) {
       display: grid;
@@ -775,7 +805,7 @@ const soldHtml = ssrGroups.sold.map(studioRowHtml).join("");
       height: auto;
       aspect-ratio: 4 / 3;
     }
-    :global(#edit-list .list-group[data-group="later"]) {
+    :global(#edit-list .list-group[data-group="drafts"]) {
       border-left: 1px solid var(--line);
       padding-left: 1.5rem;
     }

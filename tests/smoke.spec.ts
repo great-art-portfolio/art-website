@@ -148,7 +148,35 @@ test("email capture form joins the list", async ({ page }) => {
   await expect(page.locator("#notify-email-form")).toBeVisible();
   await page.locator("#notify-email").fill("e2e-fan@example.com");
   await page.locator("#notify-email-form button[type=submit]").click();
-  await expect(page.locator("#notify-email-hint")).toContainText("on the list");
+  await expect(page.locator("#notify-status")).toContainText("on the list");
+  // Status answers in the theme's accent, not body-copy muted.
+  await expect(page.locator("#notify-status")).toHaveCSS(
+    "color",
+    "rgb(164, 74, 36)",
+  );
+});
+
+test("email field and button share a row", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("#notify-nav").click();
+  // One frame for both boxes: sequential reads can straddle a font swap
+  // under load and report a gap that was never on screen together.
+  const { field, btn } = await page.evaluate(() => {
+    const box = (sel: string): DOMRect =>
+      (document.querySelector(sel) as HTMLElement).getBoundingClientRect();
+    return {
+      field: box("#notify-email").toJSON(),
+      btn: box("#notify-email-form button[type=submit]").toJSON(),
+    };
+  });
+  // Side by side: same height, bottoms lined up with the box (not
+  // the label text), and the button starts right of the field instead
+  // of below it.
+  expect(Math.abs(field.height - btn.height)).toBeLessThan(4);
+  const fieldBottom = field.y + field.height;
+  const btnBottom = btn.y + btn.height;
+  expect(Math.abs(fieldBottom - btnBottom)).toBeLessThan(4);
+  expect(btn.x).toBeGreaterThan(field.x + field.width / 2);
 });
 
 test("modal status fades away on its own", async ({ page }) => {
@@ -156,43 +184,29 @@ test("modal status fades away on its own", async ({ page }) => {
   await page.locator("#notify-nav").click();
   await page.locator("#notify-email").fill("e2e-fan@example.com");
   await page.locator("#notify-email-form button[type=submit]").click();
-  const hint = page.locator("#notify-email-hint");
+  const hint = page.locator("#notify-status");
   await expect(hint).toContainText("on the list");
   await expect(hint).toBeEmpty({ timeout: 10_000 });
 });
 
-test("modal status never moves the signup", async ({ page }) => {
-  // Phone width: the card is narrow, so the status wraps — exactly
-  // when a short reservation would let the signup jump.
-  await page.setViewportSize({ width: 390, height: 844 });
+test("modal status unfolds the card, then folds away", async ({ page }) => {
   await page.goto("/");
   await page.locator("#notify-nav").click();
   const dialog = page.locator("#notify-dialog");
-  const before = await dialog.evaluate(
-    (el) => el.getBoundingClientRect().height,
-  );
-  // Native validation would block a bad address before the page's own
-  // check runs; stand it down so the real error path answers.
-  await page
-    .locator("#notify-email-form")
-    .evaluate((el) => el.setAttribute("novalidate", ""));
-  await page.locator("#notify-email").fill("not-an-email");
+  const wrap = page.locator("#notify-status-wrap");
+  await page.locator("#notify-email").fill("e2e-fan@example.com");
   await page.locator("#notify-email-form button[type=submit]").click();
-  const hint = page.locator("#notify-email-hint");
-  await expect(hint).not.toBeEmpty();
-  // The message wraps (a Range reports one box per line) — if the
-  // reservation were short, the card would grow to hold it.
-  const lines = await hint.evaluate((el) => {
-    const range = document.createRange();
-    range.selectNodeContents(el);
-    return range.getClientRects().length;
-  });
-  expect(lines).toBeGreaterThan(1);
-  const after = await dialog.evaluate(
-    (el) => el.getBoundingClientRect().height,
-  );
-  // Sub-pixel rounding aside, the card holds its size.
-  expect(after).toBeCloseTo(before, 0);
+  const hint = page.locator("#notify-status");
+  await expect(hint).toContainText("on the list");
+  // Unfolded: the row holds real height and the card grew for it.
+  await expect(wrap).toHaveCSS("grid-template-rows", /[1-9]/);
+  const mid = await dialog.evaluate((el) => el.getBoundingClientRect().height);
+  // The fade clears the words and the wrapper folds flat — nothing
+  // reserved, nothing left behind.
+  await expect(hint).toBeEmpty({ timeout: 10_000 });
+  await expect(wrap).toHaveCSS("grid-template-rows", "0px");
+  const end = await dialog.evaluate((el) => el.getBoundingClientRect().height);
+  expect(end).toBeLessThan(mid);
 });
 
 test("blocked push state stays put, not faded", async ({ page }) => {
@@ -200,7 +214,7 @@ test("blocked push state stays put, not faded", async ({ page }) => {
   // already wearing its blocked state.
   await page.goto("/");
   await page.locator("#notify-nav").click();
-  const hint = page.locator("#notify-hint");
+  const hint = page.locator("#notify-status");
   await expect(hint).toContainText("blocked");
   // Past the fade delay: a state she must act on never clears itself.
   await page.waitForTimeout(6000);

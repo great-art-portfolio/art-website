@@ -319,6 +319,17 @@ const eyebrow =
               <label class="de-check">
                 <input id="de-sold" type="checkbox" checked={data.sold} /> Sold
               </label>
+              {mode === "draft" || data.draft ? (
+                <span class="de-notify-group">
+                  <span class="de-notify-label">On publish, also tell:</span>
+                  <label class="de-check">
+                    <input id="de-notify-push" type="checkbox" /> Browsers
+                  </label>
+                  <label class="de-check">
+                    <input id="de-notify-email" type="checkbox" /> Email list
+                  </label>
+                </span>
+              ) : null}
               <span id="de-status" role="status" />
             </div>
             {mode === "edit" && (
@@ -1293,6 +1304,18 @@ const eyebrow =
     flex-wrap: wrap;
     align-items: center;
     margin-top: 1rem;
+  }
+  /* Publish alerts: unchecked boxes that only matter on publish. The
+     group reads as one sentence with the two channels. */
+  .de-notify-group {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.2rem 0.9rem;
+    align-items: center;
+  }
+  .de-notify-label {
+    font-size: 0.88rem;
+    color: var(--muted);
   }
   .studio-toolbar button:not(.btn-primary) {
     font: inherit;

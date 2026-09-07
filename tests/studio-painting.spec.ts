@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { readFileSync } from "node:fs";
 
 /**
  * Studio painting rooms: /admin/paintings/new (draft) and
@@ -44,7 +45,9 @@ test("draft room looks like the buyer page, empty and editable", async ({
   // Wall preview is plainly named, under the tile.
   await expect(page.locator("#ar-mount h2")).toHaveText("3D Model Preview");
   // Sold rides beside the save buttons, not above them.
-  await expect(page.locator(".studio-toolbar .de-check")).toContainText("Sold");
+  await expect(
+    page.locator(".studio-toolbar .de-check:has(#de-sold)"),
+  ).toContainText("Sold");
   // Both exits for a new painting, and the way back.
   await expect(page.locator("#de-save-draft")).toHaveText("Save draft");
   await expect(page.locator("#de-publish")).toHaveText("Publish painting");
@@ -68,6 +71,57 @@ test("typing in the draft updates the buyer preview live", async ({ page }) => {
   );
   await expect(page.locator("#pv-desc")).toContainText("First paragraph.");
   await expect(page.locator("#pv-desc")).toContainText("Second paragraph.");
+});
+
+test("draft rooms offer publish alerts, unchecked by default", async ({
+  page,
+}) => {
+  await page.goto("/admin/paintings/new");
+  await expect(page.locator("#de-notify-push")).toBeVisible();
+  await expect(page.locator("#de-notify-email")).toBeVisible();
+  await expect(page.locator("#de-notify-push")).not.toBeChecked();
+  await expect(page.locator("#de-notify-email")).not.toBeChecked();
+});
+
+test("published rooms offer no alerts", async ({ page }) => {
+  await page.goto("/admin/paintings/first-thaw");
+  await expect(page.locator("#de-notify-push")).toHaveCount(0);
+  await expect(page.locator("#de-notify-email")).toHaveCount(0);
+});
+
+test("publishing a draft fires only the checked channels", async ({
+  browser,
+}) => {
+  const authed = await browser.newContext();
+  await authed.addInitScript(() =>
+    sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
+  );
+  const page = await authed.newPage();
+  let postedNotify: { push?: boolean; email?: boolean } | null = null;
+  const draftMd = readFileSync("src/content/paintings/3.md", "utf8");
+  await page.route("**/api/commit*", async (route) => {
+    const req = route.request();
+    if (req.method() === "POST") {
+      await route.fulfill({ json: { ok: true }, status: 201 });
+    } else if (req.method() === "GET" && req.url().includes("path=")) {
+      await route.fulfill({ json: { content: draftMd } });
+    } else {
+      await route.continue();
+    }
+  });
+  await page.route("**/api/notify", async (route) => {
+    postedNotify = route.request().postDataJSON();
+    await route.fulfill({
+      json: { sent: 1, total: 1, emailed: false, emailTotal: 0 },
+    });
+  });
+  await page.goto("/admin/paintings/3");
+  await expect(page.locator("#de-visibility")).toHaveText("Publish");
+  await page.locator("#de-notify-push").check();
+  await page.locator("#de-visibility").click();
+  await expect.poll(() => postedNotify).toEqual({ push: true, email: false });
+  await expect(page).toHaveURL(/\/admin\/?$/);
+  await authed.close();
 });
 
 test("draft validates before anything uploads", async ({ page }) => {
@@ -176,7 +230,7 @@ test("secondary actions fade their hovers", async ({ page }) => {
     .evaluate((el) => getComputedStyle(el).transition);
   expect(soldTransition).toContain("border-color");
   expect(soldTransition).toContain("0.2s");
-  await page.locator(".de-check").hover();
+  await page.locator(".de-check:has(#de-sold)").hover();
   await expect(page.locator("#de-sold")).toHaveCSS(
     "border-color",
     "rgb(164, 74, 36)",

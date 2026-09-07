@@ -99,7 +99,8 @@ with their `ENABLE_*` flags.
   them with `<model-viewer>` (Scene Viewer on Android, Quick Look on iOS).
 - Collector push: `node scripts/gen-vapid.mjs`, set `VAPID_PUBLIC_KEY` /
   `VAPID_CONTACT` vars + `VAPID_PRIVATE_JWK` secret; homepage bell subscribes,
-  "Notify collectors" in `/admin` fans out. The subscription table is the
+  and the "Browsers" / "Email list" boxes on a painting room fan out on
+  publish (push only, email only, or both). The subscription table is the
   only database the site keeps (disclosed on `/privacy`).
 - Spam: Security > Turnstile > Add site (managed widget), set
   `TURNSTILE_SITE_KEY` var + `TURNSTILE_SECRET_KEY` secret. Until then the

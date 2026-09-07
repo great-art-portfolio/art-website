@@ -1,4 +1,15 @@
 /** Typed client for the Pages Functions API. */
+import { z } from "zod";
+import {
+  announcementSchema,
+  commitSchema,
+  localBackendSchema,
+  notifySchema,
+  paintingFileSchema,
+  paintingFilesSchema,
+  statusSchema,
+  viewsSchema,
+} from "./schemas";
 import { slugifyTitle } from "./site";
 
 /**
@@ -53,26 +64,44 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, init);
-  let data: T & { error?: string };
-  try {
-    data = (await res.json()) as T & { error?: string };
-  } catch {
+/**
+ * Fetch JSON and validate it against the endpoint's schema. The schema is
+ * what turns a Functions-side field rename into a client build error (via
+ * the inferred type below) instead of an `undefined` at runtime — the old
+ * `request<T>` trusted whatever the caller claimed.
+ */
+async function request<T>(
+  path: string,
+  schema: z.ZodType<T>,
+  init?: RequestInit,
+): Promise<T> {
+  const notJson = (status: number): ApiError =>
     // No Functions runtime here (e.g. plain `astro dev`) — the dev server
     // answers API routes with an HTML 404 page instead of JSON. Live 5xx
     // pages land here too, so name the status, not the cause.
-    throw new ApiError(
-      res.status,
-      `The site API didn't answer properly (${res.status}) — use the live /admin to publish.`,
+    new ApiError(
+      status,
+      `The site API didn't answer properly (${status}) — use the live /admin to publish.`,
     );
+  const res = await fetch(path, init);
+  let raw: unknown;
+  try {
+    raw = (await res.json()) as unknown;
+  } catch {
+    throw notJson(res.status);
   }
   if (!res.ok)
-    throw new ApiError(
-      res.status,
-      data.error ?? `Request failed (${res.status})`,
-    );
-  return data;
+    throw new ApiError(res.status, errorField(raw) ?? `Request failed (${res.status})`);
+  const parsed = schema.safeParse(raw);
+  if (!parsed.success) throw notJson(res.status);
+  return parsed.data;
+}
+
+/** The `{ error }` message on a failure body, when it is one. */
+function errorField(raw: unknown): string | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  if (!("error" in raw)) return null;
+  return typeof raw.error === "string" ? raw.error : null;
 }
 
 function bytesToBase64(view: Uint8Array): string {
@@ -96,7 +125,7 @@ export const api = {
   /** Read a text file from the repo (banner) or list the paintings folder. */
   async getBanner(): Promise<string> {
     try {
-      const data = await request<{ announcement: string }>("/api/commit", {
+      const data = await request("/api/commit", announcementSchema, {
         headers: adminHeaders(),
       });
       return data.announcement;
@@ -106,8 +135,9 @@ export const api = {
   },
   async getPaintingFile(path: string): Promise<string | null> {
     try {
-      const data = await request<{ content: string }>(
+      const data = await request(
         `/api/commit?path=${encodeURIComponent(path)}`,
+        paintingFileSchema,
         { headers: adminHeaders() },
       );
       return data.content;
@@ -213,17 +243,14 @@ export const api = {
       return { views: [], unconfigured: true };
     }
   },
-  async collectorCount(): Promise<number> {
-    try {
-      const data = await request<{ total: number }>("/api/notify", {
-        headers: adminHeaders(),
-      });
-      return data.total;
-    } catch {
-      return 0;
-    }
-  },
-  async notifyCollectors(): Promise<{
+  /**
+   * Ping subscribers about a new painting. Channels default on — pass
+   * { push: false } or { email: false } to send one side only.
+   */
+  async notifyCollectors(channels?: {
+    push?: boolean;
+    email?: boolean;
+  }): Promise<{
     sent: number;
     total: number;
     emailed: boolean;
@@ -236,19 +263,13 @@ export const api = {
       emailTotal: number;
     }>("/api/notify", {
       method: "POST",
-      headers: adminHeaders(),
+      headers: { ...adminHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        push: channels?.push !== false,
+        email: channels?.email !== false,
+      }),
     });
     return data;
-  },
-  async emailCollectorCount(): Promise<number> {
-    try {
-      const data = await request<{ total: number }>("/api/collectors", {
-        headers: adminHeaders(),
-      });
-      return data.total;
-    } catch {
-      return 0;
-    }
   },
 };
 
