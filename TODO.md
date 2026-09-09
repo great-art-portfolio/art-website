@@ -249,10 +249,10 @@ Push to main for CI; real upload test on barbart.ca/admin.
   taps, everything still visible.
 - De-flaked two CI-only timing tests (both failed past pushes):
   the toast mid-fade pins animation-name/duration now (the 0.25s
-  run finished between round-trips, reading 0 animations), and the
-  inquiry hover test parks the mouse off the form first (the reveal
-  drawer slid the input under the parked pointer, starting its
-  hover fade before the "rest" assertion).
+  run finished between round-trips, reading 0 animations). The
+  inquiry hover test re-parks and re-hovers inside toPass polls
+  (a late image shifts the input under or out from the pointer
+  mid-fade — one park alone failed both directions in CI).
 - Buyer, not collector, in buyer-facing words (privacy page alerts
   copy + signup test title). Code identifiers stay: /api/collectors
   and the email_collectors table are load-bearing names.

@@ -81,13 +81,21 @@ test("inquiry fields preview their ring on hover", async ({ page }) => {
   await page.locator("#inquiry-form h2").click();
   const name = page.locator('#inquiry-form input[name="name"]');
   await expect(name).toBeVisible();
-  // Park the pointer off the form: the reveal drawer can slide the
-  // input under a parked mouse and start its hover fade early.
-  await page.mouse.move(5, 5);
-  // At rest the ring is transparent — the box answers the pointer.
-  await expect(name).toHaveCSS("outline-color", "rgba(0, 0, 0, 0)");
-  await name.hover();
-  await expect(name).toHaveCSS("outline-color", "rgba(164, 74, 36, 0.55)");
+  // Re-park and re-hover inside the polls: a late image can shift the
+  // input under a parked pointer (hover stuck on) or out from under
+  // it (hover dropped) mid-fade — same pattern as the clay hover test.
+  await expect(async () => {
+    await page.mouse.move(5, 5);
+    expect(await name.evaluate((el) => getComputedStyle(el).outlineColor)).toBe(
+      "rgba(0, 0, 0, 0)",
+    );
+  }).toPass();
+  await expect(async () => {
+    await name.hover();
+    expect(await name.evaluate((el) => getComputedStyle(el).outlineColor)).toBe(
+      "rgba(164, 74, 36, 0.55)",
+    );
+  }).toPass();
   // The ring fades in — it never snaps. This guards the transition
   // itself, not just the end state.
   const preview = await name.evaluate((el) => getComputedStyle(el).transition);
