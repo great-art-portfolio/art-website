@@ -18,6 +18,11 @@ export interface AppEnv {
   CF_ANALYTICS_TOKEN?: string;
   CF_ANALYTICS_SITE?: string;
   RESEND_API_KEY?: string;
+  /** The address mail goes out from, as the artist. Must be on the
+   * verified Resend domain, or mail only reaches the Resend account
+   * email. */
+  ARTIST_SENDER?: string;
+  /** Legacy name for ARTIST_SENDER — still honored. */
   NOTIFY_EMAIL_FROM?: string;
   /** The artist's inbox: buyer inquiries land here, and broadcast
    * copies too. Never shown on the site. */

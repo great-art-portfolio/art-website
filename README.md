@@ -79,8 +79,9 @@ GITHUB_REPO     # e.g. great-art-portfolio/art-website
 GITHUB_BRANCH   # main (optional, defaults to main)
 ```
 
-Secrets (dashboard, never committed): `RESEND_API_KEY`, `NOTIFY_EMAIL_FROM`
-(requires a verified sending domain), `ARTIST_INBOX` (her private inbox —
+Secrets (dashboard, never committed): `RESEND_API_KEY`, `ARTIST_SENDER`
+(the address mail goes out from — must be on the verified sending
+domain), `ARTIST_INBOX` (her private inbox —
 buyer notes and broadcast copies land here, never shown on the site),
 `ADMIN_API_TOKEN`, `GITHUB_TOKEN` (+ repo/branch),
 optional `PUSHOVER_*`, and later `SHIPPO_API_TOKEN` / `AYRSHARE_API_KEY`

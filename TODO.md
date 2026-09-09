@@ -287,6 +287,11 @@ Push to main for CI; real upload test on barbart.ca/admin.
   dashboard secret never silences mail — rename it in the
   Cloudflare dashboard when convenient. Docs + example updated;
   local .dev.vars already on the new name.
+- NOTIFY_EMAIL_FROM is ARTIST_SENDER (146 unit): same legacy
+  fallback; wrangler.toml carries the value (committed, both envs),
+  so no dashboard change needed for the sender. Local .dev.vars
+  sets it to the gallery address — without a verified-domain
+  sender, Resend only delivers to its own account email.
 - CI retries the browser install (apt mirror exit 100 twice running,
   failing runs before any gate; PAT can't rerun, hence the empty
   retrigger commit). Root cause: Google's Chrome repo serves a stale

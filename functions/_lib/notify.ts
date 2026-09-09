@@ -34,6 +34,19 @@ export function artistInbox(env: AppEnv): string {
   return env.ARTIST_INBOX ?? env.NOTIFY_EMAIL_TO ?? "";
 }
 
+/**
+ * The address mail goes out from, as the artist. Falls back to the
+ * legacy var name, then the Resend onboarding identity (which only
+ * reaches the Resend account email).
+ */
+export function artistSender(env: AppEnv): string {
+  return (
+    env.ARTIST_SENDER ??
+    env.NOTIFY_EMAIL_FROM ??
+    "Gallery <onboarding@resend.dev>"
+  );
+}
+
 export async function sendInquiryNotifications(
   env: AppEnv,
   alert: InquiryAlert,
@@ -76,7 +89,7 @@ async function sendEmail(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: env.NOTIFY_EMAIL_FROM ?? "Gallery <onboarding@resend.dev>",
+      from: artistSender(env),
       to: [inbox],
       // Hitting reply answers the buyer directly.
       reply_to: replyTo ?? undefined,
@@ -111,7 +124,7 @@ export async function sendCollectorBroadcast(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: env.NOTIFY_EMAIL_FROM ?? "Gallery <onboarding@resend.dev>",
+      from: artistSender(env),
       to: [inbox],
       bcc,
       reply_to: inbox,
