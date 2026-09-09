@@ -1,8 +1,11 @@
 import { defineConfig } from "@playwright/test";
 
 // Serves the built site through the real Pages runtime (static pages +
-// Functions, no secrets), so API validation paths and graceful fallbacks
-// are exercised exactly as production serves them.
+// Functions, dummy localhost bindings), so API validation paths and the
+// full email flow are exercised exactly as production serves them — the
+// email-list spec points RESEND_API_BASE at its own in-spec mock server,
+// so zero live calls go out. The key/segment below are dummies, not
+// secrets: without them the list endpoints take their 500 branch.
 export default defineConfig({
   testDir: "./tests",
   timeout: 30_000,
@@ -13,7 +16,8 @@ export default defineConfig({
   // reuseExistingServer would silently run our suite against its server.
   use: { baseURL: "http://127.0.0.1:4331" },
   webServer: {
-    command: "pnpm wrangler pages dev dist --port 4331 --ip 127.0.0.1",
+    command:
+      "pnpm wrangler pages dev dist --port 4331 --ip 127.0.0.1 -b RESEND_API_KEY=e2e-dummy -b RESEND_SEGMENT_ID=e2e-seg -b RESEND_API_BASE=http://127.0.0.1:4499",
     url: "http://127.0.0.1:4331/",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

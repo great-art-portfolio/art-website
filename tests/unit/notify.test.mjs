@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import {
   artistInbox,
   artistSender,
+  isConfirmedContact,
+  listSegmentContacts,
   segmentBroadcastEmail,
   segmentId,
   sendCollectorBroadcast,
@@ -129,39 +131,90 @@ describe("sendSegmentBroadcast", () => {
 });
 
 describe("sendCollectorBroadcast", () => {
-  const recipients = [
-    { email: "a@example.com", token: "t1" },
-    { email: "b@example.com", token: "t2" },
-    { email: "c@example.com", token: "t3" },
-  ];
-
-  it("sends once to the segment instead of once per address", async () => {
-    stubFetch(() => okRes());
-    const result = await sendCollectorBroadcast(
-      fullEnv,
-      "https://barbart.ca",
-      recipients,
-    );
-    assert.deepEqual(result, { sent: 3, total: 3 });
-    assert.equal(calls.length, 1);
-    assert.equal(calls[0].url, "https://api.resend.com/broadcasts");
+  const segmentList = (emails) => ({
+    ok: true,
+    status: 200,
+    text: async () => "",
+    json: async () => ({
+      object: "list",
+      data: emails.map((email) => ({ email, unsubscribed: false })),
+    }),
   });
 
-  it("falls back to one email each without a segment", async () => {
-    stubFetch(() => okRes());
-    const noSegment = {
-      RESEND_API_KEY: fullEnv.RESEND_API_KEY,
-      ARTIST_INBOX: fullEnv.ARTIST_INBOX,
-      ARTIST_SENDER: fullEnv.ARTIST_SENDER,
-    };
-    const result = await sendCollectorBroadcast(
-      noSegment,
-      "https://barbart.ca",
-      recipients,
+  it("counts the segment then sends one broadcast", async () => {
+    stubFetch((url) =>
+      String(url).includes("/broadcasts")
+        ? okRes()
+        : segmentList(["a@example.com", "b@example.com", "c@example.com"]),
     );
+    const result = await sendCollectorBroadcast(fullEnv, "https://barbart.ca");
     assert.deepEqual(result, { sent: 3, total: 3 });
-    assert.equal(calls.length, 3);
-    assert.ok(calls.every((c) => c.url === "https://api.resend.com/emails"));
+    assert.equal(calls.length, 2);
+    assert.equal(calls[1].url, "https://api.resend.com/broadcasts");
+  });
+
+  it("sends nothing to an empty list", async () => {
+    stubFetch((url) =>
+      String(url).includes("/broadcasts") ? okRes() : segmentList([]),
+    );
+    const result = await sendCollectorBroadcast(fullEnv, "https://barbart.ca");
+    assert.deepEqual(result, { sent: 0, total: 0 });
+    assert.equal(calls.length, 1);
+  });
+
+  it("reports a rejected broadcast", async () => {
+    stubFetch((url) =>
+      String(url).includes("/broadcasts")
+        ? failRes()
+        : segmentList(["a@example.com"]),
+    );
+    const result = await sendCollectorBroadcast(fullEnv, "https://barbart.ca");
+    assert.deepEqual(result, { sent: 0, total: 1 });
+  });
+});
+
+describe("listSegmentContacts", () => {
+  it("reads addresses and flags from the segment", async () => {
+    stubFetch(() => ({
+      ok: true,
+      status: 200,
+      text: async () => "",
+      json: async () => ({
+        object: "list",
+        data: [
+          { email: "a@example.com", unsubscribed: false },
+          { email: "b@example.com", unsubscribed: true },
+          { email: 42, unsubscribed: false },
+        ],
+      }),
+    }));
+    assert.deepEqual(await listSegmentContacts(fullEnv), [
+      { email: "a@example.com", unsubscribed: false },
+      { email: "b@example.com", unsubscribed: true },
+    ]);
+  });
+
+  it("is empty when unconfigured or rejected", async () => {
+    stubFetch(() => failRes());
+    assert.deepEqual(await listSegmentContacts(fullEnv), []);
+    stubFetch(() => okRes());
+    assert.deepEqual(await listSegmentContacts({}), []);
+  });
+});
+
+describe("isConfirmedContact", () => {
+  it("is true only for subscribed addresses", async () => {
+    stubFetch(() => ({
+      ok: true,
+      status: 200,
+      text: async () => "",
+      json: async () => ({
+        object: "list",
+        data: [{ email: "a@example.com", unsubscribed: false }],
+      }),
+    }));
+    assert.equal(await isConfirmedContact(fullEnv, "a@example.com"), true);
+    assert.equal(await isConfirmedContact(fullEnv, "b@example.com"), false);
   });
 });
 

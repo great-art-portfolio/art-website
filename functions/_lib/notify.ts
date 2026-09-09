@@ -66,24 +66,6 @@ export function inquiryEmail(alert: InquiryAlert): {
   };
 }
 
-export function broadcastEmail(
-  site: string,
-  unsubscribeUrl: string,
-): { subject: string; text: string } {
-  return {
-    subject: "New painting at Barbara Straka's studio",
-    text: [
-      "A new painting is hung in the gallery — come look:",
-      site,
-      "",
-      "— Barbara",
-      "",
-      "Tired of these? Unsubscribe here:",
-      unsubscribeUrl,
-    ].join("\n"),
-  };
-}
-
 export function confirmEmail(confirmUrl: string): {
   subject: string;
   text: string;
@@ -148,7 +130,17 @@ export interface SiteEmail {
   headers?: Record<string, string>;
 }
 
-function resendHeaders(env: AppEnv): Record<string, string> {
+/**
+ * Resend REST root. Production is api.resend.com; the e2e suite points
+ * it at an in-spec mock server instead, so the full subscribe →
+ * confirm → broadcast flow runs through the real Functions with zero
+ * live calls. Never set this outside tests.
+ */
+export function resendBase(env: AppEnv): string {
+  return env.RESEND_API_BASE ?? "https://api.resend.com";
+}
+
+export function resendHeaders(env: AppEnv): Record<string, string> {
   return {
     Authorization: `Bearer ${env.RESEND_API_KEY ?? ""}`,
     "Content-Type": "application/json",
@@ -172,7 +164,7 @@ export async function sendSiteEmail(
     return false;
   if (mail.to.some((t) => t === "")) return false;
   if (mail.to.length === 0) return false;
-  const res = await fetch("https://api.resend.com/emails", {
+  const res = await fetch(`${resendBase(env)}/emails`, {
     method: "POST",
     headers: resendHeaders(env),
     body: JSON.stringify({
@@ -188,30 +180,62 @@ export async function sendSiteEmail(
   return res.ok;
 }
 
+interface SegmentContact {
+  email: string;
+  unsubscribed: boolean;
+}
+
 /**
- * No-segment fallback: one transactional email per confirmed address,
- * each carrying its own one-click unsubscribe link (which is why this
- * can't stay a single BCC send — and BCC caps at 50 recipients
- * anyway). Replies land in the artist's inbox. Sequential: lists are
- * small and Resend rate-limits bursts.
+ * Every contact on the segment (no limit: one page holds the whole
+ * list at this scale). Empty when unconfigured or on any failure —
+ * callers treat that as "nobody to mail".
  */
-export function buildBroadcastSends(
-  site: string,
-  recipients: Array<{ email: string; token: string }>,
-): SiteEmail[] {
-  return recipients.map((r) => {
-    const url = `${site}/email/goodbye?token=${r.token}`;
-    const { subject, text } = broadcastEmail(site, url);
-    return {
-      to: [r.email],
-      subject,
-      text,
-      headers: {
-        "List-Unsubscribe": `<${url}>`,
-        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-      },
+export async function listSegmentContacts(
+  env: AppEnv,
+): Promise<SegmentContact[]> {
+  const seg = segmentId(env);
+  if (env.RESEND_API_KEY === undefined || env.RESEND_API_KEY === "") {
+    return [];
+  }
+  if (seg === "") return [];
+  try {
+    const res = await fetch(
+      `${resendBase(env)}/segments/${encodeURIComponent(seg)}/contacts`,
+      { headers: resendHeaders(env) },
+    );
+    if (!res.ok) {
+      console.error("resend segment list failed", await res.text());
+      return [];
+    }
+    const body = (await res.json()) as {
+      data?: Array<{ email?: unknown; unsubscribed?: unknown }>;
     };
-  });
+    if (!Array.isArray(body.data)) return [];
+    return body.data
+      .filter(
+        (c): c is { email: string; unsubscribed: boolean } =>
+          typeof c.email === "string" && typeof c.unsubscribed === "boolean",
+      )
+      .map((c) => ({ email: c.email, unsubscribed: c.unsubscribed }));
+  } catch (err) {
+    console.error("resend segment list failed", err);
+    return [];
+  }
+}
+
+/** How many addresses are on the new-painting list (for /admin). */
+export async function countSegmentContacts(env: AppEnv): Promise<number> {
+  return (await listSegmentContacts(env)).length;
+}
+
+/** Already confirmed (and still subscribed)? Then rejoining sends nothing. */
+export async function isConfirmedContact(
+  env: AppEnv,
+  email: string,
+): Promise<boolean> {
+  return (await listSegmentContacts(env)).some(
+    (c) => c.email === email && !c.unsubscribed,
+  );
 }
 
 /**
@@ -256,7 +280,7 @@ export async function sendSegmentBroadcast(
   if (inbox === "") return false;
   const { subject, text } = segmentBroadcastEmail(site);
   try {
-    const res = await fetch("https://api.resend.com/broadcasts", {
+    const res = await fetch(`${resendBase(env)}/broadcasts`, {
       method: "POST",
       headers: resendHeaders(env),
       body: JSON.stringify({
@@ -291,7 +315,7 @@ export async function syncContactSubscribed(
   }
   if (seg === "" || email === "") return false;
   try {
-    const created = await fetch("https://api.resend.com/contacts", {
+    const created = await fetch(`${resendBase(env)}/contacts`, {
       method: "POST",
       headers: resendHeaders(env),
       body: JSON.stringify({
@@ -302,7 +326,7 @@ export async function syncContactSubscribed(
     });
     if (created.ok) return true;
     const added = await fetch(
-      `https://api.resend.com/contacts/${encodeURIComponent(email)}/segments/${encodeURIComponent(seg)}`,
+      `${resendBase(env)}/contacts/${encodeURIComponent(email)}/segments/${encodeURIComponent(seg)}`,
       { method: "POST", headers: resendHeaders(env) },
     );
     if (!added.ok)
@@ -325,7 +349,7 @@ export async function syncContactRemoved(
   if (seg === "" || email === "") return false;
   try {
     const res = await fetch(
-      `https://api.resend.com/contacts/${encodeURIComponent(email)}`,
+      `${resendBase(env)}/contacts/${encodeURIComponent(email)}`,
       { method: "DELETE", headers: resendHeaders(env) },
     );
     if (res.ok || res.status === 404) return true;
@@ -340,27 +364,15 @@ export async function syncContactRemoved(
 export async function sendCollectorBroadcast(
   env: AppEnv,
   site: string,
-  recipients: Array<{ email: string; token: string }>,
 ): Promise<{ sent: number; total: number }> {
-  const total = recipients.length;
+  const total = await countSegmentContacts(env).catch(() => 0);
   const inbox = artistInbox(env);
   if (env.RESEND_API_KEY === undefined || env.RESEND_API_KEY === "") {
     return { sent: 0, total };
   }
   if (inbox === "" || total === 0) return { sent: 0, total };
-  if (segmentId(env) !== "") {
-    const ok = await sendSegmentBroadcast(env, site).catch(() => false);
-    return { sent: ok ? total : 0, total };
-  }
-  let sent = 0;
-  for (const mail of buildBroadcastSends(site, recipients)) {
-    const ok = await sendSiteEmail(env, {
-      ...mail,
-      replyTo: inbox,
-    }).catch(() => false);
-    if (ok) sent += 1;
-  }
-  return { sent, total };
+  const ok = await sendSegmentBroadcast(env, site).catch(() => false);
+  return { sent: ok ? total : 0, total };
 }
 
 async function sendPush(

@@ -26,15 +26,17 @@ import Layout from "../../layouts/Layout.astro";
   // re-fire on astro:page-load.
   // Plain JS on purpose (annotations don't survive astro check).
   const say = document.getElementById("email-token-say");
-  const token = new URLSearchParams(window.location.search).get("token") || "";
+  const params = new URLSearchParams(window.location.search);
+  const email = params.get("email") || "";
+  const token = params.get("token") || "";
   const el = say instanceof HTMLParagraphElement ? say : null;
   if (el !== null) {
-    if (token === "") {
+    if (token === "" || email === "") {
       el.textContent =
         "This page needs its link — it arrives inside every new-painting email.";
     } else {
       void import("../../lib/email-token").then(function (lib) {
-        lib.settleToken("unsubscribe", token).then(function (verdict) {
+        lib.settleToken("unsubscribe", email, token).then(function (verdict) {
           el.textContent =
             verdict === "ok"
               ? "You've been removed — no more emails."

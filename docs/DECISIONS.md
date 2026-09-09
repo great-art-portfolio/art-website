@@ -57,17 +57,19 @@ across its two free tiers: one-to-one mail (inquiries, confirmations,
 goodbyes) goes transactional (3,000/month, 100/day); new-painting
 broadcasts go to a Resend segment via the Broadcasts API (free
 marketing tier: 1,000 contacts, unlimited sends). Setup: create the
-segment once in the Resend dashboard, set `RESEND_SEGMENT_ID`, and the
-site mirrors the confirmed list into it (confirm adds, unsubscribe
-deletes). D1 stays the source of truth — a failed sync only logs.
-Without a segment configured, broadcasts fall back to one
-transactional email each. Caveat: if a buyer unsubscribes through
-Resend's own link instead of ours, D1 still shows them confirmed —
-re-confirming re-adds them, so check the Resend dashboard when counts
-look off. Collector push is Web Push (VAPID) fanned out from `/admin`;
-the service worker shows a generic tickle and the gallery does the
-talking. ntfy stays as the free phone ping for _inquiry_ alerts
-(optional second channel alongside email), Pushover optional.
+segment once in the Resend dashboard, set `RESEND_SEGMENT_ID` — the
+segment IS the list. Nothing list-related lives in D1: the pending
+"did they tap?" proof travels inside the emailed links as HMAC tokens
+(keyed by the Resend secret), the tap creates the contact, leaving
+deletes it. The old `email_collectors` table stays applied remotely as
+an archive but nothing reads it. Caveat: if a buyer unsubscribes
+through Resend's own footer link instead of the Leave button, the
+segment just drops them — rejoining re-adds them, so check the Resend
+dashboard when the /admin count looks off. Collector push is Web Push
+(VAPID) fanned out from `/admin`; the service worker shows a generic
+tickle and the gallery does the talking. ntfy stays as the free phone
+ping for _inquiry_ alerts (optional second channel alongside email),
+Pushover optional.
 
 ## Checkout + shipping (disabled until needed)
 

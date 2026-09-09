@@ -1,8 +1,12 @@
 import type { AppEnv } from "./env";
 
 /**
- * Collector email list. Storage for the "tell me about new paintings"
- * addresses — the channel for every browser that can't do Web Push.
+ * Collector email list ("tell me about new paintings" addresses).
+ *
+ * Stateless by design: nothing about the list lives here. Confirmed
+ * addresses live in Resend as segment contacts; the pending "did they
+ * tap?" proof travels inside the link itself as an HMAC token, so there
+ * is no pending table to tend, expire, or leak. D1 keeps nothing.
  */
 
 const MAX_EMAIL_LENGTH = 254;
@@ -22,130 +26,103 @@ export function parseCollectorEmail(input: unknown): string | null {
 
 /**
  * Confirm links stay valid this long — enough to check tomorrow's
- * inbox, short enough a leaked link dies on its own.
+ * inbox, short enough a leaked link dies on its own. Goodbye links
+ * never expire: the exit must work from decade-old emails.
  */
 export const CONFIRM_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-export function newCollectorToken(): string {
-  return crypto.randomUUID().replace(/-/g, "");
+export type LinkKind = "confirm" | "goodbye";
+
+function b64urlEncode(text: string): string {
+  return btoa(text)
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replace(/=+$/, "");
 }
 
-interface CollectorRow {
-  token: string | null;
-  confirmed_at: string | null;
-  token_created_at: string | null;
-}
-
-async function collectorRow(
-  env: AppEnv,
-  email: string,
-): Promise<CollectorRow | null> {
-  return env.DB.prepare(
-    "SELECT token, confirmed_at, token_created_at FROM email_collectors WHERE email = ?",
-  )
-    .bind(email)
-    .first<CollectorRow>();
-}
-
-/**
- * Join (or rejoin): unconfirmed addresses get a fresh token and must
- * tap the confirmation email; already-confirmed ones stay as they are.
- */
-export async function signupCollectorEmail(
-  env: AppEnv,
-  email: string,
-): Promise<{ token: string; already: boolean }> {
-  const now = new Date().toISOString();
-  const existing = await collectorRow(env, email);
-  if (existing !== null && existing.confirmed_at !== null) {
-    let token = existing.token;
-    if (token === null) {
-      token = newCollectorToken();
-      await env.DB.prepare(
-        "UPDATE email_collectors SET token = ?, token_created_at = ? WHERE email = ?",
-      )
-        .bind(token, now, email)
-        .run();
-    }
-    return { token, already: true };
-  }
-  const token = newCollectorToken();
-  await env.DB.prepare(
-    "INSERT INTO email_collectors (email, token, confirmed_at, token_created_at) VALUES (?, ?, NULL, ?) ON CONFLICT(email) DO UPDATE SET token = excluded.token, token_created_at = excluded.token_created_at",
-  )
-    .bind(email, token, now)
-    .run();
-  return { token, already: false };
-}
-
-/**
- * Tap the confirmation link: unexpired and unconfirmed becomes
- * confirmed. Returns the address, or null when the link is dead — the
- * caller needs the address to mirror the join into Resend.
- */
-export async function confirmCollectorEmail(
-  env: AppEnv,
-  token: string,
-): Promise<string | null> {
-  if (token === "") return null;
-  const row = await env.DB.prepare(
-    "SELECT email, token_created_at, confirmed_at FROM email_collectors WHERE token = ?",
-  )
-    .bind(token)
-    .first<{
-      email: string;
-      token_created_at: string | null;
-      confirmed_at: string | null;
-    }>();
-  if (row === null) return null;
-  if (row.confirmed_at !== null) return row.email;
-  const created = Date.parse(row.token_created_at ?? "");
-  if (Number.isNaN(created) || Date.now() - created > CONFIRM_TTL_MS)
+function b64urlDecode(text: string): string | null {
+  try {
+    const padded = text.replaceAll("-", "+").replaceAll("_", "/");
+    return atob(padded);
+  } catch {
     return null;
-  await env.DB.prepare(
-    "UPDATE email_collectors SET confirmed_at = ? WHERE token = ?",
-  )
-    .bind(new Date().toISOString(), token)
-    .run();
-  return row.email;
+  }
 }
 
-/** Leave by token (one-click link): returns the removed address, if any. */
-export async function removeCollectorByToken(
-  env: AppEnv,
-  token: string,
-): Promise<string | null> {
-  if (token === "") return null;
-  const row = await env.DB.prepare(
-    "SELECT email FROM email_collectors WHERE token = ?",
-  )
-    .bind(token)
-    .first<{ email: string }>();
-  if (row === null) return null;
-  await env.DB.prepare("DELETE FROM email_collectors WHERE token = ?")
-    .bind(token)
-    .run();
-  return row.email;
+async function hmacHex(key: string, data: string): Promise<string> {
+  const bytes = new TextEncoder().encode(data);
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(key),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", cryptoKey, bytes);
+  return [...new Uint8Array(sig)]
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
-/** Leave by address (the modal button): quiet when absent. */
-export async function removeCollectorEmail(
+function slowEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+function linkKey(env: AppEnv): string {
+  return env.RESEND_API_KEY ?? "";
+}
+
+/**
+ * Mint a link token binding an address to a purpose. The key is the
+ * Resend secret every list flow needs anyway — rotating it invalidates
+ * outstanding links (rejoining mints a fresh one).
+ */
+export async function issueLinkToken(
   env: AppEnv,
   email: string,
-): Promise<void> {
-  await env.DB.prepare("DELETE FROM email_collectors WHERE email = ?")
-    .bind(email)
-    .run();
+  kind: LinkKind,
+  issuedAtMs: number = Date.now(),
+): Promise<string | null> {
+  const key = linkKey(env);
+  if (key === "" || email === "") return null;
+  const issued = issuedAtMs.toString(36);
+  const sig = await hmacHex(key, `${kind}.${email}.${issued}`);
+  return `${b64urlEncode(email)}.${issued}.${sig}`;
 }
 
-/** Broadcasts only ever reach confirmed addresses. */
-export async function listConfirmedCollectorEmails(
+/**
+ * Check a link token: right address, right purpose, intact signature,
+ * and (for confirmations) fresh. Returns the address, or null when the
+ * link is dead. Pass null maxAgeMs for links that never expire.
+ */
+export async function verifyLinkToken(
   env: AppEnv,
-): Promise<Array<{ email: string; token: string }>> {
-  const res = await env.DB.prepare(
-    "SELECT email, token FROM email_collectors WHERE confirmed_at IS NOT NULL ORDER BY created_at ASC",
-  ).all<{ email: string; token: string | null }>();
-  return (res.results ?? [])
-    .filter((r) => r.token !== null)
-    .map((r) => ({ email: r.email, token: r.token as string }));
+  email: string,
+  token: string,
+  kind: LinkKind,
+  maxAgeMs: number | null,
+): Promise<string | null> {
+  const key = linkKey(env);
+  if (key === "" || email === "" || token === "") return null;
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const [coded, issuedRaw, sig] = parts;
+  if (coded === undefined || issuedRaw === undefined || sig === undefined) {
+    return null;
+  }
+  const embedded = b64urlDecode(coded);
+  if (embedded === null || embedded !== email) return null;
+  const issued = Number.parseInt(issuedRaw, 36);
+  if (!Number.isFinite(issued)) return null;
+  if (maxAgeMs !== null) {
+    if (issued > Date.now() + 5 * 60 * 1000) return null;
+    if (Date.now() - issued > maxAgeMs) return null;
+  }
+  const expected = await hmacHex(key, `${kind}.${email}.${issuedRaw}`);
+  return slowEqual(expected, sig) ? email : null;
 }

@@ -1,7 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
-  broadcastEmail,
   confirmEmail,
   goodbyeEmail,
   inquiryEmail,
@@ -31,17 +30,6 @@ describe("inquiryEmail", () => {
       message: "",
     });
     assert.match(text, /\(No message\)/);
-  });
-});
-
-describe("broadcastEmail", () => {
-  it("signs off and links the personal exit", () => {
-    const url = "https://barbart.ca/email/goodbye?token=abc123";
-    const { subject, text } = broadcastEmail("https://barbart.ca", url);
-    assert.equal(subject, "New painting at Barbara Straka's studio");
-    assert.match(text, /— Barbara/);
-    assert.match(text, /https:\/\/barbart\.ca/);
-    assert.ok(text.includes(url));
   });
 });
 
