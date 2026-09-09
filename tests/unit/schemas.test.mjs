@@ -20,6 +20,7 @@ const row = {
   heightIn: null,
   depthIn: 1.5,
   draft: false,
+  publishOn: "",
   trash: false,
   trashedAt: "",
   image: "/img.jpg",
@@ -92,6 +93,8 @@ describe("parsePracticeOverlay", () => {
       deletes: ["b"],
     });
     assert.deepEqual(overlay?.deletes, ["b"]);
+    // Older overlays carry no schedule — it reads as none, not garbage.
+    assert.equal(overlay?.upserts["a"]?.publishOn, "");
   });
 
   it("resets garbage to absent", () => {

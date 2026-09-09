@@ -1,0 +1,111 @@
+---
+import { getCollection, render } from "astro:content";
+import Layout from "../../../layouts/Layout.astro";
+import PaintingDetail, {
+  type PaintingDetailData,
+} from "../../../components/PaintingDetail.astro";
+import { formatDimensions } from "../../../lib/dims";
+import { modelGlbOrEmpty } from "../../../lib/model-files";
+import { slugifyTitle } from "../../../lib/site";
+
+// Every painting — published or draft — gets a buyer-view preview behind
+// /admin (Access covers it in production). Drafts never get public buyer
+// pages (see paintings/[id]); this is how she checks one before it goes
+// live. Never indexed.
+export async function getStaticPaths() {
+  const paintings = await getCollection("paintings");
+  return paintings.map((painting) => ({
+    params: { slug: slugifyTitle(painting.data.title) },
+    props: { painting },
+  }));
+}
+
+const { painting } = Astro.props;
+const { Content } = await render(painting);
+const modelGlb = modelGlbOrEmpty(painting.data.modelGlb);
+const meta = [
+  painting.data.medium,
+  formatDimensions(
+    painting.data.widthIn ?? null,
+    painting.data.heightIn ?? null,
+    painting.data.depthIn ?? null,
+  ),
+]
+  .filter((s) => s !== undefined && s !== "")
+  .join(" · ");
+const slug = slugifyTitle(painting.data.title);
+const isDraft = painting.data.draft === true;
+const data: PaintingDetailData = {
+  title: painting.data.title,
+  price: painting.data.price,
+  sold: painting.data.sold,
+  publishOn: painting.data.publishOn ?? "",
+  medium: painting.data.medium ?? "",
+  meta,
+  alt: painting.data.alt,
+  description: painting.body ?? "",
+  widthIn:
+    painting.data.widthIn === undefined ? "" : String(painting.data.widthIn),
+  heightIn:
+    painting.data.heightIn === undefined ? "" : String(painting.data.heightIn),
+  depthIn:
+    painting.data.depthIn === undefined ? "" : String(painting.data.depthIn),
+  image: painting.data.image,
+  modelGlb,
+  modelUsdz: modelGlb === "" ? "" : (painting.data.modelUsdz ?? ""),
+  mdPath: `src/content/paintings/${painting.id.endsWith(".md") ? painting.id : `${painting.id}.md`}`,
+  slug,
+  draft: isDraft,
+};
+---
+
+<Layout
+  title={`${painting.data.title} — Preview`}
+  description={`Preview of ${painting.data.title} before it goes live.`}
+  wordmark="admin"
+  noindex
+>
+  <div class="preview-banner">
+    <p>
+      {
+        isDraft
+          ? "Preview — buyers can't see this page yet."
+          : "Preview — this is what buyers see."
+      }
+      <a href={`/admin/paintings/${slug}`}>Back to editing</a>
+    </p>
+  </div>
+  <PaintingDetail
+    mode="buy"
+    preview
+    data={data}
+    backHref="/admin"
+    backLabel="← Back to the studio"
+    editHref={`/admin/paintings/${slug}`}
+  >
+    <Content />
+  </PaintingDetail>
+</Layout>
+
+<style>
+  .preview-banner {
+    max-width: 70rem;
+    margin: 0 auto;
+    padding: 1rem 1rem 0;
+  }
+  .preview-banner p {
+    margin: 0;
+    padding: 0.8rem 1.2rem;
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+    background: var(--paper);
+    font-size: 0.92rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 1rem;
+    align-items: baseline;
+  }
+  .preview-banner a {
+    color: var(--accent);
+  }
+</style>

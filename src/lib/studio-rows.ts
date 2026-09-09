@@ -14,6 +14,8 @@ export interface StudioRowInput {
   mdPath: string;
   /** Drafts link photo + title to the studio room (no buyer page). */
   draft: boolean;
+  /** Scheduled go-live ("YYYY-MM-DD", "" when none) — shown on drafts. */
+  publishOn: string;
   /** Trashed rows link to the room too (no buyer page) and offer
    * Restore + Delete forever instead of Delete. */
   trash: boolean;
@@ -60,16 +62,24 @@ export function studioRowHtml(r: StudioRowInput): string {
     `</span>`;
   // Trashed rows offer Restore + Delete forever; everything else
   // offers Edit + Delete (which moves to trash, restorable 30 days).
+  // Drafts preview from the room toolbar (one studio door per card —
+  // the list itself never says "preview").
   const actions = r.trash
     ? `<a class="row-edit" href="/admin/paintings/${esc(r.slug)}">${pencilIcon}Edit</a>` +
       `<button type="button" class="row-restore" data-slug="${esc(r.slug)}" data-title="${esc(r.title)}" data-md="${esc(r.mdPath)}">${undoIcon}Restore</button>` +
       `<button type="button" class="row-del" data-purge="1" data-slug="${esc(r.slug)}" data-title="${esc(r.title)}" data-md="${esc(r.mdPath)}">${trashIcon}Delete forever</button>`
     : `<a class="row-edit" href="/admin/paintings/${esc(r.slug)}">${pencilIcon}Edit</a>` +
       `<button type="button" class="row-del" data-slug="${esc(r.slug)}" data-title="${esc(r.title)}" data-md="${esc(r.mdPath)}">${trashIcon}Delete</button>`;
+  // Scheduled drafts say when they go live, in plain words.
+  const schedule =
+    !r.trash && r.draft && r.publishOn !== ""
+      ? `<span> · goes live ${esc(r.publishOn)}</span>`
+      : "";
   return (
     `<li class="row-card">${photo}<span class="row-body">` +
     `<a class="row-title" href="${viewHref}"><strong>${esc(r.title)}</strong></a>` +
     `<span> — ${price}</span>` +
+    schedule +
     views +
     `<span class="row-actions">${actions}</span></span></li>`
   );

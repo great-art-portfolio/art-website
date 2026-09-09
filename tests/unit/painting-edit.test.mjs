@@ -2,10 +2,16 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { resolveDims, stemOf } from "../../src/lib/ar.ts";
 import {
+  appendSlugHistory,
   buildMarkdown,
+  formatSlugHistory,
+  isPublishDue,
+  normalizePublishOn,
   paintingFilePaths,
   parsePainting,
+  parseSlugHistory,
   patchPainting,
+  publishDue,
   setOrder,
   setTrash,
 } from "../../src/lib/painting-edit.ts";
@@ -330,5 +336,147 @@ describe("setTrash", () => {
     });
     assert.match(next, /^trash: true$/m);
     assert.match(next, /^trashedAt: "2026-09-08"$/m);
+  });
+});
+
+describe("scheduled publishing", () => {
+  const TODAY = "2026-09-09";
+
+  it("keeps real dates, drops typos and impossible days", () => {
+    assert.equal(normalizePublishOn("2026-09-10"), "2026-09-10");
+    assert.equal(normalizePublishOn(""), "");
+    assert.equal(normalizePublishOn("tomorrow"), "");
+    assert.equal(normalizePublishOn("2026-13-01"), "");
+    assert.equal(normalizePublishOn("2026-02-30"), "");
+    assert.equal(normalizePublishOn("09/10/2026"), "");
+  });
+
+  it("is due on arrival day, not before; garbage never due", () => {
+    assert.equal(isPublishDue("2026-09-09", TODAY), true);
+    assert.equal(isPublishDue("2026-09-01", TODAY), true);
+    assert.equal(isPublishDue("2026-09-10", TODAY), false);
+    assert.equal(isPublishDue("", TODAY), false);
+    assert.equal(isPublishDue("someday", TODAY), false);
+  });
+
+  it("flips a due draft live and drops its date", () => {
+    const md = `---\ntitle: "Slow Thaw"\ndraft: true\npublishOn: "2026-09-01"\nprice: 100.00\n---\n\nBody.\n`;
+    const next = publishDue(md);
+    assert.match(next, /^draft: false$/m);
+    assert.doesNotMatch(next, /^publishOn:/m);
+    assert.match(next, /^title: "Slow Thaw"$/m);
+    assert.match(next, /Body\.\n$/);
+  });
+
+  it("round-trips through patch, parse, and build", () => {
+    const dated = patchPainting(SAMPLE, {
+      title: "Night Reeds",
+      price: "140.00",
+      alt: "",
+      description: "Body.",
+      widthIn: "",
+      heightIn: "",
+      depthIn: "",
+      medium: "",
+      draft: true,
+      sold: false,
+      publishOn: "2026-09-10",
+    });
+    // Quoted: a bare date parses as a Date object and fails the build.
+    assert.match(dated, /^publishOn: "2026-09-10"$/m);
+    assert.equal(parsePainting(dated).publishOn, "2026-09-10");
+    const cleared = patchPainting(dated, {
+      title: "Night Reeds",
+      price: "140.00",
+      alt: "",
+      description: "Body.",
+      widthIn: "",
+      heightIn: "",
+      depthIn: "",
+      medium: "",
+      draft: false,
+      sold: false,
+      publishOn: "",
+    });
+    assert.doesNotMatch(cleared, /^publishOn:/m);
+    // Undefined callers (older flows) leave the key alone.
+    const kept = patchPainting(dated, {
+      title: "Night Reeds",
+      price: "140.00",
+      alt: "",
+      description: "Body.",
+      widthIn: "",
+      heightIn: "",
+      depthIn: "",
+      medium: "",
+      draft: true,
+      sold: false,
+    });
+    assert.match(kept, /^publishOn: "2026-09-10"$/m);
+    const built = buildMarkdown({
+      title: "T",
+      price: 10,
+      alt: "A",
+      description: "B.",
+      imageFile: "t.jpg",
+      widthIn: null,
+      heightIn: null,
+      depthIn: null,
+      medium: "",
+      draft: true,
+      publishOn: "2026-09-10",
+      modelGlb: "",
+      modelUsdz: "",
+    });
+    assert.match(built, /^publishOn: "2026-09-10"$/m);
+  });
+});
+
+describe("rename history", () => {
+  it("parses quoted lists, drops garbage, dedupes", () => {
+    assert.deepEqual(parseSlugHistory('"old-slug, older-slug"'), [
+      "old-slug",
+      "older-slug",
+    ]);
+    assert.deepEqual(parseSlugHistory(""), []);
+    assert.deepEqual(parseSlugHistory("ok, !!!, ok, Has-Caps"), [
+      "ok",
+      "has-caps",
+    ]);
+  });
+
+  it("caps at ten, newest first", () => {
+    const many = Array.from({ length: 12 }, (_, i) => `s${i}`).join(", ");
+    assert.equal(parseSlugHistory(many).length, 10);
+    assert.equal(appendSlugHistory("b, c", "a"), "a, b, c");
+    assert.equal(appendSlugHistory("a, b", "b"), "b, a");
+  });
+
+  it("round-trips through patch and parse", () => {
+    const edits = {
+      title: "Night Reeds",
+      price: "140.00",
+      alt: "",
+      description: "Body.",
+      widthIn: "",
+      heightIn: "",
+      depthIn: "",
+      medium: "",
+      draft: false,
+      sold: false,
+      slugHistory: "night-reads",
+    };
+    const next = patchPainting(SAMPLE, edits);
+    assert.match(next, /^slugHistory: "night-reads"$/m);
+    assert.equal(parsePainting(next).slugHistory, "night-reads");
+    // Undefined leaves the key alone; "" removes it cleanly.
+    assert.match(
+      patchPainting(next, { ...edits, slugHistory: undefined }),
+      /^slugHistory: "night-reads"$/m,
+    );
+    const cleared = patchPainting(next, { ...edits, slugHistory: "" });
+    assert.doesNotMatch(cleared, /^slugHistory:/m);
+    assert.equal(parsePainting(SAMPLE).slugHistory, "");
+    assert.equal(formatSlugHistory([]), "");
   });
 });

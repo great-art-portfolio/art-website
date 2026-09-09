@@ -21,7 +21,13 @@ import {
   practiceUpsert,
   type PracticeOverlay,
 } from "../lib/practice";
-import { paintingFilePaths, setTrash, todayKey } from "../lib/painting-edit";
+import {
+  isPublishDue,
+  paintingFilePaths,
+  publishDue,
+  setTrash,
+  todayKey,
+} from "../lib/painting-edit";
 
 /**
  * Admin island (client-only): studio dashboard — collection index with
@@ -103,6 +109,8 @@ interface LocalPainting {
   price: number;
   sold: boolean;
   draft: boolean;
+  /** Scheduled go-live ("YYYY-MM-DD", "" when none). */
+  publishOn: string;
   /** Trash flag + stamp (trashedAt: "YYYY-MM-DD", "" when never trashed). */
   trash: boolean;
   trashedAt: string;
@@ -143,6 +151,7 @@ function seedLocalRows(raw: BakedRow[]): LocalPainting[] {
       price: r.price,
       sold: r.sold,
       draft: r.draft,
+      publishOn: r.publishOn,
       trash: r.trash,
       trashedAt: r.trashedAt,
       image: r.image,
@@ -209,7 +218,15 @@ function renderLocalCollection(): boolean {
     if (lastRowsKey === null) lastRowsKey = rowsKey(localRows);
   }
   const overlay = loadPracticeOverlay();
-  renderRows(mergePractice(localRows, overlay));
+  // Practice has no backend to commit through: due schedules simply read
+  // as live for this visit (the overlay itself is untouched).
+  const today = todayKey();
+  const merged = mergePractice(localRows, overlay).map((r) =>
+    r.draft && !r.trash && isPublishDue(r.publishOn, today)
+      ? { ...r, draft: false, publishOn: "" }
+      : r,
+  );
+  renderRows(merged);
   // Practice mode: saves from the studio rooms land in this browser, and
   // clear out with one tap. Only the dev suffix appears — the heading
   // itself is never touched — and only ever on a local preview, never
@@ -598,6 +615,7 @@ async function persistOrder(
           depthIn: row.depthIn,
           medium: row.medium,
           draft: row.draft,
+          publishOn: row.publishOn,
           order: i,
         });
         changed += 1;
@@ -805,6 +823,54 @@ async function purgeOldTrash(rows: LocalPainting[]): Promise<LocalPainting[]> {
     `Cleared ${old.length === 1 ? "1 painting" : `${old.length} paintings`} trashed over 30 days ago.`,
   );
   return rows.filter((r) => !gone.has(r.slug));
+}
+
+/**
+ * Scheduled drafts whose day has come go live on this visit, in one
+ * commit — the mirror of the trash auto-clear above. Each file is
+ * re-read first: a stale row never publishes something already live,
+ * trashed, or rescheduled. A commit failure keeps the drafts with an
+ * error toast, never a half-flipped list.
+ */
+async function publishDueRows(rows: LocalPainting[]): Promise<LocalPainting[]> {
+  const today = todayKey();
+  const due = rows.filter(
+    (r) =>
+      r.draft &&
+      !r.trash &&
+      r.mdPath !== "" &&
+      isPublishDue(r.publishOn, today),
+  );
+  if (due.length === 0) return rows;
+  const flipped = new Map<string, string>();
+  for (const r of due) {
+    const content = await api.getPaintingFile(r.mdPath);
+    if (content === null) continue;
+    const parsed = parsePainting(content);
+    if (parsed === null || !parsed.draft || parsed.trash) continue;
+    if (!isPublishDue(parsed.publishOn, today)) continue;
+    flipped.set(r.mdPath, publishDue(content));
+  }
+  if (flipped.size > 0) {
+    const names = due
+      .filter((r) => flipped.has(r.mdPath))
+      .map((r) => `"${r.title}"`)
+      .join(", ");
+    await api.commitFiles(
+      flipped.size === 1
+        ? `Publish scheduled painting: ${names}`
+        : `Publish ${flipped.size} scheduled paintings: ${names}`,
+      [...flipped].map(([path, blob]) => ({ path, blob })),
+    );
+    setStatus(
+      flipped.size === 1
+        ? `Published ${names} — live in a few minutes.`
+        : `Published ${flipped.size} scheduled paintings — live in a few minutes.`,
+    );
+  }
+  return rows.map((r) =>
+    flipped.has(r.mdPath) ? { ...r, draft: false, publishOn: "" } : r,
+  );
 }
 
 /**
@@ -1053,6 +1119,7 @@ async function refreshCollection(): Promise<void> {
       price: Number(p.price),
       sold: p.sold,
       draft: p.draft,
+      publishOn: p.publishOn,
       trash: p.trash,
       trashedAt: p.trashedAt,
       image: (thumbByMd ?? {})[mdPath] ?? "",
@@ -1069,10 +1136,16 @@ async function refreshCollection(): Promise<void> {
   }
   // Anything trashed over 30 days ago clears itself on this visit — but
   // a purge failure must never blank the list, so it falls back to the
-  // unpurged rows with an error toast.
+  // unpurged rows with an error toast. Scheduled drafts whose day has
+  // come go live the same way, right after.
   let live = rows;
   try {
     live = await purgeOldTrash(rows);
+  } catch (err: unknown) {
+    setStatus(errorMessage(err), true);
+  }
+  try {
+    live = await publishDueRows(live);
   } catch (err: unknown) {
     setStatus(errorMessage(err), true);
   }

@@ -75,6 +75,7 @@ export interface ElementMap {
   "de-visibility": HTMLButtonElement;
   "de-del": HTMLButtonElement;
   "de-sold": HTMLInputElement;
+  "de-publish-on": HTMLInputElement;
   "de-notify-push": HTMLInputElement;
   "de-notify-email": HTMLInputElement;
   "de-status": HTMLElement;

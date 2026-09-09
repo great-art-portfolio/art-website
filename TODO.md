@@ -151,3 +151,26 @@ Push to main for CI; real upload test on barbart.ca/admin.
 - Review pass: schemas row-list parsers deduped via parseRowList;
   removed dead maybeInput helper; new unit tests for money, dims, and
   parseStatsSeed (142 unit green, admin-studio e2e 40 green).
+- WordPress gaps, all four, live (156 unit, 126 e2e, all green):
+  - Draft preview: /admin/preview/[slug] shows the buyer page for any
+    painting (draft or live) with a banner, no working inquiry form,
+    and noindex. Edit rooms link out via a toolbar Preview button.
+    Dashboard rows keep one studio door per card (contract), so they
+    link only to the room — preview lives one tap inside.
+  - Autosave: rooms silently back up typed fields to localStorage
+    (800ms debounce) and restore them after a refresh or crash; the
+    backup clears on every save/delete landing back on /admin. No UI.
+  - Scheduled publishing: rooms offer a "Publish on" date; a dated
+    draft commits publishOn (quoted, like trashedAt) and the dashboard
+    publishes due drafts on her next visit in one commit (re-reads
+    each file first; failures keep drafts with a toast). Draft rows
+    say "goes live <date>". Publishing by hand clears the date.
+  - Rename redirects: saving a new title retires the old slug into
+    slugHistory (same commit, newest-first, cap ten); buyer pages
+    build one alias path per entry, canonical back to the title slug
+    (relative — the static build bakes a placeholder origin, caught
+    by e2e). Legacy _redirects untouched; the commit allowlist stays
+    gallery-only.
+  - Two catches by the suites: canonical baked as localhost:4321
+    (now relative paths) and the row Preview shortcut violating the
+    one-door-per-card / never-"preview" list contracts (removed).

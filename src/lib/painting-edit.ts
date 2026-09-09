@@ -16,6 +16,10 @@ export interface ParsedPainting {
   medium: string;
   draft: boolean;
   sold: boolean;
+  /** Scheduled go-live (publishOn: "YYYY-MM-DD", "" when none). */
+  publishOn: string;
+  /** Old page links, kept working after a rename ("a, b", "" when none). */
+  slugHistory: string;
   /** Trash flag + stamp (trashedAt: "YYYY-MM-DD", "" when never trashed). */
   trash: boolean;
   trashedAt: string;
@@ -51,6 +55,10 @@ export interface PaintingEdits {
   medium: string;
   draft: boolean;
   sold: boolean;
+  /** Scheduled go-live: a date sets it, "" clears it, undefined leaves it. */
+  publishOn?: string;
+  /** Old page links: a history string sets it, "" clears it. */
+  slugHistory?: string | undefined;
   /** Set after an AR rebuild; omitted otherwise (existing refs untouched). */
   modelGlb?: string;
   modelUsdz?: string;
@@ -90,6 +98,8 @@ export function parsePainting(md: string): ParsedPainting | null {
     medium: data["medium"] ?? "",
     draft: (data["draft"] ?? "false").trim() === "true",
     sold: (data["sold"] ?? "false").trim() === "true",
+    publishOn: normalizePublishOn(data["publishOn"] ?? ""),
+    slugHistory: formatSlugHistory(parseSlugHistory(data["slugHistory"] ?? "")),
     trash: (data["trash"] ?? "false").trim() === "true",
     trashedAt: (data["trashedAt"] ?? "").trim(),
     image: data["image"] ?? "",
@@ -122,6 +132,76 @@ export function setOrder(md: string, order: number | null): string {
 /** Today's stamp for trash and date keys ("YYYY-MM-DD", UTC). */
 export function todayKey(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * Scheduled go-live, kept honest: a real calendar date rides through,
+ * anything else reads as no schedule — a typo never publishes, and a
+ * garbled stamp never auto-publishes either.
+ */
+export function normalizePublishOn(raw: string): string {
+  const t = raw.trim().replace(/^"|"$/g, "").trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t);
+  if (m === null) return "";
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return "";
+  const back = new Date(Date.UTC(Number(m[1]), month - 1, day));
+  if (
+    back.getUTCFullYear() !== Number(m[1]) ||
+    back.getUTCMonth() !== month - 1 ||
+    back.getUTCDate() !== day
+  ) {
+    return "";
+  }
+  return t;
+}
+
+/** True when a schedule stamp has arrived (lexicographic: YYYY-MM-DD). */
+export function isPublishDue(publishOn: string, today: string): boolean {
+  const due = normalizePublishOn(publishOn);
+  return due !== "" && due <= today;
+}
+
+/**
+ * Old page links after a rename: one quoted comma string ("a, b").
+ * Garbage entries never ride along — an odd keystroke in the file can't
+ * mint a broken page — and the list caps at ten, newest first.
+ */
+export function parseSlugHistory(raw: string): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const unquoted =
+    raw.trim().startsWith('"') && raw.trim().endsWith('"')
+      ? raw.trim().slice(1, -1)
+      : raw;
+  for (const bit of unquoted.split(",")) {
+    const s = bit.trim().toLowerCase();
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(s) || seen.has(s)) continue;
+    seen.add(s);
+    out.push(s);
+    if (out.length >= 10) break;
+  }
+  return out;
+}
+
+export function formatSlugHistory(slugs: string[]): string {
+  return parseSlugHistory(slugs.join(", ")).join(", ");
+}
+
+/** Fold a retired slug into the history (dedupe, newest first, cap ten). */
+export function appendSlugHistory(current: string, oldSlug: string): string {
+  return formatSlugHistory([oldSlug, ...parseSlugHistory(current)]);
+}
+
+/**
+ * Lazy scheduled publishing: flip a due draft live and drop its date in
+ * one rewrite, preserving every other line. The dashboard runs this over
+ * due rows on each visit (one commit); the static build publishes them.
+ */
+export function publishDue(md: string): string {
+  const next = md.replace(/^draft:.*$/m, "draft: false");
+  return next.replace(/^publishOn:.*(\r?\n?)/m, "");
 }
 
 /**
@@ -159,6 +239,26 @@ export function patchPainting(md: string, edits: PaintingEdits): string {
   next = patchKey(next, "alt", yamlQuote(edits.alt));
   next = patchKey(next, "sold", edits.sold ? "true" : "false");
   next = patchKey(next, "draft", edits.draft ? "true" : "false");
+  // Scheduled go-live: undefined callers (older flows) leave the key
+  // alone; a date sets it quoted (bare dates break the content schema,
+  // like trashedAt); "" removes it with no blank line left behind.
+  if (edits.publishOn !== undefined) {
+    const due = normalizePublishOn(edits.publishOn);
+    if (due === "") {
+      next = next.replace(/^publishOn:.*(\r?\n?)/m, "");
+    } else {
+      next = patchKey(next, "publishOn", yamlQuote(due));
+    }
+  }
+  // Old page links: same set-or-clear shape as the schedule above.
+  if (edits.slugHistory !== undefined) {
+    const history = formatSlugHistory(parseSlugHistory(edits.slugHistory));
+    if (history === "") {
+      next = next.replace(/^slugHistory:.*(\r?\n?)/m, "");
+    } else {
+      next = patchKey(next, "slugHistory", yamlQuote(history));
+    }
+  }
   // Medium is optional: an emptied field removes the key instead of
   // leaving a blank string buyers would see.
   if (edits.medium.trim() === "") {
@@ -208,6 +308,8 @@ export function buildMarkdown(input: {
   depthIn: number | null;
   medium: string;
   draft: boolean;
+  /** Scheduled go-live ("" when none). */
+  publishOn: string;
   modelGlb: string;
   modelUsdz: string;
 }): string {
@@ -222,6 +324,8 @@ export function buildMarkdown(input: {
     `draft: ${input.draft ? "true" : "false"}`,
     `price: ${input.price.toFixed(2)}`,
   ];
+  const due = normalizePublishOn(input.publishOn ?? "");
+  if (due !== "") lines.push(`publishOn: ${yamlQuote(due)}`);
   if (input.widthIn !== null) lines.push(`widthIn: ${input.widthIn}`);
   if (input.heightIn !== null) lines.push(`heightIn: ${input.heightIn}`);
   if (input.depthIn !== null) lines.push(`depthIn: ${input.depthIn}`);

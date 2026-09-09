@@ -41,6 +41,8 @@ const bakedRowSchema = z.object({
   heightIn: z.number().nullable(),
   depthIn: z.number().nullable(),
   draft: z.boolean(),
+  /** Scheduled go-live ("YYYY-MM-DD", "" when none). */
+  publishOn: z.string(),
   trash: z.boolean(),
   trashedAt: z.string(),
   image: z.string(),
@@ -109,6 +111,8 @@ const practicePaintingSchema = z.object({
   depthIn: z.string(),
   medium: z.string(),
   draft: z.boolean(),
+  /** Scheduled go-live; absent (older overlays) means none. */
+  publishOn: z.string().optional().default(""),
   order: z
     .number()
     .int()

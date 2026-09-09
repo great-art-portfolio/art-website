@@ -12,6 +12,10 @@ interface Props {
   image?: string;
   /** "signature" on public pages, "admin" on studio pages. */
   wordmark?: "signature" | "admin";
+  /** Studio previews are for her eyes only — never indexed. */
+  noindex?: boolean;
+  /** Alias pages (old slugs) read under the current slug's path. */
+  canonical?: string;
 }
 
 const {
@@ -20,9 +24,15 @@ const {
   image = "/apple-touch-icon.png",
   // "signature" on public pages, "admin" on studio pages.
   wordmark = "signature",
+  noindex = false,
+  canonical: canonicalOverride,
 } = Astro.props;
 
-const canonical = Astro.url.href;
+// Relative paths: the static build bakes pages with a placeholder origin,
+// so only the path survives the build correctly on every host.
+const selfPath =
+  Astro.url.pathname.length > 1 ? Astro.url.pathname.replace(/\/$/, "") : "/";
+const canonical = canonicalOverride ?? selfPath;
 const year = new Date().getFullYear();
 const artistLabel = ARTIST_NAME ?? "The Studio";
 ---
@@ -46,6 +56,8 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
       media="(prefers-color-scheme: dark)"
     />
     <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex" />}
+    <link rel="canonical" href={canonical} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />

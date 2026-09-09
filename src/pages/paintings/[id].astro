@@ -12,10 +12,27 @@ export async function getStaticPaths() {
   const paintings = (await getCollection("paintings")).filter((p) =>
     isPublished(p.data),
   );
-  return paintings.map((painting) => ({
+  // Old links keep working after a rename: one alias path per history
+  // entry, reading under the title's page. Current slugs always win —
+  // an alias colliding with a live title is skipped, never duplicated
+  // (duplicates break the build).
+  const claimed = new Set(paintings.map((p) => slugifyTitle(p.data.title)));
+  const paths = paintings.map((painting) => ({
     params: { id: slugifyTitle(painting.data.title) },
     props: { painting },
   }));
+  for (const painting of paintings) {
+    const history = (painting.data.slugHistory ?? "")
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter((s) => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(s));
+    for (const alias of history) {
+      if (claimed.has(alias)) continue;
+      claimed.add(alias);
+      paths.push({ params: { id: alias }, props: { painting } });
+    }
+  }
+  return paths;
 }
 
 const { painting } = Astro.props;
@@ -37,6 +54,7 @@ const data: PaintingDetailData = {
   title: painting.data.title,
   price: painting.data.price,
   sold: painting.data.sold,
+  publishOn: "",
   medium: painting.data.medium ?? "",
   meta,
   alt: painting.data.alt,
@@ -74,6 +92,7 @@ const paintingJsonLd = {
 <Layout
   title={`${painting.data.title} — ${painting.data.sold ? "Sold" : "Original Painting"}`}
   description={painting.data.alt}
+  canonical={`/paintings/${data.slug}`}
 >
   <PaintingDetail
     mode="buy"

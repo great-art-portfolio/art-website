@@ -1477,3 +1477,35 @@ test("gallery link leaves admin and lands home", async ({ browser }) => {
   expect(leftover).toEqual([null, null]);
   await authed.close();
 });
+
+test("scheduled drafts whose day has come publish themselves", async ({
+  browser,
+}) => {
+  const authed = await browser.newContext();
+  await authed.addInitScript(() =>
+    sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
+  );
+  const page = await authed.newPage();
+  const { commits } = await stubPaintingFiles(page, {
+    "soon.md": stubMd("Soon", `draft: true\npublishOn: "2000-01-01"\n`),
+    "later.md": stubMd("Later", `draft: true\npublishOn: "2999-01-01"\n`),
+  });
+  await page.goto("/admin");
+  // No clicks: the visit itself publishes the due draft in one commit.
+  await expect
+    .poll(() => commits().at(-1)?.message ?? null, { timeout: 15_000 })
+    .toBe('Publish scheduled painting: "Soon"');
+  const published = commits().at(-1)?.blobs[0] ?? "";
+  expect(published).toMatch(/^draft: false$/m);
+  expect(published).not.toMatch(/^publishOn:/m);
+  await expect(page.locator("#admin-status")).toContainText('Published "Soon"');
+  // Soon reads as available; Later stays a draft and says when it goes live.
+  await expect(page.locator('[data-group="available"] .row-card')).toHaveCount(
+    1,
+  );
+  await expect(page.locator('[data-group="drafts"] .row-card')).toHaveCount(1);
+  await expect(page.locator('[data-group="drafts"] .row-card')).toContainText(
+    "goes live 2999-01-01",
+  );
+  await authed.close();
+});

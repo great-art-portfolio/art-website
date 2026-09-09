@@ -25,6 +25,13 @@ const paintings = defineCollection({
       // Studio drafts: saved but not yet published. Hidden from the gallery,
       // painting pages, and search engines until the draft flag comes off.
       draft: z.boolean().optional(),
+      // Scheduled go-live ("YYYY-MM-DD", quoted like trashedAt — a bare
+      // date parses as a Date object and fails this schema at build).
+      // The dashboard publishes due drafts on her next visit, one commit.
+      publishOn: z.string().optional(),
+      // Old page links after a rename ("a, b", quoted). The buyer page
+      // builds one alias path per entry, canonical back to the title.
+      slugHistory: z.string().optional(),
       // Studio trash: deleted paintings rest here 30 days (restorable)
       // before clearing themselves. Hidden everywhere, like drafts.
       // The stamp is a quoted string (like title), never a bare date.

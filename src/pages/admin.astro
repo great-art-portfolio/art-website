@@ -37,6 +37,7 @@ const localCollection = (await getCollection("paintings")).map((p) => ({
   heightIn: p.data.heightIn ?? null,
   depthIn: p.data.depthIn ?? null,
   draft: p.data.draft === true,
+  publishOn: p.data.publishOn ?? "",
   trash: p.data.trash === true,
   trashedAt: p.data.trashedAt ?? "",
   image: p.data.image.src,

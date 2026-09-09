@@ -384,3 +384,68 @@ test("edit room replace swaps the framed photo", async ({ page }) => {
   await expect(frame).toHaveAttribute("src", /^blob:/);
   await expect(frame).not.toHaveAttribute("srcset", /./);
 });
+
+test("edit rooms link out to the buyer-view preview", async ({ page }) => {
+  await page.goto("/admin/paintings/first-thaw");
+  const preview = page.locator("#de-preview");
+  await expect(preview).toHaveText("Preview");
+  await expect(preview).toHaveAttribute("href", "/admin/preview/first-thaw");
+  await expect(preview).toHaveAttribute("target", "_blank");
+});
+
+test("preview shows the buyer page with the inquiry switched off", async ({
+  page,
+}) => {
+  await page.goto("/admin/preview/first-thaw");
+  await expect(page.locator(".preview-banner")).toContainText(
+    "this is what buyers see",
+  );
+  await expect(page.locator(".preview-banner a")).toHaveAttribute(
+    "href",
+    "/admin/paintings/first-thaw",
+  );
+  await expect(page.locator("h1")).toHaveText("First Thaw");
+  // No working inquiry on a preview — just the plain-words note.
+  await expect(page.locator("#inquiry-form")).toHaveCount(0);
+  await expect(page.locator(".inquiry-off .hint")).toContainText(
+    "nothing to press in a preview",
+  );
+  // Never indexed.
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+    "content",
+    "noindex",
+  );
+});
+
+test("buyer pages canonicalize to the title slug", async ({ page }) => {
+  await page.goto("/paintings/first-thaw");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    "href",
+    "/paintings/first-thaw",
+  );
+  await expect(page.locator('meta[name="robots"]')).toHaveCount(0);
+});
+
+test("rooms offer a go-live date, empty unless scheduled", async ({ page }) => {
+  await page.goto("/admin/paintings/new");
+  const when = page.locator("#de-publish-on");
+  await expect(when).toHaveAttribute("type", "date");
+  await expect(when).toHaveValue("");
+  await expect(page.locator("#de-publish-on-hint")).toContainText(
+    "you publish by hand",
+  );
+  await page.goto("/admin/paintings/first-thaw");
+  await expect(page.locator("#de-publish-on")).toHaveValue("");
+});
+
+test("unsaved typing survives a refresh, silently", async ({ page }) => {
+  await page.goto("/admin/paintings/new");
+  await page.locator("#de-title").fill("Half-typed thaw");
+  // Autosave debounce is under a second; the backup lands with no toast.
+  await expect(page.locator("#de-status")).toBeEmpty();
+  await page.waitForTimeout(1200);
+  await page.reload();
+  await expect(page.locator("#de-title")).toHaveValue("Half-typed thaw");
+  await expect(page.locator("#pv-title")).toHaveText("Half-typed thaw");
+  await expect(page.locator("#de-status")).toBeEmpty();
+});

@@ -19,6 +19,8 @@ export interface PaintingDetailData {
   title: string;
   price: number;
   sold: boolean;
+  /** Scheduled go-live ("YYYY-MM-DD", "" when none). */
+  publishOn: string;
   medium: string;
   /** Precomputed "Oil · 24 × 36 in" line (empty when unmeasured). */
   meta: string;
@@ -44,9 +46,18 @@ interface Props {
   backLabel: string;
   /** Buyer pages only: door to this painting's studio room. */
   editHref?: string;
+  /** Preview route: buyer layout with the inquiry form switched off. */
+  preview?: boolean;
 }
 
-const { mode, data, backHref, backLabel, editHref = "" } = Astro.props;
+const {
+  mode,
+  data,
+  backHref,
+  backLabel,
+  editHref = "",
+  preview = false,
+} = Astro.props;
 const studio = mode !== "buy";
 const priceLabel = `$${data.price.toFixed(2)} CAD`;
 const eyebrow =
@@ -311,6 +322,15 @@ const eyebrow =
                   <button type="button" id="de-visibility">
                     {data.draft ? "Publish" : "Unpublish"}
                   </button>
+                  <a
+                    id="de-preview"
+                    class="de-preview"
+                    href={`/admin/preview/${data.slug}`}
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    Preview
+                  </a>
                   <button type="button" id="de-del">
                     Delete
                   </button>
@@ -319,6 +339,19 @@ const eyebrow =
               <label class="de-check">
                 <input id="de-sold" type="checkbox" checked={data.sold} /> Sold
               </label>
+              <label class="de-check">
+                Publish on
+                <input
+                  id="de-publish-on"
+                  type="date"
+                  value={data.publishOn}
+                  aria-describedby="de-publish-on-hint"
+                />
+              </label>
+              <span class="hint" id="de-publish-on-hint">
+                Empty means you publish by hand — a date means it goes live by
+                itself once that day comes.
+              </span>
               {mode === "draft" || data.draft ? (
                 <span class="de-notify-group">
                   <span class="de-notify-label">On publish, also tell:</span>
@@ -377,7 +410,7 @@ const eyebrow =
         )
       }
       {
-        !data.sold && !studio && (
+        !data.sold && !studio && !preview && (
           <>
             <button
               type="button"
@@ -431,11 +464,12 @@ const eyebrow =
         )
       }
       {
-        studio && mode !== "draft" && !data.sold && (
+        ((studio && mode !== "draft") || preview) && !data.sold && (
           <div class="inquiry-off">
             <p class="hint">
-              Buyers see an “Interested?” button on the live page — it's off
-              while you edit, so there's nothing to press here.
+              {preview
+                ? "Buyers will see an “Interested?” button here once this is published — there's nothing to press in a preview."
+                : "Buyers see an “Interested?” button on the live page — it's off while you edit, so there's nothing to press here."}
             </p>
           </div>
         )
@@ -1317,7 +1351,8 @@ const eyebrow =
     font-size: 0.88rem;
     color: var(--muted);
   }
-  .studio-toolbar button:not(.btn-primary) {
+  .studio-toolbar button:not(.btn-primary),
+  .studio-toolbar a.de-preview {
     font: inherit;
     font-size: 0.9rem;
     font-weight: 600;
@@ -1328,15 +1363,21 @@ const eyebrow =
     border: 1px solid var(--line);
     background: var(--paper);
     color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    box-sizing: border-box;
     transition:
       border-color 0.25s ease,
       background-color 0.25s ease,
       color 0.25s ease;
   }
-  .studio-toolbar button:not(.btn-primary):hover {
+  .studio-toolbar button:not(.btn-primary):hover,
+  .studio-toolbar a.de-preview:hover {
     border-color: var(--ink);
   }
-  .studio-toolbar button:focus-visible {
+  .studio-toolbar button:focus-visible,
+  .studio-toolbar a.de-preview:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }

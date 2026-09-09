@@ -15,7 +15,9 @@ import { dollarsToCents, formatCAD } from "../lib/money";
 import { formatDimensions } from "../lib/dims";
 import { isTitleTaken, slugifyTitle } from "../lib/site";
 import {
+  appendSlugHistory,
   buildMarkdown,
+  normalizePublishOn,
   parsePainting,
   patchPainting,
   setTrash,
@@ -305,6 +307,13 @@ function goAdmin(flash: string): void {
   } catch {
     // ignore
   }
+  // Saved (or deleted): the backup served its purpose.
+  try {
+    const key = roomKey();
+    if (key !== null) window.localStorage.removeItem(key);
+  } catch {
+    // ignore
+  }
   window.location.href = "/admin";
 }
 
@@ -346,6 +355,8 @@ interface FieldSet {
   heightIn: number | null;
   depthIn: number | null;
   sold: boolean;
+  /** Scheduled go-live ("YYYY-MM-DD", "" when none). */
+  publishOn: string;
 }
 
 function readFields(): FieldSet | null {
@@ -363,7 +374,149 @@ function readFields(): FieldSet | null {
     medium: $("de-medium").value.trim(),
     ...readDims(),
     sold: $("de-sold").checked,
+    publishOn: normalizePublishOn($("de-publish-on").value),
   };
+}
+
+/**
+ * Silent autosave: unsaved typing survives a refresh or a crashed tab.
+ * No UI — revisions live in git once saved; this only covers the gap
+ * before. One localStorage backup per room (photos can't be held: a
+ * refresh still asks for the upload again), cleared the moment she
+ * lands back on /admin — every save/delete success exits via goAdmin.
+ */
+let autosaveTimer = 0;
+
+function autosaveKey(mode: string, slug: string, mdPath: string): string {
+  return `studio-autosave-v1|${mode}|${slug}|${mdPath}`;
+}
+
+function roomKey(): string | null {
+  const main = document.getElementById("main");
+  if (main === null) return null;
+  const mode = studioMode(main);
+  if (mode === null) return null;
+  return autosaveKey(mode, main.dataset.slug ?? "", main.dataset.mdPath ?? "");
+}
+
+/** Raw input values (strings, exactly as typed) or null off-room. */
+function snapshotInputs(): Record<string, string | boolean> | null {
+  const title = maybe("de-title");
+  const price = maybe("de-price");
+  const medium = maybe("de-medium");
+  const alt = maybe("de-alt");
+  const desc = maybe("de-desc");
+  const w = maybe("de-w");
+  const h = maybe("de-h");
+  const d = maybe("de-d");
+  const sold = maybe("de-sold");
+  const publishOn = maybe("de-publish-on");
+  if (
+    title === null ||
+    price === null ||
+    medium === null ||
+    alt === null ||
+    desc === null ||
+    w === null ||
+    h === null ||
+    d === null ||
+    sold === null ||
+    publishOn === null
+  ) {
+    return null;
+  }
+  return {
+    title: title.value,
+    price: price.value,
+    medium: medium.value,
+    alt: alt.value,
+    desc: desc.value,
+    w: w.value,
+    h: h.value,
+    d: d.value,
+    sold: sold.checked,
+    publishOn: publishOn.value,
+  };
+}
+
+function scheduleAutosave(): void {
+  window.clearTimeout(autosaveTimer);
+  autosaveTimer = window.setTimeout(() => {
+    try {
+      const key = roomKey();
+      const snap = snapshotInputs();
+      if (key === null || snap === null) return;
+      window.localStorage.setItem(key, JSON.stringify(snap));
+    } catch {
+      // Full or blocked storage: the room still saves normally.
+    }
+  }, 800);
+}
+
+/** Restore this room's backup when it differs — silent, then re-preview. */
+function restoreAutosave(): void {
+  let raw: string | null;
+  try {
+    const key = roomKey();
+    raw = key === null ? null : window.localStorage.getItem(key);
+  } catch {
+    return;
+  }
+  if (raw === null) return;
+  let saved: unknown;
+  try {
+    saved = JSON.parse(raw) as unknown;
+  } catch {
+    return;
+  }
+  if (typeof saved !== "object" || saved === null) return;
+  const snap = snapshotInputs();
+  if (snap === null) return;
+  const get = (s: unknown): string => (typeof s === "string" ? s : "");
+  const rec = saved as Record<string, unknown>;
+  const next: Record<string, string | boolean> = {
+    title: get(rec["title"]),
+    price: get(rec["price"]),
+    medium: get(rec["medium"]),
+    alt: get(rec["alt"]),
+    desc: get(rec["desc"]),
+    w: get(rec["w"]),
+    h: get(rec["h"]),
+    d: get(rec["d"]),
+    sold: rec["sold"] === true,
+    publishOn: get(rec["publishOn"]),
+  };
+  let differs = false;
+  for (const k of Object.keys(next)) {
+    if (snap[k] !== next[k]) {
+      differs = true;
+      break;
+    }
+  }
+  if (!differs) return;
+  const set = (id: string, v: string | boolean): void => {
+    const el = maybe(id);
+    if (el === null) return;
+    if (typeof v === "boolean") {
+      if (el instanceof HTMLInputElement) el.checked = v;
+    } else if (
+      el instanceof HTMLInputElement ||
+      el instanceof HTMLTextAreaElement
+    ) {
+      el.value = v;
+    }
+  };
+  set("de-title", next["title"] ?? "");
+  set("de-price", next["price"] ?? "");
+  set("de-medium", next["medium"] ?? "");
+  set("de-alt", next["alt"] ?? "");
+  set("de-desc", next["desc"] ?? "");
+  set("de-w", next["w"] ?? "");
+  set("de-h", next["h"] ?? "");
+  set("de-d", next["d"] ?? "");
+  set("de-sold", next["sold"] ?? false);
+  set("de-publish-on", next["publishOn"] ?? "");
+  refreshPreview();
 }
 
 /** Model blobs matching the current photo + tape numbers, building fresh
@@ -440,6 +593,7 @@ async function saveNew(draft: boolean): Promise<void> {
       depthIn: fields.depthIn === null ? "" : String(fields.depthIn),
       medium: fields.medium,
       draft,
+      publishOn: draft ? fields.publishOn : "",
     };
     practiceUpsert(practice);
     buzz();
@@ -473,6 +627,9 @@ async function saveNew(draft: boolean): Promise<void> {
           depthIn: fields.depthIn,
           medium: fields.medium,
           draft,
+          // "Publish painting" goes live now — a date only ever rides on
+          // a draft, where it becomes the scheduled go-live.
+          publishOn: draft ? fields.publishOn : "",
           modelGlb: models === null ? "" : `/models/${slug}.glb`,
           modelUsdz: models === null ? "" : `/models/${slug}.usdz`,
         }),
@@ -492,14 +649,32 @@ async function saveNew(draft: boolean): Promise<void> {
     buzz();
     const priceCents = Math.round(fields.price * 100);
     const alerts = draft ? "" : await publishAlerts();
+    const scheduled = draft && fields.publishOn !== "";
     goAdmin(
-      draft
-        ? `Draft "${fields.title}" saved — publish it from the studio when ready.`
-        : `Published "${fields.title}" (${formatCAD(priceCents)}) — live in a few minutes.${alerts}`,
+      scheduled
+        ? `Draft "${fields.title}" saved — goes live ${fields.publishOn}.`
+        : draft
+          ? `Draft "${fields.title}" saved — publish it from the studio when ready.`
+          : `Published "${fields.title}" (${formatCAD(priceCents)}) — live in a few minutes.${alerts}`,
     );
   } catch (err) {
     setStatus(errorMessage(err), true);
   }
+}
+
+/**
+ * A rename retires the old page link into slugHistory (same commit), so
+ * bookmarks keep working. Undefined when the title slug didn't change —
+ * patchPainting then leaves the key alone.
+ */
+function renamedHistory(
+  base: ParsedPainting,
+  oldSlug: string,
+  title: string,
+): string | undefined {
+  const next = slugifyTitle(title);
+  if (next === "" || next === oldSlug) return undefined;
+  return appendSlugHistory(base.slugHistory, oldSlug);
 }
 
 /** Base file for the edit room: live content, or practice values in dev. */
@@ -527,6 +702,7 @@ function practiceFromInputs(slug: string, draft: boolean): PracticePainting {
     heightIn: null,
     depthIn: null,
     sold: false,
+    publishOn: "",
   };
   return {
     slug,
@@ -540,6 +716,7 @@ function practiceFromInputs(slug: string, draft: boolean): PracticePainting {
     depthIn: fields.depthIn === null ? "" : String(fields.depthIn),
     medium: fields.medium,
     draft,
+    publishOn: fields.publishOn,
   };
 }
 
@@ -586,6 +763,8 @@ async function saveEdit(
       medium: fields.medium,
       draft,
       sold: fields.sold,
+      publishOn: fields.publishOn,
+      slugHistory: renamedHistory(base.parsed, slug, fields.title),
     };
     if (photoReplaced && preparedBlob !== null) {
       // New photo: build its models now and commit everything together.
@@ -750,6 +929,7 @@ function initStudio(): void {
   rotation = 0;
 
   refreshPreview();
+  restoreAutosave();
   for (const id of [
     "de-title",
     "de-price",
@@ -757,12 +937,17 @@ function initStudio(): void {
     "de-alt",
     "de-desc",
     "de-sold",
+    "de-publish-on",
   ]) {
-    $(id).addEventListener("input", refreshPreview);
+    $(id).addEventListener("input", () => {
+      refreshPreview();
+      scheduleAutosave();
+    });
   }
   for (const id of ["de-w", "de-h", "de-d"]) {
     $(id).addEventListener("input", () => {
       refreshPreview();
+      scheduleAutosave();
       if (preparedBlob !== null) void autoBuildAr();
     });
   }
@@ -889,7 +1074,7 @@ function initStudio(): void {
           return;
         }
         setStatus(draft ? "Publishing…" : "Unpublishing…");
-        patchFlipDraft(mdPath, base, !draft, fields)
+        patchFlipDraft(mdPath, base, slug, !draft, fields)
           .then(async () => {
             buzz();
             const alerts = draft ? await publishAlerts() : "";
@@ -932,6 +1117,7 @@ function initStudio(): void {
 async function patchFlipDraft(
   mdPath: string,
   base: { content: string; parsed: ParsedPainting },
+  oldSlug: string,
   draft: boolean,
   fields: FieldSet,
 ): Promise<void> {
@@ -946,6 +1132,9 @@ async function patchFlipDraft(
     medium: fields.medium,
     draft,
     sold: fields.sold,
+    // Publishing now drops the schedule; unpublishing keeps the field.
+    publishOn: draft ? fields.publishOn : "",
+    slugHistory: renamedHistory(base.parsed, oldSlug, fields.title),
   };
   await api.commitFiles(`Edit painting: ${fields.title}`, [
     { path: mdPath, blob: patchPainting(base.content, edits) },
