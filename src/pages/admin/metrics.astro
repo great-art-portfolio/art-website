@@ -100,6 +100,10 @@ const seedJson = JSON.stringify(seed).replace(/</g, "\\u003c");
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    /* The title is a grid item, so it stretches the whole middle
+       column by default — hover (and clicks!) then answer from empty
+       space. Park it on its words like the dashboard rows. */
+    justify-self: start;
   }
   :global(#stats-body .metric-sold) {
     font-weight: 400;

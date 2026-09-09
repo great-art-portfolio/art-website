@@ -220,3 +220,19 @@ test("forgotten banner hides itself past its end date", async ({ page }) => {
   // The gallery is unaffected — still the full collection.
   await expect(page.locator("#gallery-static .card").first()).toBeVisible();
 });
+
+test("show-until dropdown answers only its own box", async ({ page }) => {
+  await page.goto("/admin/banner");
+  const select = page.locator("#f-duration");
+  await expect(select).toBeVisible();
+  // Way right of the dropdown, level with it: the label hugs its
+  // control, so no hover reaches the select from empty space.
+  const box =
+    (await select.boundingBox()) ??
+    ({ x: 0, y: 0, width: 0, height: 0 } as const);
+  await page.mouse.move(box.x + box.width + 120, box.y + box.height / 2);
+  expect(await select.evaluate((el) => el.matches(":hover"))).toBe(false);
+  // On the box itself, hover answers as before.
+  await select.hover();
+  expect(await select.evaluate((el) => el.matches(":hover"))).toBe(true);
+});

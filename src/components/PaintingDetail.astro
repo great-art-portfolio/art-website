@@ -306,9 +306,6 @@ const eyebrow =
             </div>
             <div class="studio-toolbar">
               <label class="de-check">
-                <input id="de-sold" type="checkbox" checked={data.sold} /> Sold
-              </label>
-              <label class="de-check">
                 Publish on
                 <input
                   id="de-publish-on"
@@ -316,6 +313,9 @@ const eyebrow =
                   value={data.publishOn}
                   aria-describedby="de-publish-on-hint"
                 />
+              </label>
+              <label class="de-check">
+                <input id="de-sold" type="checkbox" checked={data.sold} /> Sold
               </label>
               <span class="hint" id="de-publish-on-hint">
                 Empty means you publish by hand — a date means it goes live by

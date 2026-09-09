@@ -70,6 +70,12 @@ import "../../components/studio.css";
     max-width: 100%;
     justify-self: start;
   }
+  /* The label itself hugs the dropdown too: a full-width label
+     forwards hover to the select from anywhere in the row, so the
+     control answers the pointer from empty space. */
+  #sec-banner label:has(#f-duration) {
+    width: fit-content;
+  }
   /* Author display:inline-flex beats the UA [hidden] rule — re-hide the
      Remove button until a banner exists to remove. */
   #announce-clear[hidden] {

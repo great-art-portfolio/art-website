@@ -263,6 +263,18 @@ Push to main for CI; real upload test on barbart.ca/admin.
   hand-drawn appearance:none. light-dark(), :where() nesting,
   container queries, content-visibility, anchor positioning, and
   dvh all declined on the record (risk without reward).
+- Targets answer only themselves (139 e2e green): banner Show-until
+  label hugs its dropdown (full-width labels forward hover to the
+  control from anywhere in the row); metric titles park on their
+  words (a stretched grid link also caught dead-space clicks);
+  Sold sits right of the publish-on date in room toolbars. New
+  tests: room save carries publishOn (dashboard-side scheduling was
+  already covered; stubs are per-test memory, so no clock and no
+  delete-after needed — 3.png unnecessary, existing jpgs do), plus
+  hover pins for both fixes (each verified failing pre-fix; the
+  metrics one must measure the text range, not the stretched box).
+  Trash guide line already covered (move/restore/purge + 30-day
+  auto-clear tests).
 - CI retries the browser install (apt mirror exit 100 twice running,
   failing runs before any gate; PAT can't rerun, hence the empty
   retrigger commit). Root cause: Google's Chrome repo serves a stale

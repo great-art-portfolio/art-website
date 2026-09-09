@@ -1116,6 +1116,37 @@ test("metrics page ranks every painting, most watched first", async ({
   await expect(page.locator("#stats-note")).toBeEmpty();
 });
 
+test("metric titles answer only their own words", async ({ page }) => {
+  await page.route("**/api/analytics*", async (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ views: [], unconfigured: true }),
+    }),
+  );
+  await page.goto("/admin/metrics");
+  const title = page.locator("#stats-body .metric-title").first();
+  await expect(title).toBeVisible();
+  // Far right of the title's *words*, level with them: the link hugs
+  // its text (its own box stretches the column, so measure the text
+  // range instead), and neither hover nor a click reaches it from
+  // empty space.
+  const words = await title.evaluate((el) => {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const r = range.getBoundingClientRect();
+    return { x: r.x, y: r.y, width: r.width, height: r.height };
+  });
+  await page.mouse.move(
+    words.x + words.width + 120,
+    words.y + words.height / 2,
+  );
+  expect(await title.evaluate((el) => el.matches(":hover"))).toBe(false);
+  // On the words themselves, hover answers as before.
+  await title.hover();
+  expect(await title.evaluate((el) => el.matches(":hover"))).toBe(true);
+});
+
 test("metrics page stays count-less with plain words when empty", async ({
   page,
 }) => {

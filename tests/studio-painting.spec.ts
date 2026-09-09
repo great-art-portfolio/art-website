@@ -471,3 +471,51 @@ test("description box grows with its words, never scrolls", async ({
     await desc.evaluate((el) => el.scrollHeight - el.clientHeight),
   ).toBeLessThanOrEqual(2);
 });
+
+test("draft save carries its publish-on date", async ({ browser }) => {
+  // Stored token means the live path; the commit route captures the
+  // file instead of writing the repo, so nothing persists and nothing
+  // needs deleting after.
+  const authed = await browser.newContext();
+  await authed.addInitScript(() =>
+    sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
+  );
+  const page = await authed.newPage();
+  let posted: Array<{ path: string; contentBase64: string }> | null = null;
+  await page.route("**/api/commit*", async (route) => {
+    if (route.request().method() === "POST") {
+      posted =
+        (
+          route.request().postDataJSON() as {
+            files?: Array<{ path: string; contentBase64: string }>;
+          } | null
+        )?.files ?? null;
+      await route.fulfill({ json: { ok: true, commit: "test" }, status: 201 });
+    } else {
+      await route.continue();
+    }
+  });
+  await page.goto("/admin/paintings/new");
+  // Sold sits right of the publish-on date, both before the buttons.
+  const order = await page
+    .locator(".studio-toolbar .de-check")
+    .evaluateAll((els) =>
+      els.map((el) => el.querySelector("input")?.id ?? "?"),
+    );
+  expect(order.slice(0, 2)).toEqual(["de-publish-on", "de-sold"]);
+  await page.locator("#de-title").fill("Future Thaw");
+  await page.locator("#de-price").fill("75");
+  await page
+    .locator("#de-photo")
+    .setInputFiles("src/content/paintings/1943x1967.jpg");
+  await page.locator("#de-publish-on").fill("2999-06-01");
+  await page.locator("#de-save-draft").click();
+  await expect.poll(() => posted, { timeout: 15_000 }).not.toBe(null);
+  const md = Buffer.from(
+    posted?.find((f) => f.path.endsWith(".md"))?.contentBase64 ?? "",
+    "base64",
+  ).toString("utf8");
+  expect(md).toMatch(/^draft: true$/m);
+  expect(md).toMatch(/^publishOn: "2999-06-01"$/m);
+  await authed.close();
+});
