@@ -1,0 +1,46 @@
+---
+import Layout from "../../layouts/Layout.astro";
+---
+
+<Layout title="Unsubscribed — Barbara Straka">
+  <main class="email-page" id="main">
+    <h1>New-painting alerts</h1>
+    <p id="email-token-say" role="status">Working…</p>
+    <p>
+      <a href="/">Back to the gallery</a>
+    </p>
+  </main>
+</Layout>
+
+<style>
+  .email-page {
+    max-width: 44rem;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 4rem;
+  }
+</style>
+
+<script>
+  // One shot: link landings are full document loads — and the
+  // unsubscribe call sends a goodbye email, so this must never
+  // re-fire on astro:page-load.
+  // Plain JS on purpose (annotations don't survive astro check).
+  const say = document.getElementById("email-token-say");
+  const token = new URLSearchParams(window.location.search).get("token") || "";
+  const el = say instanceof HTMLParagraphElement ? say : null;
+  if (el !== null) {
+    if (token === "") {
+      el.textContent =
+        "This page needs its link — it arrives inside every new-painting email.";
+    } else {
+      void import("../../lib/email-token").then(function (lib) {
+        lib.settleToken("unsubscribe", token).then(function (verdict) {
+          el.textContent =
+            verdict === "ok"
+              ? "You've been removed — no more emails."
+              : "That link didn't work — you're probably already off the list.";
+        });
+      });
+    }
+  }
+</script>

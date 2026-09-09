@@ -1,6 +1,9 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { parseCollectorEmail } from "../../functions/_lib/collectors.ts";
+import {
+  newCollectorToken,
+  parseCollectorEmail,
+} from "../../functions/_lib/collectors.ts";
 
 describe("parseCollectorEmail", () => {
   it("accepts a plain address", () => {
@@ -34,5 +37,14 @@ describe("parseCollectorEmail", () => {
     assert.equal(parseCollectorEmail(42), null);
     assert.equal(parseCollectorEmail({ email: "a@b.com" }), null);
     assert.equal(parseCollectorEmail(`a@${"b".repeat(250)}.com`), null);
+  });
+});
+
+describe("newCollectorToken", () => {
+  it("mints 32 hex characters", () => {
+    const a = newCollectorToken();
+    const b = newCollectorToken();
+    assert.match(a, /^[0-9a-f]{32}$/);
+    assert.notEqual(a, b);
   });
 });

@@ -148,7 +148,9 @@ test("email capture form joins the list", async ({ page }) => {
   await expect(page.locator("#notify-email-form")).toBeVisible();
   await page.locator("#notify-email").fill("e2e-fan@example.com");
   await page.locator("#notify-email-form button[type=submit]").click();
-  await expect(page.locator("#notify-status")).toContainText("on the list");
+  await expect(page.locator("#notify-status")).toContainText(
+    "Check your inbox",
+  );
   // Status answers in the theme's accent, not body-copy muted.
   await expect(page.locator("#notify-status")).toHaveCSS(
     "color",
@@ -185,7 +187,7 @@ test("modal status fades away on its own", async ({ page }) => {
   await page.locator("#notify-email").fill("e2e-fan@example.com");
   await page.locator("#notify-email-form button[type=submit]").click();
   const hint = page.locator("#notify-status");
-  await expect(hint).toContainText("on the list");
+  await expect(hint).toContainText("Check your inbox");
   await expect(hint).toBeEmpty({ timeout: 10_000 });
 });
 
@@ -197,7 +199,7 @@ test("modal status unfolds the card, then folds away", async ({ page }) => {
   await page.locator("#notify-email").fill("e2e-fan@example.com");
   await page.locator("#notify-email-form button[type=submit]").click();
   const hint = page.locator("#notify-status");
-  await expect(hint).toContainText("on the list");
+  await expect(hint).toContainText("Check your inbox");
   // Unfolded: the row holds real height and the card grew for it.
   await expect(wrap).toHaveCSS("grid-template-rows", /[1-9]/);
   const mid = await dialog.evaluate((el) => el.getBoundingClientRect().height);

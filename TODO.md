@@ -297,6 +297,15 @@ Push to main for CI; real upload test on barbart.ca/admin.
   old names are gone from code, types, tests, and docs. README
   records who sees what (sender always visible; inbox only in
   list-mail To line).
+- List consent lifecycle, LOCAL COMMIT ONLY (150 unit, 145 e2e
+  green — do NOT push before the remote migration): double opt-in
+  (token links, 7-day expiry, confirm page), one-click
+  unsubscribe (token link + List-Unsubscribe headers + modal Leave
+  button + goodbye page), per-recipient broadcasts to confirmed
+  addresses only (single-BCC design would 400 past 49
+  recipients), templates centralized next to sending, privacy
+  wording matches. Remote 0004 must apply BEFORE this deploys or
+  live subscribe 500s.
 - CI retries the browser install (apt mirror exit 100 twice running,
   failing runs before any gate; PAT can't rerun, hence the empty
   retrigger commit). Root cause: Google's Chrome repo serves a stale

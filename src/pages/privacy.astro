@@ -31,8 +31,10 @@ import Layout from "../layouts/Layout.astro";
         <strong>Buyer alerts:</strong> if you tap “Notify me”, your browser's push
         subscription (its address plus two encryption keys) is stored in the site's
         database — only so new paintings can ping you. Remove it any time with the
-        same button, which deletes it. The email list keeps only the address you typed,
-        one email per new painting; every email carries a one-click unsubscribe.
+        same button, which deletes it. The email list keeps only addresses that tapped
+        the confirmation email — nothing joins silently — one email per new painting;
+        every email carries a one-click unsubscribe link, and the Notify me box has
+        a Leave the list button.
       </li>
       <li>
         <strong>Spam check:</strong> the buy and email forms use Cloudflare Turnstile,

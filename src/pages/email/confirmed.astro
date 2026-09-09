@@ -1,0 +1,45 @@
+---
+import Layout from "../../layouts/Layout.astro";
+---
+
+<Layout title="You're on the list — Barbara Straka">
+  <main class="email-page" id="main">
+    <h1>New-painting alerts</h1>
+    <p id="email-token-say" role="status">Working…</p>
+    <p>
+      <a href="/">Back to the gallery</a>
+    </p>
+  </main>
+</Layout>
+
+<style>
+  .email-page {
+    max-width: 44rem;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 4rem;
+  }
+</style>
+
+<script>
+  // One shot: link landings are full document loads, and this call is
+  // idempotent anyway — but it never re-fires on astro:page-load.
+  // Plain JS on purpose (annotations don't survive astro check).
+  const say = document.getElementById("email-token-say");
+  const token = new URLSearchParams(window.location.search).get("token") || "";
+  const el = say instanceof HTMLParagraphElement ? say : null;
+  if (el !== null) {
+    if (token === "") {
+      el.textContent =
+        "This page needs its link — join from any Notify me box and tap the email we send.";
+    } else {
+      void import("../../lib/email-token").then(function (lib) {
+        lib.settleToken("confirm", token).then(function (verdict) {
+          el.textContent =
+            verdict === "ok"
+              ? "You're on the list — one email per new painting."
+              : "That link didn't work — it may be older than a week. Join again from any Notify me box.";
+        });
+      });
+    }
+  }
+</script>

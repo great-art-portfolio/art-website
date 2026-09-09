@@ -9,9 +9,8 @@ const MAX_EMAIL_LENGTH = 254;
 
 /**
  * Normalize a submitted address, or null when it isn't one. Strict but
- * simple on purpose: subscribing only writes a row (unlike inquiries it
- * sends nothing immediately), and the address proves itself when the
- * first broadcast lands. Shared by the endpoint and the unit tests.
+ * simple on purpose; the address then proves itself by tapping the
+ * confirmation email. Shared by the endpoint and the unit tests.
  */
 export function parseCollectorEmail(input: unknown): string | null {
   if (typeof input !== "string") return null;
@@ -21,20 +20,124 @@ export function parseCollectorEmail(input: unknown): string | null {
   return email;
 }
 
-export async function addCollectorEmail(
+/**
+ * Confirm links stay valid this long — enough to check tomorrow's
+ * inbox, short enough a leaked link dies on its own.
+ */
+export const CONFIRM_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+export function newCollectorToken(): string {
+  return crypto.randomUUID().replace(/-/g, "");
+}
+
+interface CollectorRow {
+  token: string | null;
+  confirmed_at: string | null;
+  token_created_at: string | null;
+}
+
+async function collectorRow(
+  env: AppEnv,
+  email: string,
+): Promise<CollectorRow | null> {
+  return env.DB.prepare(
+    "SELECT token, confirmed_at, token_created_at FROM email_collectors WHERE email = ?",
+  )
+    .bind(email)
+    .first<CollectorRow>();
+}
+
+/**
+ * Join (or rejoin): unconfirmed addresses get a fresh token and must
+ * tap the confirmation email; already-confirmed ones stay as they are.
+ */
+export async function signupCollectorEmail(
+  env: AppEnv,
+  email: string,
+): Promise<{ token: string; already: boolean }> {
+  const now = new Date().toISOString();
+  const existing = await collectorRow(env, email);
+  if (existing !== null && existing.confirmed_at !== null) {
+    let token = existing.token;
+    if (token === null) {
+      token = newCollectorToken();
+      await env.DB.prepare(
+        "UPDATE email_collectors SET token = ?, token_created_at = ? WHERE email = ?",
+      )
+        .bind(token, now, email)
+        .run();
+    }
+    return { token, already: true };
+  }
+  const token = newCollectorToken();
+  await env.DB.prepare(
+    "INSERT INTO email_collectors (email, token, confirmed_at, token_created_at) VALUES (?, ?, NULL, ?) ON CONFLICT(email) DO UPDATE SET token = excluded.token, token_created_at = excluded.token_created_at",
+  )
+    .bind(email, token, now)
+    .run();
+  return { token, already: false };
+}
+
+/** Tap the confirmation link: unexpired and unconfirmed becomes confirmed. */
+export async function confirmCollectorEmail(
+  env: AppEnv,
+  token: string,
+): Promise<boolean> {
+  if (token === "") return false;
+  const row = await env.DB.prepare(
+    "SELECT token_created_at, confirmed_at FROM email_collectors WHERE token = ?",
+  )
+    .bind(token)
+    .first<{ token_created_at: string | null; confirmed_at: string | null }>();
+  if (row === null) return false;
+  if (row.confirmed_at !== null) return true;
+  const created = Date.parse(row.token_created_at ?? "");
+  if (Number.isNaN(created) || Date.now() - created > CONFIRM_TTL_MS)
+    return false;
+  await env.DB.prepare(
+    "UPDATE email_collectors SET confirmed_at = ? WHERE token = ?",
+  )
+    .bind(new Date().toISOString(), token)
+    .run();
+  return true;
+}
+
+/** Leave by token (one-click link): returns the removed address, if any. */
+export async function removeCollectorByToken(
+  env: AppEnv,
+  token: string,
+): Promise<string | null> {
+  if (token === "") return null;
+  const row = await env.DB.prepare(
+    "SELECT email FROM email_collectors WHERE token = ?",
+  )
+    .bind(token)
+    .first<{ email: string }>();
+  if (row === null) return null;
+  await env.DB.prepare("DELETE FROM email_collectors WHERE token = ?")
+    .bind(token)
+    .run();
+  return row.email;
+}
+
+/** Leave by address (the modal button): quiet when absent. */
+export async function removeCollectorEmail(
   env: AppEnv,
   email: string,
 ): Promise<void> {
-  await env.DB.prepare(
-    "INSERT INTO email_collectors (email) VALUES (?) ON CONFLICT(email) DO NOTHING",
-  )
+  await env.DB.prepare("DELETE FROM email_collectors WHERE email = ?")
     .bind(email)
     .run();
 }
 
-export async function listCollectorEmails(env: AppEnv): Promise<string[]> {
+/** Broadcasts only ever reach confirmed addresses. */
+export async function listConfirmedCollectorEmails(
+  env: AppEnv,
+): Promise<Array<{ email: string; token: string }>> {
   const res = await env.DB.prepare(
-    "SELECT email FROM email_collectors ORDER BY created_at ASC",
-  ).all<{ email: string }>();
-  return (res.results ?? []).map((r) => r.email);
+    "SELECT email, token FROM email_collectors WHERE confirmed_at IS NOT NULL ORDER BY created_at ASC",
+  ).all<{ email: string; token: string | null }>();
+  return (res.results ?? [])
+    .filter((r) => r.token !== null)
+    .map((r) => ({ email: r.email, token: r.token as string }));
 }

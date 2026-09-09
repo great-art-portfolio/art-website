@@ -1,6 +1,6 @@
 import type { AppEnv } from "../_lib/env";
 import { json, requireAdmin, serverError } from "../_lib/http";
-import { listCollectorEmails } from "../_lib/collectors";
+import { listConfirmedCollectorEmails } from "../_lib/collectors";
 import { sendCollectorBroadcast } from "../_lib/notify";
 import {
   listSubscriptions,
@@ -51,25 +51,17 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     let emailed = false;
     let emailTotal = 0;
     if (wantEmail) {
-      const emails = await listCollectorEmails(context.env).catch(() => []);
-      emailTotal = emails.length;
+      const recipients = await listConfirmedCollectorEmails(context.env).catch(
+        () => [],
+      );
+      emailTotal = recipients.length;
       const site = context.env.SITE_URL ?? "https://barbart.ca";
-      emailed =
-        emails.length === 0
-          ? false
-          : await sendCollectorBroadcast(
-              context.env,
-              "New painting at Barbara Straka's studio",
-              [
-                "A new painting is hung in the gallery — come look:",
-                site,
-                "",
-                "— Barbara",
-                "",
-                "(Reply to this email to stop these alerts.)",
-              ].join("\n"),
-              emails,
-            ).catch(() => false);
+      const result = await sendCollectorBroadcast(
+        context.env,
+        site,
+        recipients,
+      ).catch(() => ({ sent: 0, total: recipients.length }));
+      emailed = result.sent > 0;
     }
     return json({
       sent,

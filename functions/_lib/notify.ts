@@ -42,20 +42,89 @@ export function artistSender(env: AppEnv): string {
   return env.ARTIST_SENDER ?? "Gallery <onboarding@resend.dev>";
 }
 
+/**
+ * Every email the site sends, composed here as plain text next to its
+ * sending — copy changes never touch delivery, and unit tests pin the
+ * words (including the sign-off and the unsubscribe link).
+ */
+export function inquiryEmail(alert: InquiryAlert): {
+  subject: string;
+  text: string;
+} {
+  return {
+    subject: `New inquiry: "${alert.paintingTitle}"`,
+    text: [
+      `${alert.buyerName} (${alert.buyerEmail}) wants "${alert.paintingTitle}".`,
+      `Price: $${(alert.priceCents / 100).toFixed(2)} CAD`,
+      "",
+      alert.message === "" ? "(No message)" : alert.message,
+    ].join("\n"),
+  };
+}
+
+export function broadcastEmail(
+  site: string,
+  unsubscribeUrl: string,
+): { subject: string; text: string } {
+  return {
+    subject: "New painting at Barbara Straka's studio",
+    text: [
+      "A new painting is hung in the gallery — come look:",
+      site,
+      "",
+      "— Barbara",
+      "",
+      "Tired of these? Unsubscribe here:",
+      unsubscribeUrl,
+    ].join("\n"),
+  };
+}
+
+export function confirmEmail(confirmUrl: string): {
+  subject: string;
+  text: string;
+} {
+  return {
+    subject: "Confirm your new-painting alerts",
+    text: [
+      "Someone (hopefully you) asked for one email per new painting",
+      "from Barbara Straka's studio.",
+      "",
+      "Confirm here:",
+      confirmUrl,
+      "",
+      "If that wasn't you, ignore this — nothing joins the list",
+      "without the tap.",
+    ].join("\n"),
+  };
+}
+
+export function goodbyeEmail(): { subject: string; text: string } {
+  return {
+    subject: "Removed from the new-painting list",
+    text: [
+      "You've been removed — no more emails from the studio.",
+      "Rejoin any time from any Notify me box.",
+      "",
+      "— Barbara",
+    ].join("\n"),
+  };
+}
+
 export async function sendInquiryNotifications(
   env: AppEnv,
   alert: InquiryAlert,
 ): Promise<NotifyResult> {
-  const subject = `New inquiry: "${alert.paintingTitle}"`;
-  const text = [
-    `${alert.buyerName} (${alert.buyerEmail}) wants "${alert.paintingTitle}".`,
-    `Price: $${(alert.priceCents / 100).toFixed(2)} CAD`,
-    "",
-    alert.message === "" ? "(No message)" : alert.message,
-  ].join("\n");
+  const { subject, text } = inquiryEmail(alert);
 
   const [emailed, pushed] = await Promise.all([
-    sendEmail(env, subject, text, alert.buyerEmail).catch((err) => {
+    sendSiteEmail(env, {
+      to: [artistInbox(env)],
+      // Hitting reply answers the buyer directly.
+      replyTo: alert.buyerEmail,
+      subject,
+      text,
+    }).catch((err) => {
       console.error("notify email failed", err);
       return false;
     }),
@@ -67,16 +136,23 @@ export async function sendInquiryNotifications(
   return { emailed, pushed };
 }
 
-async function sendEmail(
+export interface SiteEmail {
+  to: string[];
+  replyTo?: string;
+  subject: string;
+  text: string;
+  headers?: Record<string, string>;
+}
+
+/** The one Resend call everything funnels through. */
+export async function sendSiteEmail(
   env: AppEnv,
-  subject: string,
-  text: string,
-  replyTo?: string,
+  mail: SiteEmail,
 ): Promise<boolean> {
   if (env.RESEND_API_KEY === undefined || env.RESEND_API_KEY === "")
     return false;
-  const inbox = artistInbox(env);
-  if (inbox === "") return false;
+  if (mail.to.some((t) => t === "")) return false;
+  if (mail.to.length === 0) return false;
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -85,11 +161,11 @@ async function sendEmail(
     },
     body: JSON.stringify({
       from: artistSender(env),
-      to: [inbox],
-      // Hitting reply answers the buyer directly.
-      reply_to: replyTo ?? undefined,
-      subject,
-      text,
+      to: mail.to,
+      reply_to: mail.replyTo ?? undefined,
+      headers: mail.headers ?? undefined,
+      subject: mail.subject,
+      text: mail.text,
     }),
   });
   if (!res.ok) console.error("resend error", await res.text());
@@ -97,38 +173,51 @@ async function sendEmail(
 }
 
 /**
- * Collector broadcast: one send to mom, blind-copied to every collector.
- * BCC keeps addresses private from each other; replies (including
- * "stop these emails") land in her inbox, which is the unsubscribe path.
+ * Collector broadcast: one email per confirmed address, each carrying
+ * its own one-click unsubscribe link (which is why this can't stay a
+ * single BCC send — and BCC caps at 50 recipients anyway). Replies
+ * land in the artist's inbox. Sequential: lists are small and Resend
+ * rate-limits bursts.
  */
-export async function sendCollectorBroadcast(
-  env: AppEnv,
-  subject: string,
-  text: string,
-  bcc: string[],
-): Promise<boolean> {
-  if (env.RESEND_API_KEY === undefined || env.RESEND_API_KEY === "")
-    return false;
-  const inbox = artistInbox(env);
-  if (inbox === "") return false;
-  if (bcc.length === 0) return false;
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.RESEND_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: artistSender(env),
-      to: [inbox],
-      bcc,
-      reply_to: inbox,
+export function buildBroadcastSends(
+  site: string,
+  recipients: Array<{ email: string; token: string }>,
+): SiteEmail[] {
+  return recipients.map((r) => {
+    const url = `${site}/email/goodbye?token=${r.token}`;
+    const { subject, text } = broadcastEmail(site, url);
+    return {
+      to: [r.email],
       subject,
       text,
-    }),
+      headers: {
+        "List-Unsubscribe": `<${url}>`,
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      },
+    };
   });
-  if (!res.ok) console.error("resend broadcast error", await res.text());
-  return res.ok;
+}
+
+export async function sendCollectorBroadcast(
+  env: AppEnv,
+  site: string,
+  recipients: Array<{ email: string; token: string }>,
+): Promise<{ sent: number; total: number }> {
+  const total = recipients.length;
+  const inbox = artistInbox(env);
+  if (env.RESEND_API_KEY === undefined || env.RESEND_API_KEY === "") {
+    return { sent: 0, total };
+  }
+  if (inbox === "" || total === 0) return { sent: 0, total };
+  let sent = 0;
+  for (const mail of buildBroadcastSends(site, recipients)) {
+    const ok = await sendSiteEmail(env, {
+      ...mail,
+      replyTo: inbox,
+    }).catch(() => false);
+    if (ok) sent += 1;
+  }
+  return { sent, total };
 }
 
 async function sendPush(

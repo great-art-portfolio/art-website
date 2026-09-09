@@ -274,6 +274,9 @@ const currentSection = adminSection(Astro.url.pathname);
               <button type="submit" class="btn-ghost">
                 Join the list <span aria-hidden="true">📨</span>
               </button>
+              <button type="button" id="notify-email-leave" class="btn-ghost">
+                Leave the list
+              </button>
             </form>
           </div>
           <div class="status-wrap" id="notify-status-wrap">
@@ -442,10 +445,22 @@ const currentSection = adminSection(Astro.url.pathname);
           })
             .then((res) => {
               if (res.ok) {
-                notifySay(
-                  hint,
-                  "You're on the list — one email per new painting.",
-                );
+                res
+                  .json()
+                  .then((data) => {
+                    notifySay(
+                      hint,
+                      data !== null &&
+                        typeof data === "object" &&
+                        "already" in data &&
+                        data.already === true
+                        ? "You're already on the list."
+                        : "Check your inbox — one tap confirms it.",
+                    );
+                  })
+                  .catch(() => {
+                    notifySay(hint, "Check your inbox — one tap confirms it.");
+                  });
                 input.value = "";
               } else if (res.status === 400) {
                 notifySay(
@@ -460,6 +475,38 @@ const currentSection = adminSection(Astro.url.pathname);
               notifySay(hint, "That didn't work — try again in a bit.");
             });
         });
+        // Leaving needs no spam check: removal is harmless (rejoining
+        // takes one tap) and the token links skip it the same way.
+        // Always reads done, whether the address was there or not.
+        const leaveEl = document.getElementById("notify-email-leave");
+        const leave = leaveEl instanceof HTMLButtonElement ? leaveEl : null;
+        if (leave !== null) {
+          leave.addEventListener("click", () => {
+            const email = input.value.trim();
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+              notifySay(hint, "Type the address first, then Leave the list.");
+              input.focus();
+              return;
+            }
+            notifySay(hint, "Leaving…");
+            fetch("/api/collectors", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "unsubscribe", email }),
+            })
+              .then((res) => {
+                if (res.ok) {
+                  notifySay(hint, "Done — that address is off the list.");
+                  input.value = "";
+                } else {
+                  notifySay(hint, "That didn't work — try again in a bit.");
+                }
+              })
+              .catch(() => {
+                notifySay(hint, "That didn't work — try again in a bit.");
+              });
+          });
+        }
       }
 
       async function paintNotify() {
