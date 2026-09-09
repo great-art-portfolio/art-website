@@ -258,4 +258,7 @@ Push to main for CI; real upload test on barbart.ca/admin.
   and the email_collectors table are load-bearing names.
 - CI retries the browser install (apt mirror exit 100 twice running,
   failing runs before any gate; PAT can't rerun, hence the empty
-  retrigger commit).
+  retrigger commit). Root cause: Google's Chrome repo serves a stale
+  Packages index (Hash Sum mismatch), unrelated to our deps — the
+  workflow now drops that apt source (system Chrome unneeded) and
+  keeps the retry for real blips.
