@@ -92,20 +92,37 @@ import "../../components/studio.css";
     transition:
       block-size 0.35s ease,
       content-visibility 0.35s ease;
-    transition-behavior: allow-discrete;
+    /* !important: the transition shorthand below resets behavior to
+       normal, and the minifier sorts this declaration first — without
+       it the unfold silently snaps. */
+    transition-behavior: allow-discrete !important;
   }
   #sec-info details[open]::details-content {
     block-size: auto;
   }
   /* The settings themselves fade in a beat behind the unfold, so the
      words arrive once their room exists instead of squeezing through
-     mid-animation. Opacity-only, so it still runs under reduced motion. */
+     mid-animation. Opacity-only, so it still runs under reduced motion.
+     The display step rides along discretely with a @starting-style:
+     without it the freshly rendered content has no starting opacity
+     and pops in on some runs. */
   #sec-info details > :not(summary) {
     opacity: 0;
-    transition: opacity 0.25s ease 0.08s;
+    transition:
+      opacity 0.25s ease 0.08s,
+      display 0.33s ease;
+    /* Important: the shorthand resets behavior to normal, and the
+       minifier sorts this declaration first — without it the display
+       step snaps and the fade only sometimes plays. */
+    transition-behavior: allow-discrete !important;
   }
   #sec-info details[open] > :not(summary) {
     opacity: 1;
+  }
+  @starting-style {
+    #sec-info details[open] > :not(summary) {
+      opacity: 0;
+    }
   }
   @media (prefers-reduced-motion: reduce) {
     #sec-info details::details-content {

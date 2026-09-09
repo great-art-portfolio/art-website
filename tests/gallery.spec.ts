@@ -400,6 +400,42 @@ test("studio pages render their section and new-painting door", async ({
   await expect(page.locator("#admin-token")).toBeAttached();
 });
 
+test("guide drawer fades open and shut, every time", async ({ page }) => {
+  await page.goto("/admin/guide");
+  // One evaluate samples the whole curve — no round-trip gaps for the
+  // fade to slip through. A snap would show at most two distinct
+  // values; a fade shows the climb (open) and the fall (shut).
+  const curve = () =>
+    page.evaluate(() => {
+      const vals: number[] = [];
+      const el = document.querySelector("#sec-info details > :not(summary)");
+      if (el === null) return vals;
+      const take = async () => {
+        // 400ms past the click: beyond the 80ms delay plus the
+        // 250ms fade, so both ends have settled.
+        for (let i = 0; i < 10; i++) {
+          await new Promise((r) => setTimeout(r, 40));
+          vals.push(Number(getComputedStyle(el).opacity));
+        }
+      };
+      return take().then(() => vals);
+    });
+  await page.locator("#sec-info summary").click();
+  const opening = await curve();
+  expect(opening[0]).toBeLessThan(1);
+  expect(opening.at(-1)).toBe(1);
+  expect(new Set(opening).size).toBeGreaterThan(2);
+  await page.locator("#sec-info summary").click();
+  const shutting = await curve();
+  expect(shutting[0]).toBe(1);
+  expect(shutting.at(-1)).toBe(0);
+  expect(new Set(shutting).size).toBeGreaterThan(2);
+  await expect(page.locator("#sec-info details")).not.toHaveAttribute(
+    "open",
+    "",
+  );
+});
+
 test("admin mode keeps painting-to-painting navigation in reach", async ({
   browser,
 }) => {

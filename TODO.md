@@ -187,6 +187,11 @@ Push to main for CI; real upload test on barbart.ca/admin.
   admin sections de-carded to whitespace; drafts wear the same photo
   cards as Available (trash stays compact); grab fist closes mid-drag
   (`:active grabbing`); dev suffix reads as a muted sub-line.
+- Advanced drawer determinism (140 unit, 133 e2e green): the fade only
+  sometimes played — the transition shorthand resets
+  transition-behavior and the minifier sorts it first, silently killing
+  the discrete display step (fixed with !important + @starting-style,
+  measured identical 3-round curves both directions, pinned by test).
   *Unit reads 140, matching HEAD exactly — every added block verified
   running; the earlier 156 sighting never reproduced.
 - Second studio pass (140 unit, 132 e2e green): h2 says Available with
