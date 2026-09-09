@@ -848,6 +848,35 @@ test("dragging in practice keeps the order in this tab", async ({ page }) => {
   expect(new Set(orders).size).toBe(n - 1);
 });
 
+test("dropping a card where it already sits stays silent", async ({ page }) => {
+  // Second-to-last onto the last card's center: already just before
+  // it, so the drop is a positional no-op — it used to toast
+  // "already the order" on every such miss. No token on a local
+  // preview: the practice overlay, never a commit.
+  await mockCommitApi(page);
+  await page.goto("/admin");
+  const cards = page.locator('[data-group="available"] .row-card');
+  await expect(cards.first()).toHaveAttribute("draggable", "true", {
+    timeout: 15_000,
+  });
+  const n = await cards.count();
+  expect(n).toBeGreaterThan(1);
+  const before = await cards.locator(".row-title").allTextContents();
+  // Immediate reads, never toBeEmpty: the retrying assertion would
+  // out-wait the 6s toast and pass against the noisy code too.
+  expect(await page.locator("#admin-status").textContent()).toBe("");
+  await cards.nth(n - 2).dragTo(cards.nth(n - 1));
+  // A beat for any commit or toast to appear — neither should.
+  await page.waitForTimeout(2000);
+  expect(await page.locator("#admin-status").textContent()).toBe("");
+  expect(await cards.locator(".row-title").allTextContents()).toEqual(before);
+  expect(
+    await page.evaluate(() =>
+      window.localStorage.getItem("studio-practice-v1"),
+    ),
+  ).toBe(null);
+});
+
 test("draft cards never trigger the reorder hint", async ({ page }) => {
   // Seeded draft, not tree files — a clean checkout holds no drafts.
   // No API stub here, so the dashboard falls back to its baked list and

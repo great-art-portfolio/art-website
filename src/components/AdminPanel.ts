@@ -528,6 +528,16 @@ function wireReorder(list: HTMLElement): void {
       return;
     }
     const { after } = dropMark(card, dragged, e.clientX, e.clientY);
+    // Dropping a card where it already sits (the near half of an
+    // adjacent neighbor) changes nothing — stay silent. A toast here
+    // cried "already" on every such miss, which reads as an error.
+    if (
+      (!after && dragged.nextElementSibling === card) ||
+      (after && card.nextElementSibling === dragged)
+    ) {
+      dragSlug = null;
+      return;
+    }
     rows?.insertBefore(dragged, after ? card.nextSibling : card);
     const slug = dragSlug;
     dragSlug = null;
@@ -555,7 +565,8 @@ function wireReorder(list: HTMLElement): void {
  */
 let hintTimer = 0;
 const HINT_DELAY_MS = 3000;
-const REORDER_HINT = "Drag cards to reorder — the homepage follows this order.";
+const REORDER_HINT =
+  "Drag cards to reorder — the orange edge shows where it lands. The homepage follows this order.";
 
 function hintBubble(): HTMLElement {
   let tip = document.getElementById("reorder-tip");
@@ -689,12 +700,10 @@ async function persistOrder(
         });
         changed += 1;
       }
-      if (changed === 0) {
-        setStatus(
-          `Nothing to save — that's already the ${kind.toLowerCase()} order.`,
-        );
-        return;
-      }
+      // The drop handler already skips positional no-ops, so landing
+      // here means the order on screen matches what's kept — silence,
+      // not a toast: nothing moved, nothing needs saying.
+      if (changed === 0) return;
       renderLocalCollection();
       setStatus(
         `${kind} order kept in this tab — publish it on the live site.`,
@@ -714,12 +723,9 @@ async function persistOrder(
       }
       files.push({ path: row.mdPath, blob: setOrder(content, i) });
     }
-    if (files.length === 0) {
-      setStatus(
-        `Nothing to save — that's already the ${kind.toLowerCase()} order.`,
-      );
-      return;
-    }
+    // Same silence as the overlay path above: the screen already
+    // matches the repo, so there is nothing to announce.
+    if (files.length === 0) return;
     setStatus(
       `Saving the ${kind.toLowerCase()} order… (live in a few minutes)`,
     );

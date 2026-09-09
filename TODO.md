@@ -232,3 +232,11 @@ Push to main for CI; real upload test on barbart.ca/admin.
   chevron; metrics unified on "views"; trash copy shortened; room
   toolbar puts Sold/date/notify above the buttons; each admin page
   gets its own faint wash (four new SVGs, Layout backdrop prop).
+- Drag silence (140 unit, 135 e2e green): dropping a card where it
+  already sits (the near half of an adjacent neighbor — Night Reeds
+  onto First Thaw's left half) stayed silent instead of toasting
+  "already the order" on every miss; the safety-net toasts in
+  persistOrder went quiet for the same reason. The reorder hint now
+  says the orange edge shows where the card lands. Pinned by a test
+  that reads the toast line immediately (a retrying assertion would
+  out-wait the 6s toast and pass against the noisy code too).
