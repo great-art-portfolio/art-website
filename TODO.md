@@ -189,3 +189,11 @@ Push to main for CI; real upload test on barbart.ca/admin.
   (`:active grabbing`); dev suffix reads as a muted sub-line.
   *Unit reads 140, matching HEAD exactly — every added block verified
   running; the earlier 156 sighting never reproduced.
+- Second studio pass (140 unit, 132 e2e green): h2 says Available with
+  matching Drafts/Sold fold headers, h3s gone; photo hover lights the
+  title; admin transitions verified mid-fade + pinned by a test (were
+  already animated); drafts off Metrics; /admin/views renamed
+  /admin/metrics (+ redirect); Guide in ink with photo/publish/
+  disappeared explainers; mid-drag cursor forced to "move" (OS owns
+  it); date field freed from checkbox CSS + nowrap label; drag is and
+  was intact (user confirmed).

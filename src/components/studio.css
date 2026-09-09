@@ -141,6 +141,12 @@ button.primary:hover {
   border-color: var(--accent);
   color: var(--accent-ink);
 }
+.admin h3 {
+  font-family: Georgia, "Iowan Old Style", Charter, serif;
+  font-weight: 500;
+  font-size: 1.1rem;
+  margin: 1.5rem 0 0.5rem;
+}
 .admin h2 button {
   min-height: 2.2rem;
   padding: 0.25rem 0.9rem;

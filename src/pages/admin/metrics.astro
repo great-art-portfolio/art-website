@@ -6,9 +6,10 @@ import "../../components/studio.css";
 
 // Baked in at build time so every painting has a row even with no
 // analytics backend. Counts arrive client-side, after the rows.
-// Trashed paintings are gone — they get no row here either.
+// Drafts never opened for a buyer, so they get no row — trashed
+// paintings are gone too.
 const seed = (await getCollection("paintings"))
-  .filter((p) => p.data.trash !== true)
+  .filter((p) => p.data.trash !== true && p.data.draft !== true)
   .map((p) => ({
     slug: slugifyTitle(p.data.title),
     title: p.data.title,
@@ -19,10 +20,10 @@ const seed = (await getCollection("paintings"))
 const seedJson = JSON.stringify(seed).replace(/</g, "\\u003c");
 ---
 
-<Layout title="Views — Studio" wordmark="admin">
+<Layout title="Metrics — Studio" wordmark="admin">
   <main class="admin" id="main">
     <section id="sec-views">
-      <h2>Views</h2>
+      <h2>Metrics</h2>
       <p class="hint">
         Which paintings visitors open most — past 30 days, most watched first.
       </p>

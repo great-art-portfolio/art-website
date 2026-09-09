@@ -4,3 +4,6 @@
 /paintings/2510x2478 /paintings/indigo-tide 301
 /paintings/2769x2745 /paintings/shoreline 301
 /paintings/IMG_5667 /paintings/prairie-moon 301
+
+# Studio Views page renamed Metrics (Sep 2026).
+/admin/views /admin/metrics 301

@@ -245,10 +245,6 @@ function renderLocalCollection(): boolean {
   return true;
 }
 
-function subHtml(title: string): string {
-  return `<div class="list-sub"><h3>${title}</h3></div>`;
-}
-
 /**
  * Seed the rows key from the baked list before the first API render, so
  * a matching response skips the rebuild entirely — swapping identical
@@ -328,7 +324,6 @@ function renderRows(rows: LocalPainting[]): void {
   const sold = [...groups.sold].sort(compareGalleryOrder);
   let html =
     `<li class="list-group" data-group="available">` +
-    subHtml("Available") +
     `<ul class="group-rows">` +
     (available.length === 0
       ? `<li class="list-plain">Nothing available right now.</li>`
@@ -434,6 +429,9 @@ function wireReorder(list: HTMLElement): void {
       return;
     }
     e.preventDefault();
+    // The OS owns the mid-drag pointer (CSS can't reach it) — "move"
+    // keeps a meaningful cursor instead of the default arrow.
+    if (e.dataTransfer !== null) e.dataTransfer.dropEffect = "move";
     const rect = card.getBoundingClientRect();
     const after = (e.clientY - rect.top) / rect.height > 0.5;
     card.classList.toggle("drop-after", after);

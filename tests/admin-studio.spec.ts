@@ -194,7 +194,7 @@ test("studio header links home, never to visitor funnels", async ({ page }) => {
   // as logout (clears the token). View counts live inside the
   // collection rows themselves, so the nav carries no metrics link.
   await expect(page.locator(".site-nav .nav-links a")).toHaveCount(6);
-  for (const label of ["Collection", "Banner", "Views", "Guide"]) {
+  for (const label of ["Collection", "Banner", "Metrics", "Guide"]) {
     await expect(
       page.locator(".site-nav").getByRole("link", { name: label }),
     ).toBeVisible();
@@ -611,6 +611,36 @@ test("dragging Sold rows commits the new sold order", async ({ browser }) => {
   await authed.close();
 });
 
+test("switching studio sections fades the page", async ({ page }) => {
+  await page.goto("/admin");
+  // Click through the header, then sample 30ms into the 220ms arrival
+  // fade: an animation must be running on the fresh page.
+  const fading = await page.evaluate(
+    () =>
+      new Promise((resolve: (v: boolean) => void) => {
+        document.addEventListener(
+          "astro:after-swap",
+          () => {
+            window.setTimeout(() => {
+              const main = document.getElementById("main");
+              resolve(main !== null && main.getAnimations().length > 0);
+            }, 30);
+          },
+          { once: true },
+        );
+        document
+          .querySelector('.site-nav a.sec[href="/admin/metrics"]')
+          ?.dispatchEvent(
+            new MouseEvent("click", { bubbles: true, cancelable: true }),
+          );
+        window.setTimeout(() => resolve(false), 8000);
+      }),
+  );
+  expect(fading).toBe(true);
+  await expect(page).toHaveURL(/\/admin\/metrics/);
+  await expect(page.locator("#main")).toBeVisible();
+});
+
 test("draggable rows show the grab fist, closing it mid-drag", async ({
   page,
 }) => {
@@ -976,7 +1006,7 @@ test("rows stay count-less when analytics is empty", async ({ page }) => {
   await expect(page.locator("#edit-list")).not.toContainText("view");
 });
 
-test("views page ranks every painting, most watched first", async ({
+test("metrics page ranks every painting, most watched first", async ({
   page,
 }) => {
   await page.route("**/api/analytics*", async (route) =>
@@ -992,21 +1022,21 @@ test("views page ranks every painting, most watched first", async ({
       }),
     }),
   );
-  await page.goto("/admin/views");
+  await page.goto("/admin/metrics");
   // Most watched tops the table, with its count and the total below.
   const rows = page.locator("#stats-body tr");
   await expect(rows.first()).toContainText("First Thaw");
   await expect(rows.first()).toContainText("10 views");
   await expect(rows.nth(1)).toContainText("Prairie Moon");
   await expect(page.locator("#stats-total")).toContainText("17 views");
-  // Every painting has a row with its status (drafts appear too when
-  // the tree holds any — a clean checkout has none, so only Sold, which
-  // is a tracked painting, is asserted here).
+  // Every live painting has a row with its status (drafts never
+  // opened for a buyer, so they stay off this table).
   await expect(page.locator("#stats-body")).toContainText("Sold");
+  await expect(page.locator("#stats-body")).not.toContainText("Draft");
   await expect(page.locator("#stats-note")).toBeEmpty();
 });
 
-test("views page stays count-less with plain words when empty", async ({
+test("metrics page stays count-less with plain words when empty", async ({
   page,
 }) => {
   await page.route("**/api/analytics*", async (route) =>
@@ -1016,7 +1046,7 @@ test("views page stays count-less with plain words when empty", async ({
       body: JSON.stringify({ views: [], unconfigured: true }),
     }),
   );
-  await page.goto("/admin/views");
+  await page.goto("/admin/metrics");
   // Titles still list — only the counts wait.
   await expect(page.locator("#stats-body")).toContainText("First Thaw");
   await expect(page.locator("#stats-total")).toHaveText("—");
@@ -1202,7 +1232,7 @@ test("collection groups available then sold, never bare statuses", async ({
 }) => {
   await mockCommitApi(page);
   await page.goto("/admin");
-  await expect(page.locator(".list-sub h3").first()).toHaveText("Available");
+  await expect(page.locator("#collection-title")).toHaveText("Available");
   const text = (await page.locator("#edit-list").textContent()) ?? "";
   expect(text).not.toContain("— available");
   expect(text).not.toContain("— sold");

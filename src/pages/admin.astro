@@ -82,7 +82,7 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
 <Layout title="Artist Studio — Admin" wordmark="admin">
   <main class="admin" id="main">
     <h2>
-      <span id="collection-title">Collection</span>
+      <span id="collection-title">Available</span>
       <span id="collection-dev" hidden
         >(Development only — changes aren't persisted)</span
       >
@@ -90,7 +90,6 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
     </h2>
     <ul id="edit-list">
       <li class="list-group" data-group="available">
-        <div class="list-sub"><h3>Available</h3></div>
         <ul class="group-rows" set:html={availableHtml} />
       </li>
       {
@@ -259,20 +258,15 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
   :global(#edit-list li a:hover) {
     text-decoration-color: currentColor;
   }
-  /* Subheadings and plain notes sit in the list unboxed. */
-  :global(#edit-list .list-sub),
+  /* Hovering the photo lights the title too — one piece, one hover. */
+  :global(#edit-list .row-card:has(.row-photo:hover) .row-title) {
+    text-decoration-color: currentColor;
+  }
+  /* Plain notes sit in the list unboxed. */
   :global(#edit-list .list-plain) {
     background: none;
     border: none;
     padding: 0.5rem 0 0;
-  }
-  :global(#edit-list .list-sub h3) {
-    font-family: Georgia, "Iowan Old Style", Charter, serif;
-    font-size: 1.05rem;
-    font-weight: 500;
-    margin: 0;
-  }
-  :global(#edit-list .list-plain) {
     color: var(--muted);
     font-size: 0.92rem;
   }
@@ -485,7 +479,18 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
       padding-top: 1rem;
     }
     :global(#edit-list .sold-fold summary),
-    :global(#edit-list .drafts-fold summary),
+    :global(#edit-list .drafts-fold summary) {
+      font-family: Georgia, "Iowan Old Style", Charter, serif;
+      font-size: 1.4rem;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 0.25rem;
+      /* Fold counts wear the h2 shape (serif + hairline), so every
+         group header reads the same. */
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 1rem;
+    }
     :global(#edit-list .trash-fold summary) {
       font-family: Georgia, "Iowan Old Style", Charter, serif;
       font-size: 1.05rem;
@@ -493,8 +498,7 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
       cursor: pointer;
       width: fit-content;
       border-radius: 0.25rem;
-      /* The folds are quiet archive headers, not card sections:
-         no hairline under the count. */
+      /* Trash stays a quiet archive header: no hairline. */
       border-bottom: none;
     }
     :global(#edit-list .sold-fold summary:focus-visible),

@@ -19,3 +19,9 @@ for (const [from, to] of redirects) {
     expect(res.headers()["location"] ?? "").toContain(to);
   });
 }
+
+test("renamed studio Views page redirects to Metrics", async ({ request }) => {
+  const res = await request.get("/admin/views", { maxRedirects: 0 });
+  expect([301, 308]).toContain(res.status());
+  expect(res.headers()["location"] ?? "").toContain("/admin/metrics");
+});

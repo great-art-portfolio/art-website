@@ -25,7 +25,7 @@ export interface ElementMap {
   "row-confirm-no": HTMLButtonElement;
   "row-confirm-yes": HTMLButtonElement;
   "practice-reset": HTMLButtonElement;
-  // Views page (admin/views.astro).
+  // Metrics page (admin/metrics.astro).
   "stats-seed": HTMLElement;
   "stats-body": HTMLElement;
   "stats-note": HTMLElement;

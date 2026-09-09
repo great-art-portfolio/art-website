@@ -371,14 +371,14 @@ test("studio pages render their section and new-painting door", async ({
   const pages: Array<[string, string | null, string]> = [
     ["/admin", null, "Collection"],
     ["/admin/banner", "#sec-banner", "Banner"],
-    ["/admin/views", "#sec-views", "Views"],
+    ["/admin/metrics", "#sec-views", "Metrics"],
     ["/admin/guide", "#sec-info", "Guide"],
   ];
   for (const [url, id, current] of pages) {
     await page.goto(url);
     if (id !== null) await expect(page.locator(id)).toBeAttached();
     // The header names all four pages, marking the open one.
-    for (const label of ["Collection", "Banner", "Views", "Guide"]) {
+    for (const label of ["Collection", "Banner", "Metrics", "Guide"]) {
       await expect(
         page.locator(".site-nav").getByRole("link", { name: label }),
       ).toBeVisible();

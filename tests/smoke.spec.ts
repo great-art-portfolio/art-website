@@ -286,7 +286,7 @@ test("admin explains itself gracefully without a publishing backend", async ({
   const rows = page.locator('#edit-list a.row-title[href^="/paintings/"]');
   await expect(rows.first()).toBeVisible({ timeout: 15_000 });
   expect(await rows.count()).toBeGreaterThan(0);
-  await expect(page.locator(".list-sub h3").first()).toHaveText("Available");
+  await expect(page.locator("#collection-title")).toHaveText("Available");
   await expect(page.locator("#edit-list img.thumb").first()).toBeVisible();
   // One studio door per card — drafts link their titles to the room.
   await expect(page.locator("#edit-list .row-edit")).toHaveCount(
