@@ -38,11 +38,14 @@ jobs:
       # Smoke tests against the real Pages runtime (static + Functions,
       # no secrets): regressions, validation paths, graceful fallbacks.
       # Google's Chrome repo regularly serves a stale Packages index
-      # (Hash Sum mismatch), failing apt update before any gate runs.
-      # We don't need system Chrome — Playwright brings Chromium — so
-      # drop that source, then still retry the install for real blips.
+      # (Hash Sum mismatch), failing apt update before any gate runs —
+      # and it survived a filename-based removal, so it lives under a
+      # different name. We don't need system Chrome (Playwright brings
+      # Chromium), so drop every source pointing at it by URL, then
+      # still retry the install for real blips.
       - run: |
-          sudo rm -f /etc/apt/sources.list.d/google-chrome.list*
+          sudo grep -rl "dl.google.com" /etc/apt/sources.list.d/ 2>/dev/null | xargs -r sudo rm -f
+          sudo sed -i '/dl\.google\.com/d' /etc/apt/sources.list
           for i in 1 2 3; do
             if pnpm exec playwright install --with-deps chromium; then
               break
