@@ -1,0 +1,217 @@
+/**
+ * Shared studio stylesheet: form primitives for every /admin page.
+ * Imported (unscoped) only by the studio pages — buyer pages never load
+ * it, so these element selectors can't leak onto the gallery.
+ */
+.admin {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 4rem;
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  box-shadow: var(--shadow);
+  padding: clamp(1.25rem, 3vw, 2rem);
+  margin-block: 1.5rem;
+}
+.card h2 {
+  font-family: Georgia, "Iowan Old Style", Charter, serif;
+  font-weight: 500;
+  margin: 0 0 0.75rem;
+  font-size: 1.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 1rem;
+}
+.card ul a {
+  color: var(--accent);
+}
+/* No browser-blue links anywhere in the studio: visited matches unvisited. */
+.admin a,
+.admin a:visited {
+  color: var(--accent);
+}
+/* Studio links behave exactly like the footer: accent always, only
+   the underline fades in on hover — never a color flash. */
+.admin a {
+  transition: text-decoration-color 0.12s ease;
+  text-decoration: underline transparent;
+  text-underline-offset: 3px;
+}
+.admin a:hover {
+  text-decoration-color: currentColor;
+}
+label {
+  display: grid;
+  gap: 0.35rem;
+  margin-block: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+input,
+textarea,
+select {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-weight: 400;
+  font-size: 0.95rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  min-height: 3rem;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+input:hover,
+textarea:hover,
+select:hover {
+  border-color: var(--muted);
+}
+/* Browsers forward label hover to the field — hovering a label
+   must not warm its box. Only the field itself earns the hover. */
+label:hover input:not(:hover),
+label:hover textarea:not(:hover),
+label:hover select:not(:hover) {
+  border-color: var(--line);
+}
+/* The dropdown is a choice, not typing — it gets the pointer finger. */
+select {
+  cursor: pointer;
+}
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* One ring only: inputs show this outline on any focus, so it never
+   doubles up with a border change (which is why this rule replaces it). */
+input:focus,
+textarea:focus,
+select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.row {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-block: 0.75rem;
+  align-items: center;
+}
+.row label {
+  flex: 1 1 8rem;
+  margin-block: 0;
+}
+button {
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  min-height: 2.9rem;
+  padding: 0.55rem 1.2rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background-color 0.25s ease,
+    border-color 0.25s ease,
+    color 0.25s ease,
+    transform 0.2s ease;
+}
+button:hover {
+  border-color: var(--ink);
+  transform: translateY(-1px);
+}
+button:active {
+  transform: none;
+}
+button.primary {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+button.primary:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.card h2 button {
+  min-height: 2.2rem;
+  padding: 0.25rem 0.9rem;
+  font-size: 0.82rem;
+  margin-left: auto;
+}
+/* Author display:inline-flex beats the UA [hidden] rule — re-hide. */
+.card h2 button[hidden] {
+  display: none;
+}
+.hint {
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+/* Collapsed drawers ("Advanced", folds): the summary wears the h2 style
+   so the closed card still reads as a section header. */
+.card summary {
+  font-family: Georgia, "Iowan Old Style", Charter, serif;
+  font-weight: 500;
+  font-size: 1.4rem;
+  cursor: pointer;
+  border-radius: 0.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--line);
+  margin: 1.5rem 0 1rem;
+  list-style: none;
+}
+.card summary::-webkit-details-marker {
+  display: none;
+}
+/* Custom disclosure mark: a chevron that turns down when open. */
+.card summary::before {
+  content: ">";
+  color: var(--accent);
+  font-weight: 700;
+  margin-right: 0.6rem;
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
+.card details[open] summary::before {
+  transform: rotate(90deg);
+}
+.card summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* Deferred reveals fade in instead of snapping. Opacity-only, so it
+   stays gentle under reduced motion too. */
+.fade-in {
+  animation: fade-in 0.4s ease;
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+/* Reduced motion kills movement, not gentle fades: lifts go instant,
+   while color and opacity transitions still run — snapping colors is
+   itself jarring. */
+@media (prefers-reduced-motion: reduce) {
+  button:hover {
+    transform: none;
+  }
+  .card summary::before {
+    transition: none;
+  }
+}

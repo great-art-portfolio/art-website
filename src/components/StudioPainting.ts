@@ -8,12 +8,12 @@
  * (no publishing backend) everything still works against a localStorage
  * practice overlay the dashboard merges into its list.
  */
-import { api, getApiToken, uniqueSlug } from "../lib/api";
+import { api, existingTitles, getApiToken, uniqueSlug } from "../lib/api";
 import { loadImageFile, prepareImage } from "../lib/image";
 
 import { dollarsToCents, formatCAD } from "../lib/money";
 import { formatDimensions } from "../lib/dims";
-import { slugifyTitle } from "../lib/site";
+import { isTitleTaken, slugifyTitle } from "../lib/site";
 import {
   buildMarkdown,
   paintingFilePaths,
@@ -394,6 +394,25 @@ async function modelBlobs(): Promise<{ glb: Blob; usdz: Blob } | null> {
   }
 }
 
+/**
+ * Each title owns its page link, so a second painting with the same title
+ * breaks the next site build. Block the save with plain words instead.
+ * ownSlug exempts the open painting (keeping its own title is fine).
+ */
+async function titleClash(
+  title: string,
+  ownSlug: string | null,
+): Promise<boolean> {
+  if (isTitleTaken(await existingTitles(), title, ownSlug)) {
+    setStatus(
+      `Another painting is already called "${title}" — give this one its own title.`,
+      true,
+    );
+    return true;
+  }
+  return false;
+}
+
 /** Commit a brand-new painting (draft or published) and head to /admin. */
 async function saveNew(draft: boolean): Promise<void> {
   const fields = readFields();
@@ -402,6 +421,7 @@ async function saveNew(draft: boolean): Promise<void> {
     setStatus("Choose a photo first.", true);
     return;
   }
+  if (await titleClash(fields.title, null)) return;
   if (await useOverlayMode()) {
     const slug =
       slugifyTitle(fields.title) === ""
@@ -548,6 +568,7 @@ async function saveEdit(
     );
     return;
   }
+  if (await titleClash(fields.title, slug)) return;
   setStatus("Saving… (live in a few minutes)");
   try {
     const imageFile =

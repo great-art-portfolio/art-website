@@ -1,5 +1,5 @@
 import { api, ApiError, getApiToken, setApiToken } from "../lib/api";
-import { $, maybe, maybeButton } from "../lib/dom";
+import { $, isLocalPreview, maybe, maybeButton } from "../lib/dom";
 import { errorMessage } from "../lib/errors";
 import {
   parseBakedCollection,
@@ -75,13 +75,6 @@ function reveal(el: HTMLElement): void {
     el.hidden = false;
     fadeIn(el);
   }
-}
-
-/** Local preview (dev servers), where publishing + analytics genuinely live
- * only on the production site — never a bug, never a setup step. */
-function isLocalPreview(): boolean {
-  const host = window.location.hostname;
-  return host === "localhost" || host === "127.0.0.1";
 }
 
 /** Throwaway browser overlay unless something real can persist: a stored
@@ -271,10 +264,11 @@ function rowsKey(rows: LocalPainting[]): string {
 let lastRowsKey: string | null = null;
 
 /**
- * Two columns on desktop — Available left, Drafts right — with Sold in a
- * foldable full-width row underneath; one list on phones. Same renderer
- * as the static markup (studioRowHtml), so hydration swaps identical
- * HTML. Available rows carry the gallery order and drag to re-sort it.
+ * Available on top with Drafts and Sold each in a foldable full-width
+ * row underneath, in that order; one list on phones. Same renderer as
+ * the static markup (studioRowHtml), so hydration swaps identical HTML.
+ * Available and Sold rows each carry their group's order and drag to
+ * re-sort it (homepage follows both); Drafts never drag.
  */
 /** Rows behind the current render, for drag-to-reorder lookups. */
 let lastRenderedRows: LocalPainting[] = [];
@@ -286,6 +280,7 @@ function renderRows(rows: LocalPainting[]): void {
   // Delegated + idempotent: also joins the SSR first paint, where no
   // re-render happens (photos must not flicker).
   wireReorder(list);
+  wireReorderHint(list);
   const key = rowsKey(rows);
   if (key === lastRowsKey) return;
   lastRowsKey = key;
@@ -299,11 +294,10 @@ function renderRows(rows: LocalPainting[]): void {
   const drafts = [...rows].filter((r) => r.draft).sort(byTitle);
   const groups = groupByAvailability(rows.filter((r) => !r.draft));
   const available = [...groups.available].sort(compareGalleryOrder);
-  const sold = [...groups.sold].sort(byTitle);
+  const sold = [...groups.sold].sort(compareGalleryOrder);
   let html =
     `<li class="list-group" data-group="available">` +
     subHtml("Available") +
-    `<p class="list-hint">Drag cards to reorder — the homepage follows this order.</p>` +
     `<ul class="group-rows">` +
     (available.length === 0
       ? `<li class="list-plain">Nothing available right now.</li>`
@@ -311,15 +305,15 @@ function renderRows(rows: LocalPainting[]): void {
     `</ul></li>`;
   if (drafts.length > 0) {
     html +=
-      `<li class="list-group" data-group="drafts">` +
-      subHtml("Drafts") +
+      `<details class="drafts-fold" data-group="drafts" open>` +
+      `<summary>${drafts.length === 1 ? "1 draft" : `${drafts.length} drafts`}</summary>` +
       `<ul class="group-rows">` +
       drafts.map(rowHtml).join("") +
-      `</ul></li>`;
+      `</ul></details>`;
   }
   if (sold.length > 0) {
     html +=
-      `<details class="sold-fold" open>` +
+      `<details class="sold-fold" data-group="sold" open>` +
       `<summary>${sold.length === 1 ? "1 sold" : `${sold.length} sold`}</summary>` +
       `<ul class="group-rows">` +
       sold.map(rowHtml).join("") +
@@ -330,14 +324,16 @@ function renderRows(rows: LocalPainting[]): void {
 }
 
 /**
- * Gallery drag-to-reorder: Available cards drag; dropping writes 0..n
- * into each painting's `order:` frontmatter (one live commit) or the
- * practice overlay in dev. Drafts and sold never drag. Listeners attach
- * once to the list (delegation survives re-renders); per-card flags
- * re-apply on every render including the SSR first paint.
+ * Gallery drag-to-reorder: Available and Sold cards drag within their own
+ * group; dropping writes 0..n into each painting's `order:` frontmatter
+ * (one live commit) or the practice overlay in dev. Drafts never drag.
+ * Listeners attach once to the list (delegation survives re-renders);
+ * per-card flags re-apply on every render including the SSR first paint.
  */
 let reorderWired = false;
 let dragSlug: string | null = null;
+/** Serializes reorder commits (see the drop handler). */
+let reorderQueue: Promise<void> = Promise.resolve();
 
 function reorderCard(target: EventTarget | null): Element | null {
   // Element, not HTMLElement: drop points land on SVG icon paths too,
@@ -345,7 +341,11 @@ function reorderCard(target: EventTarget | null): Element | null {
   if (!(target instanceof Element)) return null;
   const card = target.closest(".row-card");
   if (card === null) return null;
-  if (card.closest('[data-group="available"]') === null) return null;
+  if (
+    card.closest('[data-group="available"]') === null &&
+    card.closest('[data-group="sold"]') === null
+  )
+    return null;
   return card;
 }
 
@@ -362,7 +362,7 @@ function clearDropMarks(list: HTMLElement): void {
 
 function wireReorder(list: HTMLElement): void {
   for (const card of list.querySelectorAll(
-    '[data-group="available"] .row-card',
+    '[data-group="available"] .row-card, [data-group="sold"] .row-card',
   )) {
     if (card instanceof HTMLElement) card.draggable = true;
   }
@@ -419,7 +419,15 @@ function wireReorder(list: HTMLElement): void {
     rows?.insertBefore(dragged, after ? card.nextSibling : card);
     const slug = dragSlug;
     dragSlug = null;
-    void persistOrder(rows, slug);
+    // One reorder commit at a time: a second drop waits for the first,
+    // then recomputes from the live DOM — overlapping drags used to read
+    // stale rows and lose updates.
+    reorderQueue = reorderQueue
+      .then(() => persistOrder(rows, slug))
+      // persistOrder reports its own failures; this only keeps a surprise
+      // throw from stalling every later drop, and surfaces it as a toast.
+      .catch((err: unknown) => setStatus(errorMessage(err), true));
+    void reorderQueue;
   });
   list.addEventListener("dragend", () => {
     dragSlug = null;
@@ -427,12 +435,117 @@ function wireReorder(list: HTMLElement): void {
   });
 }
 
-/** Write the Available DOM order back as 0..n `order:` frontmatter. */
+/**
+ * Reorder hint as a hover tooltip: resting on an Available or Sold photo
+ * for a few seconds reveals that the cards drag (the homepage follows).
+ * One shared bubble, instant show/hide, pointer-events off so it never
+ * disturbs the drag itself. Keyboard gets the same via focus.
+ */
+let hintTimer = 0;
+const HINT_DELAY_MS = 3000;
+const REORDER_HINT = "Drag cards to reorder — the homepage follows this order.";
+
+function hintBubble(): HTMLElement {
+  let tip = document.getElementById("reorder-tip");
+  if (tip === null) {
+    tip = document.createElement("div");
+    tip.id = "reorder-tip";
+    tip.setAttribute("role", "tooltip");
+    tip.hidden = true;
+    tip.textContent = REORDER_HINT;
+    document.body.appendChild(tip);
+  }
+  return tip;
+}
+
+function hideReorderHint(): void {
+  window.clearTimeout(hintTimer);
+  const tip = document.getElementById("reorder-tip");
+  if (tip === null) return;
+  tip.hidden = true;
+  const labelled = document.querySelector('[aria-describedby="reorder-tip"]');
+  labelled?.removeAttribute("aria-describedby");
+}
+
+function showReorderHint(anchor: Element): void {
+  if (!anchor.isConnected) return;
+  const tip = hintBubble();
+  const rect = anchor.getBoundingClientRect();
+  tip.hidden = false;
+  anchor.setAttribute("aria-describedby", "reorder-tip");
+  // Below the photo when it fits, above it when it doesn't; clamped
+  // sideways so narrow phones never push it off-screen. Measured live
+  // (fonts shift it) after unhiding.
+  const gap = 8;
+  const topBelow = rect.bottom + gap;
+  const top =
+    topBelow + tip.offsetHeight > window.innerHeight
+      ? Math.max(gap, rect.top - tip.offsetHeight - gap)
+      : topBelow;
+  const left = Math.max(
+    gap,
+    Math.min(rect.left, window.innerWidth - tip.offsetWidth - gap),
+  );
+  tip.style.top = `${top}px`;
+  tip.style.left = `${left}px`;
+}
+
+function hintPhoto(target: EventTarget | null): Element | null {
+  if (!(target instanceof Element)) return null;
+  const photo = target.closest(".row-photo");
+  if (photo === null) return null;
+  if (
+    photo.closest('[data-group="available"]') === null &&
+    photo.closest('[data-group="sold"]') === null
+  )
+    return null;
+  return photo;
+}
+
+let hintWired = false;
+
+function wireReorderHint(list: HTMLElement): void {
+  if (hintWired) return;
+  hintWired = true;
+  list.addEventListener("mouseover", (e) => {
+    const photo = hintPhoto(e.target);
+    if (photo === null) return;
+    window.clearTimeout(hintTimer);
+    hideReorderHint();
+    hintTimer = window.setTimeout(() => showReorderHint(photo), HINT_DELAY_MS);
+  });
+  list.addEventListener("mouseout", (e) => {
+    const photo = hintPhoto(e.target);
+    if (photo === null) return;
+    const next = e instanceof MouseEvent ? e.relatedTarget : null;
+    if (next instanceof Element && photo.contains(next)) return;
+    hideReorderHint();
+  });
+  list.addEventListener("focusin", (e) => {
+    const photo = hintPhoto(e.target);
+    if (photo === null) return;
+    window.clearTimeout(hintTimer);
+    hideReorderHint();
+    hintTimer = window.setTimeout(() => showReorderHint(photo), HINT_DELAY_MS);
+  });
+  list.addEventListener("focusout", () => hideReorderHint());
+  // A shown bubble never follows its card: hide on anything that moves
+  // the page or starts a drag, and when leaving for another studio page
+  // (this module outlives ClientRouter navigations).
+  list.addEventListener("dragstart", () => hideReorderHint());
+  list.addEventListener("click", () => hideReorderHint());
+  window.addEventListener("scroll", () => hideReorderHint(), true);
+}
+
+/** Write one group's DOM order back as 0..n `order:` frontmatter. */
 async function persistOrder(
   rows: Element | null,
   moved: string,
 ): Promise<void> {
   if (rows === null) return;
+  // Plain words for the toast: whose order just moved.
+  const kind =
+    rows.closest('[data-group="sold"]') === null ? "Gallery" : "Sold";
   const slugs: string[] = [];
   for (const card of rows.querySelectorAll(":scope > .row-card")) {
     if (!(card instanceof HTMLElement)) continue;
@@ -464,12 +577,12 @@ async function persistOrder(
         changed += 1;
       }
       if (changed === 0) {
-        setStatus("That's already the gallery order.");
+        setStatus(`That's already the ${kind.toLowerCase()} order.`);
         return;
       }
       renderLocalCollection();
       setStatus(
-        "Gallery order kept in this tab — publish it on the live site.",
+        `${kind} order kept in this tab — publish it on the live site.`,
       );
       return;
     }
@@ -487,13 +600,22 @@ async function persistOrder(
       files.push({ path: row.mdPath, blob: setOrder(content, i) });
     }
     if (files.length === 0) {
-      setStatus("That's already the gallery order.");
+      setStatus(`That's already the ${kind.toLowerCase()} order.`);
       return;
     }
-    setStatus("Saving the gallery order… (live in a few minutes)");
+    setStatus(
+      `Saving the ${kind.toLowerCase()} order… (live in a few minutes)`,
+    );
     await api.commitFiles("Reorder gallery", files);
-    await refreshCollection();
-    setStatus("Gallery order saved — live in a few minutes.");
+    // The push IS the order now: stamp the dropped indices onto the rows
+    // and show them. A re-read here can lag the push and flash the old
+    // order back; the next visit re-reads from the repo anyway.
+    for (const [i, slug] of slugs.entries()) {
+      const row = bySlug.get(slug);
+      if (row !== undefined) row.order = i;
+    }
+    renderRows(lastRenderedRows);
+    setStatus(`${kind} order saved — live in a few minutes.`);
   } catch (err) {
     setStatus(errorMessage(err), true);
     await refreshCollection().catch(() => undefined);
@@ -694,10 +816,17 @@ async function refreshCollection(): Promise<void> {
       }
     }
   }
+  // One round trip per file, all at once (order preserved) — the old
+  // sequential loop kept the dashboard loading for seconds per visit.
+  const contents = await Promise.all(
+    files.map(async (f) => ({
+      f,
+      content: await api.getPaintingFile(`src/content/paintings/${f}`),
+    })),
+  );
   const rows: LocalPainting[] = [];
-  for (const f of files) {
+  for (const { f, content } of contents) {
     const mdPath = `src/content/paintings/${f}`;
-    const content = await api.getPaintingFile(mdPath);
     if (content === null) continue;
     const p = parsePainting(content);
     if (p === null || p.title === "") continue;
@@ -840,177 +969,203 @@ function setBannerRemovable(has: boolean): void {
 }
 
 function init(): void {
-  api
-    .getBanner()
-    .then((raw) => {
-      void import("../lib/banner").then((bannerMod) => {
-        const banner = bannerMod.parseAnnouncement(raw);
-        if (banner.text === "") {
-          // No published banner: a dev preview from this browser stands
-          // in, so the wording can be tried on the homepage for real.
-          const preview =
-            isLocalPreview() && getApiToken() === ""
-              ? loadBannerPreview()
-              : null;
-          if (
-            preview !== null &&
-            !bannerMod.isExpired(preview.expires, bannerMod.localToday())
-          ) {
-            $("f-announce").value = preview.text;
-            $("f-duration").value = "";
-            const meta = $("announce-meta");
-            meta.textContent =
-              "Preview kept in this browser — open the homepage to see it.";
-            fadeIn(meta);
-            setBannerRemovable(true);
-            return;
-          }
-        }
-        $("f-announce").value = banner.text;
-        const meta = $("announce-meta");
-        if (banner.text === "") {
-          meta.textContent = "No banner showing right now.";
-          fadeIn(meta);
-          setBannerRemovable(false);
-          return;
-        }
-        setBannerRemovable(true);
-        if (banner.expires === null) {
-          meta.textContent = "Showing now, with no end date.";
-          fadeIn(meta);
-          $("f-duration").value = "";
-          return;
-        }
-        const left = bannerMod.daysLeft(banner.expires);
-        meta.textContent =
-          left < 0
-            ? `Ended ${banner.expires} — hidden on the site.`
-            : `Showing now, ends ${banner.expires} (${left === 0 ? "last day" : `${left} days left`}).`;
-        fadeIn(meta);
-        // Preselect the lifetime closest to what's left, so saving
-        // without touching the dropdown roughly keeps the end date.
-        const select = $("f-duration");
-        let best = "";
-        let bestGap = Number.POSITIVE_INFINITY;
-        for (const opt of ["1", "3", "7", "14"]) {
-          const gap = Math.abs(Number(opt) - Math.max(0, left));
-          if (gap < bestGap) {
-            bestGap = gap;
-            best = opt;
-          }
-        }
-        select.value = best;
-      });
-    })
-    .catch(() => {
-      // Publishing not configured yet — the editor still works once it is.
-    });
-
-  // Removing is saving empty: the same commit clears the file (or the
-  // dev preview), with the same confirmation words. Updating refuses an
-  // empty announcement — clearing is Remove's job, with its own words.
-  $("announce-clear").addEventListener("click", () => {
-    $("f-announce").value = "";
-    saveBanner(true);
-  });
-
-  $("announce-save").addEventListener("click", () => {
-    saveBanner(false);
-  });
-
-  function saveBanner(allowEmpty: boolean): void {
-    const text = $("f-announce").value.trim().slice(0, 280);
-    if (text === "" && !allowEmpty) {
-      // A nudge, not news: gone quickly.
-      setStatus("Write the announcement first — or Remove banner.", true, 3500);
-      $("f-announce").focus();
-      return;
-    }
-    const durationRaw = $("f-duration").value;
-    setStatus("Publishing banner… (live in a few minutes)");
-    void import("../lib/banner").then((bannerMod) => {
-      const days = durationRaw === "" ? null : Number(durationRaw);
-      const body = bannerMod.formatAnnouncement(
-        text,
-        days === null || !Number.isFinite(days)
-          ? null
-          : bannerMod.expiryForDuration(days),
-      );
-      api
-        .commitFiles("Update homepage banner", [
-          { path: "src/content/announcement.txt", blob: body },
-        ])
-        .then(() => {
-          clearBannerPreview();
-          setBannerRemovable(body !== "");
-          setStatus(
-            body === "" ? "Banner cleared." : "Banner updated on the homepage.",
-          );
-        })
-        .catch((err: unknown) => {
-          // Dev has no publishing backend: keep the banner in this
-          // browser instead, so the wording can still be tried on the
-          // homepage for real. A stored token means the commit, so this
-          // path only runs while practicing.
-          if (isLocalPreview() && getApiToken() === "") {
-            const parsed = bannerMod.parseAnnouncement(body);
-            if (parsed.text === "") clearBannerPreview();
-            else storeBannerPreview(parsed.text, parsed.expires);
-            const meta = $("announce-meta");
-            meta.textContent =
-              parsed.text === ""
-                ? "No banner showing right now."
-                : "Preview kept in this browser — open the homepage to see it.";
-            fadeIn(meta);
-            setBannerRemovable(parsed.text !== "");
-            setStatus(
-              parsed.text === ""
-                ? "Banner cleared in this browser."
-                : "Banner preview kept in this browser — open the homepage to see it.",
-            );
-            return;
-          }
-          setStatus(errorMessage(err), true);
-        });
-    });
-  }
-
-  const tokenInput = $("admin-token");
-  tokenInput.value = getApiToken();
-  tokenInput.addEventListener("change", () => {
-    setApiToken(tokenInput.value.trim());
-    setStatus("Token saved on this device.");
-    void refreshFlags();
-  });
-
+  // One island serves every studio page — each section below runs only
+  // where its markup exists, so the banner page never touches the
+  // collection list and vice versa. (Indentation inside the blocks is
+  // normalized by Prettier, not by hand.)
+  const onCollection = document.getElementById("edit-list") !== null;
+  const onBanner = document.getElementById("f-announce") !== null;
+  const onGuide = document.getElementById("admin-token") !== null;
+  if (!onCollection && !onBanner && !onGuide) return;
   $("leave-admin").addEventListener("click", () => {
     setApiToken("");
     window.location.href = "/";
   });
+  // Banner page: load the published wording into the form; saving and
+  // removing commit the announcement file (or a dev preview).
+  if (onBanner) {
+    api
+      .getBanner()
+      .then((raw) => {
+        void import("../lib/banner").then((bannerMod) => {
+          const banner = bannerMod.parseAnnouncement(raw);
+          if (banner.text === "") {
+            // No published banner: a dev preview from this browser stands
+            // in, so the wording can be tried on the homepage for real.
+            const preview =
+              isLocalPreview() && getApiToken() === ""
+                ? loadBannerPreview()
+                : null;
+            if (
+              preview !== null &&
+              !bannerMod.isExpired(preview.expires, bannerMod.localToday())
+            ) {
+              $("f-announce").value = preview.text;
+              $("f-duration").value = "";
+              const meta = $("announce-meta");
+              meta.textContent =
+                "Preview kept in this browser — open the homepage to see it.";
+              fadeIn(meta);
+              setBannerRemovable(true);
+              return;
+            }
+          }
+          $("f-announce").value = banner.text;
+          const meta = $("announce-meta");
+          if (banner.text === "") {
+            meta.textContent = "No banner showing right now.";
+            fadeIn(meta);
+            setBannerRemovable(false);
+            return;
+          }
+          setBannerRemovable(true);
+          if (banner.expires === null) {
+            meta.textContent = "Showing now, with no end date.";
+            fadeIn(meta);
+            $("f-duration").value = "";
+            return;
+          }
+          const left = bannerMod.daysLeft(banner.expires);
+          meta.textContent =
+            left < 0
+              ? `Ended ${banner.expires} — hidden on the site.`
+              : `Showing now, ends ${banner.expires} (${left === 0 ? "last day" : `${left} days left`}).`;
+          fadeIn(meta);
+          // Preselect the lifetime closest to what's left, so saving
+          // without touching the dropdown roughly keeps the end date.
+          const select = $("f-duration");
+          let best = "";
+          let bestGap = Number.POSITIVE_INFINITY;
+          for (const opt of ["1", "3", "7", "14"]) {
+            const gap = Math.abs(Number(opt) - Math.max(0, left));
+            if (gap < bestGap) {
+              bestGap = gap;
+              best = opt;
+            }
+          }
+          select.value = best;
+        });
+      })
+      .catch(() => {
+        // Publishing not configured yet — the editor still works once it is.
+      });
 
-  $("collection-refresh").addEventListener(
-    "click",
-    () => void refreshCollection(),
-  );
-  wireRowDelete();
+    // Removing is saving empty: the same commit clears the file (or the
+    // dev preview), with the same confirmation words. Updating refuses an
+    // empty announcement — clearing is Remove's job, with its own words.
+    $("announce-clear").addEventListener("click", () => {
+      $("f-announce").value = "";
+      saveBanner(true);
+    });
 
-  // Landing here from a painting room: its confirmation toast rides
-  // along in session storage.
-  try {
-    const flash = window.sessionStorage.getItem("studio-flash");
-    if (flash !== null) {
-      window.sessionStorage.removeItem("studio-flash");
-      setStatus(flash);
+    $("announce-save").addEventListener("click", () => {
+      saveBanner(false);
+    });
+
+    function saveBanner(allowEmpty: boolean): void {
+      const text = $("f-announce").value.trim().slice(0, 280);
+      if (text === "" && !allowEmpty) {
+        // A nudge, not news: gone quickly.
+        setStatus(
+          "Write the announcement first — or Remove banner.",
+          true,
+          3500,
+        );
+        $("f-announce").focus();
+        return;
+      }
+      const durationRaw = $("f-duration").value;
+      setStatus("Publishing banner… (live in a few minutes)");
+      void import("../lib/banner").then((bannerMod) => {
+        const days = durationRaw === "" ? null : Number(durationRaw);
+        const body = bannerMod.formatAnnouncement(
+          text,
+          days === null || !Number.isFinite(days)
+            ? null
+            : bannerMod.expiryForDuration(days),
+        );
+        api
+          .commitFiles("Update homepage banner", [
+            { path: "src/content/announcement.txt", blob: body },
+          ])
+          .then(() => {
+            clearBannerPreview();
+            setBannerRemovable(body !== "");
+            setStatus(
+              body === ""
+                ? "Banner cleared."
+                : "Banner updated on the homepage.",
+            );
+          })
+          .catch((err: unknown) => {
+            // Dev has no publishing backend: keep the banner in this
+            // browser instead, so the wording can still be tried on the
+            // homepage for real. A stored token means the commit, so this
+            // path only runs while practicing.
+            if (isLocalPreview() && getApiToken() === "") {
+              const parsed = bannerMod.parseAnnouncement(body);
+              if (parsed.text === "") clearBannerPreview();
+              else storeBannerPreview(parsed.text, parsed.expires);
+              const meta = $("announce-meta");
+              meta.textContent =
+                parsed.text === ""
+                  ? "No banner showing right now."
+                  : "Preview kept in this browser — open the homepage to see it.";
+              fadeIn(meta);
+              setBannerRemovable(parsed.text !== "");
+              setStatus(
+                parsed.text === ""
+                  ? "Banner cleared in this browser."
+                  : "Banner preview kept in this browser — open the homepage to see it.",
+              );
+              return;
+            }
+            setStatus(errorMessage(err), true);
+          });
+      });
     }
-  } catch {
-    // Browsers without session storage just miss the handoff.
   }
 
-  seedRowsKey();
-  void refreshCollection();
-  void refreshRowViews();
-  void refreshFlags();
-  void refreshCapabilities();
+  // Guide page: API token, backend flags, and what this browser can do.
+  if (onGuide) {
+    const tokenInput = $("admin-token");
+    tokenInput.value = getApiToken();
+    tokenInput.addEventListener("change", () => {
+      setApiToken(tokenInput.value.trim());
+      setStatus("Token saved on this device.");
+      void refreshFlags();
+    });
+    void refreshFlags();
+    void refreshCapabilities();
+  }
+
+  // Collection page: rows, drag-to-reorder, deletes, practice overlay.
+  // Saves from the painting rooms land back here with a confirmation.
+  if (onCollection) {
+    $("collection-refresh").addEventListener(
+      "click",
+      () => void refreshCollection(),
+    );
+    wireRowDelete();
+
+    // Landing here from a painting room: its confirmation toast rides
+    // along in session storage.
+    try {
+      const flash = window.sessionStorage.getItem("studio-flash");
+      if (flash !== null) {
+        window.sessionStorage.removeItem("studio-flash");
+        setStatus(flash);
+      }
+    } catch {
+      // Browsers without session storage just miss the handoff.
+    }
+
+    // A tooltip from the last visit must not linger on the new page.
+    hideReorderHint();
+    seedRowsKey();
+    void refreshCollection();
+    void refreshRowViews();
+  }
 }
 
 // ClientRouter swaps studio pages without a full load — and skips

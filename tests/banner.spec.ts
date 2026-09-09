@@ -40,7 +40,7 @@ test("studio banner form offers lifetimes and saves with an expiry", async ({
     await route.fulfill({ json: flags });
   });
 
-  await page.goto("/admin");
+  await page.goto("/admin/banner");
   await expect(page.locator("#f-announce")).toBeVisible();
   await expect(page.locator("#announce-meta")).toContainText("No banner", {
     timeout: 15_000,
@@ -89,7 +89,7 @@ test("empty update is refused, Remove clears the file", async ({ page }) => {
     await route.fulfill({ json: flags });
   });
 
-  await page.goto("/admin");
+  await page.goto("/admin/banner");
   await expect(page.locator("#announce-meta")).toContainText("Showing now", {
     timeout: 15_000,
   });
@@ -151,7 +151,7 @@ test("dev without a backend keeps a banner preview for this browser", async ({
     await route.fulfill({ json: flags });
   });
 
-  await page.goto("/admin");
+  await page.goto("/admin/banner");
   await expect(page.locator("#announce-meta")).toContainText("No banner", {
     timeout: 15_000,
   });
@@ -187,7 +187,7 @@ test("remove banner clears it without typing", async ({ page }) => {
     await route.fulfill({ json: flags });
   });
 
-  await page.goto("/admin");
+  await page.goto("/admin/banner");
   await expect(page.locator("#announce-meta")).toContainText("Showing now", {
     timeout: 15_000,
   });

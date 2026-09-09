@@ -36,6 +36,25 @@ export function slugifyTitle(title: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+/**
+ * True when another painting already claims this title's page link. Links
+ * key off the title — never the filename — so a second "Prairie Moon"
+ * breaks the build no matter what its file is called. ownSlug exempts the
+ * painting being renamed (keeping its own title is fine).
+ */
+export function isTitleTaken(
+  taken: Iterable<string>,
+  title: string,
+  ownSlug: string | null,
+): boolean {
+  const slug = slugifyTitle(title);
+  for (const other of taken) {
+    const s = slugifyTitle(other);
+    if (s === slug && s !== ownSlug) return true;
+  }
+  return false;
+}
+
 /** "5 works" / "1 work" helper for section headings. */
 export function workCount(n: number): string {
   return `${n} ${n === 1 ? "work" : "works"}`;

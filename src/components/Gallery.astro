@@ -37,7 +37,16 @@ const available = paintings
       { order: b.data.order ?? null, title: b.data.title },
     ),
   );
-const sold = paintings.filter((p) => p.data.sold);
+// Sold follows the same /admin drag order as Available (frontmatter
+// `order:`); unordered works trail alphabetically.
+const sold = paintings
+  .filter((p) => p.data.sold)
+  .sort((a, b) =>
+    compareGalleryOrder(
+      { order: a.data.order ?? null, title: a.data.title },
+      { order: b.data.order ?? null, title: b.data.title },
+    ),
+  );
 
 const NEW_MS = 7 * 24 * 60 * 60 * 1000;
 const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;

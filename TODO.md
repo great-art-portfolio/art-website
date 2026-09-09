@@ -97,3 +97,44 @@ Push to main for CI; real upload test on barbart.ca/admin.
   so publish flows are testable without prod; writes stay uncommitted,
   `pnpm studio:reset` restores gallery paths. Verified live: banner POST
   through the proxy rendered on the dev homepage, reset restored it.
+
+## Follow-ups (2026-09-08, uncommitted)
+
+- Studio Collection: Drafts are a foldable ("N drafts") in the right
+  column with compact rows (3rem thumbs, single column); Sold drags
+  within its group like Available, and the homepage sold archive follows
+  the same `order:` frontmatter. Toasts say "Sold order …" for sold
+  drags. New e2e covers the sold drag (stubbed trio, tree holds one
+  sold). Gates green: format, lint, astro check, typecheck, 133 unit,
+  check:inline, build; verified in a real browser on :4331 (fold
+  toggles, sold draggable, drafts not, homepage order intact).
+
+## Follow-ups (2026-09-08, uncommitted, part 2)
+
+- Drafts + Sold folds animate open/shut (allow-keywords ease, same as
+  the Advanced drawer; instant under reduced motion). Folded Drafts
+  yields its column: Available stretches 2fr to 1fr, divider fades out
+  (color-only transition). Verified 1280/820/390px, zero overflow.
+- AGENTS.md: added the motion-everywhere + three-screens taste rules;
+  loop now runs touched spec files per change, full e2e pre-commit.
+- Ran the tests for real this time: full suite 113 passed. Fixed 4
+  stale assertions along the way — available-drag and practice-drag
+  counts assumed unordered data (tree now has order:, so only n-1 rows
+  rewrite; proven pre-existing via stash), the practice mirror compared
+  a Promise instead of polling, and the Drafts-section assertion needed
+  the new count label. About link: measured identical to Collection in
+  light theme (same color + 0.78 opacity); only Notify-me differs, by
+  design.
+- Drafts moved below Available as a full-width fold (compact rows in a
+  responsive multi-column grid, like Sold); two-column studio layout
+  retired. Advanced Settings unfolds + fades its content in.
+  Full suite 114 passed.
+- Admin split into pages: /admin is Collection only; Banner, Views
+  (new stats table, most-watched-first, graceful when empty), and Guide
+  live under a tab bar (Collection/Banner/Views/Guide). Shared form
+  styles moved to components/studio.css, toast+tabs to AdminTabs.astro;
+  AdminPanel inits only the section whose markup exists. Full suite
+  116 passed; verified all four pages at 1280 + phone.
+- Review pass: schemas row-list parsers deduped via parseRowList;
+  removed dead maybeInput helper; new unit tests for money, dims, and
+  parseStatsSeed (142 unit green, admin-studio e2e 40 green).

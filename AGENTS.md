@@ -5,11 +5,14 @@ content collections for paintings. One artist, a few uploads a month.
 
 ## The loops
 
-Fast loop (every change): `astro check` → `typecheck` → `test:unit`.
-Next: `check:inline`, then `build`. Playwright (`test:e2e`) only
-pre-commit — it needs a fresh build plus the Pages runtime, so never run
-it per-turn. Gate order is also the CI order:
-`format:check → lint → astro check → typecheck → test:unit → check:inline → build → e2e`.
+Fast loop (every change): `format:check` → `lint` → `astro check` →
+`typecheck` → `test:unit` → `build` → `check:inline` (it scans `dist/`,
+so the build comes first), then the touched spec file(s)
+(`pnpm test:e2e tests/<name>.spec.ts` — the Playwright config boots the
+Pages runtime on :4331 itself, so no manual server is needed). Full
+`test:e2e` runs pre-commit. Gate order is also the CI order:
+`format:check → lint → astro check → typecheck → test:unit → build →
+check:inline → e2e`.
 
 `format` before committing; `format:check` and `lint` must be clean.
 Never commit with a red gate to "fix later".
@@ -93,8 +96,15 @@ something node can't load (move API-dependent helpers to `lib/api.ts`).
 ## Taste (non-negotiable)
 
 - Mom never handles tokens, secrets, or CLIs. Plain words everywhere.
+- Motion everywhere it earns its place: nearly every interaction gets a
+  considered animation — folds unfold, rows mirror drops, toasts fade,
+  reveals ease in. Opacity and color easing by default; movement only
+  when it aids understanding, never decoration for its own sake.
 - Reduced motion kills movement, never fades: slides, lifts, expands go
   instant; color and opacity transitions still run.
+- Three screens, always: every visual change is looked at on iPhone
+  (~390px), iPad (~820px), and desktop (~1280px) widths in a real
+  browser.
 - One focus ring only (accent outline, never outline + border change).
 - Script-built nodes never carry Astro's scope attribute — style them
   with whole-selector `:global()` twins, and re-assert `[hidden]` whenever
@@ -106,3 +116,6 @@ TODO.md mirrors the running plan — read it first, keep it current.
 Port 4331, commit along the way, verify in a real browser before claiming
 done: the repo's own suites (`test:unit`, then the touched spec files,
 then full `test:e2e`) plus a look at the page.
+Fresh checkout (or wiped `.wrangler/`): run `pnpm db:migrate:local`
+once — local D1 state is gitignored, and without its tables the
+collector e2e tests fail with `no such table`.

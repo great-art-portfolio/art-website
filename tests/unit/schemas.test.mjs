@@ -5,6 +5,7 @@ import {
   parseBannerPreview,
   parseJsonWith,
   parsePracticeOverlay,
+  parseStatsSeed,
 } from "../../src/lib/schemas.ts";
 import { z } from "zod";
 
@@ -40,6 +41,31 @@ describe("parseBakedCollection", () => {
   it("reads a non-list as absent", () => {
     assert.equal(parseBakedCollection(JSON.stringify({})), null);
     assert.equal(parseBakedCollection("nope"), null);
+  });
+});
+
+describe("parseStatsSeed", () => {
+  const seed = {
+    slug: "first-thaw",
+    title: "First Thaw",
+    sold: false,
+    draft: false,
+  };
+
+  it("accepts the shape views.astro bakes", () => {
+    const rows = parseStatsSeed(JSON.stringify([seed]));
+    assert.equal(rows?.length, 1);
+    assert.equal(rows?.[0]?.title, "First Thaw");
+  });
+
+  it("drops bad rows instead of blanking the table", () => {
+    const rows = parseStatsSeed(JSON.stringify([{ nope: true }, seed]));
+    assert.equal(rows?.length, 1);
+  });
+
+  it("reads a non-list as absent", () => {
+    assert.equal(parseStatsSeed(JSON.stringify({})), null);
+    assert.equal(parseStatsSeed("nope"), null);
   });
 });
 

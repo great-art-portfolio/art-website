@@ -10,6 +10,7 @@ import {
   statusSchema,
   viewsSchema,
 } from "./schemas";
+import { parsePainting } from "./painting-edit";
 import { slugifyTitle } from "./site";
 
 /**
@@ -272,6 +273,28 @@ export const api = {
     return data;
   },
 };
+
+/**
+ * Titles already in the repo, for the duplicate-title guard (page links
+ * key off titles, so filenames can't answer it). Empty when offline or
+ * unconfigured — the save proceeds and the commit may still land.
+ */
+export async function existingTitles(): Promise<string[]> {
+  let files: string[];
+  try {
+    files = await api.listPaintingFiles();
+  } catch {
+    return [];
+  }
+  const titles: string[] = [];
+  for (const f of files) {
+    if (!f.endsWith(".md")) continue;
+    const content = await api.getPaintingFile(`src/content/paintings/${f}`);
+    const title = content === null ? "" : (parsePainting(content)?.title ?? "");
+    if (title !== "") titles.push(title);
+  }
+  return titles;
+}
 
 /** Unique slug for a new painting, checking the repo's paintings folder. */
 export async function uniqueSlug(title: string): Promise<string> {

@@ -363,20 +363,35 @@ test("drafts stay out of the gallery and buyer pages", async ({ page }) => {
   }
 });
 
-test("admin page renders the studio sections and new-painting door", async ({
+test("studio pages render their section and new-painting door", async ({
   page,
 }) => {
-  await page.goto("/admin");
-  for (const id of ["#sec-collection", "#sec-banner", "#sec-info"]) {
+  // One section per page, reached through the tab bar — no anchor strip.
+  const pages: Array<[string, string]> = [
+    ["/admin", "#sec-collection"],
+    ["/admin/banner", "#sec-banner"],
+    ["/admin/views", "#sec-views"],
+    ["/admin/guide", "#sec-info"],
+  ];
+  for (const [url, id] of pages) {
+    await page.goto(url);
     await expect(page.locator(id)).toBeAttached();
+    // The tab bar names all four pages, marking the open one.
+    for (const label of ["Collection", "Banner", "Views", "Guide"]) {
+      await expect(
+        page.locator(".admin-tabs").getByRole("link", { name: label }),
+      ).toBeVisible();
+    }
   }
-  // Grid dashboard, no anchor strip; new paintings start in their own room
-  // through the header button.
   await expect(page.locator(".subnav")).toHaveCount(0);
-  await expect(page.locator(".admin-grid")).toBeVisible();
+  // New paintings start in their own room through the header button.
+  await page.goto("/admin");
   await expect(
     page.locator('nav a.nav-cta[href="/admin/paintings/new"]'),
   ).toBeVisible();
+  // The API token lives on the Guide page, not the collection.
+  await expect(page.locator("#admin-token")).toHaveCount(0);
+  await page.goto("/admin/guide");
   await expect(page.locator("#admin-token")).toBeAttached();
 });
 

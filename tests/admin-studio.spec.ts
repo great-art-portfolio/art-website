@@ -241,9 +241,8 @@ test("collection rows stop well short of the card edge on desktop", async ({
   // Rows arrive as static markup — no skeleton flash, no layout shift.
   await expect(page.locator("#edit-list .row-card").first()).toBeVisible();
   await expect(page.locator("#edit-list .skel")).toHaveCount(0);
-  // The groups together fill the whole card — no empty half. Summed
-  // (not just the available group) so drafting in dev can't fail it:
-  // a drafts group simply takes its own column beside the rest.
+  // Available fills the whole card — no empty half. The Drafts and
+  // Sold folds stack below it as full-width rows, not side columns.
   const card =
     (await page.locator("#sec-collection").boundingBox())?.width ?? 0;
   const groups = page.locator("#edit-list .list-group");
@@ -297,6 +296,59 @@ test("sold gets its own foldable row under everything", async ({ page }) => {
   await expect(fold.locator(".row-card").first()).toBeVisible();
 });
 
+test("drafts fold away between available and sold", async ({ page }) => {
+  // Seeded drafts, not tree files — a clean checkout has no drafts.
+  await page.addInitScript(() => {
+    const draft = (slug: string, title: string): Record<string, unknown> => ({
+      slug,
+      title,
+      price: 10,
+      sold: false,
+      alt: "",
+      description: "",
+      widthIn: "",
+      heightIn: "",
+      depthIn: "",
+      medium: "",
+      draft: true,
+    });
+    window.localStorage.setItem(
+      "studio-practice-v1",
+      JSON.stringify({
+        upserts: {
+          "fold-a": draft("fold-a", "Fold A"),
+          "fold-b": draft("fold-b", "Fold B"),
+        },
+        deletes: [],
+      }),
+    );
+  });
+  await page.goto("/admin");
+  const fold = page.locator("#edit-list .drafts-fold");
+  await expect(fold).toBeVisible();
+  await expect(fold.locator("summary")).toContainText(/drafts$/);
+  // Full-width row below Available and above Sold — never a side column.
+  const listW = (await page.locator("#edit-list").boundingBox())?.width ?? 0;
+  const foldW = (await fold.boundingBox())?.width ?? 0;
+  expect(foldW).toBeGreaterThan(listW * 0.9);
+  const availBottom = await page
+    .locator('#edit-list .list-group[data-group="available"]')
+    .evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return r.top + r.height;
+    });
+  const soldTop =
+    (await page.locator("#edit-list .sold-fold").boundingBox())?.y ?? 0;
+  const foldY = (await fold.boundingBox())?.y ?? 0;
+  expect(foldY).toBeGreaterThan(availBottom);
+  expect(soldTop).toBeGreaterThan(foldY);
+  // Folding hides the rows; opening brings them back.
+  await fold.locator("summary").click();
+  await expect(fold.locator(".row-card").first()).toBeHidden();
+  await fold.locator("summary").click();
+  await expect(fold.locator(".row-card").first()).toBeVisible();
+});
+
 async function dragFirstOntoLast(page: Page): Promise<{
   n: number;
   firstMd: string | null;
@@ -309,6 +361,7 @@ async function dragFirstOntoLast(page: Page): Promise<{
   });
   const n = await cards.count();
   expect(n).toBeGreaterThan(1);
+  const before = await cards.locator(".row-title").allTextContents();
   const first = cards.nth(0);
   const last = cards.nth(n - 1);
   const firstMd = await first.locator(".row-del").getAttribute("data-md");
@@ -316,7 +369,7 @@ async function dragFirstOntoLast(page: Page): Promise<{
   // (dragTo drives a real native drag; manual mouse steps never
   // dispatch drop in this Chromium.)
   await first.dragTo(last);
-  return { n, firstMd };
+  return { n, firstMd, before };
 }
 
 test("dragging Available rows commits the new gallery order", async ({
@@ -344,11 +397,13 @@ test("dragging Available rows commits the new gallery order", async ({
     }
   });
   await page.goto("/admin");
-  const { n, firstMd } = await dragFirstOntoLast(page);
+  const { n, firstMd, before } = await dragFirstOntoLast(page);
   await expect
     .poll(() => posted?.message ?? null, { timeout: 15_000 })
     .toBe("Reorder gallery");
-  expect(posted?.files.length).toBe(n);
+  // Only rows that actually moved rewrite: the last card never budges,
+  // so n-1 files commit (unchanged rows are skipped, not rewritten).
+  expect(posted?.files.length).toBe(n - 1);
   // The moved painting now sits just before the last card.
   const moved = posted?.files.find((f) => f.path === firstMd);
   expect(moved).not.toBe(undefined);
@@ -359,6 +414,100 @@ test("dragging Available rows commits the new gallery order", async ({
   await expect(page.locator("#admin-status")).toContainText(
     "Gallery order saved",
   );
+  // The dashboard mirrors the drop: first card now sits just before last.
+  await expect
+    .poll(
+      () =>
+        page
+          .locator('[data-group="available"] .row-card .row-title')
+          .allTextContents(),
+      { timeout: 15_000 },
+    )
+    .toEqual([...before.slice(1, n - 1), before[0], before[n - 1]]);
+  await authed.close();
+});
+
+test("dragging Sold rows commits the new sold order", async ({ browser }) => {
+  // Stored token means the live path: a real commit, not the practice tab.
+  const authed = await browser.newContext();
+  await authed.addInitScript(() =>
+    sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
+  );
+  const page = await authed.newPage();
+  // Three sold paintings through the commit API — the tree only holds one,
+  // and dragging needs a group to reorder within.
+  const soldFiles: Record<string, { title: string; order: number }> = {
+    "sold-a.md": { title: "Sold A", order: 0 },
+    "sold-b.md": { title: "Sold B", order: 1 },
+    "sold-c.md": { title: "Sold C", order: 2 },
+  };
+  await page.route("**/api/commit*", async (route) => {
+    const req = route.request();
+    if (req.method() === "PUT") {
+      await route.fulfill({ json: { files: Object.keys(soldFiles) } });
+    } else if (req.method() === "GET") {
+      const name =
+        (new URL(req.url()).searchParams.get("path") ?? "").split("/").pop() ??
+        "";
+      const row = soldFiles[name];
+      if (row === undefined) {
+        await route.fulfill({ status: 400, json: {} });
+      } else {
+        await route.fulfill({
+          json: {
+            content:
+              `---\ntitle: "${row.title}"\nprice: 100\nsold: true\n` +
+              `order: ${row.order}\n---\n\nBody.\n`,
+          },
+        });
+      }
+    } else {
+      await route.continue();
+    }
+  });
+  let posted: {
+    message: string;
+    files: Array<{ path: string; contentBase64: string }>;
+  } | null = null;
+  // Registered after the stub so POST lands here first; everything else
+  // falls back through to it.
+  await page.route("**/api/commit*", async (route) => {
+    if (route.request().method() === "POST") {
+      posted = route.request().postDataJSON();
+      await route.fulfill({ json: { ok: true, commit: "test" }, status: 201 });
+    } else {
+      await route.fallback();
+    }
+  });
+  await page.goto("/admin");
+  const cards = page.locator('[data-group="sold"] .row-card');
+  await expect(cards.first()).toHaveAttribute("draggable", "true", {
+    timeout: 15_000,
+  });
+  await expect(cards).toHaveCount(3);
+  const titles = page.locator('[data-group="sold"] .row-card .row-title');
+  const before = await titles.allTextContents();
+  const firstMd = await cards
+    .first()
+    .locator(".row-del")
+    .getAttribute("data-md");
+  await cards.nth(0).dragTo(cards.nth(2));
+  await expect
+    .poll(() => posted?.message ?? null, { timeout: 15_000 })
+    .toBe("Reorder gallery");
+  // The moved painting's file carries its new index…
+  const moved = posted?.files.find((f) => f.path === firstMd);
+  expect(moved).not.toBe(undefined);
+  const body = Buffer.from(moved?.contentBase64 ?? "", "base64").toString(
+    "utf8",
+  );
+  const at = Number(body.match(/^order: (\d+)$/m)?.[1] ?? "-1");
+  expect(at).toBeGreaterThanOrEqual(0);
+  await expect(page.locator("#admin-status")).toContainText("Sold order saved");
+  // …and the dashboard shows it there.
+  const after = await titles.allTextContents();
+  expect(after).not.toEqual(before);
+  expect(after[at]).toBe(before[0]);
   await authed.close();
 });
 
@@ -366,13 +515,37 @@ test("dragging in practice keeps the order in this tab", async ({ page }) => {
   // No token on a local preview: the practice overlay, never a commit.
   await mockCommitApi(page);
   await page.goto("/admin");
-  const { n } = await dragFirstOntoLast(page);
+  const { n, before } = await dragFirstOntoLast(page);
   await expect(page.locator("#admin-status")).toContainText(
     "kept in this tab",
     {
       timeout: 15_000,
     },
   );
+  // Same mirror in practice mode: the list shows the dropped order.
+  // Polled like the live test — the re-render lands a beat after the
+  // drop, and a bare expect would compare the Promise itself.
+  await expect
+    .poll(
+      () =>
+        page
+          .locator('[data-group="available"] .row-card .row-title')
+          .allTextContents(),
+      { timeout: 15_000 },
+    )
+    .toEqual([...before.slice(1, n - 1), before[0], before[n - 1]]);
+  // Resting on an Available photo reveals the reorder hint — not
+  // instantly (it would nag on every pass), only after a few seconds.
+  await page.locator('[data-group="available"] .row-photo').first().hover();
+  await page.waitForTimeout(1000);
+  await expect(page.locator("#reorder-tip")).toBeHidden();
+  await expect(page.locator("#reorder-tip")).toBeVisible({ timeout: 15000 });
+  await expect(page.locator("#reorder-tip")).toContainText(
+    "Drag cards to reorder",
+  );
+  // Leaving hides it again.
+  await page.mouse.move(5, 5);
+  await expect(page.locator("#reorder-tip")).toBeHidden();
   const overlay = await page.evaluate(() =>
     window.localStorage.getItem("studio-practice-v1"),
   );
@@ -383,8 +556,46 @@ test("dragging in practice keeps the order in this tab", async ({ page }) => {
     }
   ).upserts;
   const orders = Object.values(upserts ?? {}).map((u) => u.order);
-  expect(orders.length).toBe(n);
-  expect(new Set(orders).size).toBe(n);
+  // Same skip-unchanged contract as the live commit above: the unmoved
+  // last card keeps its order, so n-1 rows land in the overlay, each
+  // with a distinct position.
+  expect(orders.length).toBe(n - 1);
+  expect(new Set(orders).size).toBe(n - 1);
+});
+
+test("draft cards never trigger the reorder hint", async ({ page }) => {
+  // Seeded draft, not tree files — a clean checkout holds no drafts.
+  // No API stub here, so the dashboard falls back to its baked list and
+  // merges the overlay, draft included.
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "studio-practice-v1",
+      JSON.stringify({
+        upserts: {
+          "hintless-piece": {
+            slug: "hintless-piece",
+            title: "Hintless Piece",
+            price: 10,
+            sold: false,
+            alt: "",
+            description: "",
+            widthIn: "",
+            heightIn: "",
+            depthIn: "",
+            medium: "",
+            draft: true,
+          },
+        },
+        deletes: [],
+      }),
+    );
+  });
+  await page.goto("/admin");
+  // Drafts don't drag, so resting on one must never summon the hint —
+  // even past the few-seconds delay.
+  await page.locator('[data-group="drafts"] .row-card').first().hover();
+  await page.waitForTimeout(3600);
+  await expect(page.locator("#reorder-tip")).toBeHidden();
 });
 
 test("delete warms to clay red, never brand orange", async ({ page }) => {
@@ -399,7 +610,7 @@ test("delete warms to clay red, never brand orange", async ({ page }) => {
 });
 
 test("info links list plainly, and Advanced eases open", async ({ page }) => {
-  await page.goto("/admin");
+  await page.goto("/admin/guide");
   expect(
     await page
       .locator("#sec-info ul")
@@ -421,7 +632,7 @@ test("info links list plainly, and Advanced eases open", async ({ page }) => {
 test("errors toast over the page wherever she is scrolled", async ({
   page,
 }) => {
-  await page.goto("/admin");
+  await page.goto("/admin/banner");
   // Saving an empty banner with no backend behind it: a panel error.
   await page.locator("#f-announce").fill("");
   await page.locator("#announce-save").click();
@@ -510,10 +721,57 @@ test("rows stay count-less when analytics is empty", async ({ page }) => {
   await expect(page.locator("#edit-list")).not.toContainText("view");
 });
 
+test("views page ranks every painting, most watched first", async ({
+  page,
+}) => {
+  await page.route("**/api/analytics*", async (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        views: [
+          { slug: "prairie-moon", views: 7 },
+          { slug: "first-thaw", views: 10 },
+        ],
+        unconfigured: false,
+      }),
+    }),
+  );
+  await page.goto("/admin/views");
+  // Most watched tops the table, with its count and the total below.
+  const rows = page.locator("#stats-body tr");
+  await expect(rows.first()).toContainText("First Thaw");
+  await expect(rows.first()).toContainText("10 views");
+  await expect(rows.nth(1)).toContainText("Prairie Moon");
+  await expect(page.locator("#stats-total")).toContainText("17 views");
+  // Every painting has a row with its status (drafts appear too when
+  // the tree holds any — a clean checkout has none, so only Sold, which
+  // is a tracked painting, is asserted here).
+  await expect(page.locator("#stats-body")).toContainText("Sold");
+  await expect(page.locator("#stats-note")).toBeEmpty();
+});
+
+test("views page stays count-less with plain words when empty", async ({
+  page,
+}) => {
+  await page.route("**/api/analytics*", async (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ views: [], unconfigured: true }),
+    }),
+  );
+  await page.goto("/admin/views");
+  // Titles still list — only the counts wait.
+  await expect(page.locator("#stats-body")).toContainText("First Thaw");
+  await expect(page.locator("#stats-total")).toHaveText("—");
+  await expect(page.locator("#stats-note")).not.toBeEmpty();
+});
+
 test("good-to-know names e-transfer, shippers open in a new tab", async ({
   page,
 }) => {
-  await page.goto("/admin");
+  await page.goto("/admin/guide");
   await expect(page.locator("#sec-info")).toContainText(
     "start with e-transfer",
   );
@@ -608,7 +866,7 @@ test("studio dashboard grids without sideways scroll on a phone", async ({
   });
   const page = await context.newPage();
   await page.goto("/admin");
-  // The anchor strip is gone; sections grid instead.
+  // The anchor strip is gone; one section per page, reached by tabs.
   await expect(page.locator(".subnav")).toHaveCount(0);
   const overflow = await page.evaluate(
     () =>
@@ -616,11 +874,9 @@ test("studio dashboard grids without sideways scroll on a phone", async ({
       document.documentElement.clientWidth,
   );
   expect(overflow).toBeLessThanOrEqual(0);
-  // Share panel stays hidden until the browser offers sharing — the
-  // first card a phone actually shows is the collection.
-  await expect(
-    page.locator(".admin-grid .card:not([hidden])").first(),
-  ).toBeVisible();
+  // The collection card is the first thing a phone shows — tabs above
+  // it wrap instead of scrolling sideways.
+  await expect(page.locator("#sec-collection")).toBeVisible();
   // Her way home stays visible on a phone (non-CTA links hide by default).
   await expect(
     page.locator('.site-nav .nav-links a.keep[href="/"]'),
@@ -667,7 +923,7 @@ test("studio wakes up on every visit, not just full loads", async ({
 test("banner lifetimes are 1/3/7/14 days plus no end date", async ({
   page,
 }) => {
-  await page.goto("/admin");
+  await page.goto("/admin/banner");
   const values = await page
     .locator("#f-duration option")
     .evaluateAll((opts) => opts.map((o) => (o as HTMLOptionElement).value));
@@ -759,8 +1015,9 @@ test("practice draft from the new room lands in the dashboard Drafts section", a
       timeout: 15_000,
     },
   );
-  // …and the Drafts section appears, practice row inside.
-  await expect(page.locator("#edit-list")).toContainText("Drafts");
+  // …and the Drafts fold appears (count label, like the sold fold),
+  // practice row inside.
+  await expect(page.locator("#edit-list")).toContainText(/drafts/i);
   await expect(page.locator("#edit-list")).toContainText("Practice Piece");
   await expect(page.locator("#practice-reset")).toBeVisible();
 });
@@ -890,21 +1147,18 @@ test("dashboard delete asks first, then removes the row", async ({ page }) => {
     );
   });
   await page.goto("/admin");
-  // Drafts get their own column beside Available on desktop.
+  // Drafts get their own foldable row below Available on desktop.
   await expect(async () => {
-    const availX =
-      (
-        await page
-          .locator('#edit-list .list-group[data-group="available"]')
-          .boundingBox()
-      )?.x ?? 0;
-    const draftsX =
-      (
-        await page
-          .locator('#edit-list .list-group[data-group="drafts"]')
-          .boundingBox()
-      )?.x ?? 0;
-    expect(draftsX).toBeGreaterThan(availX);
+    const availBox = await page
+      .locator('#edit-list .list-group[data-group="available"]')
+      .boundingBox();
+    const draftsBox = await page
+      .locator('#edit-list .drafts-fold[data-group="drafts"]')
+      .boundingBox();
+    expect(availBox).not.toBe(null);
+    expect(draftsBox).not.toBe(null);
+    if (availBox === null || draftsBox === null) return;
+    expect(draftsBox.y).toBeGreaterThan(availBox.y + availBox.height);
   }).toPass();
   const row = page.locator('.row-card:has-text("Doomed Piece")');
   await expect(row).toBeVisible();

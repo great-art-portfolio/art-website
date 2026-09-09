@@ -7,8 +7,7 @@ import { badRequest, requireAdmin, serverError } from "../_lib/http";
  * its AR models (e.g. after a dimension fix). The photo is the only
  * source the editors can reach — built pages carry hashed copies.
  */
-const PHOTO_FILE =
-  /^src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9_.-]*\.(jpg|jpeg|png|webp|heic)$/i;
+import { PHOTO_FILE } from "../_lib/gallery-paths";
 
 const IMAGE_TYPE: Record<string, string> = {
   jpg: "image/jpeg",

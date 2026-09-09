@@ -50,11 +50,12 @@ const bakedRowSchema = z.object({
 export type BakedRow = z.infer<typeof bakedRowSchema>;
 
 /**
- * The baked collection: invalid rows are dropped, not fatal — one bad
- * painting never blanks the dashboard. Null only when the payload isn't
- * a list at all, so callers keep their fall through to the error branches.
+ * Row-list payloads (baked collection, stats seed): invalid rows are
+ * dropped, not fatal — one bad painting never blanks the page. Null
+ * only when the payload isn't a list at all, so callers keep their
+ * fall through to the error branches.
  */
-export function parseBakedCollection(text: string): BakedRow[] | null {
+function parseRowList<T>(text: string, rowSchema: z.ZodType<T>): T[] | null {
   let raw: unknown;
   try {
     raw = JSON.parse(text) as unknown;
@@ -62,12 +63,35 @@ export function parseBakedCollection(text: string): BakedRow[] | null {
     return null;
   }
   if (!Array.isArray(raw)) return null;
-  const rows: BakedRow[] = [];
+  const rows: T[] = [];
   for (const item of raw) {
-    const row = bakedRowSchema.safeParse(item);
+    const row = rowSchema.safeParse(item);
     if (row.success) rows.push(row.data);
   }
   return rows;
+}
+
+/** The baked collection, exactly as admin.astro bakes it. */
+export function parseBakedCollection(text: string): BakedRow[] | null {
+  return parseRowList(text, bakedRowSchema);
+}
+
+/**
+ * One `#stats-seed` row, as views.astro bakes it: identity plus status
+ * only — counts arrive client-side from the analytics API.
+ */
+const statsSeedSchema = z.object({
+  slug: z.string().min(1),
+  title: z.string().min(1),
+  sold: z.boolean(),
+  draft: z.boolean(),
+});
+
+export type StatsSeedRow = z.infer<typeof statsSeedSchema>;
+
+/** The stats seed, exactly as views.astro bakes it. */
+export function parseStatsSeed(text: string): StatsSeedRow[] | null {
+  return parseRowList(text, statsSeedSchema);
 }
 
 /** A practiced painting in the dev overlay (dims as display strings). */

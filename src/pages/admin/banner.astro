@@ -1,0 +1,69 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import AdminTabs from "../../components/AdminTabs.astro";
+import "../../components/studio.css";
+---
+
+<Layout title="Homepage banner — Studio" wordmark="admin">
+  <main class="admin" id="main">
+    <AdminTabs current="banner" />
+    <section class="card" id="sec-banner">
+      <h2>Homepage banner</h2>
+      <p class="hint">
+        One banner at a time under the gallery — markets, holidays, “studio
+        open”. Saving replaces it; Remove banner hides it. Banners usually end
+        on their own, so a forgotten one doesn't linger.
+      </p>
+      <label
+        >Announcement
+        <input
+          id="f-announce"
+          type="text"
+          maxlength="280"
+          autocomplete="off"
+          placeholder="Find me at the Lilac Festival this Sunday!"
+        />
+      </label>
+      <label
+        >Show until
+        <select id="f-duration">
+          <option value="">No end date</option>
+          <option value="1">1 day</option>
+          <option value="3">3 days</option>
+          <option value="7" selected>7 days</option>
+          <option value="14">2 weeks</option>
+        </select>
+      </label>
+      <div class="row banner-actions">
+        <button type="button" id="announce-save" class="primary"
+          >Update banner</button
+        >
+        <button type="button" id="announce-clear" hidden>
+          Remove banner
+        </button>
+      </div>
+      <p class="hint" id="announce-meta"></p>
+    </section>
+  </main>
+</Layout>
+
+<script src="../../components/AdminPanel.ts"></script>
+
+<style>
+  /* Banner status always sits below both buttons, never between them. */
+  #announce-meta {
+    margin: 0.75rem 0 0;
+  }
+  #announce-meta:empty {
+    display: none;
+  }
+  /* The banner actions sit clear of the lifetime dropdown above. */
+  #sec-banner .row {
+    margin-top: 1.25rem;
+  }
+  /* Author display:inline-flex beats the UA [hidden] rule — re-hide the
+     Remove button until a banner exists to remove. */
+  #announce-clear[hidden] {
+    display: none;
+  }
+</style>

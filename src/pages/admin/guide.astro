@@ -1,0 +1,101 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import AdminTabs from "../../components/AdminTabs.astro";
+import "../../components/studio.css";
+---
+
+<Layout title="Good to know — Studio" wordmark="admin">
+  <main class="admin" id="main">
+    <AdminTabs current="guide" />
+    <section class="card" id="sec-info">
+      <h2>Good to know</h2>
+      <p class="hint">
+        When a buyer taps “Send inquiry” on a painting page, their note lands
+        straight in your inbox — hit reply and it goes to them. Send it from
+        your author@barbart.ca email address. After shipping, open the piece and
+        mark it sold.
+      </p>
+      <ul>
+        <li>
+          <a href="https://chitchats.com/" target="_blank" rel="noopener"
+            >Chit Chats</a
+          > — cheapest tracked Canada/US shipping.
+        </li>
+        <li>
+          <a href="https://www.pirateship.com/" target="_blank" rel="noopener"
+            >Pirate Ship</a
+          > — backup for US labels.
+        </li>
+      </ul>
+      <p class="hint">
+        Getting paid: start with e-transfer. When a buyer writes back, send them
+        your e-transfer address and hold the painting until the money lands — we
+        can set up a checkout thing later if we want.
+      </p>
+      <details>
+        <summary>Advanced Settings</summary>
+        <p class="hint">
+          Email alerts <span id="flag-email">…</span> · iOS push <span
+            id="flag-push">…</span
+          > · auto-post <span id="flag-social">…</span>
+        </p>
+        <label
+          >Local API token (only needed on this device if Access is off)
+          <input id="admin-token" type="password" autocomplete="off" />
+        </label>
+        <p class="hint">
+          This browser can keep working offline: <span id="cap-sw">…</span> · sending
+          in the background: <span id="cap-sync">…</span> · network: <span
+            id="cap-net">…</span
+          >
+        </p>
+      </details>
+    </section>
+  </main>
+</Layout>
+
+<script src="../../components/AdminPanel.ts"></script>
+
+<style>
+  #sec-info ul {
+    list-style: none;
+    padding: 0;
+    margin: 0.75rem 0 0;
+    display: grid;
+    gap: 0.5rem;
+  }
+  /* Advanced drawer eases open where the browser allows it; elsewhere it
+     simply appears, as before. */
+  #sec-info details {
+    interpolate-size: allow-keywords;
+  }
+  #sec-info details::details-content {
+    block-size: 0;
+    overflow: clip;
+    transition:
+      block-size 0.35s ease,
+      content-visibility 0.35s ease;
+    transition-behavior: allow-discrete;
+  }
+  #sec-info details[open]::details-content {
+    block-size: auto;
+  }
+  /* The settings themselves fade in a beat behind the unfold, so the
+     words arrive once their room exists instead of squeezing through
+     mid-animation. Opacity-only, so it still runs under reduced motion. */
+  #sec-info details > :not(summary) {
+    opacity: 0;
+    transition: opacity 0.25s ease 0.08s;
+  }
+  #sec-info details[open] > :not(summary) {
+    opacity: 1;
+  }
+  .card {
+    scroll-margin-top: 7rem;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #sec-info details::details-content {
+      transition: none;
+    }
+  }
+</style>

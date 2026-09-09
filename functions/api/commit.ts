@@ -18,8 +18,7 @@ function gitConfig(env: AppEnv): GitHubConfig | null {
   return { token, repo, branch: env.GITHUB_BRANCH ?? "main" };
 }
 
-const PAINTING_FILE =
-  /^src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9_.-]*\.md$/;
+import { GALLERY_PATH, PAINTING_FILE } from "../_lib/gallery-paths";
 
 /** Admin: read the banner text, or one painting file (?path=…). Lives in git. */
 export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
@@ -44,10 +43,6 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
     return serverError();
   }
 };
-
-/** Repo paths the admin endpoint may write or delete. */
-const GALLERY_PATH =
-  /^(src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9_.-]*|src\/content\/announcement\.txt|public\/models\/[A-Za-z0-9][A-Za-z0-9_.-]*)$/;
 
 /**
  * Admin: commit a batch of files (painting .md + photo, banner text,

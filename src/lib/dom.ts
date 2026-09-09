@@ -10,10 +10,10 @@
  * known id, so `.value`, `.checked`, and `.disabled` typecheck with no
  * call-site cast. Dynamic ids (a variable, not a literal) fall through to
  * the `string` overload and come back as `HTMLElement | null` — narrow
- * those with `maybeInput` / `maybeButton`, never a cast.
+ * those with `instanceof` (`maybeButton` for buttons), never a cast.
  */
 export interface ElementMap {
-  // Dashboard (admin.astro).
+  // Studio collection, banner, and guide pages.
   "admin-status": HTMLElement;
   "collection-dev": HTMLElement;
   "collection-refresh": HTMLButtonElement;
@@ -24,6 +24,11 @@ export interface ElementMap {
   "row-confirm-no": HTMLButtonElement;
   "row-confirm-yes": HTMLButtonElement;
   "practice-reset": HTMLButtonElement;
+  // Views page (admin/views.astro).
+  "stats-seed": HTMLElement;
+  "stats-body": HTMLElement;
+  "stats-note": HTMLElement;
+  "stats-total": HTMLElement;
   "f-announce": HTMLInputElement;
   "f-duration": HTMLSelectElement;
   "announce-save": HTMLButtonElement;
@@ -36,7 +41,9 @@ export interface ElementMap {
   "cap-sw": HTMLElement;
   "cap-sync": HTMLElement;
   "cap-net": HTMLElement;
-  // Studio rooms (PaintingDetail.astro).
+  // Studio rooms (PaintingDetail.astro). Id prefixes: `de-` = the
+  // draft/edit editor form shared by both studio modes, `pv-` = its live
+  // preview column.
   main: HTMLElement;
   "ar-stage": HTMLElement;
   "de-photo": HTMLInputElement;
@@ -93,15 +100,18 @@ export function maybe(id: string): HTMLElement | null {
 }
 
 /** Nullable lookup narrowed by tag — `instanceof`, never a cast. */
-export function maybeInput(id: string): HTMLInputElement | null {
-  const el = document.getElementById(id);
-  return el instanceof HTMLInputElement ? el : null;
-}
-
-/** Nullable lookup narrowed by tag — `instanceof`, never a cast. */
 export function maybeButton(id: string): HTMLButtonElement | null {
   const el = document.getElementById(id);
   return el instanceof HTMLButtonElement ? el : null;
+}
+
+/**
+ * Local preview (dev servers), where publishing + analytics genuinely live
+ * only on the production site — never a bug, never a setup step.
+ */
+export function isLocalPreview(): boolean {
+  const host = window.location.hostname;
+  return host === "localhost" || host === "127.0.0.1";
 }
 
 /** Studio room mode from `#main data-mode`; null outside the rooms. */

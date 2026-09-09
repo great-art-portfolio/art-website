@@ -4,6 +4,7 @@ import {
   compareGalleryOrder,
   groupByAvailability,
   isPublished,
+  isTitleTaken,
 } from "../../src/lib/site.ts";
 
 describe("isPublished", () => {
@@ -75,5 +76,31 @@ describe("compareGalleryOrder", () => {
       ]).map((r) => r.title),
       ["A", "B"],
     );
+  });
+});
+
+describe("isTitleTaken", () => {
+  const taken = ["Prairie Moon", "Night Reeds"];
+
+  it("spots an exact duplicate", () => {
+    assert.equal(isTitleTaken(taken, "Prairie Moon", null), true);
+  });
+
+  it("matches through case and punctuation", () => {
+    assert.equal(isTitleTaken(taken, "prairie moon!", null), true);
+    assert.equal(isTitleTaken(taken, "Night—Reeds", null), true);
+  });
+
+  it("lets an untouched title through", () => {
+    assert.equal(isTitleTaken(taken, "First Thaw", null), false);
+  });
+
+  it("exempts the painting being renamed", () => {
+    assert.equal(isTitleTaken(taken, "Prairie Moon", "prairie-moon"), false);
+    assert.equal(isTitleTaken(taken, "Night Reeds", "prairie-moon"), true);
+  });
+
+  it("treats two link-less titles as the same link", () => {
+    assert.equal(isTitleTaken(["!!!"], "???", null), true);
   });
 });

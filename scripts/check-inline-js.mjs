@@ -14,7 +14,19 @@ const suspect =
 
 function htmlFiles(dir) {
   const out = [];
-  for (const name of readdirSync(dir)) {
+  let names;
+  try {
+    names = readdirSync(dir);
+  } catch (err) {
+    // A clean checkout has no dist/ until `astro build` runs — say so
+    // plainly instead of dying in node:fs.
+    if (err instanceof Error && "code" in err && err.code === "ENOENT") {
+      console.error("No dist/ found — run `pnpm build` first, then retry.");
+      process.exit(2);
+    }
+    throw err;
+  }
+  for (const name of names) {
     const p = join(dir, name);
     if (statSync(p).isDirectory()) out.push(...htmlFiles(p));
     else if (name.endsWith(".html")) out.push(p);

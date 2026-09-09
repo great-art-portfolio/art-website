@@ -5,6 +5,7 @@ import PaintingDetail, {
   type PaintingDetailData,
 } from "../../components/PaintingDetail.astro";
 import { formatDimensions } from "../../lib/dims";
+import { modelGlbOrEmpty } from "../../lib/model-files";
 import { isPublished, slugifyTitle } from "../../lib/site";
 
 export async function getStaticPaths() {
@@ -19,6 +20,9 @@ export async function getStaticPaths() {
 
 const { painting } = Astro.props;
 const { Content } = await render(painting);
+// Missing model file, no wall preview: the section stays off rather than
+// showing an empty viewer.
+const modelGlb = modelGlbOrEmpty(painting.data.modelGlb);
 const meta = [
   painting.data.medium,
   formatDimensions(
@@ -44,8 +48,8 @@ const data: PaintingDetailData = {
   depthIn:
     painting.data.depthIn === undefined ? "" : String(painting.data.depthIn),
   image: painting.data.image,
-  modelGlb: painting.data.modelGlb ?? "",
-  modelUsdz: painting.data.modelUsdz ?? "",
+  modelGlb,
+  modelUsdz: modelGlb === "" ? "" : (painting.data.modelUsdz ?? ""),
   mdPath: `src/content/paintings/${painting.id.endsWith(".md") ? painting.id : `${painting.id}.md`}`,
   slug: slugifyTitle(painting.data.title),
   draft: false,

@@ -1,5 +1,4 @@
 import { expect, test } from "@playwright/test";
-import { readFileSync } from "node:fs";
 
 /**
  * Studio painting rooms: /admin/paintings/new (draft) and
@@ -92,19 +91,22 @@ test("published rooms offer no alerts", async ({ page }) => {
 test("publishing a draft fires only the checked channels", async ({
   browser,
 }) => {
+  // The new-painting room (always built, unlike per-painting rooms that
+  // need their file in the tree) — a clean checkout has no draft
+  // fixtures, so nothing here may name one.
   const authed = await browser.newContext();
   await authed.addInitScript(() =>
     sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
   );
   const page = await authed.newPage();
   let postedNotify: { push?: boolean; email?: boolean } | null = null;
-  const draftMd = readFileSync("src/content/paintings/3.md", "utf8");
+  let postedMessage: string | null = null;
   await page.route("**/api/commit*", async (route) => {
-    const req = route.request();
-    if (req.method() === "POST") {
+    if (route.request().method() === "POST") {
+      postedMessage = (
+        route.request().postDataJSON() as { message?: string } | null
+      )?.message;
       await route.fulfill({ json: { ok: true, commit: "test" }, status: 201 });
-    } else if (req.method() === "GET" && req.url().includes("path=")) {
-      await route.fulfill({ json: { content: draftMd } });
     } else {
       await route.continue();
     }
@@ -115,12 +117,20 @@ test("publishing a draft fires only the checked channels", async ({
       json: { sent: 1, total: 1, emailed: false, emailTotal: 0 },
     });
   });
-  await page.goto("/admin/paintings/3");
-  await expect(page.locator("#de-visibility")).toHaveText("Publish");
+  await page.goto("/admin/paintings/new");
+  await page.locator("#de-title").fill("Channel Check");
+  await page.locator("#de-price").fill("50");
+  await page
+    .locator("#de-photo")
+    .setInputFiles("src/content/paintings/1943x1967.jpg");
   await page.locator("#de-notify-push").check();
-  await page.locator("#de-visibility").click();
-  await expect.poll(() => postedNotify).toEqual({ push: true, email: false });
-  await expect(page).toHaveURL(/\/admin\/?$/);
+  await page.locator("#de-publish").click();
+  // Only Browsers was checked — the email list hears nothing.
+  await expect
+    .poll(() => postedNotify, { timeout: 15_000 })
+    .toEqual({ push: true, email: false });
+  expect(postedMessage).toBe("Add painting: Channel Check");
+  await expect(page).toHaveURL(/\/admin\/?$/, { timeout: 25_000 });
   await authed.close();
 });
 
@@ -136,6 +146,59 @@ test("draft validates before anything uploads", async ({ page }) => {
   await expect(page.locator("#de-status")).toContainText(
     "Choose a photo first.",
   );
+});
+
+test("draft refuses a title another painting owns", async ({ browser }) => {
+  // Stored token means the live path; the listing names one existing
+  // painting, and the commit route records whether anything posted.
+  const authed = await browser.newContext();
+  await authed.addInitScript(() =>
+    sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
+  );
+  const page = await authed.newPage();
+  let posted = false;
+  await page.route("**/api/commit*", async (route) => {
+    const req = route.request();
+    if (req.method() === "PUT") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ files: ["first-thaw.md"] }),
+      });
+    } else if (req.method() === "GET") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          content: '---\ntitle: "First Thaw"\nprice: 125.00\n---\n\nBody',
+        }),
+      });
+    } else if (req.method() === "POST") {
+      posted = true;
+      await route.fulfill({
+        json: { ok: true, commit: "test" },
+        status: 201,
+      });
+    } else {
+      await route.continue();
+    }
+  });
+  await page.goto("/admin/paintings/new");
+  await page.locator("#de-title").fill("First Thaw");
+  await page.locator("#de-price").fill("50");
+  await page
+    .locator("#de-photo")
+    .setInputFiles("src/content/paintings/1943x1967.jpg");
+  await expect(page.locator("#de-photo-preview")).toBeVisible();
+  await page.locator("#de-save-draft").click();
+  // Each title owns its page link, so the save stops here in plain
+  // words — and nothing reaches the repo.
+  await expect(page.locator("#de-status")).toContainText(
+    'Another painting is already called "First Thaw"',
+    { timeout: 15_000 },
+  );
+  expect(posted).toBe(false);
+  await authed.close();
 });
 
 test("draft photo builds its own wall preview", async ({ page }) => {

@@ -1,5 +1,6 @@
 ---
 import Layout from "../layouts/Layout.astro";
+import AdminTabs from "../components/AdminTabs.astro";
 import { getCollection } from "astro:content";
 import { readdirSync } from "node:fs";
 import {
@@ -8,6 +9,7 @@ import {
   slugifyTitle,
 } from "../lib/site";
 import { studioRowHtml } from "../lib/studio-rows";
+import "../components/studio.css";
 
 // Astro lowercases content ids (img_5667.md) while the repo path stays
 // case-sensitive (IMG_5667.md). Resolve the true filename at build time
@@ -52,7 +54,12 @@ const byTitle = (a: { title: string }, b: { title: string }): number =>
 const ssrDrafts = [...localCollection].filter((p) => p.draft).sort(byTitle);
 const ssrGroups = groupByAvailability(localCollection.filter((p) => !p.draft));
 const ssrAvailable = [...ssrGroups.available].sort(compareGalleryOrder);
-const ssrSold = [...ssrGroups.sold].sort(byTitle);
+// Sold drags just like Available, so the static rows already follow the
+// drag order (frontmatter `order:`), not the alphabet.
+const ssrSold = [...ssrGroups.sold].sort(compareGalleryOrder);
+const ssrDraftCount = ssrDrafts.length;
+const ssrDraftLabel =
+  ssrDraftCount === 1 ? "1 draft" : `${ssrDraftCount} drafts`;
 // Row HTML comes from the same renderer the client uses, so hydration
 // swaps identical markup.
 const availableHtml =
@@ -67,339 +74,75 @@ const soldLabel = soldCount === 1 ? "1 sold" : `${soldCount} sold`;
 
 <Layout title="Artist Studio — Admin" wordmark="admin">
   <main class="admin" id="main">
-    <p id="admin-status" role="status" data-tone="ok"></p>
+    <AdminTabs current="collection" />
 
-    <div class="admin-grid">
-      <section class="card" id="sec-collection">
-        <h2>
-          <span id="collection-title">Collection</span>
-          <span id="collection-dev" hidden
-            >(Development only — changes aren't persisted)</span
-          >
-          <button type="button" id="collection-refresh" hidden>Retry</button>
-        </h2>
-        <ul id="edit-list">
-          <li class="list-group" data-group="available">
-            <div class="list-sub"><h3>Available</h3></div>
-            <p class="list-hint">
-              Drag cards to reorder — the homepage follows this order.
-            </p>
-            <ul class="group-rows" set:html={availableHtml} />
-          </li>
-          {
-            ssrDrafts.length > 0 && (
-              <li class="list-group" data-group="drafts">
-                <div class="list-sub">
-                  <h3>Drafts</h3>
-                </div>
-                <ul class="group-rows" set:html={draftsHtml} />
-              </li>
-            )
-          }
-          {
-            soldCount > 0 && (
-              <details class="sold-fold" open>
-                <summary>{soldLabel}</summary>
-                <ul class="group-rows" set:html={soldHtml} />
-              </details>
-            )
-          }
-        </ul>
-        <button type="button" id="practice-reset" hidden
-          >Clear practice changes</button
+    <section class="card" id="sec-collection">
+      <h2>
+        <span id="collection-title">Collection</span>
+        <span id="collection-dev" hidden
+          >(Development only — changes aren't persisted)</span
         >
-        <script
-          is:inline
-          type="application/json"
-          id="local-collection"
-          set:html={localJson}
-        />
-        <div id="row-confirm" hidden>
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="row-confirm-title"
-            class="confirm-card"
-          >
-            <h2 id="row-confirm-title">Delete this painting?</h2>
-            <p id="row-confirm-body">
-              This removes it from the site. It stays recoverable in the repo
-              history.
-            </p>
-            <div class="confirm-actions">
-              <button type="button" id="row-confirm-no">Keep it</button>
-              <button type="button" id="row-confirm-yes" disabled>Delete</button
-              >
-            </div>
+        <button type="button" id="collection-refresh" hidden>Retry</button>
+      </h2>
+      <ul id="edit-list">
+        <li class="list-group" data-group="available">
+          <div class="list-sub"><h3>Available</h3></div>
+          <ul class="group-rows" set:html={availableHtml} />
+        </li>
+        {
+          ssrDrafts.length > 0 && (
+            <details class="drafts-fold" data-group="drafts" open>
+              <summary>{ssrDraftLabel}</summary>
+              <ul class="group-rows" set:html={draftsHtml} />
+            </details>
+          )
+        }
+        {
+          soldCount > 0 && (
+            <details class="sold-fold" data-group="sold" open>
+              <summary>{soldLabel}</summary>
+              <ul class="group-rows" set:html={soldHtml} />
+            </details>
+          )
+        }
+      </ul>
+      <button type="button" id="practice-reset" hidden
+        >Clear practice changes</button
+      >
+      <script
+        is:inline
+        type="application/json"
+        id="local-collection"
+        set:html={localJson}
+      />
+      <div id="row-confirm" hidden>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="row-confirm-title"
+          class="confirm-card"
+        >
+          <h2 id="row-confirm-title">Delete this painting?</h2>
+          <p id="row-confirm-body">
+            This removes it from the site. It stays recoverable in the repo
+            history.
+          </p>
+          <div class="confirm-actions">
+            <button type="button" id="row-confirm-no">Keep it</button>
+            <button type="button" id="row-confirm-yes" disabled>Delete</button>
           </div>
         </div>
-      </section>
-
-      <section class="card" id="sec-banner">
-        <h2>Homepage banner</h2>
-        <p class="hint">
-          One banner at a time under the gallery — markets, holidays, “studio
-          open”. Saving replaces it; Remove banner hides it. Banners usually end
-          on their own, so a forgotten one doesn't linger.
-        </p>
-        <label
-          >Announcement
-          <input
-            id="f-announce"
-            type="text"
-            maxlength="280"
-            autocomplete="off"
-            placeholder="Find me at the Lilac Festival this Sunday!"
-          />
-        </label>
-        <label
-          >Show until
-          <select id="f-duration">
-            <option value="">No end date</option>
-            <option value="1">1 day</option>
-            <option value="3">3 days</option>
-            <option value="7" selected>7 days</option>
-            <option value="14">2 weeks</option>
-          </select>
-        </label>
-        <div class="row banner-actions">
-          <button type="button" id="announce-save" class="primary"
-            >Update banner</button
-          >
-          <button type="button" id="announce-clear" hidden>
-            Remove banner
-          </button>
-        </div>
-        <p class="hint" id="announce-meta"></p>
-      </section>
-
-      <section class="card" id="sec-info">
-        <h2>Good to know</h2>
-        <p class="hint">
-          When a buyer taps “Send inquiry” on a painting page, their note lands
-          straight in your inbox — hit reply and it goes to them. Send it from
-          your author@barbart.ca email address. After shipping, open the piece
-          and mark it sold.
-        </p>
-        <ul>
-          <li>
-            <a href="https://chitchats.com/" target="_blank" rel="noopener"
-              >Chit Chats</a
-            > — cheapest tracked Canada/US shipping.
-          </li>
-          <li>
-            <a href="https://www.pirateship.com/" target="_blank" rel="noopener"
-              >Pirate Ship</a
-            > — backup for US labels.
-          </li>
-        </ul>
-        <p class="hint">
-          Getting paid: start with e-transfer. When a buyer writes back, send
-          them your e-transfer address and hold the painting until the money
-          lands — we can set up a checkout thing later if we want.
-        </p>
-        <details>
-          <summary>Advanced Settings</summary>
-          <p class="hint">
-            Email alerts <span id="flag-email">…</span> · iOS push <span
-              id="flag-push">…</span
-            > · auto-post <span id="flag-social">…</span>
-          </p>
-          <label
-            >Local API token (only needed on this device if Access is off)
-            <input id="admin-token" type="password" autocomplete="off" />
-          </label>
-          <p class="hint">
-            This browser can keep working offline: <span id="cap-sw">…</span> · sending
-            in the background: <span id="cap-sync">…</span> · network: <span
-              id="cap-net">…</span
-            >
-          </p>
-        </details>
-      </section>
-    </div>
+      </div>
+    </section>
   </main>
 </Layout>
 
 <script src="../components/AdminPanel.ts"></script>
 
 <style>
-  .admin {
-    max-width: 64rem;
-    margin: 0 auto;
-    padding: 2.5rem 1.5rem 4rem;
-  }
-  /* Toast fixed to the viewport, under the sticky header: news finds
-     her wherever she is scrolled. Empty (no message) means gone
-     entirely. */
-  #admin-status {
-    position: fixed;
-    left: 50%;
-    transform: translateX(-50%);
-    top: max(5rem, env(safe-area-inset-top, 1rem));
-    width: min(36rem, calc(100% - 2rem));
-    z-index: 40;
-    margin: 0;
-    padding: 0.8rem 1.1rem;
-    border-radius: var(--radius);
-    border: 1px solid var(--line);
-    /* Inverted and fully solid: it floats over busy page content, so a
-       card-colored pill lets the page bleed through behind the words. */
-    background: var(--ink);
-    color: var(--paper);
-    font-size: 0.95rem;
-    box-shadow: var(--shadow);
-  }
-  /* Opacity-only, both directions: a fade-in on every new message
-     (re-triggered from the panel) and a fade-out on its way away.
-     No travel — so it runs under every motion setting. */
-  #admin-status.toast-in {
-    animation: toast-in 0.25s ease;
-  }
-  @keyframes toast-in {
-    from {
-      opacity: 0;
-    }
-  }
-  #admin-status.toast-out {
-    opacity: 0;
-    transition: opacity 0.25s ease;
-  }
-  /* The Add form arrives as one calm motion: the card expands and fades,
-     with no per-field stagger to fall out of sync on the way back out. */
-  #admin-status[data-tone="error"] {
-    border-color: var(--danger);
-  }
-  /* The status line starts empty (no blurb) and only appears once the
-     studio has something to say. */
-  #admin-status:empty {
-    display: none;
-  }
-  /* Collapsed Settings ("Advanced" drawer): the summary wears the h2 style
-     so the closed card still reads as a section header. */
-  .card summary {
-    font-family: Georgia, "Iowan Old Style", Charter, serif;
-    font-weight: 500;
-    font-size: 1.4rem;
-    cursor: pointer;
-    border-radius: 0.25rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--line);
-    margin: 1.5rem 0 1rem;
-    list-style: none;
-  }
-  .card summary::-webkit-details-marker {
-    display: none;
-  }
-  /* Custom disclosure mark: a chevron that turns down when open. */
-  .card summary::before {
-    content: ">";
-    color: var(--accent);
-    font-weight: 700;
-    margin-right: 0.6rem;
-    display: inline-block;
-    transition: transform 0.2s ease;
-  }
-  .card details[open] summary::before {
-    transform: rotate(90deg);
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .card summary::before {
-      transition: none;
-    }
-  }
-  .card summary:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
-  /* Advanced drawer eases open where the browser allows it; elsewhere it
-     simply appears, as before. */
-  #sec-info details {
-    interpolate-size: allow-keywords;
-  }
-  #sec-info details::details-content {
-    block-size: 0;
-    overflow: clip;
-    transition:
-      block-size 0.35s ease,
-      content-visibility 0.35s ease;
-    transition-behavior: allow-discrete;
-  }
-  #sec-info details[open]::details-content {
-    block-size: auto;
-  }
-  .card {
-    background: var(--card);
-    border: 1px solid var(--line);
-    border-radius: 1rem;
-    box-shadow: var(--shadow);
-    padding: clamp(1.25rem, 3vw, 2rem);
-    margin-block: 1.5rem;
-  }
-  .card h2 {
-    font-family: Georgia, "Iowan Old Style", Charter, serif;
-    font-weight: 500;
-    margin: 0 0 0.75rem;
-    font-size: 1.4rem;
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    flex-wrap: wrap;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--line);
-    margin-bottom: 1rem;
-  }
-  label {
-    display: grid;
-    gap: 0.35rem;
-    margin-block: 0.75rem;
-    font-size: 0.9rem;
-    font-weight: 600;
-  }
-  input,
-  textarea,
-  select {
-    width: 100%;
-    box-sizing: border-box;
-    font: inherit;
-    font-weight: 400;
-    font-size: 0.95rem;
-    padding: 0.65rem 0.8rem;
-    border-radius: 0.6rem;
-    border: 1px solid var(--line);
-    background: var(--paper);
-    color: var(--ink);
-    min-height: 3rem;
-    transition:
-      border-color 0.2s ease,
-      box-shadow 0.2s ease;
-  }
-  input:hover,
-  textarea:hover,
-  select:hover {
-    border-color: var(--muted);
-  }
-  /* Browsers forward label hover to the field — hovering "Announcement"
-     must not warm its box. Only the field itself earns the hover. */
-  label:hover input:not(:hover),
-  label:hover textarea:not(:hover),
-  label:hover select:not(:hover) {
-    border-color: var(--line);
-  }
-  /* The dropdown is a choice, not typing — it gets the pointer finger. */
-  select {
-    cursor: pointer;
-  }
-  /* Studio links behave exactly like the footer: accent always, only
-     the underline fades in on hover — never a color flash. */
-  .admin a {
-    transition: text-decoration-color 0.12s ease;
-    text-decoration: underline transparent;
-    text-underline-offset: 3px;
-  }
-  .admin a:hover {
-    text-decoration-color: currentColor;
-  }
+  /* Collection page keeps its own list/row/fold styles below. Shared
+     studio primitives (.card, forms, buttons, drawer summaries, toast)
+     live in components/studio.css and components/AdminTabs.astro. */
   /* Row view counts: quiet follow-on to the price, gone entirely
      until the counts arrive (no flash, no shove). */
   :global(#edit-list .row-views:empty) {
@@ -409,108 +152,13 @@ const soldLabel = soldCount === 1 ? "1 sold" : `${soldCount} sold`;
     color: var(--muted);
     font-size: 0.85rem;
   }
-  button:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
-  /* One ring only: inputs show this outline on any focus, so it never
-     doubles up with a border change (which is why this rule replaces it). */
-  input:focus,
-  textarea:focus,
-  select:focus {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
-  .row {
-    display: flex;
-    gap: 0.6rem;
-    flex-wrap: wrap;
-    margin-block: 0.75rem;
-    align-items: center;
-  }
-  .row label {
-    flex: 1 1 8rem;
-    margin-block: 0;
-  }
-  button {
-    font: inherit;
-    font-size: 0.92rem;
-    font-weight: 600;
-    min-height: 2.9rem;
-    padding: 0.55rem 1.2rem;
-    border-radius: 0.75rem;
-    border: 1px solid var(--line);
-    background: var(--paper);
-    color: var(--ink);
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition:
-      background-color 0.25s ease,
-      border-color 0.25s ease,
-      color 0.25s ease,
-      transform 0.2s ease;
-  }
-  button:hover {
-    border-color: var(--ink);
-    transform: translateY(-1px);
-  }
-  button:active {
-    transform: none;
-  }
-  button.primary {
-    background: var(--ink);
-    color: var(--paper);
-    border-color: var(--ink);
-  }
-  button.primary:hover {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: var(--accent-ink);
-  }
-  .card h2 button {
-    min-height: 2.2rem;
-    padding: 0.25rem 0.9rem;
-    font-size: 0.82rem;
-    margin-left: auto;
-  }
-  /* Author display:inline-flex beats the UA [hidden] rule — re-hide. */
-  .card h2 button[hidden] {
-    display: none;
-  }
-  /* Reduced motion kills movement, not gentle fades: lifts go instant,
-     while color and opacity transitions still run — snapping colors is
-     itself jarring. */
+  /* Reduced motion kills movement, not gentle fades — folds open
+     instantly here; color and opacity transitions still run. */
   @media (prefers-reduced-motion: reduce) {
-    /* The toast fade deliberately stays on: opacity-only, and a snap
-       is itself jarring. */
-    button:hover {
-      transform: none;
-    }
-    #sec-info details::details-content {
+    :global(#edit-list .sold-fold::details-content),
+    :global(#edit-list .drafts-fold::details-content) {
       transition: none;
     }
-  }
-  .hint {
-    font-size: 0.88rem;
-    color: var(--muted);
-  }
-  /* Banner status always sits below both buttons, never between them. */
-  #announce-meta {
-    margin: 0.75rem 0 0;
-  }
-  #announce-meta:empty {
-    display: none;
-  }
-  /* The banner actions sit clear of the lifetime dropdown above. */
-  #sec-banner .row {
-    margin-top: 1.25rem;
-  }
-  /* Author display:inline-flex beats the UA [hidden] rule — re-hide the
-     Remove button until a banner exists to remove. */
-  #announce-clear[hidden] {
-    display: none;
   }
   #edit-list {
     list-style: none;
@@ -520,7 +168,8 @@ const soldLabel = soldCount === 1 ? "1 sold" : `${soldCount} sold`;
     gap: 0.5rem;
   }
   /* Group shells vanish on phones so every row flows in one list;
-     on desktop they become the two equal-height columns. */
+     on desktop Available becomes the card grid, with the Drafts and
+     Sold folds stacked below it. */
   :global(#edit-list .list-group) {
     display: contents;
   }
@@ -530,12 +179,25 @@ const soldLabel = soldCount === 1 ? "1 sold" : `${soldCount} sold`;
     padding: 0;
     margin: 0;
   }
-  #sec-info ul {
-    list-style: none;
-    padding: 0;
-    margin: 0.75rem 0 0;
-    display: grid;
-    gap: 0.5rem;
+  /* Folds unfold instead of snapping — the same allow-keywords ease the
+     Advanced drawer uses. Where the browser can't interpolate, opening
+     and closing simply appear, as before. */
+  :global(#edit-list .sold-fold),
+  :global(#edit-list .drafts-fold) {
+    interpolate-size: allow-keywords;
+  }
+  :global(#edit-list .sold-fold::details-content),
+  :global(#edit-list .drafts-fold::details-content) {
+    block-size: 0;
+    overflow: clip;
+    transition:
+      block-size 0.35s ease,
+      content-visibility 0.35s ease;
+    transition-behavior: allow-discrete;
+  }
+  :global(#edit-list .sold-fold[open]::details-content),
+  :global(#edit-list .drafts-fold[open]::details-content) {
+    block-size: auto;
   }
   /* Rows and fields are built by script after load, so they never carry
      the scope attribute — whole-selector :global keeps them styled. */
@@ -611,6 +273,27 @@ const soldLabel = soldCount === 1 ? "1 sold" : `${soldCount} sold`;
     z-index: 60;
   }
   #row-confirm[hidden] {
+    display: none;
+  }
+  /* Reorder tooltip (script-built, so a whole-selector twin): the toast's
+     inverted pill, smaller, above the cards but below the modal. Instant
+     show/hide — no motion to reduce — and never interactive. */
+  :global(#reorder-tip) {
+    position: fixed;
+    z-index: 50;
+    max-width: 15rem;
+    margin: 0;
+    padding: 0.55rem 0.8rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    background: var(--ink);
+    color: var(--paper);
+    font-size: 0.85rem;
+    line-height: 1.4;
+    box-shadow: var(--shadow);
+    pointer-events: none;
+  }
+  :global(#reorder-tip[hidden]) {
     display: none;
   }
   .confirm-card {
@@ -709,67 +392,39 @@ const soldLabel = soldCount === 1 ? "1 sold" : `${soldCount} sold`;
   #practice-reset[hidden] {
     display: none;
   }
-  .card ul a {
-    color: var(--accent);
-  }
-  /* No browser-blue links anywhere in the studio: visited matches unvisited. */
-  .admin a,
-  .admin a:visited {
-    color: var(--accent);
-  }
-  /* Dashboard grid: one column on phones, two on desktop with the wide
-     working sections (share, Collection) spanning both. */
+  /* Collection stacks full-width on every screen: Available on top,
+     then the Drafts and Sold folds below, in that order. */
   @media (min-width: 60rem) {
-    .admin-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0 1.5rem;
-      align-items: start;
-    }
-    #sec-collection {
-      grid-column: 1 / -1;
-    }
-    /* Collection groups sit side by side — Available on the left,
-       Drafts on the right — as equal-height columns split by one
-       hairline. Grid stretch keeps them level whatever each holds.
-       Weighted 2:1 because Available flows two card columns to the
-       right side's one; an even split parks the divider in dead space. */
     #edit-list {
-      grid-template-columns: 2fr 1fr;
       gap: 1.5rem;
-      align-items: stretch;
     }
-    /* One group alone takes the whole card — no empty half. */
-    :global(#edit-list .list-group:only-child) {
-      grid-column: 1 / -1;
-    }
-    /* Sold gets its own full-width row below, folded open by default —
-       one tap on the count folds it away. */
-    :global(#edit-list .sold-fold) {
-      grid-column: 1 / -1;
+    /* Drafts and Sold each get their own full-width row below, folded
+       open by default — one tap on the count folds it away. */
+    :global(#edit-list .sold-fold),
+    :global(#edit-list .drafts-fold) {
       border-top: 1px solid var(--line);
       padding-top: 1rem;
     }
-    :global(#edit-list .sold-fold summary) {
+    :global(#edit-list .sold-fold summary),
+    :global(#edit-list .drafts-fold summary) {
       font-family: Georgia, "Iowan Old Style", Charter, serif;
       font-size: 1.05rem;
       font-weight: 500;
       cursor: pointer;
       width: fit-content;
       border-radius: 0.25rem;
+      /* The folds are quiet archive headers, not card sections:
+         no hairline under the count. */
+      border-bottom: none;
     }
-    :global(#edit-list .sold-fold summary:focus-visible) {
+    :global(#edit-list .sold-fold summary:focus-visible),
+    :global(#edit-list .drafts-fold summary:focus-visible) {
       outline: 2px solid var(--accent);
       outline-offset: 2px;
     }
-    :global(#edit-list .sold-fold .group-rows) {
+    :global(#edit-list .sold-fold .group-rows),
+    :global(#edit-list .drafts-fold .group-rows) {
       margin-top: 0.75rem;
-    }
-    /* Plain-words hint under Available: the order is the homepage. */
-    :global(#edit-list .list-hint) {
-      color: var(--muted);
-      font-size: 0.88rem;
-      margin: 0 0 0.5rem;
     }
     /* Drag-to-reorder: grabbable cards, one accent edge where the
        card will land. Script-built classes get whole-selector twins. */
@@ -805,9 +460,22 @@ const soldLabel = soldCount === 1 ? "1 sold" : `${soldCount} sold`;
       height: auto;
       aspect-ratio: 4 / 3;
     }
-    :global(#edit-list .list-group[data-group="drafts"]) {
-      border-left: 1px solid var(--line);
-      padding-left: 1.5rem;
+    /* Drafts are a waiting shelf, not the show: compact horizontal
+       rows with small thumbs, flowing into as many columns as fit —
+       never the big photo-on-top cards. */
+    :global(#edit-list .drafts-fold .group-rows) {
+      grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+    }
+    :global(#edit-list .drafts-fold li.row-card) {
+      display: flex;
+      gap: 0.6rem;
+      align-items: center;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.85rem;
+    }
+    :global(#edit-list .drafts-fold img.thumb) {
+      width: 3rem;
+      height: 3rem;
     }
   }
   .card {

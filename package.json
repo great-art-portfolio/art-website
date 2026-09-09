@@ -22,6 +22,7 @@
     "gen": "wrangler types --path='./functions/types.d.ts'",
     "down": "pnpm wrangler pages download config --project-name=art-website",
     "db:migrate": "pnpm wrangler d1 execute art-gallery-db --remote --file=./migrations/0001_init.sql && pnpm wrangler d1 execute art-gallery-db --remote --file=./migrations/0002_drop-unused-tables.sql && pnpm wrangler d1 execute art-gallery-db --remote --file=./migrations/0003_email-collectors.sql",
+    "db:migrate:local": "pnpm wrangler d1 execute art-gallery-db --local --file=./migrations/0001_init.sql && pnpm wrangler d1 execute art-gallery-db --local --file=./migrations/0002_drop-unused-tables.sql && pnpm wrangler d1 execute art-gallery-db --local --file=./migrations/0003_email-collectors.sql",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint ."
