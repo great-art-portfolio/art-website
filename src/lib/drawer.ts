@@ -9,8 +9,16 @@
 
 const wired = new WeakSet<HTMLDetailsElement>();
 const inFlight = new WeakMap<HTMLDetailsElement, Animation[]>();
+/** Flight target while animating — the effective openness mid-flight. */
+const drawerTarget = new WeakMap<HTMLDetailsElement, boolean>();
+
+/** Effective openness: the flight's target while animating, else live. */
+export function drawerOpen(details: HTMLDetailsElement): boolean {
+  return drawerTarget.get(details) ?? details.open;
+}
 
 function stopAnims(details: HTMLDetailsElement): void {
+  drawerTarget.delete(details);
   const anims = inFlight.get(details);
   if (anims !== undefined) {
     for (const a of anims) a.cancel();
@@ -52,8 +60,12 @@ export function setDrawerOpen(
     snap(details, open);
     return;
   }
+  // A flight already headed there keeps flying — re-measuring
+  // mid-flight is what used to snap frantic re-toggles.
+  if (drawerTarget.get(details) === open) return;
   stopAnims(details);
   if (details.open === open) return;
+  drawerTarget.set(details, open);
   const calm = reducedMotion();
   const kids = contentKids(details);
   const fade = (from: string, to: string): Animation[] =>
@@ -71,6 +83,7 @@ export function setDrawerOpen(
   const track = (anims: Animation[], done: () => void): void => {
     const main = anims[0];
     if (main === undefined) {
+      drawerTarget.delete(details);
       done();
       return;
     }
@@ -78,6 +91,7 @@ export function setDrawerOpen(
     main.onfinish = () => {
       if (inFlight.get(details) !== anims) return;
       inFlight.delete(details);
+      drawerTarget.delete(details);
       details.style.overflow = "";
       done();
       for (const a of anims) a.cancel();

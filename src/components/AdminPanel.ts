@@ -1,6 +1,6 @@
 import { api, ApiError, getApiToken, setApiToken } from "../lib/api";
 import { $, isLocalPreview, maybe, maybeButton } from "../lib/dom";
-import { wireDrawers } from "../lib/drawer";
+import { drawerOpen, wireDrawer, wireDrawers } from "../lib/drawer";
 import { errorMessage } from "../lib/errors";
 import {
   parseBakedCollection,
@@ -307,8 +307,8 @@ function renderRows(rows: LocalPainting[]): void {
   // re-render happens (photos must not flicker).
   wireReorder(list);
   wireReorderHint(list);
-  // Folds rebuild with every render — wiring is idempotent, so the
-  // SSR first paint (no re-render) and later renders share this line.
+  // SSR folds (no re-render below) wire here; rebuilt folds wire again
+  // after the swap — wiring is idempotent either way.
   wireDrawers(list, "details");
   const key = rowsKey(rows);
   if (key === lastRowsKey) return;
@@ -317,6 +317,15 @@ function renderRows(rows: LocalPainting[]): void {
     list.innerHTML =
       '<li class="list-plain">Nothing here yet — tap Add painting above.</li>';
     return;
+  }
+  // A rebuild mid-toggle must not pop the fold back open: carry each
+  // fold's effective state (mid-flight counts as its target) across
+  // the swap below. Fresh folds keep their markup default.
+  const foldOpen = new Map<string, boolean>();
+  for (const el of list.querySelectorAll("details[data-group]")) {
+    if (el instanceof HTMLDetailsElement && el.dataset.group !== undefined) {
+      foldOpen.set(el.dataset.group, drawerOpen(el));
+    }
   }
   const byTitle = (a: LocalPainting, b: LocalPainting): number =>
     a.title.localeCompare(b.title);
@@ -363,6 +372,16 @@ function renderRows(rows: LocalPainting[]): void {
   }
   list.innerHTML = html;
   wireReorder(list);
+  // The swap above destroyed the wired nodes — wire the fresh folds,
+  // restoring live open state first (instantly: a re-render is not a
+  // toggle, so it never animates).
+  for (const el of list.querySelectorAll("details[data-group]")) {
+    if (!(el instanceof HTMLDetailsElement) || el.dataset.group === undefined)
+      continue;
+    const keep = foldOpen.get(el.dataset.group);
+    if (keep !== undefined) el.open = keep;
+    wireDrawer(el);
+  }
 }
 
 /**

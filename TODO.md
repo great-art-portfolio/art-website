@@ -209,14 +209,19 @@ Push to main for CI; real upload test on barbart.ca/admin.
   disappeared explainers; mid-drag cursor forced to "move" (OS owns
   it); date field freed from checkbox CSS + nowrap label; drag is and
   was intact (user confirmed).
-- Drawer determinism + studio titles/centering (140 unit, 134 e2e
-  green): the unfold only slid in Chromium — Safari/Firefox snapped
-  it, and under reduced motion the slide died while the fade played,
-  so the same drawer felt random. Now one script path (WAAPI height
-  - beat-behind fade, new src/lib/drawer.ts) for Advanced and all
-    three folds, instant height under reduced motion with the fade
-    intact; the old curve test passes unmodified, plus an animate-spy
-    pin. SSR folds wire at init (the collection fetch lags behind).
-    Tab titles read Admin - Collection/Banner/Metrics/Guide (rooms too);
-    prose sections center in the container (were left-hugging wide
-    screens).
+- Drawer determinism + studio titles/centering/grid (140 unit, 134
+  e2e green): the unfold only slid in Chromium — Safari/Firefox
+  snapped it, and under reduced motion the slide died while the fade
+  played, so the same drawer felt random. Now one script path (WAAPI
+  height + beat-behind fade, new src/lib/drawer.ts) for Advanced and
+  all three folds, instant height under reduced motion with the fade
+  intact; the old curve test passes unmodified, plus an animate-spy
+  pin. Two real bugs found along the way: folds wired before the
+  innerHTML swap (fresh nodes went unwired — wire after), and
+  rebuilds clobbering live toggle state (a refresh mid-close popped
+  the fold back open — renderRows now carries effective fold state
+  across the swap). SSR folds wire at init (the collection fetch lags
+  behind). Tab titles read Admin - Collection/Banner/Metrics/Guide
+  (rooms too); prose sections center in the container (were
+  left-hugging wide screens); collection grid is four across (15rem
+  min — five squeezed photos and drag targets).

@@ -516,11 +516,12 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
       min-width: 0;
     }
     /* A real grid of paintings, not a 1D list: roomy cards with the
-       photo on top, flowing into as many columns as fit. */
+       photo on top — four across at full width, fewer as the screen
+       narrows. Five squeezed the photos and the drag targets. */
     :global(#edit-list .group-rows) {
       display: grid;
       gap: 0.75rem;
-      grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
     }
     :global(#edit-list li.row-card) {
       display: grid;
