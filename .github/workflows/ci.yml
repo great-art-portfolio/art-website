@@ -37,5 +37,14 @@ jobs:
       - run: pnpm db:migrate:local
       # Smoke tests against the real Pages runtime (static + Functions,
       # no secrets): regressions, validation paths, graceful fallbacks.
-      - run: pnpm exec playwright install --with-deps chromium
+      # Apt mirrors flake (exit 100 twice running): retry the browser
+      # install instead of failing the run for it.
+      - run: |
+          for i in 1 2 3; do
+            if pnpm exec playwright install --with-deps chromium; then
+              break
+            fi
+            test "$i" = 3 && exit 1
+            sleep 15
+          done
       - run: pnpm exec playwright test

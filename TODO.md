@@ -256,3 +256,6 @@ Push to main for CI; real upload test on barbart.ca/admin.
 - Buyer, not collector, in buyer-facing words (privacy page alerts
   copy + signup test title). Code identifiers stay: /api/collectors
   and the email_collectors table are load-bearing names.
+- CI retries the browser install (apt mirror exit 100 twice running,
+  failing runs before any gate; PAT can't rerun, hence the empty
+  retrigger commit).
