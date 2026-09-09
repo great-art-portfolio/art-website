@@ -21,7 +21,8 @@ CF_ANALYTICS_SITE=
 # Mail + push (optional; blank keeps the buttons quiet).
 RESEND_API_KEY=
 NOTIFY_EMAIL_FROM=
-NOTIFY_EMAIL_TO=
+# The artist's inbox: buyer notes and broadcast copies land here.
+ARTIST_INBOX=
 VAPID_PUBLIC_KEY=
 VAPID_PRIVATE_JWK=
 VAPID_CONTACT=

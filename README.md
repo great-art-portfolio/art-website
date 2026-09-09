@@ -80,8 +80,9 @@ GITHUB_BRANCH   # main (optional, defaults to main)
 ```
 
 Secrets (dashboard, never committed): `RESEND_API_KEY`, `NOTIFY_EMAIL_FROM`
-(requires a verified sending domain), `NOTIFY_EMAIL_TO` (her private inbox,
-never shown on the site), `ADMIN_API_TOKEN`, `GITHUB_TOKEN` (+ repo/branch),
+(requires a verified sending domain), `ARTIST_INBOX` (her private inbox —
+buyer notes and broadcast copies land here, never shown on the site),
+`ADMIN_API_TOKEN`, `GITHUB_TOKEN` (+ repo/branch),
 optional `PUSHOVER_*`, and later `SHIPPO_API_TOKEN` / `AYRSHARE_API_KEY`
 with their `ENABLE_*` flags.
 

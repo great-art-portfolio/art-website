@@ -19,6 +19,11 @@ export interface AppEnv {
   CF_ANALYTICS_SITE?: string;
   RESEND_API_KEY?: string;
   NOTIFY_EMAIL_FROM?: string;
+  /** The artist's inbox: buyer inquiries land here, and broadcast
+   * copies too. Never shown on the site. */
+  ARTIST_INBOX?: string;
+  /** Legacy name for ARTIST_INBOX — still honored so a stale dashboard
+   * secret never silences mail. */
   NOTIFY_EMAIL_TO?: string;
   NTFY_TOPIC?: string;
   PUSHOVER_APP_TOKEN?: string;

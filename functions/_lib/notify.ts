@@ -25,6 +25,15 @@ export interface NotifyResult {
   pushed: boolean;
 }
 
+/**
+ * The artist's inbox: buyer inquiries land here, and broadcast copies
+ * too. The old NOTIFY_EMAIL_TO name still works as a fallback so a
+ * stale dashboard secret never silences mail.
+ */
+export function artistInbox(env: AppEnv): string {
+  return env.ARTIST_INBOX ?? env.NOTIFY_EMAIL_TO ?? "";
+}
+
 export async function sendInquiryNotifications(
   env: AppEnv,
   alert: InquiryAlert,
@@ -58,8 +67,8 @@ async function sendEmail(
 ): Promise<boolean> {
   if (env.RESEND_API_KEY === undefined || env.RESEND_API_KEY === "")
     return false;
-  if (env.NOTIFY_EMAIL_TO === undefined || env.NOTIFY_EMAIL_TO === "")
-    return false;
+  const inbox = artistInbox(env);
+  if (inbox === "") return false;
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -68,7 +77,7 @@ async function sendEmail(
     },
     body: JSON.stringify({
       from: env.NOTIFY_EMAIL_FROM ?? "Gallery <onboarding@resend.dev>",
-      to: [env.NOTIFY_EMAIL_TO],
+      to: [inbox],
       // Hitting reply answers the buyer directly.
       reply_to: replyTo ?? undefined,
       subject,
@@ -92,8 +101,8 @@ export async function sendCollectorBroadcast(
 ): Promise<boolean> {
   if (env.RESEND_API_KEY === undefined || env.RESEND_API_KEY === "")
     return false;
-  if (env.NOTIFY_EMAIL_TO === undefined || env.NOTIFY_EMAIL_TO === "")
-    return false;
+  const inbox = artistInbox(env);
+  if (inbox === "") return false;
   if (bcc.length === 0) return false;
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -103,9 +112,9 @@ export async function sendCollectorBroadcast(
     },
     body: JSON.stringify({
       from: env.NOTIFY_EMAIL_FROM ?? "Gallery <onboarding@resend.dev>",
-      to: [env.NOTIFY_EMAIL_TO],
+      to: [inbox],
       bcc,
-      reply_to: env.NOTIFY_EMAIL_TO,
+      reply_to: inbox,
       subject,
       text,
     }),
