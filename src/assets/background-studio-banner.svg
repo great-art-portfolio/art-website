@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1024" viewBox="0 0 1440 1024" fill="none">
+  <!-- Banner wash: faint ledger rules like a pinned-up note — same warm
+       palette as background-warm, kept quiet behind the form.
+       No neon, no purple/blue. -->
+  <defs>
+    <radialGradient id="ban-pool" cx="0.5" cy="0.5" r="0.5" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#E9DBC0" stop-opacity="0.5"/>
+      <stop offset="0.6" stop-color="#EFE3CC" stop-opacity="0.25"/>
+      <stop offset="1" stop-color="#EFE3CC" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ban-drift" x1="0" y1="0" x2="1440" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F1E7D4" stop-opacity="0.45"/>
+      <stop offset="0.5" stop-color="#F1E7D4" stop-opacity="0.1"/>
+      <stop offset="1" stop-color="#E5DCCB" stop-opacity="0.28"/>
+    </linearGradient>
+    <filter id="ban-grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.45  0 0 0 0 0.41  0 0 0 0 0.35  0 0 0 0.05 0"/>
+      <feComposite operator="over" in2="SourceGraphic"/>
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="1440" height="1024" fill="url(#ban-drift)"/>
+  <ellipse cx="720" cy="180" rx="700" ry="340" fill="url(#ban-pool)"/>
+
+  <!-- Ruled lines, like the note the banner becomes -->
+  <g stroke="#756A5C" stroke-width="1.1" stroke-linecap="round">
+    <path d="M180 330 H1260" stroke-opacity="0.12"/>
+    <path d="M180 392 H1260" stroke-opacity="0.10"/>
+    <path d="M180 454 H1260" stroke-opacity="0.08"/>
+    <path d="M180 516 H1260" stroke-opacity="0.10"/>
+    <path d="M180 578 H1260" stroke-opacity="0.07"/>
+    <path d="M180 720 H1260" stroke-opacity="0.09"/>
+    <path d="M180 782 H1260" stroke-opacity="0.06"/>
+  </g>
+
+  <rect x="0" y="0" width="1440" height="1024" filter="url(#ban-grain)" opacity="0.5"/>
+</svg>

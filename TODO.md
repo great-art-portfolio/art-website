@@ -225,3 +225,10 @@ Push to main for CI; real upload test on barbart.ca/admin.
   (rooms too); prose sections center in the container (were
   left-hugging wide screens); collection grid is four across (15rem
   min — five squeezed photos and drag targets).
+- Drag honesty + studio batch (140 unit, 134 e2e green): same-row
+  drops split left/right (center drops on side neighbors always fell
+  before, crying "already" on real moves); the no-op toast reads as
+  confirmation now. Show-until select is content-sized with a drawn
+  chevron; metrics unified on "views"; trash copy shortened; room
+  toolbar puts Sold/date/notify above the buttons; each admin page
+  gets its own faint wash (four new SVGs, Layout backdrop prop).

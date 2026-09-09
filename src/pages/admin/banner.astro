@@ -3,7 +3,7 @@ import Layout from "../../layouts/Layout.astro";
 import "../../components/studio.css";
 ---
 
-<Layout title="Admin - Banner" wordmark="admin">
+<Layout title="Admin - Banner" wordmark="admin" backdrop="banner">
   <main class="admin" id="main">
     <section id="sec-banner" class="prose">
       <h2>Homepage banner</h2>
@@ -61,6 +61,14 @@ import "../../components/studio.css";
   /* The banner actions sit clear of the lifetime dropdown above. */
   #sec-banner .row {
     margin-top: 1.25rem;
+  }
+  /* Three words at most ("No end date") — no reason to span the
+     column. The label is a grid, so auto width alone still stretches:
+     park it to the start. */
+  #f-duration {
+    width: auto;
+    max-width: 100%;
+    justify-self: start;
   }
   /* Author display:inline-flex beats the UA [hidden] rule — re-hide the
      Remove button until a banner exists to remove. */

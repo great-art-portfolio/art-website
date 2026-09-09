@@ -21,16 +21,16 @@ const seed = (await getCollection("paintings"))
 const seedJson = JSON.stringify(seed).replace(/</g, "\\u003c");
 ---
 
-<Layout title="Admin - Metrics" wordmark="admin">
+<Layout title="Admin - Metrics" wordmark="admin" backdrop="metrics">
   <main class="admin" id="main">
     <section id="sec-views" class="prose">
       <h2>Metrics</h2>
       <p>
-        Most opened first — the past 30 days. Ties favor what's still for sale.
+        Most viewed first — the past 30 days. Ties favor what's still for sale.
       </p>
       <p class="metrics-total">
         <strong id="stats-total">—</strong>
-        <span>opens in the past 30 days</span>
+        <span>views in the past 30 days</span>
       </p>
       <ul id="stats-body"></ul>
       <p class="hint" id="stats-note"></p>

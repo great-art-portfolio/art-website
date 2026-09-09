@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1024" viewBox="0 0 1440 1024" fill="none">
+  <!-- Collection wash: register plus-marks on a faint grid, like canvas
+       stretcher marks — same warm palette as background-warm, kept quiet
+       behind the cards. No neon, no purple/blue. -->
+  <defs>
+    <radialGradient id="col-pool" cx="0.5" cy="0.5" r="0.5" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#E9DBC0" stop-opacity="0.5"/>
+      <stop offset="0.6" stop-color="#EFE3CC" stop-opacity="0.25"/>
+      <stop offset="1" stop-color="#EFE3CC" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="col-drift" x1="0" y1="0" x2="1440" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F1E7D4" stop-opacity="0.45"/>
+      <stop offset="0.5" stop-color="#F1E7D4" stop-opacity="0.1"/>
+      <stop offset="1" stop-color="#E5DCCB" stop-opacity="0.28"/>
+    </linearGradient>
+    <filter id="col-grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.45  0 0 0 0 0.41  0 0 0 0 0.35  0 0 0 0.05 0"/>
+      <feComposite operator="over" in2="SourceGraphic"/>
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="1440" height="1024" fill="url(#col-drift)"/>
+  <ellipse cx="720" cy="140" rx="760" ry="360" fill="url(#col-pool)"/>
+
+  <!-- Register marks: small plus signs where frames would hang -->
+  <g stroke="#756A5C" stroke-width="1.2" stroke-linecap="round" stroke-opacity="0.13">
+    <path d="M194 194 h20 M204 184 v20"/>
+    <path d="M474 194 h20 M484 184 v20"/>
+    <path d="M754 194 h20 M764 184 v20"/>
+    <path d="M1034 194 h20 M1044 184 v20"/>
+    <path d="M194 474 h20 M204 464 v20"/>
+    <path d="M474 474 h20 M484 464 v20"/>
+    <path d="M754 474 h20 M764 464 v20"/>
+    <path d="M1034 474 h20 M1044 464 v20"/>
+    <path d="M194 754 h20 M204 744 v20"/>
+    <path d="M474 754 h20 M484 744 v20"/>
+    <path d="M754 754 h20 M764 744 v20"/>
+    <path d="M1034 754 h20 M1044 744 v20"/>
+  </g>
+
+  <rect x="0" y="0" width="1440" height="1024" filter="url(#col-grain)" opacity="0.5"/>
+</svg>

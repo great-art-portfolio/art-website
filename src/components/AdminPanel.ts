@@ -416,9 +416,54 @@ function reorderSlug(card: Element): string | null {
 }
 
 function clearDropMarks(list: HTMLElement): void {
-  for (const el of list.querySelectorAll(".drop-before, .drop-after")) {
-    el.classList.remove("drop-before", "drop-after");
+  for (const el of list.querySelectorAll(
+    ".drop-before, .drop-after, .drop-left, .drop-right",
+  )) {
+    el.classList.remove("drop-before", "drop-after", "drop-left", "drop-right");
   }
+}
+
+type DropMark = "drop-before" | "drop-after" | "drop-left" | "drop-right";
+
+const dropMarks: readonly DropMark[] = [
+  "drop-before",
+  "drop-after",
+  "drop-left",
+  "drop-right",
+];
+
+/**
+ * Insertion point follows the pointer: cards sharing a row split
+ * left/right (a center drop on a side neighbor used to always land
+ * before it, crying "already" on a real move); stacked cards split
+ * top/bottom. Dragover and drop share it, so the highlight never lies
+ * about the landing.
+ */
+function dropMark(
+  card: Element,
+  dragged: Element | null,
+  clientX: number,
+  clientY: number,
+): { mark: DropMark; after: boolean } {
+  const rect = card.getBoundingClientRect();
+  if (
+    dragged !== null &&
+    Math.abs(dragged.getBoundingClientRect().top - rect.top) < rect.height / 2
+  ) {
+    const after = (clientX - rect.left) / rect.width > 0.5;
+    return { mark: after ? "drop-right" : "drop-left", after };
+  }
+  const after = (clientY - rect.top) / rect.height > 0.5;
+  return { mark: after ? "drop-after" : "drop-before", after };
+}
+
+/** The card being dragged, by the in-flight slug (null when unknown). */
+function draggedCard(list: HTMLElement, slug: string | null): Element | null {
+  if (slug === null) return null;
+  return (
+    list.querySelector(`.row-del[data-slug="${slug}"]`)?.closest(".row-card") ??
+    null
+  );
 }
 
 function wireReorder(list: HTMLElement): void {
@@ -455,14 +500,18 @@ function wireReorder(list: HTMLElement): void {
     // The OS owns the mid-drag pointer (CSS can't reach it) — "move"
     // keeps a meaningful cursor instead of the default arrow.
     if (e.dataTransfer !== null) e.dataTransfer.dropEffect = "move";
-    const rect = card.getBoundingClientRect();
-    const after = (e.clientY - rect.top) / rect.height > 0.5;
-    card.classList.toggle("drop-after", after);
-    card.classList.toggle("drop-before", !after);
+    const { mark } = dropMark(
+      card,
+      draggedCard(list, dragSlug),
+      e.clientX,
+      e.clientY,
+    );
+    for (const m of dropMarks) card.classList.toggle(m, m === mark);
   });
   list.addEventListener("dragleave", (e) => {
     const card = reorderCard(e.target);
-    if (card !== null) card.classList.remove("drop-before", "drop-after");
+    if (card === null) return;
+    for (const m of dropMarks) card.classList.remove(m);
   });
   list.addEventListener("drop", (e) => {
     const card = reorderCard(e.target);
@@ -478,8 +527,7 @@ function wireReorder(list: HTMLElement): void {
       dragSlug = null;
       return;
     }
-    const rect = card.getBoundingClientRect();
-    const after = (e.clientY - rect.top) / rect.height > 0.5;
+    const { after } = dropMark(card, dragged, e.clientX, e.clientY);
     rows?.insertBefore(dragged, after ? card.nextSibling : card);
     const slug = dragSlug;
     dragSlug = null;
@@ -642,7 +690,9 @@ async function persistOrder(
         changed += 1;
       }
       if (changed === 0) {
-        setStatus(`That's already the ${kind.toLowerCase()} order.`);
+        setStatus(
+          `Nothing to save — that's already the ${kind.toLowerCase()} order.`,
+        );
         return;
       }
       renderLocalCollection();
@@ -665,7 +715,9 @@ async function persistOrder(
       files.push({ path: row.mdPath, blob: setOrder(content, i) });
     }
     if (files.length === 0) {
-      setStatus(`That's already the ${kind.toLowerCase()} order.`);
+      setStatus(
+        `Nothing to save — that's already the ${kind.toLowerCase()} order.`,
+      );
       return;
     }
     setStatus(

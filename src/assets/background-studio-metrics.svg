@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1024" viewBox="0 0 1440 1024" fill="none">
+  <!-- Metrics wash: faint ascending bars with a baseline, like a quiet
+       ledger kept in pencil — same warm palette as background-warm.
+       No neon, no purple/blue. -->
+  <defs>
+    <radialGradient id="met-pool" cx="0.5" cy="0.5" r="0.5" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#E9DBC0" stop-opacity="0.5"/>
+      <stop offset="0.6" stop-color="#EFE3CC" stop-opacity="0.25"/>
+      <stop offset="1" stop-color="#EFE3CC" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="met-drift" x1="0" y1="0" x2="1440" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F1E7D4" stop-opacity="0.45"/>
+      <stop offset="0.5" stop-color="#F1E7D4" stop-opacity="0.1"/>
+      <stop offset="1" stop-color="#E5DCCB" stop-opacity="0.28"/>
+    </linearGradient>
+    <filter id="met-grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.45  0 0 0 0 0.41  0 0 0 0 0.35  0 0 0 0.05 0"/>
+      <feComposite operator="over" in2="SourceGraphic"/>
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="1440" height="1024" fill="url(#met-drift)"/>
+  <ellipse cx="760" cy="200" rx="680" ry="330" fill="url(#met-pool)"/>
+
+  <!-- A small count of quiet bars, rising left to right -->
+  <g fill="#756A5C">
+    <rect x="330" y="640" width="72" height="120" rx="3" fill-opacity="0.08"/>
+    <rect x="450" y="590" width="72" height="170" rx="3" fill-opacity="0.10"/>
+    <rect x="570" y="530" width="72" height="230" rx="3" fill-opacity="0.12"/>
+    <rect x="690" y="560" width="72" height="200" rx="3" fill-opacity="0.09"/>
+    <rect x="810" y="480" width="72" height="280" rx="3" fill-opacity="0.13"/>
+  </g>
+  <path d="M280 760 H940" stroke="#756A5C" stroke-width="1.2" stroke-opacity="0.14"/>
+
+  <rect x="0" y="0" width="1440" height="1024" filter="url(#met-grain)" opacity="0.5"/>
+</svg>

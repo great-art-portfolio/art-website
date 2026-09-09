@@ -79,7 +79,7 @@ const trashCount = ssrTrash.length;
 const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
 ---
 
-<Layout title="Admin - Collection" wordmark="admin">
+<Layout title="Admin - Collection" wordmark="admin" backdrop="collection">
   <main class="admin" id="main">
     <h2>
       <span id="collection-title">Available</span>
@@ -508,6 +508,13 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
     }
     :global(#edit-list .row-card.drop-after) {
       box-shadow: inset 0 -3px 0 var(--accent);
+    }
+    /* Same-row drops split left/right instead of top/bottom. */
+    :global(#edit-list .row-card.drop-left) {
+      box-shadow: inset 3px 0 0 var(--accent);
+    }
+    :global(#edit-list .row-card.drop-right) {
+      box-shadow: inset -3px 0 0 var(--accent);
     }
     :global(#edit-list .list-group) {
       display: grid;

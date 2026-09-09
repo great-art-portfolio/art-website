@@ -4,6 +4,10 @@ import Analytics from "../components/Analytics.astro";
 import Signature from "../components/Signature.astro";
 import AdminWordmark from "../components/AdminWordmark.astro";
 import background from "../assets/background-warm.svg";
+import backgroundCollection from "../assets/background-studio-collection.svg";
+import backgroundBanner from "../assets/background-studio-banner.svg";
+import backgroundMetrics from "../assets/background-studio-metrics.svg";
+import backgroundGuide from "../assets/background-studio-guide.svg";
 import { ARTIST_LOCATION, ARTIST_NAME, SITE_URL, siteTitle } from "../lib/site";
 
 interface Props {
@@ -16,6 +20,8 @@ interface Props {
   noindex?: boolean;
   /** Alias pages (old slugs) read under the current slug's path. */
   canonical?: string;
+  /** Per-page studio wash — the default warm pool everywhere else. */
+  backdrop?: "warm" | "collection" | "banner" | "metrics" | "guide";
 }
 
 const {
@@ -26,7 +32,19 @@ const {
   wordmark = "signature",
   noindex = false,
   canonical: canonicalOverride,
+  backdrop = "warm",
 } = Astro.props;
+
+// One quiet wash per studio page, same layer and opacity as the default.
+const backdropSrc = (
+  {
+    warm: background,
+    collection: backgroundCollection,
+    banner: backgroundBanner,
+    metrics: backgroundMetrics,
+    guide: backgroundGuide,
+  } as const
+)[backdrop].src;
 
 // Relative paths: the static build bakes pages with a placeholder origin,
 // so only the path survives the build correctly on every host.
@@ -177,7 +195,7 @@ const currentSection = adminSection(Astro.url.pathname);
 
     <img
       id="background"
-      src={background.src}
+      src={backdropSrc}
       alt=""
       fetchpriority="high"
       aria-hidden="true"

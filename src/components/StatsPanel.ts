@@ -4,8 +4,8 @@ import { parseStatsSeed, type StatsSeedRow } from "../lib/schemas";
 import { viewsLabel } from "../lib/views";
 
 /**
- * Metrics island (client-only): past-30-day opens per painting, most
- * opened first. Ties favor what's still for sale — sold works settle
+ * Metrics island (client-only): past-30-day views per painting, most
+ * viewed first. Ties favor what's still for sale — sold works settle
  * below. Paintings ride baked into the page; counts arrive from
  * the analytics API. Anything less than real data leaves the rows
  * count-less with plain words about why — never a blank page.
@@ -65,7 +65,7 @@ function init(): void {
       if (views.length === 0 && unconfigured) {
         $("stats-note").textContent = isLocalPreview()
           ? "Counts appear once buyers visit the live site."
-          : "No opens yet — counts appear as buyers visit.";
+          : "No views yet — counts appear as buyers visit.";
         return;
       }
       const { total } = render(
@@ -73,7 +73,7 @@ function init(): void {
         new Map(views.map((v) => [v.slug, v.views])),
       );
       $("stats-note").textContent =
-        total === 0 ? "No opens in the past 30 days — yet." : "";
+        total === 0 ? "No views in the past 30 days — yet." : "";
     })
     .catch((err: unknown) => {
       // A missing token names itself and points at the fix; anything
