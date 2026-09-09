@@ -260,5 +260,6 @@ Push to main for CI; real upload test on barbart.ca/admin.
   failing runs before any gate; PAT can't rerun, hence the empty
   retrigger commit). Root cause: Google's Chrome repo serves a stale
   Packages index (Hash Sum mismatch), unrelated to our deps — the
-  workflow now drops that apt source (system Chrome unneeded) and
-  keeps the retry for real blips.
+  workflow drops every apt source pointing at dl.google.com by URL
+  (a filename-based removal missed it) and keeps the retry for real
+  blips. Verified: full CI success after the URL-based removal.
