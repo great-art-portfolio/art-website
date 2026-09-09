@@ -221,7 +221,7 @@ test("blocked push state stays put, not faded", async ({ page }) => {
   await expect(hint).toContainText("blocked");
 });
 
-test("collector signup accepts a good address, rejects a bad one", async ({
+test("buyer signup accepts a good address, rejects a bad one", async ({
   request,
 }) => {
   const ok = await request.post("/api/collectors", {

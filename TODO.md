@@ -253,3 +253,6 @@ Push to main for CI; real upload test on barbart.ca/admin.
   inquiry hover test parks the mouse off the form first (the reveal
   drawer slid the input under the parked pointer, starting its
   hover fade before the "rest" assertion).
+- Buyer, not collector, in buyer-facing words (privacy page alerts
+  copy + signup test title). Code identifiers stay: /api/collectors
+  and the email_collectors table are load-bearing names.
