@@ -22,14 +22,10 @@ export interface AppEnv {
    * verified Resend domain, or mail only reaches the Resend account
    * email. */
   ARTIST_SENDER?: string;
-  /** Legacy name for ARTIST_SENDER — still honored. */
-  NOTIFY_EMAIL_FROM?: string;
   /** The artist's inbox: buyer inquiries land here, and broadcast
-   * copies too. Never shown on the site. */
+   * copies too. Never on the website — but new-painting mail carries
+   * it in the To line, so it must be an inbox buyers may see. */
   ARTIST_INBOX?: string;
-  /** Legacy name for ARTIST_INBOX — still honored so a stale dashboard
-   * secret never silences mail. */
-  NOTIFY_EMAIL_TO?: string;
   NTFY_TOPIC?: string;
   PUSHOVER_APP_TOKEN?: string;
   PUSHOVER_USER_KEY?: string;

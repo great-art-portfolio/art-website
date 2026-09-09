@@ -27,24 +27,19 @@ export interface NotifyResult {
 
 /**
  * The artist's inbox: buyer inquiries land here, and broadcast copies
- * too. The old NOTIFY_EMAIL_TO name still works as a fallback so a
- * stale dashboard secret never silences mail.
+ * too.
  */
 export function artistInbox(env: AppEnv): string {
-  return env.ARTIST_INBOX ?? env.NOTIFY_EMAIL_TO ?? "";
+  return env.ARTIST_INBOX ?? "";
 }
 
 /**
  * The address mail goes out from, as the artist. Falls back to the
- * legacy var name, then the Resend onboarding identity (which only
- * reaches the Resend account email).
+ * Resend onboarding identity (which only reaches the Resend account
+ * email).
  */
 export function artistSender(env: AppEnv): string {
-  return (
-    env.ARTIST_SENDER ??
-    env.NOTIFY_EMAIL_FROM ??
-    "Gallery <onboarding@resend.dev>"
-  );
+  return env.ARTIST_SENDER ?? "Gallery <onboarding@resend.dev>";
 }
 
 export async function sendInquiryNotifications(

@@ -87,6 +87,13 @@ buyer notes and broadcast copies land here, never shown on the site),
 optional `PUSHOVER_*`, and later `SHIPPO_API_TOKEN` / `AYRSHARE_API_KEY`
 with their `ENABLE_*` flags.
 
+Who sees what: buyers always see the sender (`ARTIST_SENDER`, the
+gallery face). They never see the inbox on the site — inquiry mail
+is addressed to it without them on it, and replies go to the buyer
+directly. The one exception: new-painting mail carries the inbox in
+its To line (plus every reply), so it must be an address buyers may
+see.
+
 ## Analytics & offline
 
 - Aggregate stats: Cloudflare Web Analytics. Dashboard → Web Analytics →

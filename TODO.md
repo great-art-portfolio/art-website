@@ -292,6 +292,11 @@ Push to main for CI; real upload test on barbart.ca/admin.
   so no dashboard change needed for the sender. Local .dev.vars
   sets it to the gallery address — without a verified-domain
   sender, Resend only delivers to its own account email.
+- Legacy fallbacks removed: dashboard already holds ARTIST_INBOX
+  (verified via secret list — no NOTIFY_* secrets remain), so the
+  old names are gone from code, types, tests, and docs. README
+  records who sees what (sender always visible; inbox only in
+  list-mail To line).
 - CI retries the browser install (apt mirror exit 100 twice running,
   failing runs before any gate; PAT can't rerun, hence the empty
   retrigger commit). Root cause: Google's Chrome repo serves a stale
