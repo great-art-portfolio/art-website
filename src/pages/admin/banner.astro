@@ -7,11 +7,10 @@ import "../../components/studio.css";
   <main class="admin" id="main">
     <section id="sec-banner" class="prose">
       <h2>Homepage banner</h2>
-      <p class="hint">
-        One banner at a time under the gallery — markets, holidays, “studio
-        open”. Saving replaces it; Remove banner hides it. Banners usually end
-        on their own, so a forgotten one doesn't linger.
+      <p>
+        One note on the homepage at a time — what you type is what buyers see.
       </p>
+      <aside id="banner-preview" hidden></aside>
       <label
         >Announcement
         <input
@@ -41,6 +40,10 @@ import "../../components/studio.css";
         </button>
       </div>
       <p class="hint" id="announce-meta"></p>
+      <p class="hint">
+        Banners end on their own, so a forgotten one doesn't linger. Saving
+        replaces the one showing now; Remove hides it.
+      </p>
     </section>
   </main>
 </Layout>
@@ -63,5 +66,45 @@ import "../../components/studio.css";
      Remove button until a banner exists to remove. */
   #announce-clear[hidden] {
     display: none;
+  }
+  /* The live preview wears the homepage note's look — the taped-up card,
+     not a full-width bar — so what she types is what buyers will see.
+     Empty means nothing showing, so the note stays out of the way. */
+  #banner-preview {
+    position: relative;
+    width: fit-content;
+    max-width: 22rem;
+    box-sizing: border-box;
+    margin: 1.75rem 0 2rem;
+    transform: rotate(-1.2deg);
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 0.25rem;
+    box-shadow: var(--shadow);
+    padding: 1.4rem 1.3rem 1.1rem;
+    font-family: Georgia, "Iowan Old Style", Charter, serif;
+    font-size: 1.08rem;
+  }
+  #banner-preview[hidden] {
+    display: none;
+  }
+  /* One masking-tape strip holding the note up. */
+  #banner-preview::before {
+    content: "";
+    position: absolute;
+    top: -0.7rem;
+    left: 50%;
+    width: 5.5rem;
+    height: 1.4rem;
+    transform: translateX(-50%) rotate(-4deg);
+    background: color-mix(in srgb, var(--accent) 28%, transparent);
+    opacity: 0.85;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.15);
+  }
+  /* Reduced motion keeps the note planted straight. */
+  @media (prefers-reduced-motion: reduce) {
+    #banner-preview {
+      transform: none;
+    }
   }
 </style>

@@ -5,7 +5,8 @@ import { viewsLabel } from "../lib/views";
 
 /**
  * Metrics island (client-only): past-30-day opens per painting, most
- * opened first. Paintings ride baked into the page; counts arrive from
+ * opened first. Ties favor what's still for sale — sold works settle
+ * below. Paintings ride baked into the page; counts arrive from
  * the analytics API. Anything less than real data leaves the rows
  * count-less with plain words about why — never a blank page.
  */
@@ -18,7 +19,12 @@ function render(
     s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
   const rows = seed
     .map((r) => ({ ...r, views: counts.get(r.slug) ?? 0 }))
-    .sort((a, b) => b.views - a.views || a.title.localeCompare(b.title));
+    .sort(
+      (a, b) =>
+        b.views - a.views ||
+        Number(a.sold) - Number(b.sold) ||
+        a.title.localeCompare(b.title),
+    );
   const top = Math.max(1, ...rows.map((r) => r.views));
   $("stats-body").innerHTML = rows
     .map((r) => {

@@ -1282,6 +1282,16 @@ function init(): void {
   // Banner page: load the published wording into the form; saving and
   // removing commit the announcement file (or a dev preview).
   if (onBanner) {
+    // The preview wears the wording live — what she types is what
+    // buyers see, before anything is published.
+    const syncBannerPreview = (): void => {
+      const preview = document.getElementById("banner-preview");
+      if (preview === null) return;
+      const text = $("f-announce").value.trim().slice(0, 280);
+      preview.textContent = text;
+      preview.hidden = text === "";
+    };
+    $("f-announce").addEventListener("input", () => syncBannerPreview());
     api
       .getBanner()
       .then((raw) => {
@@ -1299,6 +1309,7 @@ function init(): void {
               !bannerMod.isExpired(preview.expires, bannerMod.localToday())
             ) {
               $("f-announce").value = preview.text;
+              syncBannerPreview();
               $("f-duration").value = "";
               const meta = $("announce-meta");
               meta.textContent =
@@ -1309,6 +1320,7 @@ function init(): void {
             }
           }
           $("f-announce").value = banner.text;
+          syncBannerPreview();
           const meta = $("announce-meta");
           if (banner.text === "") {
             meta.textContent = "No banner showing right now.";
@@ -1353,6 +1365,7 @@ function init(): void {
     // empty announcement — clearing is Remove's job, with its own words.
     $("announce-clear").addEventListener("click", () => {
       $("f-announce").value = "";
+      syncBannerPreview();
       saveBanner(true);
     });
 
