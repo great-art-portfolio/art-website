@@ -240,3 +240,10 @@ Push to main for CI; real upload test on barbart.ca/admin.
   says the orange edge shows where the card lands. Pinned by a test
   that reads the toast line immediately (a retrying assertion would
   out-wait the 6s toast and pass against the noisy code too).
+- Phone header wrap (135 e2e green): CI was red on three straight
+  pushes — the 390px no-sideways-scroll test failed only under
+  Linux fonts (system-ui falls back to wide DejaVu, +13px on the
+  admin nav row). The row now wraps below the wordmark on narrow
+  screens plus tighter phone padding/gaps, so it never scrolls
+  sideways whatever the font. Two rows on her iPhone too, roomier
+  taps, everything still visible.

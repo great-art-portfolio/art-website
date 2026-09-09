@@ -1001,17 +1001,22 @@ const currentSection = adminSection(Astro.url.pathname);
       display: none;
     }
     .site-nav {
-      padding: 0.7rem 1rem;
-      gap: 0.5rem;
+      padding: 0.7rem 0.75rem;
+      gap: 0.4rem;
+      /* Wide fallback fonts (CI's DejaVu overflows a 390px row by ~13px)
+         wrap the links below the wordmark instead of scrolling sideways. */
+      flex-wrap: wrap;
     }
     #signature {
       min-width: 0;
     }
     .nav-links {
-      gap: 0.6rem;
+      gap: 0.5rem;
     }
-    /* Studio sections all fit one row beside the CTA: smaller words,
-       arrow-only way home. */
+    /* Studio sections sit their own row below the wordmark: smaller
+       words, arrow-only way home, CTA at the end. One row proved
+       font-fragile (CI's DejaVu overflowed 390px by 13px), so the row
+       wraps instead of scrolling sideways. */
     .nav-links a.sec {
       font-size: 0.8rem;
     }
@@ -1022,7 +1027,7 @@ const currentSection = adminSection(Astro.url.pathname);
       display: inline;
     }
     .nav-links .nav-cta {
-      padding: 0.32rem 0.9rem;
+      padding: 0.32rem 0.8rem;
       font-size: 0.85rem;
     }
   }
