@@ -1,13 +1,11 @@
 ---
 import Layout from "../../layouts/Layout.astro";
-import AdminTabs from "../../components/AdminTabs.astro";
 import "../../components/studio.css";
 ---
 
 <Layout title="Good to know — Studio" wordmark="admin">
   <main class="admin" id="main">
-    <AdminTabs current="guide" />
-    <section class="card" id="sec-info">
+    <section id="sec-info">
       <h2>Good to know</h2>
       <p class="hint">
         When a buyer taps “Send inquiry” on a painting page, their note lands
@@ -89,9 +87,6 @@ import "../../components/studio.css";
   }
   #sec-info details[open] > :not(summary) {
     opacity: 1;
-  }
-  .card {
-    scroll-margin-top: 7rem;
   }
   @media (prefers-reduced-motion: reduce) {
     #sec-info details::details-content {

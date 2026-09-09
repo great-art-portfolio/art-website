@@ -8,15 +8,11 @@
   margin: 0 auto;
   padding: 2.5rem 1.5rem 4rem;
 }
-.card {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 1rem;
-  box-shadow: var(--shadow);
-  padding: clamp(1.25rem, 3vw, 2rem);
+/* Studio sections breathe on the page itself — whitespace, not boxes. */
+.admin > section {
   margin-block: 1.5rem;
 }
-.card h2 {
+.admin h2 {
   font-family: Georgia, "Iowan Old Style", Charter, serif;
   font-weight: 500;
   margin: 0 0 0.75rem;
@@ -28,9 +24,6 @@
   padding-bottom: 0.75rem;
   border-bottom: 1px solid var(--line);
   margin-bottom: 1rem;
-}
-.card ul a {
-  color: var(--accent);
 }
 /* No browser-blue links anywhere in the studio: visited matches unvisited. */
 .admin a,
@@ -148,23 +141,23 @@ button.primary:hover {
   border-color: var(--accent);
   color: var(--accent-ink);
 }
-.card h2 button {
+.admin h2 button {
   min-height: 2.2rem;
   padding: 0.25rem 0.9rem;
   font-size: 0.82rem;
   margin-left: auto;
 }
 /* Author display:inline-flex beats the UA [hidden] rule — re-hide. */
-.card h2 button[hidden] {
+.admin h2 button[hidden] {
   display: none;
 }
 .hint {
   font-size: 0.88rem;
   color: var(--muted);
 }
-/* Collapsed drawers ("Advanced", folds): the summary wears the h2 style
-   so the closed card still reads as a section header. */
-.card summary {
+/* Collapsed drawers ("Advanced", folds): the summary wears the h2
+   style so the closed section still reads as a section header. */
+.admin summary {
   font-family: Georgia, "Iowan Old Style", Charter, serif;
   font-weight: 500;
   font-size: 1.4rem;
@@ -175,11 +168,11 @@ button.primary:hover {
   margin: 1.5rem 0 1rem;
   list-style: none;
 }
-.card summary::-webkit-details-marker {
+.admin summary::-webkit-details-marker {
   display: none;
 }
 /* Custom disclosure mark: a chevron that turns down when open. */
-.card summary::before {
+.admin summary::before {
   content: ">";
   color: var(--accent);
   font-weight: 700;
@@ -187,10 +180,10 @@ button.primary:hover {
   display: inline-block;
   transition: transform 0.2s ease;
 }
-.card details[open] summary::before {
+.admin details[open] summary::before {
   transform: rotate(90deg);
 }
-.card summary:focus-visible {
+.admin summary:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -211,7 +204,7 @@ button.primary:hover {
   button:hover {
     transform: none;
   }
-  .card summary::before {
+  .admin summary::before {
     transition: none;
   }
 }

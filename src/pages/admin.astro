@@ -1,6 +1,5 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import AdminTabs from "../components/AdminTabs.astro";
 import { getCollection } from "astro:content";
 import { readdirSync } from "node:fs";
 import {
@@ -82,85 +81,81 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
 
 <Layout title="Artist Studio — Admin" wordmark="admin">
   <main class="admin" id="main">
-    <AdminTabs current="collection" />
-
-    <section class="card" id="sec-collection">
-      <h2>
-        <span id="collection-title">Collection</span>
-        <span id="collection-dev" hidden
-          >(Development only — changes aren't persisted)</span
-        >
-        <button type="button" id="collection-refresh" hidden>Retry</button>
-      </h2>
-      <ul id="edit-list">
-        <li class="list-group" data-group="available">
-          <div class="list-sub"><h3>Available</h3></div>
-          <ul class="group-rows" set:html={availableHtml} />
-        </li>
-        {
-          ssrDrafts.length > 0 && (
-            <details class="drafts-fold" data-group="drafts" open>
-              <summary>{ssrDraftLabel}</summary>
-              <ul class="group-rows" set:html={draftsHtml} />
-            </details>
-          )
-        }
-        {
-          soldCount > 0 && (
-            <details class="sold-fold" data-group="sold" open>
-              <summary>{soldLabel}</summary>
-              <ul class="group-rows" set:html={soldHtml} />
-            </details>
-          )
-        }
-        {
-          trashCount > 0 && (
-            <details class="trash-fold" data-group="trash">
-              <summary>{trashLabel}</summary>
-              <div class="fold-tools">
-                <button type="button" class="row-empty">
-                  Empty trash
-                </button>
-              </div>
-              <p class="hint">
-                Anything here over 30 days old clears itself. Deleted forever is
-                forever.
-              </p>
-              <ul class="group-rows" set:html={trashHtml} />
-            </details>
-          )
-        }
-      </ul>
-      <button type="button" id="practice-reset" hidden
-        >Clear practice changes</button
+    <h2>
+      <span id="collection-title">Collection</span>
+      <span id="collection-dev" hidden
+        >(Development only — changes aren't persisted)</span
       >
-      <script
-        is:inline
-        type="application/json"
-        id="local-collection"
-        set:html={localJson}
-      />
-      <div id="row-confirm" hidden>
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="row-confirm-title"
-          class="confirm-card"
-        >
-          <h2 id="row-confirm-title">Move to trash?</h2>
-          <p id="row-confirm-body">
-            This removes it from the site. Anything in trash restores in one
-            tap, for 30 days.
-          </p>
-          <div class="confirm-actions">
-            <button type="button" id="row-confirm-no">Keep it</button>
-            <button type="button" id="row-confirm-yes" disabled
-              >Move to trash</button
-            >
-          </div>
+      <button type="button" id="collection-refresh" hidden>Retry</button>
+    </h2>
+    <ul id="edit-list">
+      <li class="list-group" data-group="available">
+        <div class="list-sub"><h3>Available</h3></div>
+        <ul class="group-rows" set:html={availableHtml} />
+      </li>
+      {
+        ssrDrafts.length > 0 && (
+          <details class="drafts-fold" data-group="drafts" open>
+            <summary>{ssrDraftLabel}</summary>
+            <ul class="group-rows" set:html={draftsHtml} />
+          </details>
+        )
+      }
+      {
+        soldCount > 0 && (
+          <details class="sold-fold" data-group="sold" open>
+            <summary>{soldLabel}</summary>
+            <ul class="group-rows" set:html={soldHtml} />
+          </details>
+        )
+      }
+      {
+        trashCount > 0 && (
+          <details class="trash-fold" data-group="trash">
+            <summary>{trashLabel}</summary>
+            <div class="fold-tools">
+              <button type="button" class="row-empty">
+                Empty trash
+              </button>
+            </div>
+            <p class="hint">
+              Anything here over 30 days old clears itself. Deleted forever is
+              forever.
+            </p>
+            <ul class="group-rows" set:html={trashHtml} />
+          </details>
+        )
+      }
+    </ul>
+    <button type="button" id="practice-reset" hidden
+      >Clear practice changes</button
+    >
+    <script
+      is:inline
+      type="application/json"
+      id="local-collection"
+      set:html={localJson}
+    />
+    <div id="row-confirm" hidden>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="row-confirm-title"
+        class="confirm-card"
+      >
+        <h2 id="row-confirm-title">Move to trash?</h2>
+        <p id="row-confirm-body">
+          This removes it from the site. Anything in trash restores in one tap,
+          for 30 days.
+        </p>
+        <div class="confirm-actions">
+          <button type="button" id="row-confirm-no">Keep it</button>
+          <button type="button" id="row-confirm-yes" disabled
+            >Move to trash</button
+          >
         </div>
       </div>
-    </section>
+    </div>
   </main>
 </Layout>
 
@@ -168,8 +163,22 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
 
 <style>
   /* Collection page keeps its own list/row/fold styles below. Shared
-     studio primitives (.card, forms, buttons, drawer summaries, toast)
-     live in components/studio.css and components/AdminTabs.astro. */
+     studio primitives (headings, forms, buttons, drawer summaries)
+     live in components/studio.css; the header owns the section nav
+     and the toast. */
+  /* Dev-only suffix rides under the heading as small muted words,
+     never a second headline — and never in production (hidden). */
+  :global(#collection-dev) {
+    flex-basis: 100%;
+    font-family:
+      system-ui,
+      -apple-system,
+      "Segoe UI",
+      sans-serif;
+    font-size: 0.85rem;
+    font-weight: 400;
+    color: var(--muted);
+  }
   /* Row view counts: quiet follow-on to the price, gone entirely
      until the counts arrive (no flash, no shove). */
   :global(#edit-list .row-views:empty) {
@@ -504,6 +513,9 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
     :global(#edit-list [draggable="true"]) {
       cursor: grab;
     }
+    :global(#edit-list [draggable="true"]:active) {
+      cursor: grabbing;
+    }
     :global(#edit-list .row-card.drop-before) {
       box-shadow: inset 0 3px 0 var(--accent);
     }
@@ -533,14 +545,12 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
       height: auto;
       aspect-ratio: 4 / 3;
     }
-    /* Drafts and Trash are waiting shelves, not the show: compact
-       horizontal rows with small thumbs, flowing into as many columns
-       as fit — never the big photo-on-top cards. */
-    :global(#edit-list .drafts-fold .group-rows),
+    /* Trash is a waiting shelf, not the show: compact horizontal rows
+       with small thumbs — never the big photo-on-top cards. Drafts
+       wear the same cards as Available: they are future inventory. */
     :global(#edit-list .trash-fold .group-rows) {
       grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
     }
-    :global(#edit-list .drafts-fold li.row-card),
     :global(#edit-list .trash-fold li.row-card) {
       display: flex;
       gap: 0.6rem;
@@ -548,13 +558,9 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
       padding: 0.5rem 0.75rem;
       font-size: 0.85rem;
     }
-    :global(#edit-list .drafts-fold img.thumb),
     :global(#edit-list .trash-fold img.thumb) {
       width: 3rem;
       height: 3rem;
     }
-  }
-  .card {
-    scroll-margin-top: 7rem;
   }
 </style>

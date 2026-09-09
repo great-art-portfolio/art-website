@@ -1,6 +1,5 @@
 ---
 import Layout from "../../layouts/Layout.astro";
-import AdminTabs from "../../components/AdminTabs.astro";
 import { getCollection } from "astro:content";
 import { slugifyTitle } from "../../lib/site";
 import "../../components/studio.css";
@@ -22,8 +21,7 @@ const seedJson = JSON.stringify(seed).replace(/</g, "\\u003c");
 
 <Layout title="Views — Studio" wordmark="admin">
   <main class="admin" id="main">
-    <AdminTabs current="views" />
-    <section class="card" id="sec-views">
+    <section id="sec-views">
       <h2>Views</h2>
       <p class="hint">
         Which paintings visitors open most — past 30 days, most watched first.

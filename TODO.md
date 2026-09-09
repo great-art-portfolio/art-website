@@ -180,3 +180,12 @@ Push to main for CI; real upload test on barbart.ca/admin.
   paintings only, no drafts/studio) + robots.txt (studio disallowed);
   buyer pages share the painting photo with absolute addresses
   (was: site icon on a localhost URL).
+- Studio redesign from taste + screenshots (140 unit*, 130 e2e green):
+  sections live in the header nav (aria-current, arrow-only Leave on
+  phones) — AdminTabs.astro deleted, toast moved to Layout;
+  sec-collection unwrapped (children straight on main) and all four
+  admin sections de-carded to whitespace; drafts wear the same photo
+  cards as Available (trash stays compact); grab fist closes mid-drag
+  (`:active grabbing`); dev suffix reads as a muted sub-line.
+  *Unit reads 140, matching HEAD exactly — every added block verified
+  running; the earlier 156 sighting never reproduced.

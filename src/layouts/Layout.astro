@@ -35,6 +35,17 @@ const selfPath =
 const canonical = canonicalOverride ?? selfPath;
 const year = new Date().getFullYear();
 const artistLabel = ARTIST_NAME ?? "The Studio";
+// Studio sections live in the header nav now (one nav, not two).
+// Rooms match nothing — they keep every door but mark none current.
+function adminSection(path: string): string | null {
+  const clean = path.length > 1 ? path.replace(/\/$/, "") : path;
+  if (clean === "/admin") return "collection";
+  if (clean.startsWith("/admin/banner")) return "banner";
+  if (clean.startsWith("/admin/views")) return "views";
+  if (clean.startsWith("/admin/guide")) return "guide";
+  return null;
+}
+const currentSection = adminSection(Astro.url.pathname);
 ---
 
 <!doctype html>
@@ -109,8 +120,34 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
           {
             wordmark === "admin" ? (
               <>
-                <a href="/" class="keep" id="leave-admin">
-                  ← Leave Admin
+                {(
+                  [
+                    ["collection", "/admin", "Collection"],
+                    ["banner", "/admin/banner", "Banner"],
+                    ["views", "/admin/views", "Views"],
+                    ["guide", "/admin/guide", "Guide"],
+                  ] as const
+                ).map(([id, href, label]) => (
+                  <a
+                    href={href}
+                    class="sec keep"
+                    aria-current={currentSection === id ? "page" : undefined}
+                  >
+                    {label}
+                  </a>
+                ))}
+                <a
+                  href="/"
+                  class="keep"
+                  id="leave-admin"
+                  aria-label="Leave Admin"
+                >
+                  <span aria-hidden="true" class="leave-full">
+                    ← Leave Admin
+                  </span>
+                  <span aria-hidden="true" class="leave-short">
+                    ←
+                  </span>
                 </a>
                 <a href="/admin/paintings/new" class="nav-cta">
                   Add painting
@@ -129,6 +166,14 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
         </div>
       </nav>
     </header>
+    {
+      /* Studio toast: news finds her wherever she is scrolled. Empty
+         means gone entirely (see :empty below); buyer pages never fill
+         it. Moved up from the old second nav so one nav is enough. */
+      wordmark === "admin" && (
+        <p id="admin-status" role="status" data-tone="ok" />
+      )
+    }
 
     <img
       id="background"
@@ -684,6 +729,58 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
     outline-offset: 3px;
     border-radius: 0.35rem;
   }
+  /* The open studio section reads current: full strength with its
+     underline on, no pill, no color flash. */
+  .nav-links a[aria-current="page"] {
+    opacity: 1;
+    text-decoration-color: currentColor;
+  }
+  /* Way home shrinks to its arrow on phones; the word returns on
+     wider screens. */
+  #leave-admin .leave-short {
+    display: none;
+  }
+  /* Studio toast, fixed under the sticky header: news finds her
+     wherever she is scrolled. Empty (no message) means gone entirely. */
+  #admin-status {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    top: max(5rem, env(safe-area-inset-top, 1rem));
+    width: min(36rem, calc(100% - 2rem));
+    z-index: 40;
+    margin: 0;
+    padding: 0.8rem 1.1rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    /* Inverted and fully solid: it floats over busy page content, so a
+       card-colored pill lets the page bleed through behind the words. */
+    background: var(--ink);
+    color: var(--paper);
+    font-size: 0.95rem;
+    box-shadow: var(--shadow);
+  }
+  /* Opacity-only, both directions: a fade-in on every new message
+     (re-triggered from the panel) and a fade-out on its way away.
+     No travel — so it runs under every motion setting. */
+  #admin-status.toast-in {
+    animation: toast-in 0.25s ease;
+  }
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+    }
+  }
+  #admin-status.toast-out {
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+  #admin-status[data-tone="error"] {
+    border-color: var(--danger);
+  }
+  #admin-status:empty {
+    display: none;
+  }
 
   /* Collector signup modal: one small card, dimmed page behind. */
   #notify-dialog {
@@ -893,7 +990,18 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
       min-width: 0;
     }
     .nav-links {
-      gap: 0.75rem;
+      gap: 0.6rem;
+    }
+    /* Studio sections all fit one row beside the CTA: smaller words,
+       arrow-only way home. */
+    .nav-links a.sec {
+      font-size: 0.8rem;
+    }
+    #leave-admin .leave-full {
+      display: none;
+    }
+    #leave-admin .leave-short {
+      display: inline;
     }
     .nav-links .nav-cta {
       padding: 0.32rem 0.9rem;

@@ -366,22 +366,27 @@ test("drafts stay out of the gallery and buyer pages", async ({ page }) => {
 test("studio pages render their section and new-painting door", async ({
   page,
 }) => {
-  // One section per page, reached through the tab bar — no anchor strip.
-  const pages: Array<[string, string]> = [
-    ["/admin", "#sec-collection"],
-    ["/admin/banner", "#sec-banner"],
-    ["/admin/views", "#sec-views"],
-    ["/admin/guide", "#sec-info"],
+  // One section per page, reached through the header nav — no second
+  // nav, no anchor strip. Collection hangs its list straight on main.
+  const pages: Array<[string, string | null, string]> = [
+    ["/admin", null, "Collection"],
+    ["/admin/banner", "#sec-banner", "Banner"],
+    ["/admin/views", "#sec-views", "Views"],
+    ["/admin/guide", "#sec-info", "Guide"],
   ];
-  for (const [url, id] of pages) {
+  for (const [url, id, current] of pages) {
     await page.goto(url);
-    await expect(page.locator(id)).toBeAttached();
-    // The tab bar names all four pages, marking the open one.
+    if (id !== null) await expect(page.locator(id)).toBeAttached();
+    // The header names all four pages, marking the open one.
     for (const label of ["Collection", "Banner", "Views", "Guide"]) {
       await expect(
-        page.locator(".admin-tabs").getByRole("link", { name: label }),
+        page.locator(".site-nav").getByRole("link", { name: label }),
       ).toBeVisible();
     }
+    await expect(
+      page.locator(".site-nav").getByRole("link", { name: current }),
+    ).toHaveAttribute("aria-current", "page");
+    await expect(page.locator(".admin-tabs")).toHaveCount(0);
   }
   await expect(page.locator(".subnav")).toHaveCount(0);
   // New paintings start in their own room through the header button.
@@ -406,9 +411,7 @@ test("admin mode keeps painting-to-painting navigation in reach", async ({
   await adminPage.goto(`/paintings/${available[0].slug}`);
   // Back to the collection (all paintings) and across to the studio.
   await expect(adminPage.locator('.crumbs a[href="/"]')).toBeVisible();
-  await expect(
-    adminPage.locator('#admin-bar a[href="/admin#sec-collection"]'),
-  ).toBeVisible();
+  await expect(adminPage.locator('#admin-bar a[href="/admin"]')).toBeVisible();
   await authed.close();
 });
 

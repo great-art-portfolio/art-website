@@ -190,10 +190,15 @@ function stubMd(title: string, extra = ""): string {
 test("studio header links home, never to visitor funnels", async ({ page }) => {
   await mockCommitApi(page);
   await page.goto("/admin");
-  // ← Leave Admin, Add painting. Leave doubles as logout (clears the token).
-  // View counts live inside the collection rows themselves, so the nav
-  // carries no metrics link.
-  await expect(page.locator(".site-nav .nav-links a")).toHaveCount(2);
+  // One nav: four sections, ← Leave Admin, Add painting. Leave doubles
+  // as logout (clears the token). View counts live inside the
+  // collection rows themselves, so the nav carries no metrics link.
+  await expect(page.locator(".site-nav .nav-links a")).toHaveCount(6);
+  for (const label of ["Collection", "Banner", "Views", "Guide"]) {
+    await expect(
+      page.locator(".site-nav").getByRole("link", { name: label }),
+    ).toBeVisible();
+  }
   await expect(page.locator("#nav-metrics")).toHaveCount(0);
   await expect(
     page.locator('nav a.nav-cta[href="/admin/paintings/new"]'),
@@ -328,7 +333,7 @@ test("reduced motion kills movement, keeps gentle fades", async ({ page }) => {
   );
 });
 
-test("collection rows stop well short of the card edge on desktop", async ({
+test("collection rows stop well short of the content edge on desktop", async ({
   page,
 }) => {
   await page.goto("/admin");
@@ -337,10 +342,9 @@ test("collection rows stop well short of the card edge on desktop", async ({
   // Rows arrive as static markup — no skeleton flash, no layout shift.
   await expect(page.locator("#edit-list .row-card").first()).toBeVisible();
   await expect(page.locator("#edit-list .skel")).toHaveCount(0);
-  // Available fills the whole card — no empty half. The Drafts and
-  // Sold folds stack below it as full-width rows, not side columns.
-  const card =
-    (await page.locator("#sec-collection").boundingBox())?.width ?? 0;
+  // Available fills the whole content width — no empty half. The Drafts
+  // and Sold folds stack below it as full-width rows, not side columns.
+  const main = (await page.locator("main.admin").boundingBox())?.width ?? 0;
   const groups = page.locator("#edit-list .list-group");
   await expect(
     page.locator('#edit-list .list-group[data-group="available"]'),
@@ -350,7 +354,7 @@ test("collection rows stop well short of the card edge on desktop", async ({
     total += (await groups.nth(i).boundingBox())?.width ?? 0;
   }
   expect(total).toBeGreaterThan(0);
-  expect(total).toBeGreaterThan(card * 0.85);
+  expect(total).toBeGreaterThan(main * 0.85);
   // A grid of paintings, not a 1D list: cards sit side by side.
   const cards = page.locator(
     '#edit-list .list-group[data-group="available"] .row-card',
@@ -605,6 +609,29 @@ test("dragging Sold rows commits the new sold order", async ({ browser }) => {
   expect(after).not.toEqual(before);
   expect(after[at]).toBe(before[0]);
   await authed.close();
+});
+
+test("draggable rows show the grab fist, closing it mid-drag", async ({
+  page,
+}) => {
+  await page.goto("/admin");
+  const card = page.locator('[data-group="available"] .row-card').first();
+  await expect(card).toHaveAttribute("draggable", "true", {
+    timeout: 15_000,
+  });
+  await expect
+    .poll(
+      async () => await card.evaluate((el) => getComputedStyle(el).cursor),
+      { timeout: 15_000 },
+    )
+    .toBe("grab");
+  // A held press closes the fist — released anywhere, no commit.
+  await card.hover();
+  await page.mouse.down();
+  await expect
+    .poll(async () => await card.evaluate((el) => getComputedStyle(el).cursor))
+    .toBe("grabbing");
+  await page.mouse.up();
 });
 
 test("delete moves to trash, restore brings it back, purge destroys", async ({
@@ -1094,7 +1121,8 @@ test("studio dashboard grids without sideways scroll on a phone", async ({
   });
   const page = await context.newPage();
   await page.goto("/admin");
-  // The anchor strip is gone; one section per page, reached by tabs.
+  // The anchor strip is gone; one section per page, reached through
+  // the single header nav.
   await expect(page.locator(".subnav")).toHaveCount(0);
   const overflow = await page.evaluate(
     () =>
@@ -1102,9 +1130,9 @@ test("studio dashboard grids without sideways scroll on a phone", async ({
       document.documentElement.clientWidth,
   );
   expect(overflow).toBeLessThanOrEqual(0);
-  // The collection card is the first thing a phone shows — tabs above
-  // it wrap instead of scrolling sideways.
-  await expect(page.locator("#sec-collection")).toBeVisible();
+  // The collection list is the first thing a phone shows — the single
+  // header nav fits beside it without scrolling sideways.
+  await expect(page.locator("#edit-list")).toBeVisible();
   // Her way home stays visible on a phone (non-CTA links hide by default).
   await expect(
     page.locator('.site-nav .nav-links a.keep[href="/"]'),
@@ -1461,7 +1489,9 @@ test("gallery link leaves admin and lands home", async ({ browser }) => {
     window.localStorage.setItem("ADMIN_API_TOKEN", "test"),
   );
   await page.reload();
-  await expect(page.locator("#leave-admin")).toHaveText("← Leave Admin");
+  // Full words on desktop, arrow-only on phones — either way it reads
+  // as leaving.
+  await expect(page.locator("#leave-admin")).toContainText("Leave Admin");
   await page.locator("#leave-admin").click();
   await expect(page).toHaveURL(/\/$/);
   const leftover = await page.evaluate(() => {
