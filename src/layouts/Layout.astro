@@ -509,6 +509,10 @@ const currentSection = adminSection(Astro.url.pathname);
         }
       }
 
+      // Drawer opens repaint while the load-time paint may still be
+      // awaiting push state — only the latest run may write, so a fast
+      // drawer never gets yesterday's verdict over today's.
+      let paintSeq = 0;
       async function paintNotify() {
         const btnEl = document.getElementById("notify-btn");
         const btn = btnEl instanceof HTMLButtonElement ? btnEl : null;
@@ -518,7 +522,9 @@ const currentSection = adminSection(Astro.url.pathname);
         wireNotifyEmail();
         // Email works for everyone; the push button only appears where
         // push can work.
+        const run = ++paintSeq;
         const s = await notifyPush().then((api) => api.pushState());
+        if (run !== paintSeq) return;
         if (s === "unsupported") {
           btn.hidden = true;
           if (blurb !== null) blurb.hidden = true;

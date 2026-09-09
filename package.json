@@ -14,7 +14,7 @@
     "check": "astro check",
     "check:inline": "node scripts/check-inline-js.mjs",
     "test:e2e": "playwright test",
-    "test:unit": "node --test \"tests/unit/**/*.test.mjs\"",
+    "test:unit": "node --test --import ./tests/unit/register-loader.mjs \"tests/unit/**/*.test.mjs\"",
     "ar:backfill": "node scripts/ar-backfill/run.mjs",
     "icons": "node scripts/icons.mjs",
     "vendor": "node scripts/vendor/build.mjs",

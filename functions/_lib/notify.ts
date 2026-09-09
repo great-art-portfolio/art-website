@@ -130,16 +130,6 @@ export interface SiteEmail {
   headers?: Record<string, string>;
 }
 
-/**
- * Resend REST root. Production is api.resend.com; the e2e suite points
- * it at an in-spec mock server instead, so the full subscribe →
- * confirm → broadcast flow runs through the real Functions with zero
- * live calls. Never set this outside tests.
- */
-export function resendBase(env: AppEnv): string {
-  return env.RESEND_API_BASE ?? "https://api.resend.com";
-}
-
 export function resendHeaders(env: AppEnv): Record<string, string> {
   return {
     Authorization: `Bearer ${env.RESEND_API_KEY ?? ""}`,
@@ -164,7 +154,7 @@ export async function sendSiteEmail(
     return false;
   if (mail.to.some((t) => t === "")) return false;
   if (mail.to.length === 0) return false;
-  const res = await fetch(`${resendBase(env)}/emails`, {
+  const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: resendHeaders(env),
     body: JSON.stringify({
@@ -200,7 +190,7 @@ export async function listSegmentContacts(
   if (seg === "") return [];
   try {
     const res = await fetch(
-      `${resendBase(env)}/segments/${encodeURIComponent(seg)}/contacts`,
+      `https://api.resend.com/segments/${encodeURIComponent(seg)}/contacts`,
       { headers: resendHeaders(env) },
     );
     if (!res.ok) {
@@ -280,7 +270,7 @@ export async function sendSegmentBroadcast(
   if (inbox === "") return false;
   const { subject, text } = segmentBroadcastEmail(site);
   try {
-    const res = await fetch(`${resendBase(env)}/broadcasts`, {
+    const res = await fetch("https://api.resend.com/broadcasts", {
       method: "POST",
       headers: resendHeaders(env),
       body: JSON.stringify({
@@ -315,7 +305,7 @@ export async function syncContactSubscribed(
   }
   if (seg === "" || email === "") return false;
   try {
-    const created = await fetch(`${resendBase(env)}/contacts`, {
+    const created = await fetch("https://api.resend.com/contacts", {
       method: "POST",
       headers: resendHeaders(env),
       body: JSON.stringify({
@@ -326,7 +316,7 @@ export async function syncContactSubscribed(
     });
     if (created.ok) return true;
     const added = await fetch(
-      `${resendBase(env)}/contacts/${encodeURIComponent(email)}/segments/${encodeURIComponent(seg)}`,
+      `https://api.resend.com/contacts/${encodeURIComponent(email)}/segments/${encodeURIComponent(seg)}`,
       { method: "POST", headers: resendHeaders(env) },
     );
     if (!added.ok)
@@ -349,7 +339,7 @@ export async function syncContactRemoved(
   if (seg === "" || email === "") return false;
   try {
     const res = await fetch(
-      `${resendBase(env)}/contacts/${encodeURIComponent(email)}`,
+      `https://api.resend.com/contacts/${encodeURIComponent(email)}`,
       { method: "DELETE", headers: resendHeaders(env) },
     );
     if (res.ok || res.status === 404) return true;

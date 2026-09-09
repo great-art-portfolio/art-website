@@ -140,7 +140,7 @@ test("notify buttons open the signup modal", async ({ page }) => {
   await expect(page.locator("#notify-email-form")).toBeVisible();
 });
 
-test("email capture form joins the list", async ({ page }) => {
+test("email capture form answers in accent", async ({ page }) => {
   await page.goto("/");
   await page.locator("#notify-nav").click();
   await expect(page.locator("#notify-dialog")).toBeVisible();
@@ -148,8 +148,9 @@ test("email capture form joins the list", async ({ page }) => {
   await expect(page.locator("#notify-email-form")).toBeVisible();
   await page.locator("#notify-email").fill("e2e-fan@example.com");
   await page.locator("#notify-email-form button[type=submit]").click();
+  // Keyless the list isn't set up — the error still answers in theme accent.
   await expect(page.locator("#notify-status")).toContainText(
-    "Check your inbox",
+    "That didn't work",
   );
   // Status answers in the theme's accent, not body-copy muted.
   await expect(page.locator("#notify-status")).toHaveCSS(
@@ -187,7 +188,9 @@ test("modal status fades away on its own", async ({ page }) => {
   await page.locator("#notify-email").fill("e2e-fan@example.com");
   await page.locator("#notify-email-form button[type=submit]").click();
   const hint = page.locator("#notify-status");
-  await expect(hint).toContainText("Check your inbox");
+  // Keyless the list isn't set up (the error, not the inbox line) —
+  // either way it fades on its own.
+  await expect(hint).toContainText("That didn't work");
   await expect(hint).toBeEmpty({ timeout: 10_000 });
 });
 
@@ -199,7 +202,8 @@ test("modal status unfolds the card, then folds away", async ({ page }) => {
   await page.locator("#notify-email").fill("e2e-fan@example.com");
   await page.locator("#notify-email-form button[type=submit]").click();
   const hint = page.locator("#notify-status");
-  await expect(hint).toContainText("Check your inbox");
+  // Keyless the list isn't set up — the error text still unfolds the card.
+  await expect(hint).toContainText("That didn't work");
   // Unfolded: the row holds real height and the card grew for it.
   await expect(wrap).toHaveCSS("grid-template-rows", /[1-9]/);
   const mid = await dialog.evaluate((el) => el.getBoundingClientRect().height);
@@ -223,14 +227,15 @@ test("blocked push state stays put, not faded", async ({ page }) => {
   await expect(hint).toContainText("blocked");
 });
 
-test("buyer signup accepts a good address, rejects a bad one", async ({
+test("buyer signup validates, and needs the list set up", async ({
   request,
 }) => {
+  // Keyless there is no Resend backend, so even a good address fails
+  // loudly instead of pretending to join.
   const ok = await request.post("/api/collectors", {
     data: { email: "api-fan@example.com" },
   });
-  expect(ok.status()).toBe(201);
-  expect((await ok.json()).ok).toBe(true);
+  expect(ok.status()).toBe(500);
 
   const bad = await request.post("/api/collectors", {
     data: { email: "not-an-email" },
