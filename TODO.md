@@ -247,3 +247,9 @@ Push to main for CI; real upload test on barbart.ca/admin.
   screens plus tighter phone padding/gaps, so it never scrolls
   sideways whatever the font. Two rows on her iPhone too, roomier
   taps, everything still visible.
+- De-flaked two CI-only timing tests (both failed past pushes):
+  the toast mid-fade pins animation-name/duration now (the 0.25s
+  run finished between round-trips, reading 0 animations), and the
+  inquiry hover test parks the mouse off the form first (the reveal
+  drawer slid the input under the parked pointer, starting its
+  hover fade before the "rest" assertion).

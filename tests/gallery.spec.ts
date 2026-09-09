@@ -81,6 +81,9 @@ test("inquiry fields preview their ring on hover", async ({ page }) => {
   await page.locator("#inquiry-form h2").click();
   const name = page.locator('#inquiry-form input[name="name"]');
   await expect(name).toBeVisible();
+  // Park the pointer off the form: the reveal drawer can slide the
+  // input under a parked mouse and start its hover fade early.
+  await page.mouse.move(5, 5);
   // At rest the ring is transparent — the box answers the pointer.
   await expect(name).toHaveCSS("outline-color", "rgba(0, 0, 0, 0)");
   await name.hover();

@@ -1461,10 +1461,12 @@ test("toast words fade in and out, even under reduced motion", async ({
   expect(high.position).toBe("fixed");
   expect(high.top).toBeGreaterThan(60);
   expect(high.top).toBeLessThan(200);
-  // Opacity-only fade runs despite reduced motion.
+  // Opacity-only fade runs despite reduced motion. Pinned by name,
+  // not by a live getAnimations count — the 0.25s run finishes
+  // between round-trips under CI load, so an instant read flakes 0.
   await expect(toast).toHaveClass(/toast-in/);
-  const running = await toast.evaluate((el) => el.getAnimations().length);
-  expect(running).toBeGreaterThanOrEqual(1);
+  await expect(toast).toHaveCSS("animation-name", "toast-in");
+  await expect(toast).toHaveCSS("animation-duration", "0.25s");
   // Six seconds later it fades out instead of snapping away.
   await page.clock.fastForward(6000);
   await expect(toast).toHaveClass(/toast-out/);
