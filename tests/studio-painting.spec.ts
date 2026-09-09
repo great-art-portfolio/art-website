@@ -449,3 +449,25 @@ test("unsaved typing survives a refresh, silently", async ({ page }) => {
   await expect(page.locator("#pv-title")).toHaveText("Half-typed thaw");
   await expect(page.locator("#de-status")).toBeEmpty();
 });
+
+test("description box grows with its words, never scrolls", async ({
+  page,
+}) => {
+  await page.goto("/admin/paintings/new");
+  const desc = page.locator("#de-desc");
+  await expect(desc).toBeVisible();
+  const empty = (await desc.boundingBox())?.height ?? 0;
+  // Six lines in: the box grows instead of scrolling.
+  await desc.fill(
+    ["One.", "Two.", "Three.", "Four.", "Five.", "Six."].join("\n"),
+  );
+  await expect
+    .poll(async () => (await desc.boundingBox())?.height ?? 0, {
+      timeout: 5000,
+    })
+    .toBeGreaterThan(empty + 40);
+  // Growth, not a scrollbar: everything typed stays visible.
+  expect(
+    await desc.evaluate((el) => el.scrollHeight - el.clientHeight),
+  ).toBeLessThanOrEqual(2);
+});

@@ -256,6 +256,13 @@ Push to main for CI; real upload test on barbart.ca/admin.
 - Buyer, not collector, in buyer-facing words (privacy page alerts
   copy + signup test title). Code identifiers stay: /api/collectors
   and the email_collectors table are load-bearing names.
+- Easy CSS wins taken (136 e2e green): textareas auto-grow with
+  field-sizing: content (lh floors keep the empty rows height;
+  inputs untouched), accent-color on the native date picker. The
+  AI's checkbox accent-color was dead on arrival — studio boxes are
+  hand-drawn appearance:none. light-dark(), :where() nesting,
+  container queries, content-visibility, anchor positioning, and
+  dvh all declined on the record (risk without reward).
 - CI retries the browser install (apt mirror exit 100 twice running,
   failing runs before any gate; PAT can't rerun, hence the empty
   retrigger commit). Root cause: Google's Chrome repo serves a stale

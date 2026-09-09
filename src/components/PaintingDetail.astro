@@ -1133,6 +1133,18 @@ const eyebrow =
       border-color 0.2s ease,
       box-shadow 0.2s ease;
   }
+  /* Long text grows with its words; rows= stays the fallback where
+     field-sizing isn't supported. The lh floor keeps the empty box at
+     its rows height (an empty content-sized box would collapse to one
+     line); lh support predates field-sizing, so the pair is safe.
+     Text inputs keep their fixed height. */
+  textarea {
+    field-sizing: content;
+    min-height: calc(3lh + 1.2rem);
+  }
+  #de-desc {
+    min-height: calc(4lh + 1.2rem);
+  }
   /* No hover warming on text fields: browsers forward label hover to
      the wrapped field, so "hovering the box" can't be told apart from
      "hovering its Title" — any :hover tint would fire on both. Fields
@@ -1334,6 +1346,10 @@ const eyebrow =
     min-height: 3rem;
     min-width: 9rem;
     box-sizing: border-box;
+    /* The studio checkboxes are hand-drawn (appearance: none), so
+       accent-color would be dead on them — it only tints this native
+       picker's glyph. */
+    accent-color: var(--accent);
   }
   .de-check input[type="date"]:hover {
     border-color: var(--muted);
