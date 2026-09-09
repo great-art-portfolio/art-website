@@ -18,6 +18,10 @@ export interface AppEnv {
   CF_ANALYTICS_TOKEN?: string;
   CF_ANALYTICS_SITE?: string;
   RESEND_API_KEY?: string;
+  /** Resend segment holding the confirmed new-painting list. Broadcasts
+   * go to the segment (marketing quota: unlimited sends); one-to-one
+   * mail (confirmations, goodbyes, inquiries) stays transactional. */
+  RESEND_SEGMENT_ID?: string;
   /** The address mail goes out from, as the artist. Must be on the
    * verified Resend domain, or mail only reaches the Resend account
    * email. */

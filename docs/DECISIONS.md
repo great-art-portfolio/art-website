@@ -52,11 +52,22 @@ her phone only ever talks to our own admin endpoint.
 
 ## Email + push
 
-Workers can't run an SMTP server, so mail goes through Resend. Collector
-push is Web Push (VAPID) fanned out from `/admin`; the service worker
-shows a generic tickle and the gallery does the talking. ntfy stays as
-the free phone ping for _inquiry_ alerts (optional second channel
-alongside email), Pushover optional.
+Workers can't run an SMTP server, so mail goes through Resend, split
+across its two free tiers: one-to-one mail (inquiries, confirmations,
+goodbyes) goes transactional (3,000/month, 100/day); new-painting
+broadcasts go to a Resend segment via the Broadcasts API (free
+marketing tier: 1,000 contacts, unlimited sends). Setup: create the
+segment once in the Resend dashboard, set `RESEND_SEGMENT_ID`, and the
+site mirrors the confirmed list into it (confirm adds, unsubscribe
+deletes). D1 stays the source of truth — a failed sync only logs.
+Without a segment configured, broadcasts fall back to one
+transactional email each. Caveat: if a buyer unsubscribes through
+Resend's own link instead of ours, D1 still shows them confirmed —
+re-confirming re-adds them, so check the Resend dashboard when counts
+look off. Collector push is Web Push (VAPID) fanned out from `/admin`;
+the service worker shows a generic tickle and the gallery does the
+talking. ntfy stays as the free phone ping for _inquiry_ alerts
+(optional second channel alongside email), Pushover optional.
 
 ## Checkout + shipping (disabled until needed)
 

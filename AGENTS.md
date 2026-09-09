@@ -68,10 +68,8 @@ bundles the block and `import("../lib/x")` resolves.
 4. `dataset["data-local-edit"]` is `undefined` — hyphenated data attrs
    read camelCase (`dataset.localEdit`).
 
-Node unit tests import through the extensionless style the bundler uses
-(`../lib/x`), so `src/lib` must stay importable without an extension —
-never add an extension to satisfy node, and never let a lib module import
-something node can't load (move API-dependent helpers to `lib/api.ts`).
+Never let a lib module import something node can't load (move
+API-dependent helpers to `lib/api.ts`).
 
 ## Where logic lives
 

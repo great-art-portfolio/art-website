@@ -13,6 +13,8 @@ import {
   confirmEmail,
   goodbyeEmail,
   sendSiteEmail,
+  syncContactRemoved,
+  syncContactSubscribed,
 } from "../_lib/notify";
 import { turnstileOk } from "../_lib/turnstile";
 
@@ -80,11 +82,17 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       new URL(context.request.url).searchParams.get("token") ??
       "";
     try {
-      if (!(await confirmCollectorEmail(context.env, token))) {
+      const confirmedEmail = await confirmCollectorEmail(context.env, token);
+      if (confirmedEmail === null) {
         return badRequest(
           "That link didn't work — join again from any Notify me box.",
         );
       }
+      // Mirror the join into the Resend segment; a failed sync only
+      // logs — D1 stays the source of truth.
+      await syncContactSubscribed(context.env, confirmedEmail).catch(
+        () => false,
+      );
       return json({ ok: true });
     } catch (err) {
       console.error(err);
@@ -106,6 +114,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
             replyTo: artistInbox(context.env),
             ...goodbyeEmail(),
           }).catch(() => false);
+          await syncContactRemoved(context.env, removed).catch(() => false);
         }
         return json({ ok: true });
       }
@@ -125,6 +134,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
           replyTo: artistInbox(context.env),
           ...goodbyeEmail(),
         }).catch(() => false);
+        await syncContactRemoved(context.env, email).catch(() => false);
         return json({ ok: true });
       }
       return badRequest("Invalid request");

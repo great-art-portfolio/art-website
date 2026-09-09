@@ -55,6 +55,8 @@ CF_ANALYTICS_SITE = "ddd0b31f86c24e31a4fbabd86185e210"  # beacon token doubles a
 #   TURNSTILE_SITE_KEY  - plain var from Security > Turnstile > Add site
 #   TURNSTILE_SECRET_KEY - secret from the same Turnstile widget
 #   RESEND_API_KEY      - Resend API key for buyer-inquiry emails
+#   RESEND_SEGMENT_ID   - Resend segment for the new-painting list (dashboard > Audiences > Segments > copy ID).
+#                         Plain ID, set as a var or secret. Empty = broadcasts fall back to one email each.
 #   ARTIST_SENDER   - e.g. "Gallery <hello@yourdomain.ca>"
 #   ARTIST_INBOX     - the artist's inbox (mom's email address)
 #   ADMIN_API_TOKEN     - shared secret for /admin API calls (defense in depth behind Access)

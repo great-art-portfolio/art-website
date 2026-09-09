@@ -78,28 +78,36 @@ export async function signupCollectorEmail(
   return { token, already: false };
 }
 
-/** Tap the confirmation link: unexpired and unconfirmed becomes confirmed. */
+/**
+ * Tap the confirmation link: unexpired and unconfirmed becomes
+ * confirmed. Returns the address, or null when the link is dead — the
+ * caller needs the address to mirror the join into Resend.
+ */
 export async function confirmCollectorEmail(
   env: AppEnv,
   token: string,
-): Promise<boolean> {
-  if (token === "") return false;
+): Promise<string | null> {
+  if (token === "") return null;
   const row = await env.DB.prepare(
-    "SELECT token_created_at, confirmed_at FROM email_collectors WHERE token = ?",
+    "SELECT email, token_created_at, confirmed_at FROM email_collectors WHERE token = ?",
   )
     .bind(token)
-    .first<{ token_created_at: string | null; confirmed_at: string | null }>();
-  if (row === null) return false;
-  if (row.confirmed_at !== null) return true;
+    .first<{
+      email: string;
+      token_created_at: string | null;
+      confirmed_at: string | null;
+    }>();
+  if (row === null) return null;
+  if (row.confirmed_at !== null) return row.email;
   const created = Date.parse(row.token_created_at ?? "");
   if (Number.isNaN(created) || Date.now() - created > CONFIRM_TTL_MS)
-    return false;
+    return null;
   await env.DB.prepare(
     "UPDATE email_collectors SET confirmed_at = ? WHERE token = ?",
   )
     .bind(new Date().toISOString(), token)
     .run();
-  return true;
+  return row.email;
 }
 
 /** Leave by token (one-click link): returns the removed address, if any. */

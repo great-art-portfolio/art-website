@@ -4,8 +4,12 @@ import type { AppEnv } from "./env";
  * Buyer-inquiry notifications.
  *
  * Why Resend: a Worker cannot run an SMTP server on its own — mail has to be
- * handed to a sending service. Resend's free tier (100 emails/day) fits this
- * shop; the alternative is Gmail API + OAuth tokens, which is more fragile.
+ * handed to a sending service. Resend's free tier fits this shop two ways:
+ * one-to-one mail (inquiries, confirmations, goodbyes) goes transactional
+ * (3,000/month, 100/day — plenty here), while new-painting broadcasts go
+ * to a Resend segment via the Broadcasts API (free marketing tier:
+ * 1,000 contacts, unlimited sends). The alternative is Gmail API + OAuth
+ * tokens, which is more fragile.
  *
  * Why ntfy (not Pushover by default): ntfy is free and needs no account —
  * install the ntfy iOS app, subscribe to a private topic, done. Pushover
@@ -144,6 +148,21 @@ export interface SiteEmail {
   headers?: Record<string, string>;
 }
 
+function resendHeaders(env: AppEnv): Record<string, string> {
+  return {
+    Authorization: `Bearer ${env.RESEND_API_KEY ?? ""}`,
+    "Content-Type": "application/json",
+  };
+}
+
+/**
+ * The Resend segment holding the confirmed new-painting list. Empty
+ * locally — broadcasts then fall back to one transactional email each.
+ */
+export function segmentId(env: AppEnv): string {
+  return env.RESEND_SEGMENT_ID ?? "";
+}
+
 /** The one Resend call everything funnels through. */
 export async function sendSiteEmail(
   env: AppEnv,
@@ -155,10 +174,7 @@ export async function sendSiteEmail(
   if (mail.to.length === 0) return false;
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.RESEND_API_KEY}`,
-      "Content-Type": "application/json",
-    },
+    headers: resendHeaders(env),
     body: JSON.stringify({
       from: artistSender(env),
       to: mail.to,
@@ -173,11 +189,11 @@ export async function sendSiteEmail(
 }
 
 /**
- * Collector broadcast: one email per confirmed address, each carrying
- * its own one-click unsubscribe link (which is why this can't stay a
- * single BCC send — and BCC caps at 50 recipients anyway). Replies
- * land in the artist's inbox. Sequential: lists are small and Resend
- * rate-limits bursts.
+ * No-segment fallback: one transactional email per confirmed address,
+ * each carrying its own one-click unsubscribe link (which is why this
+ * can't stay a single BCC send — and BCC caps at 50 recipients
+ * anyway). Replies land in the artist's inbox. Sequential: lists are
+ * small and Resend rate-limits bursts.
  */
 export function buildBroadcastSends(
   site: string,
@@ -198,6 +214,129 @@ export function buildBroadcastSends(
   });
 }
 
+/**
+ * Segment broadcast body. One template for the whole segment — no
+ * per-recipient links fit here, so the exit is Resend's own
+ * unsubscribe placeholder (plus headers they add themselves).
+ */
+export function segmentBroadcastEmail(site: string): {
+  subject: string;
+  text: string;
+} {
+  return {
+    subject: "New painting at Barbara Straka's studio",
+    text: [
+      "A new painting is hung in the gallery — come look:",
+      site,
+      "",
+      "— Barbara",
+      "",
+      "Tired of these? Unsubscribe here:",
+      "{{{RESEND_UNSUBSCRIBE_URL}}}",
+    ].join("\n"),
+  };
+}
+
+/**
+ * New-painting broadcast to the whole segment in one Broadcasts API
+ * call — this is the unlimited-sends path. Replies land in the
+ * artist's inbox. Without a configured segment (local dev) this says
+ * no and the caller falls back to one transactional email each.
+ */
+export async function sendSegmentBroadcast(
+  env: AppEnv,
+  site: string,
+): Promise<boolean> {
+  const seg = segmentId(env);
+  if (env.RESEND_API_KEY === undefined || env.RESEND_API_KEY === "") {
+    return false;
+  }
+  if (seg === "") return false;
+  const inbox = artistInbox(env);
+  if (inbox === "") return false;
+  const { subject, text } = segmentBroadcastEmail(site);
+  try {
+    const res = await fetch("https://api.resend.com/broadcasts", {
+      method: "POST",
+      headers: resendHeaders(env),
+      body: JSON.stringify({
+        segment_id: seg,
+        from: artistSender(env),
+        reply_to: inbox,
+        subject,
+        text,
+        send: true,
+      }),
+    });
+    if (!res.ok) console.error("resend broadcast error", await res.text());
+    return res.ok;
+  } catch (err) {
+    console.error("resend broadcast failed", err);
+    return false;
+  }
+}
+
+/**
+ * Keep the segment mirroring the confirmed list: confirming adds the
+ * contact, leaving deletes it. D1 stays the source of truth — a failed
+ * sync only logs, it never blocks the join or the goodbye.
+ */
+export async function syncContactSubscribed(
+  env: AppEnv,
+  email: string,
+): Promise<boolean> {
+  const seg = segmentId(env);
+  if (env.RESEND_API_KEY === undefined || env.RESEND_API_KEY === "") {
+    return false;
+  }
+  if (seg === "" || email === "") return false;
+  try {
+    const created = await fetch("https://api.resend.com/contacts", {
+      method: "POST",
+      headers: resendHeaders(env),
+      body: JSON.stringify({
+        email,
+        unsubscribed: false,
+        segments: [{ id: seg }],
+      }),
+    });
+    if (created.ok) return true;
+    const added = await fetch(
+      `https://api.resend.com/contacts/${encodeURIComponent(email)}/segments/${encodeURIComponent(seg)}`,
+      { method: "POST", headers: resendHeaders(env) },
+    );
+    if (!added.ok)
+      console.error("resend contact add failed", await added.text());
+    return added.ok;
+  } catch (err) {
+    console.error("resend contact sync failed", err);
+    return false;
+  }
+}
+
+export async function syncContactRemoved(
+  env: AppEnv,
+  email: string,
+): Promise<boolean> {
+  const seg = segmentId(env);
+  if (env.RESEND_API_KEY === undefined || env.RESEND_API_KEY === "") {
+    return false;
+  }
+  if (seg === "" || email === "") return false;
+  try {
+    const res = await fetch(
+      `https://api.resend.com/contacts/${encodeURIComponent(email)}`,
+      { method: "DELETE", headers: resendHeaders(env) },
+    );
+    if (res.ok || res.status === 404) return true;
+    console.error("resend contact remove failed", await res.text());
+    return false;
+  } catch (err) {
+    console.error("resend contact remove failed", err);
+    return false;
+  }
+}
+
 export async function sendCollectorBroadcast(
   env: AppEnv,
   site: string,
@@ -209,6 +348,10 @@ export async function sendCollectorBroadcast(
     return { sent: 0, total };
   }
   if (inbox === "" || total === 0) return { sent: 0, total };
+  if (segmentId(env) !== "") {
+    const ok = await sendSegmentBroadcast(env, site).catch(() => false);
+    return { sent: ok ? total : 0, total };
+  }
   let sent = 0;
   for (const mail of buildBroadcastSends(site, recipients)) {
     const ok = await sendSiteEmail(env, {
