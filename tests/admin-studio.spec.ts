@@ -890,8 +890,15 @@ test("delete warms to clay red, never brand orange", async ({ page }) => {
   // The ease is on the color itself, not just the end state.
   const ease = await del.evaluate((el) => getComputedStyle(el).transition);
   expect(ease).toContain("color");
-  await del.hover();
-  await expect(del).toHaveCSS("color", "rgb(179, 85, 69)");
+  // Re-hover inside the poll: under parallel load a late image can
+  // shift the button mid-transition and drop the hover — the assertion
+  // (clay, not brand orange) is unchanged.
+  await expect(async () => {
+    await del.hover();
+    expect(await del.evaluate((el) => getComputedStyle(el).color)).toBe(
+      "rgb(179, 85, 69)",
+    );
+  }).toPass({ timeout: 15_000 });
 });
 
 test("info links list plainly, and Advanced eases open", async ({ page }) => {
@@ -1023,12 +1030,14 @@ test("metrics page ranks every painting, most watched first", async ({
     }),
   );
   await page.goto("/admin/metrics");
-  // Most watched tops the table, with its count and the total below.
-  const rows = page.locator("#stats-body tr");
+  // Most opened tops the ranking, with its count and the headline
+  // total above the rows.
+  const rows = page.locator("#stats-body .metric-row");
   await expect(rows.first()).toContainText("First Thaw");
   await expect(rows.first()).toContainText("10 views");
   await expect(rows.nth(1)).toContainText("Prairie Moon");
-  await expect(page.locator("#stats-total")).toContainText("17 views");
+  await expect(rows.first().locator(".metric-thumb")).toBeVisible();
+  await expect(page.locator("#stats-total")).toHaveText("17");
   // Every live painting has a row with its status (drafts never
   // opened for a buyer, so they stay off this table).
   await expect(page.locator("#stats-body")).toContainText("Sold");

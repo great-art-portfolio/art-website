@@ -106,6 +106,15 @@ something node can't load (move API-dependent helpers to `lib/api.ts`).
   (~390px), iPad (~820px), and desktop (~1280px) widths in a real
   browser.
 - One focus ring only (accent outline, never outline + border change).
+- Prose measures 50–70 characters a line: admin text sections
+  (`.admin section.prose`, 40rem) stay narrow while the collection grid
+  keeps the full width its cards need. Same rule for buyer prose.
+- Whitespace separates, never divider lines in the studio: no hairlines
+  under admin headings or fold counts, no boxes around sections.
+- The taste skill governs every visual change: read it before editing,
+  check the result against it, and say which checks passed. Primary
+  information always reads in full-ink body text — muted grey is for
+  secondary asides only, never the lede.
 - Script-built nodes never carry Astro's scope attribute — style them
   with whole-selector `:global()` twins, and re-assert `[hidden]` whenever
   author `display` beats the UA rule.

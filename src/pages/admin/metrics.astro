@@ -15,6 +15,7 @@ const seed = (await getCollection("paintings"))
     title: p.data.title,
     sold: p.data.sold,
     draft: p.data.draft === true,
+    image: p.data.image.src,
   }))
   .filter((r) => r.title !== "");
 const seedJson = JSON.stringify(seed).replace(/</g, "\\u003c");
@@ -22,31 +23,15 @@ const seedJson = JSON.stringify(seed).replace(/</g, "\\u003c");
 
 <Layout title="Metrics — Studio" wordmark="admin">
   <main class="admin" id="main">
-    <section id="sec-views">
+    <section id="sec-views" class="prose">
       <h2>Metrics</h2>
-      <p class="hint">
-        Which paintings visitors open most — past 30 days, most watched first.
+      <p>Most opened first — the past 30 days.</p>
+      <p class="metrics-total">
+        <strong id="stats-total">—</strong>
+        <span>opens in the past 30 days</span>
       </p>
+      <ul id="stats-body"></ul>
       <p class="hint" id="stats-note"></p>
-      <table id="stats-table">
-        <thead>
-          <tr
-            ><th scope="col">Painting</th><th scope="col">Status</th><th
-              scope="col"
-              class="num">Views</th
-            ></tr
-          >
-        </thead>
-        <tbody id="stats-body"></tbody>
-        <tfoot>
-          <tr
-            ><th scope="row" colspan="2">Total</th><td
-              class="num"
-              id="stats-total">—</td
-            ></tr
-          >
-        </tfoot>
-      </table>
       <script
         is:inline
         type="application/json"
@@ -63,37 +48,78 @@ const seedJson = JSON.stringify(seed).replace(/</g, "\\u003c");
   #stats-note:empty {
     display: none;
   }
-  #stats-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 1rem;
-    font-size: 0.92rem;
+  /* The headline number: big ink, never faint — it is the page. */
+  .metrics-total {
+    margin: 1.5rem 0 2rem;
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
   }
-  #stats-table th,
-  #stats-table td {
-    text-align: left;
-    padding: 0.55rem 0.75rem;
-    border-bottom: 1px solid var(--line);
-  }
-  #stats-table .num {
-    text-align: right;
+  .metrics-total strong {
+    font-family: Georgia, "Iowan Old Style", Charter, serif;
+    font-weight: 500;
+    font-size: 2.6rem;
+    line-height: 1;
     font-variant-numeric: tabular-nums;
+  }
+  .metrics-total span {
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+  /* Ranked rows: thumb, title, count — the count column holds a fixed
+     measure so every number lands in the same place. A hair of accent
+     under each row shows its share of the most-opened. */
+  #stats-body {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 1.25rem;
+  }
+  :global(#stats-body .metric-row) {
+    position: relative;
+    display: grid;
+    grid-template-columns: 3rem 1fr auto;
+    gap: 0 0.9rem;
+    align-items: center;
+    padding-bottom: 0.55rem;
+  }
+  :global(#stats-body .metric-thumb) {
+    width: 3rem;
+    height: 3rem;
+    object-fit: cover;
+    border-radius: 0.5rem;
+    grid-row: span 1;
+  }
+  :global(#stats-body .metric-title) {
+    font-weight: 600;
+    color: var(--ink);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
   }
-  #stats-table tfoot th,
-  #stats-table tfoot td {
-    border-bottom: none;
-    font-weight: 700;
+  :global(#stats-body .metric-sold) {
+    font-weight: 400;
+    color: var(--muted);
+    font-size: 0.85em;
   }
-  #stats-table tbody tr {
-    transition: background-color 0.2s ease;
+  :global(#stats-body .metric-views) {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    min-width: 2.5rem;
+    text-align: right;
   }
-  #stats-table tbody tr:hover {
-    background: color-mix(in srgb, var(--accent) 7%, transparent);
+  :global(#stats-body .metric-bar) {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 2px;
+    opacity: 0.55;
   }
-  @media (prefers-reduced-motion: reduce) {
-    #stats-table tbody tr {
-      transition: none;
-    }
+  :global(#stats-body .metric-row a:hover) {
+    text-decoration-color: currentColor;
   }
 </style>

@@ -89,6 +89,8 @@ const statsSeedSchema = z.object({
   title: z.string().min(1),
   sold: z.boolean(),
   draft: z.boolean(),
+  /** Painting photo, so Metrics reads visually instead of as a ledger. */
+  image: z.string(),
 });
 
 export type StatsSeedRow = z.infer<typeof statsSeedSchema>;

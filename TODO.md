@@ -192,6 +192,13 @@ Push to main for CI; real upload test on barbart.ca/admin.
   transition-behavior and the minifier sorts it first, silently killing
   the discrete display step (fixed with !important + @starting-style,
   measured identical 3-round curves both directions, pinned by test).
+- Metrics redesign + measure pass (140 unit, 133 e2e green): ranked
+  thumb rows with share bars and a headline total instead of the
+  ledger table (no status column, no drafts); lede in ink with one
+  honest empty line; hairlines off all admin headings/folds;
+  text sections capped at 40rem prose while the grid keeps full
+  width; taste+measure rules written into AGENTS.md. Clay hover test
+  hardened against load flakes (re-hover in poll, same assertion).
   *Unit reads 140, matching HEAD exactly — every added block verified
   running; the earlier 156 sighting never reproduced.
 - Second studio pass (140 unit, 132 e2e green): h2 says Available with

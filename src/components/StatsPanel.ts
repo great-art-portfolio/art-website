@@ -4,16 +4,11 @@ import { parseStatsSeed, type StatsSeedRow } from "../lib/schemas";
 import { viewsLabel } from "../lib/views";
 
 /**
- * Views island (client-only): past-30-day views per painting, most
- * watched first. Titles ride baked into the page; counts arrive from
- * the analytics API. Anything less than real data leaves the table
+ * Metrics island (client-only): past-30-day opens per painting, most
+ * opened first. Paintings ride baked into the page; counts arrive from
+ * the analytics API. Anything less than real data leaves the rows
  * count-less with plain words about why — never a blank page.
  */
-
-function statusOf(r: StatsSeedRow): string {
-  if (r.draft) return "Draft";
-  return r.sold ? "Sold" : "Available";
-}
 
 function render(
   seed: StatsSeedRow[],
@@ -24,16 +19,26 @@ function render(
   const rows = seed
     .map((r) => ({ ...r, views: counts.get(r.slug) ?? 0 }))
     .sort((a, b) => b.views - a.views || a.title.localeCompare(b.title));
+  const top = Math.max(1, ...rows.map((r) => r.views));
   $("stats-body").innerHTML = rows
-    .map(
-      (r) =>
-        `<tr><td>${esc(r.title)}</td>` +
-        `<td>${statusOf(r)}</td>` +
-        `<td class="num">${r.views > 0 ? viewsLabel(r.views) : "—"}</td></tr>`,
-    )
+    .map((r) => {
+      const sold = r.sold ? `<span class="metric-sold"> · Sold</span>` : "";
+      const bar =
+        r.views > 0
+          ? `<span class="metric-bar" style="width:${Math.max(4, Math.round((r.views / top) * 100))}%"></span>`
+          : "";
+      return (
+        `<li class="metric-row">` +
+        `<img class="metric-thumb" src="${esc(r.image)}" alt="" loading="lazy" width="96" height="96">` +
+        `<a class="metric-title" href="/paintings/${esc(r.slug)}">${esc(r.title)}${sold}</a>` +
+        `<span class="metric-views">${r.views > 0 ? viewsLabel(r.views) : "—"}</span>` +
+        bar +
+        `</li>`
+      );
+    })
     .join("");
   const total = rows.reduce((n, r) => n + r.views, 0);
-  $("stats-total").textContent = total > 0 ? viewsLabel(total) : "—";
+  $("stats-total").textContent = total > 0 ? String(total) : "—";
   return { rows: rows.length, total };
 }
 
@@ -53,8 +58,8 @@ function init(): void {
     .then(({ views, unconfigured }) => {
       if (views.length === 0 && unconfigured) {
         $("stats-note").textContent = isLocalPreview()
-          ? "View counts live on the live site — this preview has none."
-          : "No view counts yet — they appear once visitors arrive.";
+          ? "Counts appear once buyers visit the live site."
+          : "No opens yet — counts appear as buyers visit.";
         return;
       }
       const { total } = render(
@@ -62,7 +67,7 @@ function init(): void {
         new Map(views.map((v) => [v.slug, v.views])),
       );
       $("stats-note").textContent =
-        total === 0 ? "No views in the past 30 days — yet." : "";
+        total === 0 ? "No opens in the past 30 days — yet." : "";
     })
     .catch((err: unknown) => {
       // A missing token names itself and points at the fix; anything

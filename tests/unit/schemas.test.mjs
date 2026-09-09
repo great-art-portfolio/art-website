@@ -53,6 +53,7 @@ describe("parseStatsSeed", () => {
     title: "First Thaw",
     sold: false,
     draft: false,
+    image: "/img.jpg",
   };
 
   it("accepts the shape views.astro bakes", () => {

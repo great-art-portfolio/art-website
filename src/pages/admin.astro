@@ -485,10 +485,10 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
       font-weight: 500;
       cursor: pointer;
       border-radius: 0.25rem;
-      /* Fold counts wear the h2 shape (serif + hairline), so every
-         group header reads the same. */
-      padding-bottom: 0.75rem;
-      border-bottom: 1px solid var(--line);
+      /* Fold counts wear the h2 shape, minus its old hairline:
+         whitespace separates the groups, not lines. */
+      padding-bottom: 0;
+      border-bottom: none;
       margin-bottom: 1rem;
     }
     :global(#edit-list .trash-fold summary) {

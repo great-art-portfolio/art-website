@@ -8,22 +8,28 @@
   margin: 0 auto;
   padding: 2.5rem 1.5rem 4rem;
 }
-/* Studio sections breathe on the page itself — whitespace, not boxes. */
+/* Studio sections breathe on the page itself — whitespace, not boxes,
+   and whitespace separates, not divider lines. */
 .admin > section {
   margin-block: 1.5rem;
+}
+/* Reading columns stay narrow: prose wants 50–70 characters a line,
+   so text sections hold 40rem while the collection grid keeps the
+   full width for its cards. */
+.admin > section.prose {
+  max-width: 40rem;
 }
 .admin h2 {
   font-family: Georgia, "Iowan Old Style", Charter, serif;
   font-weight: 500;
-  margin: 0 0 0.75rem;
+  margin: 0 0 1.25rem;
   font-size: 1.4rem;
   display: flex;
   align-items: center;
   gap: 0.6rem;
   flex-wrap: wrap;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 1rem;
+  padding-bottom: 0;
+  border-bottom: none;
 }
 /* No browser-blue links anywhere in the studio: visited matches unvisited. */
 .admin a,
@@ -169,8 +175,8 @@ button.primary:hover {
   font-size: 1.4rem;
   cursor: pointer;
   border-radius: 0.25rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--line);
+  padding-bottom: 0;
+  border-bottom: none;
   margin: 1.5rem 0 1rem;
   list-style: none;
 }
