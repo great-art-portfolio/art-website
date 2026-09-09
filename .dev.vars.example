@@ -20,9 +20,12 @@ CF_ANALYTICS_SITE=
 
 # Mail + push (optional; blank keeps the buttons quiet).
 RESEND_API_KEY=
+# Resend segment holding the new-painting list ("BarbartSubs" in the
+# dashboard). Plain ID, not a secret — without it the list endpoints 500.
+RESEND_SEGMENT_ID=
 # The address mail goes out from, as the artist (verified domain only).
 ARTIST_SENDER=
-# The artist's inbox: buyer notes and broadcast copies land here.
+# The artist's inbox: buyer notes land here, broadcast replies return here.
 ARTIST_INBOX=
 VAPID_PUBLIC_KEY=
 VAPID_PRIVATE_JWK=
