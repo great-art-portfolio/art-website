@@ -14,6 +14,9 @@ export interface StudioRowInput {
   mdPath: string;
   /** Drafts link photo + title to the studio room (no buyer page). */
   draft: boolean;
+  /** Trashed rows link to the room too (no buyer page) and offer
+   * Restore + Delete forever instead of Delete. */
+  trash: boolean;
   /** Past-30-day views, 0 when unknown — the span hides itself. */
   views: number;
 }
@@ -24,6 +27,9 @@ const pencilIcon =
 const trashIcon =
   `<svg class="ico" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">` +
   `<path d="M2.5 4h11M6.5 4V2.5h3V4M4 4l.8 10h6.4L12 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>`;
+const undoIcon =
+  `<svg class="ico" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">` +
+  `<path d="M6 3.5L2.5 7l3.5 3.5M2.5 7H10a3.5 3.5 0 010 7H7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>`;
 
 export { viewsLabel } from "./views";
 
@@ -33,13 +39,13 @@ export function studioRowHtml(r: StudioRowInput): string {
   const cents = dollarsToCents(Number(r.price));
   const price = cents === null ? "Price?" : formatCAD(cents);
   // Photo and title are separate links — the buyer page, or the studio
-  // room for file-backed drafts (which have no buyer page; unsaved
-  // practice rows keep the buyer target like before). The title never
-  // stretches, so empty space beside it stays dead.
-  const viewHref =
-    r.draft && r.mdPath !== ""
-      ? `/admin/paintings/${esc(r.slug)}`
-      : `/paintings/${esc(r.slug)}`;
+  // room for file-backed drafts and trashed rows (neither has a buyer
+  // page; unsaved practice rows keep the buyer target like before).
+  // The title never stretches, so empty space beside it stays dead.
+  const roomHref = r.mdPath !== "" && (r.draft || r.trash);
+  const viewHref = roomHref
+    ? `/admin/paintings/${esc(r.slug)}`
+    : `/paintings/${esc(r.slug)}`;
   const photo =
     r.image === ""
       ? ""
@@ -52,14 +58,19 @@ export function studioRowHtml(r: StudioRowInput): string {
     `<span class="row-views" data-views-for="${esc(r.slug)}">` +
     (r.views > 0 ? ` · ${viewsLabel(r.views)}` : "") +
     `</span>`;
+  // Trashed rows offer Restore + Delete forever; everything else
+  // offers Edit + Delete (which moves to trash, restorable 30 days).
+  const actions = r.trash
+    ? `<a class="row-edit" href="/admin/paintings/${esc(r.slug)}">${pencilIcon}Edit</a>` +
+      `<button type="button" class="row-restore" data-slug="${esc(r.slug)}" data-title="${esc(r.title)}" data-md="${esc(r.mdPath)}">${undoIcon}Restore</button>` +
+      `<button type="button" class="row-del" data-purge="1" data-slug="${esc(r.slug)}" data-title="${esc(r.title)}" data-md="${esc(r.mdPath)}">${trashIcon}Delete forever</button>`
+    : `<a class="row-edit" href="/admin/paintings/${esc(r.slug)}">${pencilIcon}Edit</a>` +
+      `<button type="button" class="row-del" data-slug="${esc(r.slug)}" data-title="${esc(r.title)}" data-md="${esc(r.mdPath)}">${trashIcon}Delete</button>`;
   return (
     `<li class="row-card">${photo}<span class="row-body">` +
     `<a class="row-title" href="${viewHref}"><strong>${esc(r.title)}</strong></a>` +
     `<span> — ${price}</span>` +
     views +
-    `<span class="row-actions">` +
-    `<a class="row-edit" href="/admin/paintings/${esc(r.slug)}">${pencilIcon}Edit</a>` +
-    `<button type="button" class="row-del" data-slug="${esc(r.slug)}" data-title="${esc(r.title)}" data-md="${esc(r.mdPath)}">${trashIcon}Delete</button>` +
-    `</span></span></li>`
+    `<span class="row-actions">${actions}</span></span></li>`
   );
 }

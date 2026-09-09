@@ -20,6 +20,7 @@ export interface ElementMap {
   "edit-list": HTMLUListElement;
   "local-collection": HTMLElement;
   "row-confirm": HTMLElement;
+  "row-confirm-title": HTMLElement;
   "row-confirm-body": HTMLElement;
   "row-confirm-no": HTMLButtonElement;
   "row-confirm-yes": HTMLButtonElement;

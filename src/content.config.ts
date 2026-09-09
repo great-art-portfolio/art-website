@@ -25,6 +25,11 @@ const paintings = defineCollection({
       // Studio drafts: saved but not yet published. Hidden from the gallery,
       // painting pages, and search engines until the draft flag comes off.
       draft: z.boolean().optional(),
+      // Studio trash: deleted paintings rest here 30 days (restorable)
+      // before clearing themselves. Hidden everywhere, like drafts.
+      // The stamp is a quoted string (like title), never a bare date.
+      trash: z.boolean().optional(),
+      trashedAt: z.string().optional(),
       medium: z.string().optional(),
       // "View on your wall" AR models, built once in /admin and committed to
       // public/models. Absent = no AR section on the page.

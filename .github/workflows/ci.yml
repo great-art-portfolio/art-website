@@ -5,10 +5,16 @@ on:
     branches: [main]
   pull_request:
 
+# A newer push supersedes the older run on the same branch.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  # Check every push + PR. Deploys are the Pages dashboard's job
-  # (git-connected: build on push, previews per PR).
-  check:
+  # One job, gate order: install once, share one dist, fail fast.
+  # Deploys are the Pages dashboard's job (git-connected: build on push,
+  # previews per PR).
+  ci:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -23,25 +29,13 @@ jobs:
       - run: pnpm astro check
       - run: pnpm typecheck
       - run: pnpm test:unit
+      - run: pnpm build
       # check:inline scans dist/, so the build comes first.
-      - run: pnpm build
       - run: pnpm check:inline
-
-  # Smoke tests against the real Pages runtime (static + Functions,
-  # no secrets): regressions, validation paths, graceful fallbacks.
-  e2e:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
       # Local D1 tables for the collector tests — .wrangler/ is gitignored,
       # so a clean runner has no tables without this.
       - run: pnpm db:migrate:local
+      # Smoke tests against the real Pages runtime (static + Functions,
+      # no secrets): regressions, validation paths, graceful fallbacks.
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm exec playwright test

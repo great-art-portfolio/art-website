@@ -16,6 +16,9 @@ export interface ParsedPainting {
   medium: string;
   draft: boolean;
   sold: boolean;
+  /** Trash flag + stamp (trashedAt: "YYYY-MM-DD", "" when never trashed). */
+  trash: boolean;
+  trashedAt: string;
   /** Photo filename (image:) and AR model refs, for dimension-fix rebuilds. */
   image: string;
   modelGlb: string;
@@ -87,6 +90,8 @@ export function parsePainting(md: string): ParsedPainting | null {
     medium: data["medium"] ?? "",
     draft: (data["draft"] ?? "false").trim() === "true",
     sold: (data["sold"] ?? "false").trim() === "true",
+    trash: (data["trash"] ?? "false").trim() === "true",
+    trashedAt: (data["trashedAt"] ?? "").trim(),
     image: data["image"] ?? "",
     modelGlb: data["modelGlb"] ?? "",
     modelUsdz: data["modelUsdz"] ?? "",
@@ -112,6 +117,31 @@ export function setOrder(md: string, order: number | null): string {
   const line = `order: ${order}`;
   if (re.test(md)) return md.replace(re, `${line}$1`);
   return md.replace(/^(title:.*)(\r?\n)/m, `$1$2${line}$2`);
+}
+
+/** Today's stamp for trash and date keys ("YYYY-MM-DD", UTC). */
+export function todayKey(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * Set (or clear, with null) the trash flag, preserving every other line.
+ * Trashing stamps the day; restoring drops both keys with no blank line
+ * left behind. Normal edits never touch these keys (pass-through).
+ */
+export function setTrash(
+  md: string,
+  trash: boolean,
+  date: string | null,
+): string {
+  const drop = (text: string, key: string): string =>
+    text.replace(new RegExp(`^${key}:.*(\r?\n?)`, "m"), "");
+  if (!trash) return drop(drop(md, "trash"), "trashedAt");
+  let next = patchKey(md, "trash", "true");
+  // Quoted: an unquoted date parses as a Date object under Astro's YAML
+  // loader and fails the string schema at build time.
+  if (date !== null) next = patchKey(next, "trashedAt", yamlQuote(date));
+  return next;
 }
 
 /** Rewrite one frontmatter key in place, preserving every other line. */

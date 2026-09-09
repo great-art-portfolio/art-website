@@ -16,9 +16,10 @@ import { formatDimensions } from "../lib/dims";
 import { isTitleTaken, slugifyTitle } from "../lib/site";
 import {
   buildMarkdown,
-  paintingFilePaths,
   parsePainting,
   patchPainting,
+  setTrash,
+  todayKey,
   type PaintingEdits,
   type ParsedPainting,
 } from "../lib/painting-edit";
@@ -676,7 +677,7 @@ function wireDelete(
     if (body !== null) {
       body.textContent =
         `This removes "${getTitle()}" from the site. ` +
-        `It stays recoverable in the repo history.`;
+        `Anything in trash restores in one tap, for 30 days.`;
     }
     overlay.hidden = false;
     yes.disabled = true;
@@ -688,10 +689,10 @@ function wireDelete(
         if (timer !== null) window.clearInterval(timer);
         timer = null;
         yes.disabled = false;
-        yes.textContent = "Delete";
+        yes.textContent = "Move to trash";
         return;
       }
-      yes.textContent = `Delete (${Math.max(1, Math.floor(left / 1000))})`;
+      yes.textContent = `Move to trash (${Math.max(1, Math.floor(left / 1000))})`;
     };
     tick();
     timer = window.setInterval(tick, 250);
@@ -720,7 +721,7 @@ function wireDelete(
     }
     overlay.hidden = true;
     btn.disabled = true;
-    setStatus(`Deleting "${getTitle()}"… (gone in a few minutes)`);
+    setStatus(`Moving "${getTitle()}" to trash…`);
     void doDelete().catch((err: unknown) => {
       btn.disabled = false;
       setStatus(errorMessage(err), true);
@@ -916,12 +917,13 @@ function initStudio(): void {
       const base = await basePromise;
       if (base === null) throw new Error("Couldn't load this painting's file.");
       const parsed = parsePainting(base.content) ?? base.parsed;
-      await api.deleteFiles(
-        `Delete painting: ${parsed.title}`,
-        paintingFilePaths(mdPath, parsed),
-      );
+      await api.commitFiles(`Move to trash: ${parsed.title}`, [
+        { path: mdPath, blob: setTrash(base.content, true, todayKey()) },
+      ]);
       buzz();
-      goAdmin(`Deleted "${parsed.title}" — recoverable from repo history.`);
+      goAdmin(
+        `Moved "${parsed.title}" to trash — 30 days to change your mind.`,
+      );
     },
   );
 }

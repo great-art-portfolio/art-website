@@ -41,6 +41,8 @@ const bakedRowSchema = z.object({
   heightIn: z.number().nullable(),
   depthIn: z.number().nullable(),
   draft: z.boolean(),
+  trash: z.boolean(),
+  trashedAt: z.string(),
   image: z.string(),
   order: z.number().int().nullable(),
   mdPath: z.string().min(1),

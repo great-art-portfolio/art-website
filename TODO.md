@@ -135,6 +135,19 @@ Push to main for CI; real upload test on barbart.ca/admin.
   styles moved to components/studio.css, toast+tabs to AdminTabs.astro;
   AdminPanel inits only the section whose markup exists. Full suite
   116 passed; verified all four pages at 1280 + phone.
+- Committed dd37d7a and pushed to main: CI order fixed
+  (build→check:inline), local D1 migrate step added, tests made
+  clean-checkout safe, plus the two build-required modules
+  (model-files, gallery-paths) that were never committed.
+- Trash is live: Delete moves paintings to a closed fourth fold
+  (Available, Drafts, Sold, Trash) with Restore + Delete forever;
+  Empty trash destroys in one commit; anything over 30 days old clears
+  itself on dashboard visits. Normal edits preserve the flags;
+  trashedAt is always quoted (bare dates break the content schema —
+  caught by the build mid-turn). Room deletes move to trash too.
+  Suite: 149 unit, 120 e2e, all green; trash fold verified in browser.
+- CI is one integrated job now (install once, gate order, shared
+  dist) with branch concurrency cancel.
 - Review pass: schemas row-list parsers deduped via parseRowList;
   removed dead maybeInput helper; new unit tests for money, dims, and
   parseStatsSeed (142 unit green, admin-studio e2e 40 green).

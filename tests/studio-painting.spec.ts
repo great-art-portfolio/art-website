@@ -347,11 +347,11 @@ test("delete asks in a modal, never on one tap", async ({ page }) => {
   const yes = page.locator("#de-confirm-yes");
   await del.click();
   await expect(modal).toBeVisible();
-  await expect(page.locator("#de-confirm-body")).toContainText("recoverable");
-  // DELETE starts disabled with a countdown — one tap fires nothing, and
-  // the room button never changes its meaning.
+  await expect(page.locator("#de-confirm-body")).toContainText("trash");
+  // MOVE TO TRASH starts disabled with a countdown — one tap fires
+  // nothing, and the room button never changes its meaning.
   await expect(yes).toBeDisabled();
-  await expect(yes).toHaveText(/Delete \(\d\)/);
+  await expect(yes).toHaveText(/Move to trash \(\d\)/);
   await expect(del).toHaveText("Delete");
   await expect(page).toHaveURL(/\/admin\/paintings\/first-thaw/);
   // "Keep it" backs out; Escape does too.
@@ -364,7 +364,7 @@ test("delete asks in a modal, never on one tap", async ({ page }) => {
   // After 3.5 seconds of reading time the button arms for real.
   await del.click();
   await expect(yes).toBeEnabled({ timeout: 8000 });
-  await expect(yes).toHaveText("Delete");
+  await expect(yes).toHaveText("Move to trash");
 });
 
 test("edit room replace swaps the framed photo", async ({ page }) => {

@@ -60,10 +60,14 @@ export function workCount(n: number): string {
   return `${n} ${n === 1 ? "work" : "works"}`;
 }
 
-/** Drafts never reach buyers: gallery, painting pages, and sitemap only
- * ever see entries where the draft flag is absent or false. */
-export function isPublished(data: { draft?: boolean | undefined }): boolean {
-  return data.draft !== true;
+/** Drafts and trashed paintings never reach buyers: gallery, painting
+ * pages, and sitemap only ever see entries where both flags are absent
+ * or false. */
+export function isPublished(data: {
+  draft?: boolean | undefined;
+  trash?: boolean | undefined;
+}): boolean {
+  return data.draft !== true && data.trash !== true;
 }
 
 /** Studio collection groups: available first, then sold. Order kept. */

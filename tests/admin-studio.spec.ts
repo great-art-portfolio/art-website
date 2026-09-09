@@ -91,6 +91,102 @@ async function mockCommitApi(page: Page): Promise<void> {
   );
 }
 
+/**
+ * File-backed commit stub with live state: commits rewrite files, deletes
+ * remove them — so trash, restore, empty, and auto-clear all re-read the
+ * world they just wrote, exactly like the real backend.
+ */
+async function stubPaintingFiles(
+  page: Page,
+  initial: Record<string, string>,
+): Promise<{
+  commits: () => Array<{ message: string; blobs: string[] }>;
+  destroys: () => Array<{ message: string; paths: string[] }>;
+}> {
+  const files = { ...initial };
+  const commits: Array<{ message: string; blobs: string[] }> = [];
+  const destroys: Array<{ message: string; paths: string[] }> = [];
+  await page.route("**/api/commit*", async (route) => {
+    const req = route.request();
+    if (req.method() === "PUT") {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ files: Object.keys(files) }),
+      });
+    }
+    if (req.method() === "GET") {
+      const name =
+        (new URL(req.url()).searchParams.get("path") ?? "").split("/").pop() ??
+        "";
+      const content = files[name];
+      if (content === undefined) {
+        return route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: "{}",
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ content }),
+      });
+    }
+    if (req.method() === "POST") {
+      const body = req.postDataJSON() as {
+        message?: string;
+        files?: Array<{ path: string; contentBase64: string }>;
+        delete?: string[];
+      } | null;
+      for (const f of body?.files ?? []) {
+        files[f.path.split("/").pop() ?? ""] = Buffer.from(
+          f.contentBase64,
+          "base64",
+        ).toString("utf8");
+      }
+      for (const p of body?.delete ?? []) {
+        delete files[p.split("/").pop() ?? ""];
+      }
+      if ((body?.delete ?? []).length > 0) {
+        destroys.push({
+          message: body?.message ?? "",
+          paths: body?.delete ?? [],
+        });
+      } else {
+        commits.push({
+          message: body?.message ?? "",
+          blobs: (body?.files ?? []).map((f) =>
+            Buffer.from(f.contentBase64, "base64").toString("utf8"),
+          ),
+        });
+      }
+      return route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, commit: "test" }),
+      });
+    }
+    return route.continue();
+  });
+  await page.route("**/api/analytics*", async (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ views: [], unconfigured: false }),
+    }),
+  );
+  return { commits: () => commits, destroys: () => destroys };
+}
+
+/** Minimal stub frontmatter; extra lines (trash flags) ride along. */
+function stubMd(title: string, extra = ""): string {
+  return (
+    `---\ntitle: "${title}"\nprice: 100\nsold: false\n` +
+    `${extra}---\n\nBody.\n`
+  );
+}
+
 test("studio header links home, never to visitor funnels", async ({ page }) => {
   await mockCommitApi(page);
   await page.goto("/admin");
@@ -508,6 +604,138 @@ test("dragging Sold rows commits the new sold order", async ({ browser }) => {
   const after = await titles.allTextContents();
   expect(after).not.toEqual(before);
   expect(after[at]).toBe(before[0]);
+  await authed.close();
+});
+
+test("delete moves to trash, restore brings it back, purge destroys", async ({
+  browser,
+}) => {
+  // Stored token means the live path: real commits, not the practice tab.
+  const authed = await browser.newContext();
+  await authed.addInitScript(() =>
+    sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
+  );
+  const page = await authed.newPage();
+  const { commits, destroys } = await stubPaintingFiles(page, {
+    "trash-a.md": stubMd("Trash A"),
+    "trash-b.md": stubMd("Trash B"),
+  });
+  await page.goto("/admin");
+  const available = page.locator('[data-group="available"] .row-card');
+  await expect(available).toHaveCount(2);
+  // Delete asks first, then moves to trash — nothing destroyed.
+  await available.first().locator(".row-del").click();
+  await expect(page.locator("#row-confirm")).toBeVisible();
+  await expect(page.locator("#row-confirm-title")).toHaveText("Move to trash?");
+  await expect(page.locator("#row-confirm-yes")).toBeEnabled({ timeout: 8000 });
+  await page.locator("#row-confirm-yes").click();
+  await expect
+    .poll(() => commits().at(-1)?.message ?? null, { timeout: 15_000 })
+    .toBe("Move to trash: Trash A");
+  expect(commits().at(-1)?.blobs[0] ?? "").toContain("trash: true");
+  expect(commits().at(-1)?.blobs[0] ?? "").toMatch(
+    /^trashedAt: "\d{4}-\d{2}-\d{2}"$/m,
+  );
+  await expect(available).toHaveCount(1);
+  await expect(page.locator("#edit-list .trash-fold summary")).toContainText(
+    "1 trashed",
+  );
+  await expect(page.locator("#admin-status")).toContainText(
+    "30 days to change your mind",
+  );
+  // Restore brings it straight back, no questions.
+  await page.locator("#edit-list .trash-fold summary").click();
+  await page.locator('[data-group="trash"] .row-restore').click();
+  await expect
+    .poll(() => commits().at(-1)?.message ?? null, { timeout: 15_000 })
+    .toBe("Restore painting: Trash A");
+  await expect(available).toHaveCount(2);
+  await expect(page.locator("#edit-list .trash-fold")).toHaveCount(0);
+  await expect(page.locator("#admin-status")).toContainText(
+    "back in the collection",
+  );
+  // Delete forever asks again, then destroys the files.
+  await available.first().locator(".row-del").click();
+  await expect(page.locator("#row-confirm-yes")).toBeEnabled({ timeout: 8000 });
+  await page.locator("#row-confirm-yes").click();
+  await expect
+    .poll(() => commits().at(-1)?.message ?? null, { timeout: 15_000 })
+    .toBe("Move to trash: Trash A");
+  await page.locator("#edit-list .trash-fold summary").click();
+  await page.locator('[data-group="trash"] .row-del').click();
+  await expect(page.locator("#row-confirm-title")).toHaveText(
+    "Delete forever?",
+  );
+  await expect(page.locator("#row-confirm-yes")).toBeEnabled({ timeout: 8000 });
+  await page.locator("#row-confirm-yes").click();
+  await expect
+    .poll(() => destroys().at(-1)?.message ?? null, { timeout: 15_000 })
+    .toBe("Delete painting: Trash A");
+  await expect(available).toHaveCount(1);
+  await expect(page.locator("#edit-list .trash-fold")).toHaveCount(0);
+  await expect(page.locator("#admin-status")).toContainText("forever");
+  await authed.close();
+});
+
+test("empty trash destroys everything trashed at once", async ({ browser }) => {
+  const authed = await browser.newContext();
+  await authed.addInitScript(() =>
+    sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
+  );
+  const page = await authed.newPage();
+  const today = new Date().toISOString().slice(0, 10);
+  const { destroys } = await stubPaintingFiles(page, {
+    "gone-a.md": stubMd("Gone A", `trash: true\ntrashedAt: ${today}\n`),
+    "gone-b.md": stubMd("Gone B", `trash: true\ntrashedAt: ${today}\n`),
+    "keeper.md": stubMd("Keeper"),
+  });
+  await page.goto("/admin");
+  await expect(page.locator('[data-group="available"] .row-card')).toHaveCount(
+    1,
+  );
+  // The fold rests closed until she opens it.
+  const fold = page.locator("#edit-list .trash-fold");
+  await expect(fold.locator("summary")).toContainText("2 trashed");
+  await expect(fold.locator(".row-card").first()).toBeHidden();
+  await fold.locator("summary").click();
+  await fold.locator(".row-empty").click();
+  await expect(page.locator("#row-confirm-title")).toHaveText("Empty trash?");
+  await expect(page.locator("#row-confirm-yes")).toBeEnabled({ timeout: 8000 });
+  await page.locator("#row-confirm-yes").click();
+  await expect
+    .poll(() => destroys().at(-1)?.message ?? null, { timeout: 15_000 })
+    .toBe("Empty trash (2 paintings)");
+  await expect(page.locator("#edit-list .trash-fold")).toHaveCount(0);
+  await expect(page.locator('[data-group="available"] .row-card')).toHaveCount(
+    1,
+  );
+  await expect(page.locator("#admin-status")).toContainText("gone for good");
+  await authed.close();
+});
+
+test("trash older than 30 days clears itself", async ({ browser }) => {
+  const authed = await browser.newContext();
+  await authed.addInitScript(() =>
+    sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
+  );
+  const page = await authed.newPage();
+  const old = new Date(Date.now() - 40 * 86400000).toISOString().slice(0, 10);
+  const { destroys } = await stubPaintingFiles(page, {
+    "old.md": stubMd("Old", `trash: true\ntrashedAt: ${old}\n`),
+    "keeper.md": stubMd("Keeper"),
+  });
+  await page.goto("/admin");
+  // No clicks: the visit itself clears the old trash in one commit.
+  await expect
+    .poll(() => destroys().at(-1)?.message ?? null, { timeout: 15_000 })
+    .toBe("Clear old trash (1 paintings)");
+  await expect(page.locator("#admin-status")).toContainText(
+    "trashed over 30 days ago",
+  );
+  await expect(page.locator("#edit-list .trash-fold")).toHaveCount(0);
+  await expect(page.locator('[data-group="available"] .row-card')).toHaveCount(
+    1,
+  );
   await authed.close();
 });
 
@@ -1170,14 +1398,14 @@ test("dashboard delete asks first, then removes the row", async ({ page }) => {
   await expect(modal).toBeVisible();
   await expect(page.locator("#row-confirm-body")).toContainText("Doomed Piece");
   await expect(yes).toBeDisabled();
-  await expect(yes).toHaveText(/Delete \(\d\)/);
+  await expect(yes).toHaveText(/Move to trash \(\d\)/);
   await expect(row).toBeVisible();
   await expect(page).toHaveURL(/\/admin\/?$/);
   // "Keep it" backs out with the row untouched.
   await page.locator("#row-confirm-no").click();
   await expect(modal).toBeHidden();
   await expect(row).toBeVisible();
-  // After 3.5 seconds of reading time, DELETE arms and fires for real.
+  // After 3.5 seconds of reading time, MOVE TO TRASH arms and fires.
   await del.click();
   await expect(yes).toBeEnabled({ timeout: 8000 });
   await yes.click();

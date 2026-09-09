@@ -20,6 +20,8 @@ const row = {
   heightIn: null,
   depthIn: 1.5,
   draft: false,
+  trash: false,
+  trashedAt: "",
   image: "/img.jpg",
   order: null,
   mdPath: "src/content/paintings/night-reeds.md",

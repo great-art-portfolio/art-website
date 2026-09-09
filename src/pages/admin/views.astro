@@ -7,7 +7,9 @@ import "../../components/studio.css";
 
 // Baked in at build time so every painting has a row even with no
 // analytics backend. Counts arrive client-side, after the rows.
+// Trashed paintings are gone — they get no row here either.
 const seed = (await getCollection("paintings"))
+  .filter((p) => p.data.trash !== true)
   .map((p) => ({
     slug: slugifyTitle(p.data.title),
     title: p.data.title,

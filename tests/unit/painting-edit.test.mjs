@@ -7,6 +7,7 @@ import {
   parsePainting,
   patchPainting,
   setOrder,
+  setTrash,
 } from "../../src/lib/painting-edit.ts";
 
 describe("resolveDims", () => {
@@ -202,6 +203,8 @@ describe("paintingFilePaths", () => {
     image: "first-thaw.jpg",
     modelGlb: "/models/first-thaw.glb",
     modelUsdz: "/models/first-thaw.usdz",
+    trash: false,
+    trashedAt: "",
   };
   it("removes md + photo + both models", () => {
     assert.deepEqual(paintingFilePaths(md, full), [
@@ -213,7 +216,13 @@ describe("paintingFilePaths", () => {
   });
   it("skips missing photo and model-less paintings", () => {
     assert.deepEqual(
-      paintingFilePaths(md, { image: "", modelGlb: "", modelUsdz: "" }),
+      paintingFilePaths(md, {
+        image: "",
+        modelGlb: "",
+        modelUsdz: "",
+        trash: false,
+        trashedAt: "",
+      }),
       [md],
     );
   });
@@ -223,6 +232,8 @@ describe("paintingFilePaths", () => {
         image: "x.jpg",
         modelGlb: "https://cdn.example/m.glb",
         modelUsdz: "",
+        trash: true,
+        trashedAt: "2026-09-01",
       }),
       [md, "src/content/paintings/x.jpg"],
     );
@@ -254,5 +265,70 @@ describe("setOrder", () => {
       parsePainting(md.replace("price:", "order: lots\nprice:")).order,
       null,
     );
+  });
+});
+
+describe("trash flags", () => {
+  const md = '---\ntitle: "A"\nprice: 10.00\ndraft: false\n---\n\nBody.\n';
+
+  it("parses absent flags as never trashed", () => {
+    const p = parsePainting(md);
+    assert.equal(p.trash, false);
+    assert.equal(p.trashedAt, "");
+  });
+
+  it("reads the flag and stamp back", () => {
+    const p = parsePainting(
+      md.replace("draft:", 'trash: true\ntrashedAt: "2026-09-01"\ndraft:'),
+    );
+    assert.equal(p.trash, true);
+    assert.equal(p.trashedAt, "2026-09-01");
+  });
+});
+
+describe("setTrash", () => {
+  const md = '---\ntitle: "A"\nprice: 10.00\ndraft: false\n---\n\nBody.\n';
+
+  it("stamps the day and parses back", () => {
+    const next = setTrash(md, true, "2026-09-08");
+    assert.match(next, /^trash: true$/m);
+    assert.match(next, /^trashedAt: "2026-09-08"$/m);
+    const p = parsePainting(next);
+    assert.equal(p.trash, true);
+    assert.equal(p.trashedAt, "2026-09-08");
+  });
+
+  it("restamping replaces the date in place", () => {
+    const next = setTrash(setTrash(md, true, "2026-09-01"), true, "2026-09-08");
+    assert.match(next, /^trashedAt: "2026-09-08"$/m);
+    assert.doesNotMatch(next, /2026-09-01/);
+  });
+
+  it("restoring drops both keys with no blank left behind", () => {
+    const next = setTrash(setTrash(md, true, "2026-09-08"), false, null);
+    assert.doesNotMatch(next, /^trash:/m);
+    assert.doesNotMatch(next, /^trashedAt:/m);
+    assert.doesNotMatch(next, /\n\n(?=price)/);
+    const p = parsePainting(next);
+    assert.equal(p.trash, false);
+    assert.equal(p.trashedAt, "");
+  });
+
+  it("normal edits leave the flags untouched", () => {
+    const trashed = setTrash(md, true, "2026-09-08");
+    const next = patchPainting(trashed, {
+      title: "A",
+      price: "10.00",
+      alt: "",
+      description: "Body.",
+      widthIn: "",
+      heightIn: "",
+      depthIn: "",
+      medium: "",
+      draft: false,
+      sold: false,
+    });
+    assert.match(next, /^trash: true$/m);
+    assert.match(next, /^trashedAt: "2026-09-08"$/m);
   });
 });

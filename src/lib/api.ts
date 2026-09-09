@@ -192,8 +192,9 @@ export const api = {
     });
   },
   /**
-   * Delete a painting's files (.md + photo + models) in one commit.
-   * Recoverable from repo history; the page vanishes on next rebuild.
+   * Destroy files (.md + photo + models) in one commit — delete forever.
+   * Recoverability lives in trash now; this is the empty/purge path.
+   * The page vanishes on next rebuild.
    */
   async deleteFiles(message: string, paths: string[]): Promise<void> {
     await request("/api/commit", commitSchema, {

@@ -16,6 +16,11 @@ describe("isPublished", () => {
   it("hides drafts from buyers", () => {
     assert.equal(isPublished({ draft: true }), false);
   });
+
+  it("hides trashed paintings from buyers", () => {
+    assert.equal(isPublished({ trash: true }), false);
+    assert.equal(isPublished({ draft: false, trash: true }), false);
+  });
 });
 
 describe("groupByAvailability", () => {

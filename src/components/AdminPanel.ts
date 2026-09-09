@@ -21,7 +21,7 @@ import {
   practiceUpsert,
   type PracticeOverlay,
 } from "../lib/practice";
-import { paintingFilePaths } from "../lib/painting-edit";
+import { paintingFilePaths, setTrash, todayKey } from "../lib/painting-edit";
 
 /**
  * Admin island (client-only): studio dashboard — collection index with
@@ -103,6 +103,9 @@ interface LocalPainting {
   price: number;
   sold: boolean;
   draft: boolean;
+  /** Trash flag + stamp (trashedAt: "YYYY-MM-DD", "" when never trashed). */
+  trash: boolean;
+  trashedAt: string;
   image: string;
   alt: string;
   description: string;
@@ -140,6 +143,8 @@ function seedLocalRows(raw: BakedRow[]): LocalPainting[] {
       price: r.price,
       sold: r.sold,
       draft: r.draft,
+      trash: r.trash,
+      trashedAt: r.trashedAt,
       image: r.image,
       alt: r.alt,
       description: r.description,
@@ -167,6 +172,10 @@ function mergePractice(
     const prev = at >= 0 ? kept[at] : undefined;
     const row: LocalPainting = {
       ...p,
+      // Practice rows are never trashed — Delete removes them from the
+      // overlay outright (dev-only, one tap to clear).
+      trash: false,
+      trashedAt: "",
       image: prev?.image ?? "",
       mdPath: prev?.mdPath ?? "",
       views: prev?.views ?? 0,
@@ -253,6 +262,8 @@ function rowsKey(rows: LocalPainting[]): string {
         r.price,
         r.sold,
         r.draft,
+        r.trash,
+        r.trashedAt,
         r.image,
         r.mdPath,
         r.order,
@@ -264,11 +275,12 @@ function rowsKey(rows: LocalPainting[]): string {
 let lastRowsKey: string | null = null;
 
 /**
- * Available on top with Drafts and Sold each in a foldable full-width
- * row underneath, in that order; one list on phones. Same renderer as
- * the static markup (studioRowHtml), so hydration swaps identical HTML.
- * Available and Sold rows each carry their group's order and drag to
- * re-sort it (homepage follows both); Drafts never drag.
+ * Available on top with Drafts, Sold, and Trash each in a foldable
+ * full-width row underneath, in that order; one list on phones. Same
+ * renderer as the static markup (studioRowHtml), so hydration swaps
+ * identical HTML. Available and Sold rows each carry their group's order
+ * and drag to re-sort it (homepage follows both); Drafts and Trash
+ * never drag. Trash rests closed — one tap opens it.
  */
 /** Rows behind the current render, for drag-to-reorder lookups. */
 let lastRenderedRows: LocalPainting[] = [];
@@ -291,8 +303,10 @@ function renderRows(rows: LocalPainting[]): void {
   }
   const byTitle = (a: LocalPainting, b: LocalPainting): number =>
     a.title.localeCompare(b.title);
-  const drafts = [...rows].filter((r) => r.draft).sort(byTitle);
-  const groups = groupByAvailability(rows.filter((r) => !r.draft));
+  const live = rows.filter((r) => !r.trash);
+  const trashed = [...rows].filter((r) => r.trash).sort(byTitle);
+  const drafts = [...live].filter((r) => r.draft).sort(byTitle);
+  const groups = groupByAvailability(live.filter((r) => !r.draft));
   const available = [...groups.available].sort(compareGalleryOrder);
   const sold = [...groups.sold].sort(compareGalleryOrder);
   let html =
@@ -317,6 +331,18 @@ function renderRows(rows: LocalPainting[]): void {
       `<summary>${sold.length === 1 ? "1 sold" : `${sold.length} sold`}</summary>` +
       `<ul class="group-rows">` +
       sold.map(rowHtml).join("") +
+      `</ul></details>`;
+  }
+  if (trashed.length > 0) {
+    html +=
+      `<details class="trash-fold" data-group="trash">` +
+      `<summary>${trashed.length === 1 ? "1 trashed" : `${trashed.length} trashed`}</summary>` +
+      `<div class="fold-tools">` +
+      `<button type="button" class="row-empty">Empty trash</button>` +
+      `</div>` +
+      `<p class="hint">Anything here over 30 days old clears itself. Deleted forever is forever.</p>` +
+      `<ul class="group-rows">` +
+      trashed.map(rowHtml).join("") +
       `</ul></details>`;
   }
   list.innerHTML = html;
@@ -627,7 +653,18 @@ async function persistOrder(
  * Practice rows vanish locally, live rows commit a delete of .md + photo
  * + models.
  */
-async function deleteRow(
+/** Days since a "YYYY-MM-DD" stamp; null when garbled or absent — which
+ * reads as just-now, never as expired. */
+function trashAgeDays(trashedAt: string): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trashedAt.trim());
+  if (m === null) return null;
+  const t = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  if (Number.isNaN(t)) return null;
+  return Math.floor((Date.now() - t) / 86400000);
+}
+
+/** Delete moves to trash (restorable 30 days); only Empty/Purge destroy. */
+async function trashRow(
   slug: string,
   title: string,
   mdPath: string,
@@ -639,7 +676,62 @@ async function deleteRow(
     return;
   }
   if (mdPath === "") throw new Error("Couldn't find this painting's file.");
-  setStatus(`Deleting "${title}"… (gone in a few minutes)`);
+  setStatus(`Moving "${title}" to trash…`);
+  const content = await api.getPaintingFile(mdPath);
+  if (content === null) throw new Error("Couldn't load this painting's file.");
+  const parsed = parsePainting(content);
+  if (parsed === null) throw new Error("Couldn't read this painting's file.");
+  await api.commitFiles(`Move to trash: ${parsed.title}`, [
+    { path: mdPath, blob: setTrash(content, true, todayKey()) },
+  ]);
+  await refreshCollection();
+  setStatus(`Moved "${parsed.title}" to trash — 30 days to change your mind.`);
+}
+
+/** One tap back out of trash — harmless and reversible, so no modal. */
+async function restoreRow(btn: HTMLButtonElement): Promise<void> {
+  const title =
+    btn.dataset.title === ""
+      ? "this painting"
+      : (btn.dataset.title ?? "this painting");
+  const md = btn.dataset.md ?? "";
+  const idle = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Restoring…";
+  try {
+    if (md === "") throw new Error("Couldn't find this painting's file.");
+    setStatus(`Restoring "${title}"…`);
+    const content = await api.getPaintingFile(md);
+    if (content === null)
+      throw new Error("Couldn't load this painting's file.");
+    const parsed = parsePainting(content);
+    if (parsed === null) throw new Error("Couldn't read this painting's file.");
+    await api.commitFiles(`Restore painting: ${parsed.title}`, [
+      { path: md, blob: setTrash(content, false, null) },
+    ]);
+    await refreshCollection();
+    setStatus(`Restored "${parsed.title}" — back in the collection.`);
+  } catch (err: unknown) {
+    btn.disabled = false;
+    btn.textContent = idle;
+    setStatus(errorMessage(err), true);
+  }
+}
+
+/** Delete forever: the file, photo, and models, all in one commit. */
+async function purgeRow(
+  slug: string,
+  title: string,
+  mdPath: string,
+): Promise<void> {
+  if (await useOverlayMode()) {
+    practiceDelete(slug);
+    renderLocalCollection();
+    setStatus(`Deleted "${title}" from this tab's practice list.`);
+    return;
+  }
+  if (mdPath === "") throw new Error("Couldn't find this painting's file.");
+  setStatus(`Deleting "${title}" forever… (gone in a few minutes)`);
   const content = await api.getPaintingFile(mdPath);
   if (content === null) throw new Error("Couldn't load this painting's file.");
   const parsed = parsePainting(content);
@@ -649,18 +741,84 @@ async function deleteRow(
     paintingFilePaths(mdPath, parsed),
   );
   await refreshCollection();
-  setStatus(`Deleted "${parsed.title}" — recoverable from repo history.`);
+  setStatus(`Deleted "${parsed.title}" forever.`);
+}
+
+/** Empty trash: every trashed painting destroyed in one commit. */
+async function emptyTrash(): Promise<void> {
+  const trashed = lastRenderedRows.filter((r) => r.trash);
+  if (trashed.length === 0) {
+    setStatus("The trash is already empty.");
+    return;
+  }
+  if (await useOverlayMode()) {
+    for (const r of trashed) practiceDelete(r.slug);
+    renderLocalCollection();
+    setStatus(
+      `Emptied the trash in this tab — ${trashed.length === 1 ? "1 painting" : `${trashed.length} paintings`}, gone.`,
+    );
+    return;
+  }
+  setStatus(
+    `Emptying the trash… (${trashed.length === 1 ? "1 painting" : `${trashed.length} paintings`})`,
+  );
+  const paths: string[] = [];
+  for (const r of trashed) {
+    if (r.mdPath === "") continue;
+    const content = await api.getPaintingFile(r.mdPath);
+    if (content === null) continue;
+    const parsed = parsePainting(content);
+    if (parsed === null) continue;
+    paths.push(...paintingFilePaths(r.mdPath, parsed));
+  }
+  await api.deleteFiles(`Empty trash (${trashed.length} paintings)`, paths);
+  await refreshCollection();
+  setStatus(
+    `Emptied the trash — ${trashed.length === 1 ? "1 painting" : `${trashed.length} paintings`}, gone for good.`,
+  );
 }
 
 /**
- * Row delete behind one shared confirmation modal — the row button never
- * works double duty. DELETE stays disabled for 3.5 seconds so the words
- * get read first; a countdown on the button says why it won't press yet.
- * One delegated listener covers every row, including re-renders.
+ * Anything trashed over 30 days ago clears itself on this visit (one
+ * commit). Runs only on live rows — the dev overlay never carries trash.
+ * Returns the survivors for the render below.
+ */
+async function purgeOldTrash(rows: LocalPainting[]): Promise<LocalPainting[]> {
+  const old = rows.filter(
+    (r) => r.trash && (trashAgeDays(r.trashedAt) ?? 0) > 30,
+  );
+  if (old.length === 0) return rows;
+  const paths: string[] = [];
+  for (const r of old) {
+    if (r.mdPath === "") continue;
+    const content = await api.getPaintingFile(r.mdPath);
+    if (content === null) continue;
+    const parsed = parsePainting(content);
+    if (parsed === null) continue;
+    paths.push(...paintingFilePaths(r.mdPath, parsed));
+  }
+  if (paths.length > 0) {
+    await api.deleteFiles(`Clear old trash (${old.length} paintings)`, paths);
+  }
+  const gone = new Set(old.map((r) => r.slug));
+  setStatus(
+    `Cleared ${old.length === 1 ? "1 painting" : `${old.length} paintings`} trashed over 30 days ago.`,
+  );
+  return rows.filter((r) => !gone.has(r.slug));
+}
+
+/**
+ * Destructive row actions behind one shared confirmation modal — the row
+ * button never works double duty. The confirm stays disabled for 3.5
+ * seconds so the words get read first; a countdown on the button says
+ * why it won't press yet. Restore skips the modal (harmless and
+ * reversible). One delegated listener covers every row and fold tool,
+ * including re-renders.
  */
 function wireRowDelete(): void {
   const list = $("edit-list");
   const overlay = maybe("row-confirm");
+  const titleEl = maybe("row-confirm-title");
   const body = maybe("row-confirm-body");
   const no = maybeButton("row-confirm-no");
   const yes = maybeButton("row-confirm-yes");
@@ -671,10 +829,13 @@ function wireRowDelete(): void {
   list.dataset.delWired = "1";
   let timer: number | null = null;
   let pending: {
+    mode: "trash" | "purge" | "empty";
     slug: string;
     title: string;
     md: string;
     btn: HTMLButtonElement;
+    busy: string;
+    idle: string;
   } | null = null;
 
   const close = () => {
@@ -685,22 +846,17 @@ function wireRowDelete(): void {
     pending = null;
     overlay.hidden = true;
   };
-  const open = (btn: HTMLButtonElement) => {
-    const title =
-      btn.dataset.title === ""
-        ? "this painting"
-        : (btn.dataset.title ?? "this painting");
-    pending = {
-      slug: btn.dataset.slug ?? "",
-      title,
-      md: btn.dataset.md ?? "",
-      btn,
-    };
-    if (body !== null) {
-      body.textContent =
-        `This removes "${title}" from the site. ` +
-        `It stays recoverable in the repo history.`;
-    }
+  const arm = (
+    heading: string,
+    bodyText: string,
+    confirm: string,
+    next: Omit<NonNullable<typeof pending>, "busy" | "idle"> & {
+      busy: string;
+    },
+  ) => {
+    pending = { ...next, idle: next.btn.textContent };
+    if (titleEl !== null) titleEl.textContent = heading;
+    if (body !== null) body.textContent = bodyText;
     overlay.hidden = false;
     yes.disabled = true;
     // Deadline-based, not tick-counted: a stalled tab still arms ~3.5s in.
@@ -711,21 +867,75 @@ function wireRowDelete(): void {
         if (timer !== null) window.clearInterval(timer);
         timer = null;
         yes.disabled = false;
-        yes.textContent = "Delete";
+        yes.textContent = confirm;
         return;
       }
-      yes.textContent = `Delete (${Math.max(1, Math.floor(left / 1000))})`;
+      yes.textContent = `${confirm} (${Math.max(1, Math.floor(left / 1000))})`;
     };
     tick();
     timer = window.setInterval(tick, 250);
     no.focus();
   };
+  const rowOf = (
+    btn: HTMLButtonElement,
+  ): Omit<NonNullable<typeof pending>, "mode" | "busy" | "idle"> => {
+    const title =
+      btn.dataset.title === ""
+        ? "this painting"
+        : (btn.dataset.title ?? "this painting");
+    return {
+      slug: btn.dataset.slug ?? "",
+      title,
+      md: btn.dataset.md ?? "",
+      btn,
+    };
+  };
+  const openTrash = (btn: HTMLButtonElement) => {
+    const row = rowOf(btn);
+    arm(
+      "Move to trash?",
+      `This removes "${row.title}" from the site. Anything in trash ` +
+        `restores in one tap, for 30 days.`,
+      "Move to trash",
+      { ...row, mode: "trash", busy: "Moving…" },
+    );
+  };
+  const openPurge = (btn: HTMLButtonElement) => {
+    const row = rowOf(btn);
+    arm(
+      "Delete forever?",
+      `"${row.title}" and its photo are gone for good. This can't be undone.`,
+      "Delete forever",
+      { ...row, mode: "purge", busy: "Deleting…" },
+    );
+  };
+  const openEmpty = (btn: HTMLButtonElement) => {
+    const n = lastRenderedRows.filter((r) => r.trash).length;
+    arm(
+      "Empty trash?",
+      `${n === 1 ? "1 painting" : `${n} paintings`}, gone for good. ` +
+        `This can't be undone.`,
+      "Empty trash",
+      { slug: "", title: "", md: "", btn, mode: "empty", busy: "Emptying…" },
+    );
+  };
 
   list.addEventListener("click", (e) => {
-    const t = e.target instanceof Element ? e.target.closest(".row-del") : null;
-    const btn = t instanceof HTMLButtonElement ? t : null;
-    if (btn === null || btn.disabled) return;
-    open(btn);
+    const t = e.target instanceof Element ? e.target : null;
+    const restore = t?.closest(".row-restore");
+    if (restore instanceof HTMLButtonElement && !restore.disabled) {
+      void restoreRow(restore);
+      return;
+    }
+    const empty = t?.closest(".row-empty");
+    if (empty instanceof HTMLButtonElement && !empty.disabled) {
+      openEmpty(empty);
+      return;
+    }
+    const del = t?.closest(".row-del");
+    if (!(del instanceof HTMLButtonElement) || del.disabled) return;
+    if (del.dataset.purge === "1") openPurge(del);
+    else openTrash(del);
   });
   no.addEventListener("click", () => {
     const btn = pending?.btn;
@@ -753,14 +963,20 @@ function wireRowDelete(): void {
       window.clearInterval(timer);
       timer = null;
     }
-    const { slug, title, md, btn } = pending;
+    const { mode, slug, title, md, btn, busy, idle } = pending;
     pending = null;
     overlay.hidden = true;
     btn.disabled = true;
-    btn.textContent = "Deleting…";
-    void deleteRow(slug, title, md).catch((err: unknown) => {
+    btn.textContent = busy;
+    const done =
+      mode === "trash"
+        ? trashRow(slug, title, md)
+        : mode === "purge"
+          ? purgeRow(slug, title, md)
+          : emptyTrash();
+    void done.catch((err: unknown) => {
       btn.disabled = false;
-      btn.textContent = "Delete";
+      btn.textContent = idle;
       setStatus(errorMessage(err), true);
     });
   });
@@ -776,7 +992,7 @@ async function refreshCollection(): Promise<void> {
     const retry = $("collection-refresh");
     if (err instanceof ApiError && err.status === 401) {
       list.innerHTML =
-        "<li>This needs your API token — enter it in Advanced below, then tap Retry.</li>";
+        '<li>This needs your API token — enter it on the <a href="/admin/guide">Guide page</a>, then tap Retry.</li>';
       retry.hidden = false;
       return;
     }
@@ -837,6 +1053,8 @@ async function refreshCollection(): Promise<void> {
       price: Number(p.price),
       sold: p.sold,
       draft: p.draft,
+      trash: p.trash,
+      trashedAt: p.trashedAt,
       image: (thumbByMd ?? {})[mdPath] ?? "",
       alt: p.alt,
       description: p.description,
@@ -849,7 +1067,16 @@ async function refreshCollection(): Promise<void> {
       order: p.order,
     });
   }
-  renderRows(rows);
+  // Anything trashed over 30 days ago clears itself on this visit — but
+  // a purge failure must never blank the list, so it falls back to the
+  // unpurged rows with an error toast.
+  let live = rows;
+  try {
+    live = await purgeOldTrash(rows);
+  } catch (err: unknown) {
+    setStatus(errorMessage(err), true);
+  }
+  renderRows(live);
 }
 
 /**

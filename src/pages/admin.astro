@@ -37,6 +37,8 @@ const localCollection = (await getCollection("paintings")).map((p) => ({
   heightIn: p.data.heightIn ?? null,
   depthIn: p.data.depthIn ?? null,
   draft: p.data.draft === true,
+  trash: p.data.trash === true,
+  trashedAt: p.data.trashedAt ?? "",
   image: p.data.image.src,
   order: p.data.order ?? null,
   mdPath: `src/content/paintings/${mdFile(p.id)}`,
@@ -51,8 +53,10 @@ const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
 // (no skeleton flash, no cumulative layout shift).
 const byTitle = (a: { title: string }, b: { title: string }): number =>
   a.title.localeCompare(b.title);
-const ssrDrafts = [...localCollection].filter((p) => p.draft).sort(byTitle);
-const ssrGroups = groupByAvailability(localCollection.filter((p) => !p.draft));
+const live = localCollection.filter((p) => !p.trash);
+const ssrTrash = [...localCollection].filter((p) => p.trash).sort(byTitle);
+const ssrDrafts = [...live].filter((p) => p.draft).sort(byTitle);
+const ssrGroups = groupByAvailability(live.filter((p) => !p.draft));
 const ssrAvailable = [...ssrGroups.available].sort(compareGalleryOrder);
 // Sold drags just like Available, so the static rows already follow the
 // drag order (frontmatter `order:`), not the alphabet.
@@ -70,6 +74,9 @@ const draftsHtml = ssrDrafts.map(studioRowHtml).join("");
 const soldHtml = ssrSold.map(studioRowHtml).join("");
 const soldCount = ssrSold.length;
 const soldLabel = soldCount === 1 ? "1 sold" : `${soldCount} sold`;
+const trashHtml = ssrTrash.map(studioRowHtml).join("");
+const trashCount = ssrTrash.length;
+const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
 ---
 
 <Layout title="Artist Studio — Admin" wordmark="admin">
@@ -105,6 +112,23 @@ const soldLabel = soldCount === 1 ? "1 sold" : `${soldCount} sold`;
             </details>
           )
         }
+        {
+          trashCount > 0 && (
+            <details class="trash-fold" data-group="trash">
+              <summary>{trashLabel}</summary>
+              <div class="fold-tools">
+                <button type="button" class="row-empty">
+                  Empty trash
+                </button>
+              </div>
+              <p class="hint">
+                Anything here over 30 days old clears itself. Deleted forever is
+                forever.
+              </p>
+              <ul class="group-rows" set:html={trashHtml} />
+            </details>
+          )
+        }
       </ul>
       <button type="button" id="practice-reset" hidden
         >Clear practice changes</button
@@ -122,14 +146,16 @@ const soldLabel = soldCount === 1 ? "1 sold" : `${soldCount} sold`;
           aria-labelledby="row-confirm-title"
           class="confirm-card"
         >
-          <h2 id="row-confirm-title">Delete this painting?</h2>
+          <h2 id="row-confirm-title">Move to trash?</h2>
           <p id="row-confirm-body">
-            This removes it from the site. It stays recoverable in the repo
-            history.
+            This removes it from the site. Anything in trash restores in one
+            tap, for 30 days.
           </p>
           <div class="confirm-actions">
             <button type="button" id="row-confirm-no">Keep it</button>
-            <button type="button" id="row-confirm-yes" disabled>Delete</button>
+            <button type="button" id="row-confirm-yes" disabled
+              >Move to trash</button
+            >
           </div>
         </div>
       </div>
@@ -156,7 +182,8 @@ const soldLabel = soldCount === 1 ? "1 sold" : `${soldCount} sold`;
      instantly here; color and opacity transitions still run. */
   @media (prefers-reduced-motion: reduce) {
     :global(#edit-list .sold-fold::details-content),
-    :global(#edit-list .drafts-fold::details-content) {
+    :global(#edit-list .drafts-fold::details-content),
+    :global(#edit-list .trash-fold::details-content) {
       transition: none;
     }
   }
@@ -183,11 +210,13 @@ const soldLabel = soldCount === 1 ? "1 sold" : `${soldCount} sold`;
      Advanced drawer uses. Where the browser can't interpolate, opening
      and closing simply appear, as before. */
   :global(#edit-list .sold-fold),
-  :global(#edit-list .drafts-fold) {
+  :global(#edit-list .drafts-fold),
+  :global(#edit-list .trash-fold) {
     interpolate-size: allow-keywords;
   }
   :global(#edit-list .sold-fold::details-content),
-  :global(#edit-list .drafts-fold::details-content) {
+  :global(#edit-list .drafts-fold::details-content),
+  :global(#edit-list .trash-fold::details-content) {
     block-size: 0;
     overflow: clip;
     transition:
@@ -196,7 +225,8 @@ const soldLabel = soldCount === 1 ? "1 sold" : `${soldCount} sold`;
     transition-behavior: allow-discrete;
   }
   :global(#edit-list .sold-fold[open]::details-content),
-  :global(#edit-list .drafts-fold[open]::details-content) {
+  :global(#edit-list .drafts-fold[open]::details-content),
+  :global(#edit-list .trash-fold[open]::details-content) {
     block-size: auto;
   }
   /* Rows and fields are built by script after load, so they never carry
@@ -259,6 +289,41 @@ const soldLabel = soldCount === 1 ? "1 sold" : `${soldCount} sold`;
   :global(#edit-list .row-del:hover) {
     color: var(--danger);
     text-decoration-color: currentColor;
+  }
+  /* Restore wears the same quiet link-button shape as Delete. */
+  :global(#edit-list .row-restore) {
+    font: inherit;
+    font-size: 0.85rem;
+    background: none;
+    border: none;
+    padding: 0;
+    min-height: 0;
+    color: var(--muted);
+    text-decoration: underline transparent;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    justify-self: start;
+    transition:
+      color 0.2s ease,
+      text-decoration-color 0.12s ease;
+  }
+  :global(#edit-list .row-restore:hover) {
+    color: var(--accent);
+    text-decoration-color: currentColor;
+  }
+  :global(#edit-list .row-restore:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+  /* Fold toolbars (Empty trash) sit between the count and the rows. */
+  :global(#edit-list .fold-tools) {
+    margin: 0.75rem 0 0;
+  }
+  :global(#edit-list .row-empty) {
+    min-height: 2.2rem;
+    padding: 0.25rem 0.9rem;
+    font-size: 0.82rem;
   }
   /* Row delete confirmation: a plain-words modal in the middle of the
      screen. It appears instantly under every motion setting — no
@@ -361,14 +426,17 @@ const soldLabel = soldCount === 1 ? "1 sold" : `${soldCount} sold`;
   :global(#edit-list .row-edit) {
     font-size: 0.85rem;
   }
-  /* Edit and Delete ride side by side, each with its own small icon. */
+  /* Edit and Delete ride side by side, each with its own small icon —
+     wrapping when a third action (Restore) joins them. */
   :global(#edit-list .row-actions) {
     display: flex;
-    gap: 1.2rem;
+    gap: 0.4rem 1.2rem;
     align-items: center;
+    flex-wrap: wrap;
   }
   :global(#edit-list .row-edit),
-  :global(#edit-list .row-del) {
+  :global(#edit-list .row-del),
+  :global(#edit-list .row-restore) {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
@@ -401,12 +469,14 @@ const soldLabel = soldCount === 1 ? "1 sold" : `${soldCount} sold`;
     /* Drafts and Sold each get their own full-width row below, folded
        open by default — one tap on the count folds it away. */
     :global(#edit-list .sold-fold),
-    :global(#edit-list .drafts-fold) {
+    :global(#edit-list .drafts-fold),
+    :global(#edit-list .trash-fold) {
       border-top: 1px solid var(--line);
       padding-top: 1rem;
     }
     :global(#edit-list .sold-fold summary),
-    :global(#edit-list .drafts-fold summary) {
+    :global(#edit-list .drafts-fold summary),
+    :global(#edit-list .trash-fold summary) {
       font-family: Georgia, "Iowan Old Style", Charter, serif;
       font-size: 1.05rem;
       font-weight: 500;
@@ -418,12 +488,14 @@ const soldLabel = soldCount === 1 ? "1 sold" : `${soldCount} sold`;
       border-bottom: none;
     }
     :global(#edit-list .sold-fold summary:focus-visible),
-    :global(#edit-list .drafts-fold summary:focus-visible) {
+    :global(#edit-list .drafts-fold summary:focus-visible),
+    :global(#edit-list .trash-fold summary:focus-visible) {
       outline: 2px solid var(--accent);
       outline-offset: 2px;
     }
     :global(#edit-list .sold-fold .group-rows),
-    :global(#edit-list .drafts-fold .group-rows) {
+    :global(#edit-list .drafts-fold .group-rows),
+    :global(#edit-list .trash-fold .group-rows) {
       margin-top: 0.75rem;
     }
     /* Drag-to-reorder: grabbable cards, one accent edge where the
@@ -460,20 +532,23 @@ const soldLabel = soldCount === 1 ? "1 sold" : `${soldCount} sold`;
       height: auto;
       aspect-ratio: 4 / 3;
     }
-    /* Drafts are a waiting shelf, not the show: compact horizontal
-       rows with small thumbs, flowing into as many columns as fit —
-       never the big photo-on-top cards. */
-    :global(#edit-list .drafts-fold .group-rows) {
+    /* Drafts and Trash are waiting shelves, not the show: compact
+       horizontal rows with small thumbs, flowing into as many columns
+       as fit — never the big photo-on-top cards. */
+    :global(#edit-list .drafts-fold .group-rows),
+    :global(#edit-list .trash-fold .group-rows) {
       grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
     }
-    :global(#edit-list .drafts-fold li.row-card) {
+    :global(#edit-list .drafts-fold li.row-card),
+    :global(#edit-list .trash-fold li.row-card) {
       display: flex;
       gap: 0.6rem;
       align-items: center;
       padding: 0.5rem 0.75rem;
       font-size: 0.85rem;
     }
-    :global(#edit-list .drafts-fold img.thumb) {
+    :global(#edit-list .drafts-fold img.thumb),
+    :global(#edit-list .trash-fold img.thumb) {
       width: 3rem;
       height: 3rem;
     }
