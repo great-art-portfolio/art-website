@@ -4,7 +4,7 @@ import Analytics from "../components/Analytics.astro";
 import Signature from "../components/Signature.astro";
 import AdminWordmark from "../components/AdminWordmark.astro";
 import background from "../assets/background-warm.svg";
-import { ARTIST_LOCATION, ARTIST_NAME, siteTitle } from "../lib/site";
+import { ARTIST_LOCATION, ARTIST_NAME, SITE_URL, siteTitle } from "../lib/site";
 
 interface Props {
   title?: string;
@@ -61,8 +61,8 @@ const artistLabel = ARTIST_NAME ?? "The Studio";
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content={canonical} />
-    <meta property="og:image" content={new URL(image, Astro.url).href} />
+    <meta property="og:url" content={new URL(canonical, SITE_URL).href} />
+    <meta property="og:image" content={new URL(image, SITE_URL).href} />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />

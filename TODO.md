@@ -174,3 +174,9 @@ Push to main for CI; real upload test on barbart.ca/admin.
   - Two catches by the suites: canonical baked as localhost:4321
     (now relative paths) and the row Preview shortcut violating the
     one-door-per-card / never-"preview" list contracts (removed).
+- SEO pass (156 unit, 129 e2e, all green): `site: barbart.ca` plus a
+  SITE_URL constant (build bakes a placeholder origin, so share tags
+  never derive from the request); hand-rolled sitemap.xml (published
+  paintings only, no drafts/studio) + robots.txt (studio disallowed);
+  buyer pages share the painting photo with absolute addresses
+  (was: site icon on a localhost URL).

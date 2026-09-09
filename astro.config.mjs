@@ -3,6 +3,8 @@ import { defineConfig } from "astro/config";
 
 // https://astro.build/config
 export default defineConfig({
+  // Live origin: feeds absolute share/sitemap addresses at build time.
+  site: "https://barbart.ca",
   vite: {
     server: {
       // Studio dev loop only (`pnpm dev:studio`): the local content API

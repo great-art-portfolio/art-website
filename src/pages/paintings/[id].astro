@@ -93,6 +93,7 @@ const paintingJsonLd = {
   title={`${painting.data.title} — ${painting.data.sold ? "Sold" : "Original Painting"}`}
   description={painting.data.alt}
   canonical={`/paintings/${data.slug}`}
+  image={painting.data.image.src}
 >
   <PaintingDetail
     mode="buy"

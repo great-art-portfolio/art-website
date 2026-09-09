@@ -1,5 +1,12 @@
 /** Site-wide display settings — one place to change how the gallery presents itself. */
 
+/**
+ * The live domain. Share tags and the sitemap need absolute addresses,
+ * and the static build bakes pages with a placeholder origin — so these
+ * never derive from the request URL, only from here.
+ */
+export const SITE_URL = "https://barbart.ca";
+
 /** The artist's name. Set to null to fall back to generic wording. */
 export const ARTIST_NAME: string | null = "Barbara Straka";
 
