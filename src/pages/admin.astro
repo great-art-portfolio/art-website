@@ -79,7 +79,7 @@ const trashCount = ssrTrash.length;
 const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
 ---
 
-<Layout title="Artist Studio — Admin" wordmark="admin">
+<Layout title="Admin - Collection" wordmark="admin">
   <main class="admin" id="main">
     <h2>
       <span id="collection-title">Available</span>
@@ -187,15 +187,8 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
     color: var(--muted);
     font-size: 0.85rem;
   }
-  /* Reduced motion kills movement, not gentle fades — folds open
-     instantly here; color and opacity transitions still run. */
-  @media (prefers-reduced-motion: reduce) {
-    :global(#edit-list .sold-fold::details-content),
-    :global(#edit-list .drafts-fold::details-content),
-    :global(#edit-list .trash-fold::details-content) {
-      transition: none;
-    }
-  }
+  /* Reduced motion is honored inside the drawer script: the height
+     opens instantly while the fade still runs. */
   #edit-list {
     list-style: none;
     padding: 0;
@@ -215,28 +208,18 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
     padding: 0;
     margin: 0;
   }
-  /* Folds unfold instead of snapping — the same allow-keywords ease the
-     Advanced drawer uses. Where the browser can't interpolate, opening
-     and closing simply appear, as before. */
-  :global(#edit-list .sold-fold),
-  :global(#edit-list .drafts-fold),
-  :global(#edit-list .trash-fold) {
-    interpolate-size: allow-keywords;
+  /* Folds ease through the same script-driven drawer as Advanced
+     Settings — identical on every browser. Endpoints only, no
+     transition: the script animates between them. */
+  :global(#edit-list .sold-fold > :not(summary)),
+  :global(#edit-list .drafts-fold > :not(summary)),
+  :global(#edit-list .trash-fold > :not(summary)) {
+    opacity: 0;
   }
-  :global(#edit-list .sold-fold::details-content),
-  :global(#edit-list .drafts-fold::details-content),
-  :global(#edit-list .trash-fold::details-content) {
-    block-size: 0;
-    overflow: clip;
-    transition:
-      block-size 0.35s ease,
-      content-visibility 0.35s ease;
-    transition-behavior: allow-discrete;
-  }
-  :global(#edit-list .sold-fold[open]::details-content),
-  :global(#edit-list .drafts-fold[open]::details-content),
-  :global(#edit-list .trash-fold[open]::details-content) {
-    block-size: auto;
+  :global(#edit-list .sold-fold[open] > :not(summary)),
+  :global(#edit-list .drafts-fold[open] > :not(summary)),
+  :global(#edit-list .trash-fold[open] > :not(summary)) {
+    opacity: 1;
   }
   /* Rows and fields are built by script after load, so they never carry
      the scope attribute — whole-selector :global keeps them styled. */

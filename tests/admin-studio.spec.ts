@@ -921,6 +921,48 @@ test("info links list plainly, and Advanced eases open", async ({ page }) => {
   await expect(page.locator("#admin-token")).toBeVisible();
 });
 
+test("drawers animate through script on every browser", async ({ page }) => {
+  // The unfold is script-driven (Web Animations), not the Chromium-only
+  // interpolate-size slide — spy Element.animate to prove the script
+  // owns it, on the guide drawer and a collection fold alike.
+  const animatedProps = (summarySel: string): Promise<string[]> =>
+    page.evaluate((sel) => {
+      const seen: string[] = [];
+      const proto = window.Element.prototype;
+      const orig = proto.animate;
+      function spy(
+        this: Element,
+        keyframes: Keyframe[] | PropertyIndexedKeyframes | null,
+        options?: KeyframeAnimationOptions,
+      ): Animation {
+        const list = Array.isArray(keyframes) ? keyframes : [];
+        for (const frame of list) {
+          if (frame !== null && typeof frame === "object") {
+            for (const k of Object.keys(frame)) seen.push(k);
+          }
+        }
+        return orig.call(this, keyframes, options);
+      }
+      proto.animate = spy as typeof proto.animate;
+      document
+        .querySelector(sel)
+        ?.dispatchEvent(
+          new MouseEvent("click", { bubbles: true, cancelable: true }),
+        );
+      proto.animate = orig;
+      return seen;
+    }, summarySel);
+  await page.goto("/admin/guide");
+  const guideSeen = await animatedProps("#sec-info summary");
+  expect(guideSeen).toContain("height");
+  expect(guideSeen).toContain("opacity");
+  await page.goto("/admin");
+  await expect(page.locator("#edit-list .sold-fold")).toBeVisible();
+  const foldSeen = await animatedProps("#edit-list .sold-fold summary");
+  expect(foldSeen).toContain("height");
+  expect(foldSeen).toContain("opacity");
+});
+
 test("errors toast over the page wherever she is scrolled", async ({
   page,
 }) => {

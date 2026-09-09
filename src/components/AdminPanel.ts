@@ -1,5 +1,6 @@
 import { api, ApiError, getApiToken, setApiToken } from "../lib/api";
 import { $, isLocalPreview, maybe, maybeButton } from "../lib/dom";
+import { wireDrawers } from "../lib/drawer";
 import { errorMessage } from "../lib/errors";
 import {
   parseBakedCollection,
@@ -306,6 +307,9 @@ function renderRows(rows: LocalPainting[]): void {
   // re-render happens (photos must not flicker).
   wireReorder(list);
   wireReorderHint(list);
+  // Folds rebuild with every render — wiring is idempotent, so the
+  // SSR first paint (no re-render) and later renders share this line.
+  wireDrawers(list, "details");
   const key = rowsKey(rows);
   if (key === lastRowsKey) return;
   lastRowsKey = key;
@@ -1439,6 +1443,8 @@ function init(): void {
 
   // Guide page: API token, backend flags, and what this browser can do.
   if (onGuide) {
+    // The Advanced drawer eases through script on every browser.
+    wireDrawers(document, "#sec-info details");
     const tokenInput = $("admin-token");
     tokenInput.value = getApiToken();
     tokenInput.addEventListener("change", () => {
@@ -1458,6 +1464,9 @@ function init(): void {
       () => void refreshCollection(),
     );
     wireRowDelete();
+    // SSR folds animate from the first paint — the collection fetch
+    // hasn't resolved yet, and re-renders re-wire anyway.
+    wireDrawers($("edit-list"), "details");
 
     // Landing here from a painting room: its confirmation toast rides
     // along in session storage.

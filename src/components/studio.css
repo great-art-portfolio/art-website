@@ -15,9 +15,12 @@
 }
 /* Reading columns stay narrow: prose wants 50–70 characters a line,
    so text sections hold 40rem while the collection grid keeps the
-   full width for its cards. */
+   full width for its cards. The narrow column sits centered — left
+   aligned inside a centered container reads as off-center on wide
+   screens, with all the air stacked on the right. */
 .admin > section.prose {
   max-width: 40rem;
+  margin-inline: auto;
 }
 .admin h2 {
   font-family: Georgia, "Iowan Old Style", Charter, serif;

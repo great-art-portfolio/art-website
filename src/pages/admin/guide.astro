@@ -3,7 +3,7 @@ import Layout from "../../layouts/Layout.astro";
 import "../../components/studio.css";
 ---
 
-<Layout title="Good to know — Studio" wordmark="admin">
+<Layout title="Admin - Guide" wordmark="admin">
   <main class="admin" id="main">
     <section id="sec-info" class="prose">
       <h2>Good to know</h2>
@@ -81,52 +81,15 @@ import "../../components/studio.css";
     display: grid;
     gap: 0.5rem;
   }
-  /* Advanced drawer eases open where the browser allows it; elsewhere it
-     simply appears, as before. */
-  #sec-info details {
-    interpolate-size: allow-keywords;
-  }
-  #sec-info details::details-content {
-    block-size: 0;
-    overflow: clip;
-    transition:
-      block-size 0.35s ease,
-      content-visibility 0.35s ease;
-    /* !important: the transition shorthand below resets behavior to
-       normal, and the minifier sorts this declaration first — without
-       it the unfold silently snaps. */
-    transition-behavior: allow-discrete !important;
-  }
-  #sec-info details[open]::details-content {
-    block-size: auto;
-  }
-  /* The settings themselves fade in a beat behind the unfold, so the
-     words arrive once their room exists instead of squeezing through
-     mid-animation. Opacity-only, so it still runs under reduced motion.
-     The display step rides along discretely with a @starting-style:
-     without it the freshly rendered content has no starting opacity
-     and pops in on some runs. */
+  /* The drawer ease is script-driven (Web Animations), identical on
+     every browser — the interpolate-size slide only runs in Chromium,
+     so elsewhere the same drawer snapped. These are just the opacity
+     endpoints the script fades between: no transition here, or it
+     would fight the script mid-flight. */
   #sec-info details > :not(summary) {
     opacity: 0;
-    transition:
-      opacity 0.25s ease 0.08s,
-      display 0.33s ease;
-    /* Important: the shorthand resets behavior to normal, and the
-       minifier sorts this declaration first — without it the display
-       step snaps and the fade only sometimes plays. */
-    transition-behavior: allow-discrete !important;
   }
   #sec-info details[open] > :not(summary) {
     opacity: 1;
-  }
-  @starting-style {
-    #sec-info details[open] > :not(summary) {
-      opacity: 0;
-    }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    #sec-info details::details-content {
-      transition: none;
-    }
   }
 </style>
