@@ -279,6 +279,9 @@ Push to main for CI; real upload test on barbart.ca/admin.
   plus the Sold/Drafts/Trash fold counts wear user-select none —
   a header is a control, not content. Pinned by double-clicking
   the header and reading the (empty) selection.
+- Guide teaches the drag (140 e2e green): Collection order section
+  names Available/Sold as draggable, drafts/trash as staying put,
+  in the page's own plain words.
 - CI retries the browser install (apt mirror exit 100 twice running,
   failing runs before any gate; PAT can't rerun, hence the empty
   retrigger commit). Root cause: Google's Chrome repo serves a stale
