@@ -467,6 +467,8 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
       font-size: 1.4rem;
       font-weight: 500;
       cursor: pointer;
+      -webkit-user-select: none;
+      user-select: none;
       border-radius: 0.25rem;
       /* Fold counts wear the h2 shape, minus its old hairline:
          whitespace separates the groups, not lines. */
@@ -479,6 +481,8 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
       font-size: 1.05rem;
       font-weight: 500;
       cursor: pointer;
+      -webkit-user-select: none;
+      user-select: none;
       width: fit-content;
       border-radius: 0.25rem;
       /* Trash stays a quiet archive header: no hairline. */

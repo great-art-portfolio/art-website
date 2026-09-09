@@ -950,6 +950,14 @@ test("info links list plainly, and Advanced eases open", async ({ page }) => {
   await expect(page.locator("#admin-token")).toBeVisible();
 });
 
+test("drawer headers never select their words", async ({ page }) => {
+  await page.goto("/admin/guide");
+  await page.locator("#sec-info summary").dblclick();
+  expect(
+    await page.evaluate(() => window.getSelection()?.toString() ?? ""),
+  ).toBe("");
+});
+
 test("drawers animate through script on every browser", async ({ page }) => {
   // The unfold is script-driven (Web Animations), not the Chromium-only
   // interpolate-size slide — spy Element.animate to prove the script

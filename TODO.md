@@ -275,6 +275,10 @@ Push to main for CI; real upload test on barbart.ca/admin.
   metrics one must measure the text range, not the stretched box).
   Trash guide line already covered (move/restore/purge + 30-day
   auto-clear tests).
+- Drawer headers unselectable (140 e2e green): Advanced Settings
+  plus the Sold/Drafts/Trash fold counts wear user-select none —
+  a header is a control, not content. Pinned by double-clicking
+  the header and reading the (empty) selection.
 - CI retries the browser install (apt mirror exit 100 twice running,
   failing runs before any gate; PAT can't rerun, hence the empty
   retrigger commit). Root cause: Google's Chrome repo serves a stale

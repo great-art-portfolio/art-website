@@ -85,6 +85,12 @@ import "../../components/studio.css";
      so elsewhere the same drawer snapped. These are just the opacity
      endpoints the script fades between: no transition here, or it
      would fight the script mid-flight. */
+  /* A drawer header is a control, not content: clicking it must
+     never highlight its words. */
+  #sec-info summary {
+    -webkit-user-select: none;
+    user-select: none;
+  }
   #sec-info details > :not(summary) {
     opacity: 0;
   }
