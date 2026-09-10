@@ -1369,6 +1369,20 @@ const currentSection = adminSection(Astro.url.pathname);
       opacity: 0.22;
     }
   }
+  /* Older eyes asked for this one: secondary text goes full ink and
+     hairlines darken past decoration into structure. Unsupported
+     browsers ignore the query and keep the softer theme. */
+  @media (prefers-contrast: more) {
+    :root {
+      --muted: var(--ink);
+      --line: #8a7f6f;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --line: #6b6259;
+      }
+    }
+  }
   /* Reduced motion kills movement, not gentle fades: the background
      drift stops and lifts come off, while color and underline
      transitions still run. */

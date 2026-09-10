@@ -965,6 +965,9 @@ const eyebrow =
   }
   .desc :global(p) {
     margin: 0 0 0.75rem;
+    /* No widowed last words in her statements. Unsupported browsers
+       keep normal wrapping — nothing breaks, it just wraps. */
+    text-wrap: pretty;
   }
   #pv-desc:empty {
     display: none;

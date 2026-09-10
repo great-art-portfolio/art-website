@@ -427,3 +427,19 @@ test("admin explains itself gracefully without a publishing backend", async ({
   await expect(page.locator("#sec-views")).toHaveCount(0);
   await expect(page.locator("#edit-list")).not.toContainText("preview");
 });
+
+test("asked-for contrast inks the quiet text", async ({ browser }) => {
+  // Older eyes: with more contrast requested, secondary painting text
+  // renders at full ink instead of the softer muted tone.
+  const context = await browser.newContext({ contrast: "more" });
+  const page = await context.newPage();
+  await page.goto("/paintings/first-thaw");
+  const meta = page.locator(".art-meta").first();
+  await expect(meta).toBeVisible();
+  await expect
+    .poll(async () => meta.evaluate((el) => getComputedStyle(el).color), {
+      timeout: 5000,
+    })
+    .toBe("rgb(35, 32, 27)");
+  await context.close();
+});
