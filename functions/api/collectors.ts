@@ -32,17 +32,10 @@ function hasList(env: AppEnv): boolean {
 }
 
 /**
- * Collector email list ("tell me about new paintings" addresses).
- *
- * Nothing is stored here: confirmed addresses live in Resend as
- * segment contacts, and the pending proof travels inside the emailed
- * links as HMAC tokens. Actions, by body (JSON) — Gmail's one-click
- * POST arrives form-encoded, token + email in the query string:
- * - { email } → join: emails a confirmation link (or says already).
- * - { action: "confirm", email, token } → the link tap: joins the segment.
- * - { action: "unsubscribe", email, token } → the one-click link: removed.
- * - { action: "unsubscribe", email } → the modal button: removed.
- * GET (the confirmed count for /admin) stays behind the admin check.
+ * Email list. Nothing stored: confirmed addresses live in Resend, the
+ * pending proof travels in the links as HMAC tokens. Gmail's one-click
+ * POST arrives form-encoded, token + email in the query string.
+ * GET (the /admin count) needs the admin token.
  */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   let body: Record<string, string>;
@@ -80,7 +73,6 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       return serverError("The email list isn't set up yet — try again later.");
     }
     try {
-      // Rejoining without leaving sends nothing new.
       if (await isConfirmedContact(context.env, email).catch(() => false)) {
         return json({ ok: true, already: true, emailed: true });
       }
@@ -122,8 +114,8 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
           "The email list isn't set up yet — try again later.",
         );
       }
-      // Delete-then-create: a rejoin after a Resend-side unsubscribe
-      // comes back fully subscribed, not silently muted.
+      // Delete-then-create so a rejoin after a Resend-side unsubscribe
+      // comes back subscribed, not silently muted.
       await syncContactRemoved(context.env, email).catch(() => false);
       await syncContactSubscribed(context.env, email).catch(() => false);
       return json({ ok: true });
@@ -177,7 +169,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   return badRequest("Invalid request");
 };
 
-/** Admin: how many addresses are on the email list. */
+/** Admin: list size. */
 export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
   const denied = requireAdmin(context.request, context.env);
   if (denied !== null) return denied;

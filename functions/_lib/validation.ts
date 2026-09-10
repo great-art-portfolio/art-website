@@ -1,10 +1,5 @@
-/**
- * Runtime schemas for the Functions API boundaries. Same idea as
- * `src/lib/schemas.ts`: every `request.json()` used to land in a bare
- * `as T`, so a client-side field rename stayed green here and died at
- * runtime. Validate once at the edge; handlers below work with inferred
- * types instead of casts.
- */
+/** Runtime schemas for the Functions boundaries. Validate once at the edge;
+ * handlers work with inferred types instead of casts. */
 import { z } from "zod";
 
 /** GitHub `contents` answer for a single file. */
@@ -35,12 +30,8 @@ export function parseGitHubDir(
   return entries;
 }
 
-/**
- * Admin commit POST body (working-tree sidecar mirrors this contract).
- * Wrong-typed fields fall back exactly as the old hand checks did (empty
- * message, no files), so the "message and 1–12 files" branch below still
- * fires — only a non-object body reads as invalid JSON.
- */
+/** Admin commit POST body (the sidecar mirrors this contract). Wrong-typed
+ * fields fall back to empty; only a non-object body is invalid JSON. */
 const commitBodySchema = z.object({
   message: z.string().catch(""),
   files: z

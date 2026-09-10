@@ -1,11 +1,6 @@
-/**
- * Animated disclosure, one code path on every browser. The CSS
- * interpolate-size slide only runs in Chromium — Safari and Firefox
- * snap it, so the same drawer felt animated on one device and dead on
- * the next. This drives height plus a beat-behind fade through the Web
- * Animations API instead: the same ease everywhere. Reduced motion
- * opens the height instantly while the fade still runs.
- */
+/** Animated disclosure, same ease on every browser (Web Animations API —
+ * CSS interpolate-size only runs in Chromium). Reduced motion opens height
+ * instantly; the fade still runs. */
 
 const wired = new WeakSet<HTMLDetailsElement>();
 const inFlight = new WeakMap<HTMLDetailsElement, Animation[]>();

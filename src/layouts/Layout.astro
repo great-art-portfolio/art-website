@@ -350,12 +350,9 @@ const currentSection = adminSection(Astro.url.pathname);
         );
       }
 
-      // Status words fade in, then fade back out on their own a few
-      // seconds later — nothing in the modal lingers. A counter on the
-      // element drops a late fade-out when a newer message lands.
-      // Sticky messages (a blocked state she must act on) stay until
-      // replaced. Fades run under every motion setting: they are opacity
-      // only, never movement.
+      // Status words fade in and out on their own (opacity-only, every motion
+      // setting). A counter drops a late fade-out when a newer message lands;
+      // sticky messages stay until replaced.
       function notifySay(el = document.body, msg = "", sticky = false) {
         const n = Number(el.dataset.say ?? "0") + 1;
         el.dataset.say = String(n);
@@ -364,8 +361,7 @@ const currentSection = adminSection(Astro.url.pathname);
           el instanceof HTMLElement ? el.closest(".status-wrap") : null;
         if (wrap !== null) wrap.classList.toggle("open", msg !== "");
         if (typeof el.animate === "function" && msg !== "") {
-          // A beat behind the unfold, so words arrive once their room
-          // exists instead of squeezing through mid-animation.
+          // A beat behind the unfold, so words arrive once their room exists.
           el.animate([{ opacity: 0 }, { opacity: 1 }], {
             duration: 200,
             delay: 100,
@@ -403,8 +399,7 @@ const currentSection = adminSection(Astro.url.pathname);
           if (typeof dlg.showModal === "function") dlg.showModal();
           else dlg.setAttribute("open", "");
         }
-        // The modal renders hidden until opened — render the spam check
-        // on open so it measures correctly. No-op when already rendered.
+        // Render the spam check on open (hidden modals mismeasure). No-op twice.
         loadNotifyTurnstile();
         const closeEl = document.getElementById("notify-close");
         const closeBtn = closeEl instanceof HTMLButtonElement ? closeEl : null;
@@ -475,9 +470,7 @@ const currentSection = adminSection(Astro.url.pathname);
               notifySay(hint, "That didn't work — try again in a bit.");
             });
         });
-        // Leaving needs no spam check: removal is harmless (rejoining
-        // takes one tap) and the token links skip it the same way.
-        // Always reads done, whether the address was there or not.
+        // Leaving needs no spam check, and always reads done.
         const leaveEl = document.getElementById("notify-email-leave");
         const leave = leaveEl instanceof HTMLButtonElement ? leaveEl : null;
         if (leave !== null) {
@@ -509,9 +502,8 @@ const currentSection = adminSection(Astro.url.pathname);
         }
       }
 
-      // Drawer opens repaint while the load-time paint may still be
-      // awaiting push state — only the latest run may write, so a fast
-      // drawer never gets yesterday's verdict over today's.
+      // Drawer opens repaint while the load-time paint may still await push
+      // state — only the latest run writes.
       let paintSeq = 0;
       async function paintNotify() {
         const btnEl = document.getElementById("notify-btn");
@@ -520,8 +512,7 @@ const currentSection = adminSection(Astro.url.pathname);
         const blurb = document.getElementById("notify-push-blurb");
         if (btn === null || hint === null) return;
         wireNotifyEmail();
-        // Email works for everyone; the push button only appears where
-        // push can work.
+        // Email works everywhere; the push button only where push can.
         const run = ++paintSeq;
         const s = await notifyPush().then((api) => api.pushState());
         if (run !== paintSeq) return;

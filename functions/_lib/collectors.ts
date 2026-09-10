@@ -1,21 +1,11 @@
 import type { AppEnv } from "./env";
 
-/**
- * Collector email list ("tell me about new paintings" addresses).
- *
- * Stateless by design: nothing about the list lives here. Confirmed
- * addresses live in Resend as segment contacts; the pending "did they
- * tap?" proof travels inside the link itself as an HMAC token, so there
- * is no pending table to tend, expire, or leak. D1 keeps nothing.
- */
+/** Email list with no storage: confirmed addresses live in Resend, and the
+ * pending proof travels inside the emailed links as HMAC tokens. */
 
 const MAX_EMAIL_LENGTH = 254;
 
-/**
- * Normalize a submitted address, or null when it isn't one. Strict but
- * simple on purpose; the address then proves itself by tapping the
- * confirmation email. Shared by the endpoint and the unit tests.
- */
+/** Normalize a submitted address, or null. The tap proves it later. */
 export function parseCollectorEmail(input: unknown): string | null {
   if (typeof input !== "string") return null;
   const email = input.trim().toLowerCase();
@@ -24,11 +14,7 @@ export function parseCollectorEmail(input: unknown): string | null {
   return email;
 }
 
-/**
- * Confirm links stay valid this long — enough to check tomorrow's
- * inbox, short enough a leaked link dies on its own. Goodbye links
- * never expire: the exit must work from decade-old emails.
- */
+/** Confirm links live a week; goodbye links never expire. */
 export const CONFIRM_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 export type LinkKind = "confirm" | "goodbye";
@@ -77,11 +63,8 @@ function linkKey(env: AppEnv): string {
   return env.RESEND_API_KEY ?? "";
 }
 
-/**
- * Mint a link token binding an address to a purpose. The key is the
- * Resend secret every list flow needs anyway — rotating it invalidates
- * outstanding links (rejoining mints a fresh one).
- */
+/** Mint a purpose-bound token. Keyed by the Resend secret, so rotating it
+ * invalidates outstanding links. */
 export async function issueLinkToken(
   env: AppEnv,
   email: string,
@@ -95,11 +78,7 @@ export async function issueLinkToken(
   return `${b64urlEncode(email)}.${issued}.${sig}`;
 }
 
-/**
- * Check a link token: right address, right purpose, intact signature,
- * and (for confirmations) fresh. Returns the address, or null when the
- * link is dead. Pass null maxAgeMs for links that never expire.
- */
+/** Verify a token. Null maxAgeMs = never expires. Null = dead link. */
 export async function verifyLinkToken(
   env: AppEnv,
   email: string,

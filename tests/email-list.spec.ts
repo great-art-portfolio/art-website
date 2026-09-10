@@ -1,13 +1,8 @@
 import { expect, test } from "@playwright/test";
 
-/**
- * Keyless email-list behavior through the real Functions: validation,
- * setup errors, forged links, and page copy. The round trip
- * (subscribe → tap → leave, broadcast) is covered by unit tests with
- * stubbed fetch (see collectors-api.test.mjs) — workerd cannot
- * reliably reach a host mock server in CI, so e2e never touches Resend
- * and asserts nothing about delivery.
- */
+/** Keyless email-list behavior: validation, setup errors, forged links, page
+ * copy. The round trip is unit-covered with stubbed fetch; e2e never touches
+ * Resend. */
 
 test("rejects a bad address before touching Resend", async ({ request }) => {
   const res = await request.post("/api/collectors", {

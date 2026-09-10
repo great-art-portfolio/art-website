@@ -1,11 +1,8 @@
 import { dollarsToCents, formatCAD } from "./money";
 import { viewsLabel } from "./views";
 
-/**
- * One dashboard collection row. Shared by the static rows in admin.astro
- * and the client renders in AdminPanel.ts — one renderer means hydration
- * always swaps identical markup (no flash, no layout shift).
- */
+/** One dashboard row. Shared static/client renderer, so hydration swaps
+ * identical markup (no flash). */
 export interface StudioRowInput {
   slug: string;
   title: string;

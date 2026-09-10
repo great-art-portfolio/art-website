@@ -1,17 +1,6 @@
-/**
- * Typed DOM lookup for the admin islands. Both islands used to declare
- * their own generic `$<T>()` and scatter `as HTMLInputElement` (and worse,
- * `as unknown as HTMLSelectElement`) at every call site — each cast a
- * place where renaming an id in markup stays green in the compiler and
- * breaks in the browser.
- *
- * The map below is the single choke point: `getElementById` still returns
- * `HTMLElement | null`, but callers get the concrete element type for a
- * known id, so `.value`, `.checked`, and `.disabled` typecheck with no
- * call-site cast. Dynamic ids (a variable, not a literal) fall through to
- * the `string` overload and come back as `HTMLElement | null` — narrow
- * those with `instanceof` (`maybeButton` for buttons), never a cast.
- */
+/** Typed DOM lookup: known ids come back concrete, so `.value` typechecks
+ * with no call-site cast. Dynamic ids fall through to `HTMLElement` —
+ * narrow those with `instanceof`, never a cast. */
 export interface ElementMap {
   // Studio collection, banner, and guide pages.
   "admin-status": HTMLElement;
@@ -107,10 +96,7 @@ export function maybeButton(id: string): HTMLButtonElement | null {
   return el instanceof HTMLButtonElement ? el : null;
 }
 
-/**
- * Local preview (dev servers), where publishing + analytics genuinely live
- * only on the production site — never a bug, never a setup step.
- */
+/** Local preview, where publishing + analytics never live. Not a bug. */
 export function isLocalPreview(): boolean {
   const host = window.location.hostname;
   return host === "localhost" || host === "127.0.0.1";

@@ -1,9 +1,5 @@
-/**
- * Dev practice overlay: in local previews there is no publishing backend,
- * so studio saves land here (localStorage) instead of git. The dashboard
- * merges the overlay over its baked-in list; a reload of any studio route
- * keeps practicing against the same overlay until it is cleared.
- */
+/** Dev practice overlay: local studio saves land in localStorage, not git.
+ * The dashboard merges it over the baked list until cleared. */
 
 import { parsePracticeOverlay } from "./schemas";
 import type { PracticeOverlay, PracticePainting } from "./schemas";

@@ -1,10 +1,6 @@
 /** Site-wide display settings — one place to change how the gallery presents itself. */
 
-/**
- * The live domain. Share tags and the sitemap need absolute addresses,
- * and the static build bakes pages with a placeholder origin — so these
- * never derive from the request URL, only from here.
- */
+/** Live domain. Never derived from the request URL (static build). */
 export const SITE_URL = "https://barbart.ca";
 
 /** The artist's name. Set to null to fall back to generic wording. */
@@ -15,12 +11,7 @@ export const ARTIST_LOCATION = "Calgary, Alberta";
 /** One-line description used in the hero and metadata. */
 export const TAGLINE = "Nature & abstract originals, painted by hand";
 
-/**
- * Whether prices are shown on cards and painting pages.
- * true  → "$250.00 CAD" beside each available work (recommended: removes
- *          friction, buyers self-qualify, more inquiries convert).
- * false → prices stay private; visitors use the inquiry form to ask.
- */
+/** Show prices on cards and painting pages (buyers self-qualify). */
 export const SHOW_PRICES = true;
 
 export function artistLabel(): string {
@@ -43,12 +34,7 @@ export function slugifyTitle(title: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-/**
- * True when another painting already claims this title's page link. Links
- * key off the title — never the filename — so a second "Prairie Moon"
- * breaks the build no matter what its file is called. ownSlug exempts the
- * painting being renamed (keeping its own title is fine).
- */
+/** True when another painting claims this title's link. ownSlug exempts self. */
 export function isTitleTaken(
   taken: Iterable<string>,
   title: string,
@@ -67,9 +53,7 @@ export function workCount(n: number): string {
   return `${n} ${n === 1 ? "work" : "works"}`;
 }
 
-/** Drafts and trashed paintings never reach buyers: gallery, painting
- * pages, and sitemap only ever see entries where both flags are absent
- * or false. */
+/** Drafts and trash never reach buyers. */
 export function isPublished(data: {
   draft?: boolean | undefined;
   trash?: boolean | undefined;
@@ -87,12 +71,7 @@ export function groupByAvailability<T extends { sold: boolean }>(
   return { available, sold };
 }
 
-/**
- * Gallery order, set by dragging Available rows on /admin and stored per
- * painting in frontmatter (`order:`). Ordered works come first by number;
- * unordered ones trail alphabetically — so a painting published before
- * anyone drags simply lands at the end.
- */
+/** Gallery order: numbered works first, unordered trail alphabetically. */
 export function compareGalleryOrder(
   a: { order?: number | null; title: string },
   b: { order?: number | null; title: string },

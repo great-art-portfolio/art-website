@@ -21,10 +21,7 @@ export interface NotifyResult {
   pushed: boolean;
 }
 
-/**
- * The artist's inbox: buyer inquiries land here, and broadcast copies
- * too.
- */
+/** Buyer inquiries land here; broadcast replies return here. */
 export function artistInbox(env: AppEnv): string {
   return env.ARTIST_INBOX ?? "";
 }
@@ -130,9 +127,7 @@ export function resendHeaders(env: AppEnv): Record<string, string> {
 }
 
 /**
- * The Resend segment holding the confirmed new-painting list. Empty
- * locally — broadcasts then fall back to one transactional email each.
- */
+/** The Resend segment holding the new-painting list. Empty = list off. */
 export function segmentId(env: AppEnv): string {
   return env.RESEND_SEGMENT_ID ?? "";
 }
@@ -167,11 +162,7 @@ interface SegmentContact {
   unsubscribed: boolean;
 }
 
-/**
- * Every contact on the segment (no limit: one page holds the whole
- * list at this scale). Empty when unconfigured or on any failure —
- * callers treat that as "nobody to mail".
- */
+/** Every contact on the segment. Empty when unconfigured or on failure. */
 export async function listSegmentContacts(
   env: AppEnv,
 ): Promise<SegmentContact[]> {
@@ -205,12 +196,12 @@ export async function listSegmentContacts(
   }
 }
 
-/** How many addresses are on the new-painting list (for /admin). */
+/** Address count for /admin. */
 export async function countSegmentContacts(env: AppEnv): Promise<number> {
   return (await listSegmentContacts(env)).length;
 }
 
-/** Already confirmed (and still subscribed)? Then rejoining sends nothing. */
+/** True when the address is already subscribed (rejoining sends nothing). */
 export async function isConfirmedContact(
   env: AppEnv,
   email: string,
@@ -220,11 +211,7 @@ export async function isConfirmedContact(
   );
 }
 
-/**
- * Segment broadcast body. One template for the whole segment — no
- * per-recipient links fit here, so the exit is Resend's own
- * unsubscribe placeholder (plus headers they add themselves).
- */
+/** One template for the whole segment; the exit is Resend's placeholder. */
 export function segmentBroadcastEmail(site: string): {
   subject: string;
   text: string;
@@ -243,12 +230,7 @@ export function segmentBroadcastEmail(site: string): {
   };
 }
 
-/**
- * New-painting broadcast to the whole segment in one Broadcasts API
- * call — this is the unlimited-sends path. Replies land in the
- * artist's inbox. Without a configured segment (local dev) this says
- * no and the caller falls back to one transactional email each.
- */
+/** Broadcast to the whole segment in one call. False when unconfigured. */
 export async function sendSegmentBroadcast(
   env: AppEnv,
   site: string,

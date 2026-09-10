@@ -42,8 +42,7 @@ const localCollection = (await getCollection("paintings")).map((p) => ({
   image: p.data.image.src,
   order: p.data.order ?? null,
   mdPath: `src/content/paintings/${mdFile(p.id)}`,
-  // View counts arrive client-side, after the rows — zero here keeps the
-  // static markup identical to the first hydrated render.
+  // View counts arrive client-side; zero here matches the hydrated render.
   views: 0,
 }));
 const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");

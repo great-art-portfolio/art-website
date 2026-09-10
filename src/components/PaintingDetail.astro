@@ -1,15 +1,7 @@
 ---
-/**
- * One painting, three rooms. The buyer page, the studio edit page, and the
- * new-painting draft page share this exact layout, so what mom sees while
- * editing is what buyers see — minus the inquiry form, which is disabled
- * with its reason stated wherever she works.
- *
- * Data arrives as plain values (never a content entry), so static buyer
- * pages and dynamic studio routes render the same markup. Buyer behavior
- * (AR, inquiry, lightbox, in-context admin) rides along in the inline
- * script below, which no-ops cleanly wherever its elements are absent.
- */
+/** One painting, three rooms (buyer / edit / draft) sharing one layout, so
+ * what she edits is what buyers see. Data arrives as plain values; the
+ * inline script no-ops where its elements are absent. */
 import { Image } from "astro:assets";
 import type { ImageMetadata } from "astro";
 import { PHOTO_WIDTHS, photoSizes } from "../lib/responsive-images";
@@ -493,14 +485,9 @@ const eyebrow =
 </main>
 
 <script>
-  // NOTE: no define:vars on this block — with it, Astro emits the script
-  // raw (dynamic imports stay relative URLs and 404). Page data comes
-  // from #main data-* attributes instead, and Vite bundles this properly.
-  // View Transitions keep this module alive across gallery → painting
-  // navigations (it runs once per document, not once per page), so page
-  // data must be read live from #main on every use — eval-time consts go
-  // stale and the next painting inherits the previous one's 3D model,
-  // inquiry title, and edit path.
+  // No define:vars (emits raw; dynamic imports 404). Data comes from #main
+  // data-* attributes. View Transitions keep this module alive across pages,
+  // so read dataset live on every use — eval-time consts go stale.
   function readPageData() {
     const pageData = document.getElementById("main")?.dataset;
     return {
@@ -532,9 +519,8 @@ const eyebrow =
     mount.dataset.wiredSrc = glb;
     const stage = document.getElementById("ar-stage");
     if (stage === null) return;
-    // Instant static preview from the photo already on screen — zero extra
-    // bytes. The viewer library (~1.5MB with its decoders) and the model
-    // only download once this section scrolls into view.
+    // Static preview is free (photo already on screen); the ~1.5MB viewer +
+    // model download only on scroll-into-view.
     const photo = document.querySelector("#photo-wrap img");
     const poster =
       photo instanceof HTMLImageElement
@@ -555,8 +541,7 @@ const eyebrow =
       stage.replaceChildren(img);
     }
     const build = () => {
-      // Script tag, not import(): Vite dev won't serve /public files as
-      // modules. See src/lib/vendor-loader.ts.
+      // Script tag, not import(): Vite dev won't serve /public as modules.
       void import("../lib/vendor-loader")
         .then(({ loadModelViewer }) => loadModelViewer())
         .then(() => {
@@ -596,10 +581,8 @@ const eyebrow =
     }
   }
 
-  // Page scripts only run on full loads — but this layout uses View Transitions,
-  // so gallery → painting navigations never re-run them. Everything is wired in
-  // initDetail(), called immediately AND on astro:page-load. Guards keep a
-  // double-fire on the same DOM from wiring anything twice.
+  // View Transitions never re-run page scripts: wire in initDetail(), called
+  // immediately AND on astro:page-load, guarded against double-fire.
   /** Admin mode: token set in /admin Settings reveals the studio door —
       editing itself happens in the painting's studio room. */
   function initAdmin() {
@@ -607,8 +590,7 @@ const eyebrow =
     if (bar === null || bar.dataset.wired === "1") return;
     let token;
     try {
-      // Remembered per browser (local storage) with a session fallback —
-      // mirrors getApiToken() in src/lib/api.ts.
+      // Per-browser token (mirrors getApiToken in src/lib/api.ts).
       token =
         localStorage.getItem("ADMIN_API_TOKEN") ??
         sessionStorage.getItem("ADMIN_API_TOKEN") ??
@@ -621,9 +603,8 @@ const eyebrow =
     bar.hidden = false;
   }
 
-  // Status words fade in under every motion setting. Defaults only
-  // carry the types (never called bare): inline scripts stay
-  // annotation-free on purpose.
+  // Status words fade in (every motion setting). Inline scripts stay
+  // annotation-free: defaults carry the types.
   function say(el = document.body, msg = "") {
     el.textContent = msg;
     if (typeof el.animate === "function") {
@@ -634,11 +615,9 @@ const eyebrow =
   function initDetail() {
     initAr();
     initAdmin();
-    // Browsers without Background Sync (iPhones) never replay the outbox
-    // on their own — flush on reconnect and page load instead.
+    // No Background Sync on iPhones — flush the outbox on reconnect + load.
     void import("../lib/queue").then(({ armOutboxFlush }) => armOutboxFlush());
-    // Inquiries go straight to the artist's email — nothing is stored.
-    // Spam: honeypot first, Cloudflare Turnstile when configured.
+    // Inquiries email straight out, nothing stored. Honeypot, then Turnstile.
     const formEl = document.getElementById("inquiry-form");
     const form = formEl instanceof HTMLFormElement ? formEl : null;
     if (form !== null && form.dataset.wired !== "1") {
@@ -676,7 +655,7 @@ const eyebrow =
       });
     }
 
-    // "Interested?" reveals the form (shown openly without JS).
+    // "Interested?" reveals the form (open without JS).
     const reveal = document.getElementById("inquiry-reveal");
     if (reveal !== null && form !== null && reveal.dataset.wired !== "1") {
       reveal.dataset.wired = "1";
@@ -691,8 +670,8 @@ const eyebrow =
       });
     }
 
-    // Tap photo → fullscreen overlay. Document-level listeners are registered
-    // once per browser session — the elements they act on are re-queried live.
+    // Tap photo → fullscreen. Document listeners register once per session;
+    // targets re-query live.
     if (window.__detailDocWired !== true) {
       window.__detailDocWired = true;
       const close = () => {

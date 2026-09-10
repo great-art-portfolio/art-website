@@ -4,11 +4,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isExpired, localToday, parseAnnouncement } from "../src/lib/banner";
 
-/**
- * Smoke suite: the regressions that previously shipped silently
- * (dead inline scripts showing button+form together) plus the API
- * validation paths that need no secrets. Live-secret delivery
- * (real GitHub commits, real emails) stays a manual checklist.
+/** Smoke suite: past silent regressions plus secretless API validation.
+ * Live-secret delivery stays a manual checklist.
  *
  * WARNING: wrangler pages dev auto-loads .env, so local runs may hold
  * REAL secrets. Never add a test that delivers anything (commits,

@@ -4,24 +4,24 @@ pages_build_output_dir = "dist"
 compatibility_date = "2025-03-20"
 
 # Non-secret config lives here (this file is git).
-# Secrets go in the Cloudflare dashboard (Pages → art-website → Settings → EnvVars)
+# Secrets go in Cloudflare dashboard (Pages → art-website → Settings → EnvVars)
 [vars]
 NODE_VERSION = "22.12.0"
 # Git publishing from /admin. Secret: GITHUB_TOKEN (`wrangler pages secret put`).
 GITHUB_REPO = "great-art-portfolio/art-website"
 GITHUB_BRANCH = "main"
-# RESEND_API_KEY=
-RESEND_SEGMENT_ID = "8a7dfb46-fcb9-4716-bc1d-20d65bd3ca4f" # BarbartSubs (what we broadcast to)
+# RESEND_API_KEY= worker uses this to send emails
+RESEND_SEGMENT_ID = "8a7dfb46-fcb9-4716-bc1d-20d65bd3ca4f" # BarbartSubs (who we broadcast to)
 ARTIST_SENDER = "Gallery <hello@barbart.ca>" # What the buyer sees
 # ARTIST_INBOX= what the buyer sends their request to
 VAPID_PUBLIC_KEY = "BLCBFf14oWxzjSGDFknG-5K8UvhbcUnw7-ewBy-rmVgS6ME9Z9KDkFJBBKW2C9EQAUlGNgy-H8TnMmA6GiDgBzY"
 VAPID_CONTACT = "mailto:hello@barbart.ca"
-# VAPID_PRIVATE_JWK= (`node scripts/gen-vapid.mjs`)
+# VAPID_PRIVATE_JWK= needed for browser push (node scripts/gen-vapid.mjs)
 
 CF_ACCOUNT_ID = "ee6937662d7aeda01d2a6f1f49a1168a" # feeds /admin "Most viewed"
 CF_ANALYTICS_SITE = "ddd0b31f86c24e31a4fbabd86185e210" # beacon token doubles as the site tag
-# CF_ANALYTICS_TOKEN =(API token, Account Analytics: Read).
-# /admin password (defense in depth behind Access). Secret: ADMIN_API_TOKEN.
+# CF_ANALYTICS_TOKEN = API token, Account Analytics: Read
+# ADMIN_API_TOKEN = what the admin gets on sign in
 
 [[d1_databases]]
 binding = "DB"

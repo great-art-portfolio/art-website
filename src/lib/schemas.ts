@@ -1,17 +1,5 @@
-/**
- * Runtime schemas for every JSON boundary the islands touch. Each one used
- * to be `JSON.parse(...) as unknown` plus hand-rolled guards (or worse, a
- * bare `as T`), so changing a field on one side stayed green on the other
- * and failed silently at runtime — usually as an empty list or a swallowed
- * default. Zod is the enforcer because Astro already ships it (content
- * collections use `astro/zod`), so agents meet the same pattern here they
- * meet in `content.config.ts`, and `z.infer` keeps the type and the check
- * in one place instead of two that can drift.
- *
- * Nothing here throws: `parseJsonWith` and the row-level helpers return
- * null / skip bad rows, matching the old fallbacks (baked list, practice
- * overlay, dev banner preview) while rejecting invented shapes.
- */
+/** Runtime schemas for every JSON boundary. Nothing here throws: bad input
+ * reads as null / skipped rows, and `z.infer` keeps type and check together. */
 import { z } from "zod";
 
 /** Parse JSON text and validate it; null when unparseable or invalid. */

@@ -1,12 +1,7 @@
 import { flag, type AppEnv } from "./env";
 
-/**
- * Shippo, disabled by default. To enable later:
- *   1. Create a Shippo account (no monthly fee, pay per label).
- *   2. Set ENABLE_SHIPPO="true" and SHIPPO_API_TOKEN in Cloudflare.
- * Until then the admin portal links out to Chit Chats / Pirate Ship,
- * which is the cheapest way to mail art from Calgary.
- */
+/** Shippo, disabled. Enable with ENABLE_SHIPPO + SHIPPO_API_TOKEN. Until then
+ * the portal links out to Chit Chats / Pirate Ship. */
 
 export interface ShippoAddress {
   name: string;

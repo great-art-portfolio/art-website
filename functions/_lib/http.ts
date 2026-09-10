@@ -22,11 +22,8 @@ export function notEnabled(feature: string, hint: string): Response {
   );
 }
 
-/**
- * Admin check. In production /admin/* is protected by Cloudflare Access
- * (email OTP), so this token is defense in depth + local dev.
- * If ADMIN_API_TOKEN is unset, allow (Access is the gate).
- */
+/** Admin check. Access is the prod gate; the token is defense in depth +
+ * local dev. Unset token = allow. */
 export function requireAdmin(request: Request, env: AppEnv): Response | null {
   const expected = env.ADMIN_API_TOKEN;
   if (expected === undefined || expected === "") return null;

@@ -13,11 +13,7 @@ import {
 import { parsePainting } from "./painting-edit";
 import { slugifyTitle } from "./site";
 
-/**
- * Studio token, remembered per browser ("remember this browser"): local
- * storage first, with a session-storage fallback for tokens saved before
- * the sticky change. Never throws (private-mode browsers may block it).
- */
+/** Studio token, remembered per browser. Never throws. */
 export function getApiToken(): string {
   try {
     return (
@@ -54,8 +50,7 @@ function adminHeaders(): HeadersInit {
   return token === "" ? {} : { Authorization: `Bearer ${token}` };
 }
 
-/** HTTP failure with its status, so callers can tell 401 (needs the API
- * token) from unreachable (no Functions runtime) from a real error. */
+/** HTTP failure with status: 401 vs unreachable vs real error. */
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -65,21 +60,15 @@ export class ApiError extends Error {
   }
 }
 
-/**
- * Fetch JSON and validate it against the endpoint's schema. The schema is
- * what turns a Functions-side field rename into a client build error (via
- * the inferred type below) instead of an `undefined` at runtime — the old
- * `request<T>` trusted whatever the caller claimed.
- */
+/** Fetch JSON validated against the endpoint schema, so a Functions-side
+ * rename breaks the build instead of arriving as `undefined`. */
 async function request<T>(
   path: string,
   schema: z.ZodType<T>,
   init?: RequestInit,
 ): Promise<T> {
   const notJson = (status: number): ApiError =>
-    // No Functions runtime here (e.g. plain `astro dev`) — the dev server
-    // answers API routes with an HTML 404 page instead of JSON. Live 5xx
-    // pages land here too, so name the status, not the cause.
+    // No Functions runtime (plain `astro dev` serves HTML 404s) — name the status.
     new ApiError(
       status,
       `The site API didn't answer properly (${status}) — use the live /admin to publish.`,
@@ -191,11 +180,7 @@ export const api = {
       body: JSON.stringify({ message, files: encoded }),
     });
   },
-  /**
-   * Destroy files (.md + photo + models) in one commit — delete forever.
-   * Recoverability lives in trash now; this is the empty/purge path.
-   * The page vanishes on next rebuild.
-   */
+  /** Delete forever (.md + photo + models). Trash handles recoverability. */
   async deleteFiles(message: string, paths: string[]): Promise<void> {
     await request("/api/commit", commitSchema, {
       method: "POST",
@@ -214,12 +199,7 @@ export const api = {
       headers: adminHeaders(),
     });
   },
-  /**
-   * True only when the studio dev sidecar answers (working-tree backend).
-   * Production has no such route, so a missing answer always reads false —
-   * the caller practices instead. One localhost round trip per decision;
-   * decisions happen on taps, never in a loop.
-   */
+  /** True when the studio sidecar answers. Decided per tap, never in a loop. */
   async localBackend(): Promise<boolean> {
     try {
       const res = await fetch("/api/studio-dev", {
@@ -243,9 +223,7 @@ export const api = {
       });
       return { views: data.views, unconfigured: data.unconfigured === true };
     } catch (err) {
-      // 401 means the token is missing/wrong — the caller names that. Every
-      // other failure reads as "not configured" downstream, where the local
-      // preview check sorts dev from live.
+      // 401 = bad token; everything else reads as unconfigured downstream.
       if (err instanceof ApiError && err.status === 401) throw err;
       return { views: [], unconfigured: true };
     }
@@ -275,11 +253,7 @@ export const api = {
   },
 };
 
-/**
- * Titles already in the repo, for the duplicate-title guard (page links
- * key off titles, so filenames can't answer it). Empty when offline or
- * unconfigured — the save proceeds and the commit may still land.
- */
+/** Repo titles for the duplicate guard. Empty offline — saves proceed anyway. */
 export async function existingTitles(): Promise<string[]> {
   let files: string[];
   try {

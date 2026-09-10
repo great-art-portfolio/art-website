@@ -3,13 +3,8 @@ import assert from "node:assert/strict";
 import { onRequestGet, onRequestPost } from "../../functions/api/collectors.ts";
 import { issueLinkToken } from "../../functions/_lib/collectors.ts";
 
-/**
- * Endpoint wiring through mock contexts: the Functions files use the
- * bundler's extensionless imports, which node resolves via the
- * test-only loader (see extension-loader.mjs). Fetch is stubbed, so no
- * live Resend call goes out — the e2e mock-server attempt proved
- * workerd→host loopback too flaky for CI.
- */
+/** Endpoint wiring through mock contexts and stubbed fetch (no live Resend).
+ * Extensionless imports resolve via the test-only loader. */
 
 const realFetch = globalThis.fetch;
 let calls = [];

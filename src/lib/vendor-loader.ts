@@ -1,10 +1,5 @@
-/**
- * On-demand loader for the vendored 3D bundles (public/js, via
- * `pnpm vendor`). Plain <script> tags — never native import() — because
- * Vite dev refuses to serve /public files as modules (works in the
- * production build, throws in `astro dev`). Stable URLs keep ~1.4MB of
- * viewer + builder out of Vite's graph: no prefetch, strictly on demand.
- */
+/** On-demand loader for vendored 3D bundles. Plain <script> tags — Vite dev
+ * won't serve /public as modules. ~1.4MB stays out of the graph. */
 import type { ArModels, DimFixResult } from "./ar";
 import type { PaintingEdits, ParsedPainting } from "./painting-edit";
 

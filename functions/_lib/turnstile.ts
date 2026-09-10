@@ -1,13 +1,7 @@
 import type { AppEnv } from "./env";
 
-/**
- * Cloudflare Turnstile check, shared by every public write (inquiries,
- * collector signup). Keys arrive with the dashboard setup; until then the
- * honeypot covers us, so an empty secret means "pass".
- *
- * Re-evaluate against:
- * https://developers.cloudflare.com/turnstile/get-started/server-side-validation/
- */
+/** Turnstile check for public writes. Empty secret = honeypot only ("pass").
+ * Spec: https://developers.cloudflare.com/turnstile/get-started/server-side-validation/ */
 export async function turnstileOk(
   env: AppEnv,
   token: unknown,

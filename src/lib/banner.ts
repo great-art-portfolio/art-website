@@ -1,15 +1,6 @@
-/**
- * Homepage banner: one banner at a time, optionally time-limited.
- * File format (src/content/announcement.txt):
- *
- *   expires: 2026-09-19
- *   Find me at the Lilac Festival this Sunday!
- *
- * The first line is an optional `expires: YYYY-MM-DD`; everything after
- * is the banner text. Empty file = hidden. The banner shows through its
- * expiry date (local time) and hides after — enforced at build time when
- * possible and in the browser for expiry between deploys.
- */
+/** Homepage banner (src/content/announcement.txt). First line may be
+ * `expires: YYYY-MM-DD`; the rest is the text. Empty file = hidden. Shows
+ * through the expiry date (local time), enforced at build + in browser. */
 
 export interface Banner {
   text: string;

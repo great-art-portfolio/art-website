@@ -1,8 +1,4 @@
-/**
- * Single source of truth for responsive image widths/sizes.
- * Gallery grid + painting detail must stay in sync: if the CSS grid
- * changes, update the sizes() helpers here — not the .astro markup.
- */
+/** Responsive widths/sizes. If the CSS grid changes, update here — not markup. */
 
 export const GALLERY_WIDTHS = [400, 700, 1000];
 export const SOLD_WIDTHS = [400, 700];

@@ -4,13 +4,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SHOW_PRICES, slugifyTitle } from "../src/lib/site";
 
-/**
- * Gallery contract suite: what the site must show, derived from the
- * paintings collection itself — so adding a painting automatically
- * extends coverage instead of silently escaping it.
- *
- * Read-only paths only (see smoke.spec.ts warning about live secrets).
- */
+/** Gallery contract, derived from the paintings collection itself — adding a
+ * painting extends coverage automatically. Read-only paths only. */
 
 interface Painting {
   slug: string;

@@ -7,14 +7,8 @@ import {
   sendTickle,
 } from "../_lib/push";
 
-/**
- * Admin: ping collectors ("there's a new painting, come look"). Body picks
- * channels — { push: false } skips the browser tickles, { email: false }
- * skips the email broadcast; both default on. The push tickle carries no
- * message body (the service worker fetches the latest piece and shows
- * it), so no per-message encryption is needed. Either channel missing
- * just skips quietly.
- */
+/** Admin: ping collectors. { push: false } / { email: false } send one side
+ * only; both default on. Missing channels skip quietly. */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   const denied = requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
@@ -71,7 +65,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   }
 };
 
-/** Admin: how many collectors are subscribed (for the share panel). */
+/** Admin: push subscriber count for the share panel. */
 export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
   const denied = requireAdmin(context.request, context.env);
   if (denied !== null) return denied;

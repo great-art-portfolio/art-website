@@ -1,9 +1,5 @@
-/**
- * Frontmatter read/patch for painting .md files. Shared by the admin
- * Collection editor and the edit-in-context toolbar on painting pages —
- * one implementation so both stay in sync. Patching is line-based:
- * unknown keys (modelGlb, dateAdded, comments) pass through untouched.
- */
+/** Frontmatter read/patch, shared by both edit flows. Line-based: unknown
+ * keys pass through untouched. */
 
 export interface ParsedPainting {
   title: string;
@@ -31,10 +27,7 @@ export interface ParsedPainting {
   order: number | null;
 }
 
-/**
- * Repo paths a full delete removes: the .md plus its photo and AR models.
- * Model refs look like "/models/<stem>.glb" and live in public/models/.
- */
+/** Repo paths a full delete removes (.md + photo + AR models). */
 export function paintingFilePaths(mdPath: string, p: ParsedPainting): string[] {
   const paths = [mdPath];
   if (p.image !== "") paths.push(`src/content/paintings/${p.image}`);
@@ -116,11 +109,7 @@ function parseOrder(raw: string | undefined): number | null {
   return Number.isInteger(n) ? n : null;
 }
 
-/**
- * Set (or clear, with null) the gallery `order:` key, preserving every
- * other line. New keys land right after the title, where they read
- * naturally; removals leave no blank line behind.
- */
+/** Set (or clear) the gallery `order:` key. No blank lines left behind. */
 export function setOrder(md: string, order: number | null): string {
   const re = /^order:.*(\r?\n?)/m;
   if (order === null) return md.replace(re, "");
@@ -134,11 +123,7 @@ export function todayKey(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-/**
- * Scheduled go-live, kept honest: a real calendar date rides through,
- * anything else reads as no schedule — a typo never publishes, and a
- * garbled stamp never auto-publishes either.
- */
+/** Scheduled go-live. Only a real calendar date rides through. */
 export function normalizePublishOn(raw: string): string {
   const t = raw.trim().replace(/^"|"$/g, "").trim();
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t);
@@ -163,11 +148,7 @@ export function isPublishDue(publishOn: string, today: string): boolean {
   return due !== "" && due <= today;
 }
 
-/**
- * Old page links after a rename: one quoted comma string ("a, b").
- * Garbage entries never ride along — an odd keystroke in the file can't
- * mint a broken page — and the list caps at ten, newest first.
- */
+/** Old page links after a rename. Capped at ten, newest first. */
 export function parseSlugHistory(raw: string): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -194,21 +175,13 @@ export function appendSlugHistory(current: string, oldSlug: string): string {
   return formatSlugHistory([oldSlug, ...parseSlugHistory(current)]);
 }
 
-/**
- * Lazy scheduled publishing: flip a due draft live and drop its date in
- * one rewrite, preserving every other line. The dashboard runs this over
- * due rows on each visit (one commit); the static build publishes them.
- */
+/** Lazy scheduled publishing: flip a due draft live, drop its date. */
 export function publishDue(md: string): string {
   const next = md.replace(/^draft:.*$/m, "draft: false");
   return next.replace(/^publishOn:.*(\r?\n?)/m, "");
 }
 
-/**
- * Set (or clear, with null) the trash flag, preserving every other line.
- * Trashing stamps the day; restoring drops both keys with no blank line
- * left behind. Normal edits never touch these keys (pass-through).
- */
+/** Trash flag. Trashing stamps the day; restoring drops both keys. */
 export function setTrash(
   md: string,
   trash: boolean,

@@ -1,13 +1,6 @@
-/**
- * Studio painting island (client-only): the draft + edit rooms behind
- * /admin/paintings/new and /admin/paintings/[slug]. Both render the shared
- * PaintingDetail layout, so what she edits is what buyers see.
- *
- * Saving commits .md + photo (+ AR models) to git like the old dashboard
- * flows did; after a save or delete she lands back on /admin. In dev
- * (no publishing backend) everything still works against a localStorage
- * practice overlay the dashboard merges into its list.
- */
+/** Draft + edit rooms. Both render the shared PaintingDetail layout, so what
+ * she edits is what buyers see. Saving commits .md + photo (+ models); dev
+ * works against a practice overlay. */
 import { api, existingTitles, getApiToken, uniqueSlug } from "../lib/api";
 import { loadImageFile, prepareImage } from "../lib/image";
 
@@ -34,12 +27,7 @@ import {
   type PracticePainting,
 } from "../lib/practice";
 
-/**
- * Studio toasts clear themselves — errors included. Words fade in on
- * arrival and fade out on their way away, under every motion setting.
- * One timer covers both phases, so a new message mid-fade-out cancels
- * the goodbye.
- */
+/** Self-clearing toasts; words fade both ways. One timer covers both phases. */
 let statusTimer = 0;
 function setStatus(msg: string, isError = false): void {
   const el = maybe("de-status");
@@ -69,12 +57,8 @@ function isLocalPreview(): boolean {
   return host === "localhost" || host === "127.0.0.1";
 }
 
-/** Throwaway browser overlay unless something real can persist: a stored
- * API token means the commit, even on localhost (which is also how the
- * stubbed suites run the live paths) — and under `pnpm dev` the local
- * content API persists to the working tree, so the rooms go live with no
- * token at all. Live hosts never overlay — failures surface as errors.
- */
+/** Practice overlay unless something real persists: a stored token commits,
+ * and under `pnpm dev` the sidecar writes the working tree tokenless. */
 async function useOverlayMode(): Promise<boolean> {
   if (!isLocalPreview() || getApiToken() !== "") return false;
   return !(await api.localBackend());
@@ -219,9 +203,8 @@ function heicHint(file: File): string {
     : "";
 }
 
-/** Rebuild the true-size models whenever photo, rotation, or tape numbers
- * change. Stale runs bail; failures keep the waiting box with an honest
- * note and never block saving. */
+/** Rebuild models when photo/rotation/tape change. Stale runs bail; failures
+ * never block saving. */
 async function autoBuildAr(): Promise<void> {
   if (preparedBlob === null) return;
   const want = modelSig();
@@ -317,11 +300,8 @@ function goAdmin(flash: string): void {
   window.location.href = "/admin";
 }
 
-/**
- * Fire the checked subscriber channels after a publish — never drafts,
- * never plain saves. Unchecked boxes mean silence; failures ride along
- * in the confirmation instead of failing the publish.
- */
+/** Ping checked channels after a publish (never drafts/saves). Failures ride
+ * along in the confirmation instead of failing the publish. */
 async function publishAlerts(): Promise<string> {
   const push = maybe("de-notify-push")?.checked ?? false;
   const email = maybe("de-notify-email")?.checked ?? false;
@@ -378,13 +358,8 @@ function readFields(): FieldSet | null {
   };
 }
 
-/**
- * Silent autosave: unsaved typing survives a refresh or a crashed tab.
- * No UI — revisions live in git once saved; this only covers the gap
- * before. One localStorage backup per room (photos can't be held: a
- * refresh still asks for the upload again), cleared the moment she
- * lands back on /admin — every save/delete success exits via goAdmin.
- */
+/** Silent autosave: typing survives refresh/crash (photos excluded). Cleared
+ * on every save/delete exit. */
 let autosaveTimer = 0;
 
 function autosaveKey(mode: string, slug: string, mdPath: string): string {
@@ -548,11 +523,7 @@ async function modelBlobs(): Promise<{ glb: Blob; usdz: Blob } | null> {
   }
 }
 
-/**
- * Each title owns its page link, so a second painting with the same title
- * breaks the next site build. Block the save with plain words instead.
- * ownSlug exempts the open painting (keeping its own title is fine).
- */
+/** Titles own their page links: block duplicate-title saves with plain words. */
 async function titleClash(
   title: string,
   ownSlug: string | null,
@@ -662,11 +633,7 @@ async function saveNew(draft: boolean): Promise<void> {
   }
 }
 
-/**
- * A rename retires the old page link into slugHistory (same commit), so
- * bookmarks keep working. Undefined when the title slug didn't change —
- * patchPainting then leaves the key alone.
- */
+/** A rename retires the old link into slugHistory (bookmarks keep working). */
 function renamedHistory(
   base: ParsedPainting,
   oldSlug: string,
@@ -720,8 +687,7 @@ function practiceFromInputs(slug: string, draft: boolean): PracticePainting {
   };
 }
 
-/** Save the open painting (photo replace commits new bytes at the same
- * image path, so links and models keep working). */
+/** Save the open painting (photo replaces bytes in place; links keep working). */
 async function saveEdit(
   slug: string,
   mdPath: string,
@@ -825,11 +791,7 @@ async function saveEdit(
   }
 }
 
-/**
- * Delete behind a confirmation modal — the button never works double
- * duty. DELETE stays disabled for 3.5 seconds so the words get read
- * first; a countdown on the button says why it won't press yet.
- */
+/** Delete behind a modal: DELETE stays disabled 3.5s so the words get read. */
 function wireDelete(
   btnId: string,
   getTitle: () => string,

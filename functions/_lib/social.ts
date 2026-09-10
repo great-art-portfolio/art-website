@@ -1,18 +1,8 @@
 import { flag, type AppEnv } from "./env";
 
-/**
- * One-click social posting, disabled by default.
- *
- * Direct answer to "does she need a business account?": only for automatic
- * posting through Meta's API. Instagram auto-publish requires a Facebook
- * Page linked to a business/creator Instagram account plus an approved
- * Facebook app — heavy for one person. The admin share kit (caption +
- * native iOS share sheet) needs no account changes at all.
- *
- * If she later wants true one-click posting, the cheapest path is Ayrshare
- * (one API for IG/FB/X/TikTok) — set ENABLE_SOCIAL_POST="true" and
- * AYRSHARE_API_KEY and this function starts working.
- */
+/** One-click social posting, disabled. The share kit (caption + iOS share
+ * sheet) needs no accounts. Enable later with ENABLE_SOCIAL_POST +
+ * AYRSHARE_API_KEY. */
 
 export interface SocialPost {
   enabled: boolean;

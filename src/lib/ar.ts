@@ -1,10 +1,5 @@
-/**
- * AR models from a painting photo. A painting is flat, so there is no
- * scanning: the photo becomes the face of a true-scale framed box, exported
- * as GLB (Android Scene Viewer / WebXR) and USDZ (iOS Quick Look with
- * vertical wall anchoring). Runs entirely on her phone at upload time —
- * the Worker never touches 3D.
- */
+/** AR models from a painting photo: the photo becomes the face of a
+ * true-scale framed box (GLB + USDZ). Built on her phone at upload. */
 import * as THREE from "three";
 import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
 import { USDZExporter } from "three/addons/exporters/USDZExporter.js";
@@ -35,11 +30,8 @@ function textureCanvas(source: HTMLImageElement): HTMLCanvasElement {
   return canvas;
 }
 
-/**
- * Pure geometry behind estimateDims — numbers in, numbers out, so the
- * tape-measure fallback is unit-testable without a browser.
- * Missing tape measurements fall back to the photo's aspect at 24 in wide.
- */
+/** Pure dims geometry (testable without a browser). Missing tape falls back
+ * to the photo's aspect at 24 in wide. */
 export function resolveDims(
   imgW: number,
   imgH: number,
@@ -184,12 +176,8 @@ export interface DimFixResult {
   note: string | null;
 }
 
-/**
- * Shared by both edit flows (studio Collection editor + edit-in-context):
- * when the dimensions changed — or no models exist yet — rebuild the AR
- * models from the repo photo so the preview always matches the tape
- * measure. Never throws: failures degrade to a models-free save + note.
- */
+/** Rebuild AR models when dims changed or none exist. Never throws:
+ * failures degrade to a models-free save + note. */
 export async function rebuildForDimFix(
   getPhoto: (path: string) => Promise<Blob | null>,
   mdPath: string,
@@ -242,13 +230,8 @@ export async function rebuildForDimFix(
   }
 }
 
-/**
- * Rebuild a painting's AR models from its repo photo at the given
- * dimensions (e.g. after a dimension fix). Callers decide when a rebuild
- * is needed (dimensions changed, or no models yet) and commit just the
- * .md otherwise. Throws when the photo can't be fetched or built;
- * callers then degrade to a models-free save with a status note.
- */
+/** Rebuild AR models from the repo photo. Throws on failure; callers then
+ * degrade to a models-free save with a status note. */
 export async function rebuildArFiles(
   getPhoto: (path: string) => Promise<Blob | null>,
   stem: string,

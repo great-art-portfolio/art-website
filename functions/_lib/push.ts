@@ -1,13 +1,8 @@
 import type { AppEnv } from "./env";
 import { parseJwk } from "./validation";
 
-/**
- * Web Push, payload-free ("tickle") style. The server only pings the
- * browser; the service worker then fetches the latest painting and shows
- * the notification itself. This skips payload encryption (the fiddly
- * aes128gcm part) with no downside here — the message is always
- * "there's a new painting, come look".
- */
+/** Payload-free Web Push ("tickle"): the server pings, the service worker
+ * fetches the latest painting and shows it. No payload encryption needed. */
 
 export interface StoredSubscription {
   endpoint: string;

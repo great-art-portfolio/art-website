@@ -4,14 +4,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { slugifyTitle } from "../src/lib/site";
 
-/**
- * Admin studio journey: mom types /admin and reaches everything from
- * there — no URLs to remember. Signed-out visitors see zero admin chrome.
- *
- * Live delete is exercised only up to the confirm arm (tests never remove
- * collection content); dev-list deletes run fully — they only touch an
- * in-memory copy and a reload restores the repo state.
- */
+/** Admin studio journey from /admin — no URLs to remember, zero admin chrome
+ * signed out. Live delete only reaches the confirm arm; dev-list deletes run
+ * fully against an in-memory copy. */
 
 function loadPaintings(): Array<{ slug: string; title: string }> {
   const dir = join(

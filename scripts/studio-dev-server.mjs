@@ -1,10 +1,5 @@
-/**
- * Local content API for `pnpm dev:studio`: serves the studio-dev handlers
- * on 127.0.0.1:4333, which the astro dev proxy forwards /api/* to.
- * Localhost-only, working-tree backed — never deployed, never reachable
- * from the network (127.0.0.1 bind, no token needed, like an unconfigured
- * requireAdmin).
- */
+/** Local content API for `pnpm dev:studio` (:4333, working-tree backed).
+ * Localhost-only, never deployed. */
 import { createServer } from "node:http";
 import { createStudioDevApi } from "./studio-dev-api.mjs";
 

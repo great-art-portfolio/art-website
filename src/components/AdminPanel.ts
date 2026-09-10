@@ -30,23 +30,13 @@ import {
   todayKey,
 } from "../lib/painting-edit";
 
-/**
- * Admin island (client-only): studio dashboard — collection index with
- * thumbnails, homepage banner, and gallery ordering. Painting rooms
- * (new + edit) live on their own routes; saving happens there and lands
- * back here. Protected in production by Cloudflare Access;
- * ADMIN_API_TOKEN is local backup.
- */
+/** Studio dashboard: collection index, banner, gallery ordering. Painting
+ * rooms live on their own routes. Access-gated in prod; token backup local. */
 
-/** Toasts clear themselves after a few seconds — errors included, so a
- * stale complaint never sits over the page. Each new message restarts the
- * clock, and clearing an already-empty line is a no-op. */
+/** Toasts clear themselves; each new message restarts the clock. */
 let statusTimer = 0;
-/**
- * Toast words fade in on arrival and fade out on their way away — under
- * every motion setting, since a snap is itself jarring. One timer covers
- * both phases, so a new message mid-fade-out cancels the goodbye.
- */
+/** Toast words fade both ways (opacity-only, every motion setting). One timer
+ * covers both phases, so a mid-fade message cancels the goodbye. */
 function setStatus(msg: string, isError = false, durationMs = 6000): void {
   const el = $("admin-status");
   window.clearTimeout(statusTimer);
@@ -84,17 +74,14 @@ function reveal(el: HTMLElement): void {
   }
 }
 
-/** Throwaway browser overlay unless something real can persist: a stored
- * token means the commit, even on localhost — and under `pnpm dev` the
- * local content API persists to the working tree, so rows go live with no
- * token at all. */
+/** Practice overlay unless something real persists: a stored token commits,
+ * and under `pnpm dev` the sidecar writes the working tree tokenless. */
 async function useOverlayMode(): Promise<boolean> {
   if (!isLocalPreview() || getApiToken() !== "") return false;
   return !(await api.localBackend());
 }
 
-/** `/api/status` is public (no token needed), so it doubles as the "is there
- * an API here at all" probe: true under wrangler/live, false under astro dev. */
+/** `/api/status` is public, so it doubles as the API-presence probe. */
 async function apiReachable(): Promise<boolean> {
   try {
     await api.status();
@@ -135,12 +122,7 @@ let localRows: LocalPainting[] | null = null;
 /** Built thumbnail URLs by repo file, parsed once from the baked-in list. */
 let thumbByMd: Record<string, string> | null = null;
 
-/**
- * Normalize validated baked rows for the dashboard: dims arrive as numbers
- * (or null) and edit as display strings. The input already passed the
- * baked-collection schema, so this is total — no `unknown` checks, no
- * casts, nothing silently skipped.
- */
+/** Normalize baked rows for editing: numeric dims become display strings. */
 function seedLocalRows(raw: BakedRow[]): LocalPainting[] {
   const dim = (v: number | null): string =>
     v !== null && Number.isFinite(v) && v > 0 ? String(v) : "";
@@ -161,7 +143,7 @@ function seedLocalRows(raw: BakedRow[]): LocalPainting[] {
       widthIn: dim(r.widthIn),
       heightIn: dim(r.heightIn),
       depthIn: dim(r.depthIn),
-      // The baked list carries no medium (as before — it read absent).
+      // Baked rows carry no medium (reads absent, as before).
       medium: "",
       mdPath: r.mdPath,
       views: 0,
@@ -169,8 +151,7 @@ function seedLocalRows(raw: BakedRow[]): LocalPainting[] {
     }));
 }
 
-/** Dev practice overlay over the baked list: deletes drop rows, upserts
- * replace same-slug rows or append new ones. */
+/** Practice overlay: deletes drop rows, upserts replace or append by slug. */
 function mergePractice(
   rows: LocalPainting[],
   overlay: PracticeOverlay,
@@ -182,8 +163,7 @@ function mergePractice(
     const prev = at >= 0 ? kept[at] : undefined;
     const row: LocalPainting = {
       ...p,
-      // Practice rows are never trashed — Delete removes them from the
-      // overlay outright (dev-only, one tap to clear).
+      // Practice rows skip trash — Delete drops them from the overlay.
       trash: false,
       trashedAt: "",
       image: prev?.image ?? "",
@@ -200,13 +180,7 @@ function mergePractice(
   return kept;
 }
 
-/**
- * Dev fallback: the page baked the collection in at build time, so the
- * index works with no API at all — merged with the practice overlay, so
- * studio-room saves made in this browser show up here. True only when the
- * embedded list parses — otherwise the caller falls through to the error
- * branches.
- */
+/** Baked-in collection merged with the practice overlay. No API needed. */
 function renderLocalCollection(): boolean {
   if (localRows === null) {
     const el = document.getElementById("local-collection");
@@ -214,13 +188,12 @@ function renderLocalCollection(): boolean {
     const baked = parseBakedCollection(el.textContent ?? "");
     if (baked === null) return false;
     localRows = seedLocalRows(baked);
-    // The static markup already shows these rows — record it so the first
-    // render below doesn't swap identical HTML (photos would flicker).
+    // Static markup already shows these rows — record it so the first render
+    // doesn't swap identical HTML (photos would flicker).
     if (lastRowsKey === null) lastRowsKey = rowsKey(localRows);
   }
   const overlay = loadPracticeOverlay();
-  // Practice has no backend to commit through: due schedules simply read
-  // as live for this visit (the overlay itself is untouched).
+  // Practice has no backend: due schedules read as live for this visit.
   const today = todayKey();
   const merged = mergePractice(localRows, overlay).map((r) =>
     r.draft && !r.trash && isPublishDue(r.publishOn, today)
@@ -228,10 +201,8 @@ function renderLocalCollection(): boolean {
       : r,
   );
   renderRows(merged);
-  // Practice mode: saves from the studio rooms land in this browser, and
-  // clear out with one tap. Only the dev suffix appears — the heading
-  // itself is never touched — and only ever on a local preview, never
-  // on the live site.
+  // Practice mode: studio-room saves land in this browser, cleared in one tap.
+  // Local preview only, never the live site.
   reveal($("collection-dev"));
   const reset = $("practice-reset");
   reset.hidden = practiceCount(overlay) === 0;
@@ -246,12 +217,8 @@ function renderLocalCollection(): boolean {
   return true;
 }
 
-/**
- * Seed the rows key from the baked list before the first API render, so
- * a matching response skips the rebuild entirely — swapping identical
- * markup would destroy and rebuild every photo (a visible flicker).
- * A changed repo still rebuilds, correctly.
- */
+/** Seed the rows key from the baked list so an identical API response skips
+ * the rebuild (rebuilding every photo flickers). */
 function seedRowsKey(): void {
   if (lastRowsKey !== null) return;
   const el = document.getElementById("local-collection");
@@ -261,11 +228,7 @@ function seedRowsKey(): void {
   if (baked !== null) lastRowsKey = rowsKey(seedLocalRows(baked));
 }
 
-/**
- * Signature of exactly what a render shows: sorted rows, rendered fields
- * only. Re-rendering identical markup would destroy and rebuild every
- * photo (a visible flicker), so renderRows skips when nothing changed.
- */
+/** Render signature (sorted rows, rendered fields): skips no-change renders. */
 function rowsKey(rows: LocalPainting[]): string {
   return JSON.stringify(
     [...rows]
@@ -288,14 +251,8 @@ function rowsKey(rows: LocalPainting[]): string {
 /** Key of what the list currently shows (null until the first render). */
 let lastRowsKey: string | null = null;
 
-/**
- * Available on top with Drafts, Sold, and Trash each in a foldable
- * full-width row underneath, in that order; one list on phones. Same
- * renderer as the static markup (studioRowHtml), so hydration swaps
- * identical HTML. Available and Sold rows each carry their group's order
- * and drag to re-sort it (homepage follows both); Drafts and Trash
- * never drag. Trash rests closed — one tap opens it.
- */
+/** Available on top; Drafts, Sold, Trash fold underneath (one list on phones).
+ * Available and Sold drag to re-sort; Drafts and Trash never drag. */
 /** Rows behind the current render, for drag-to-reorder lookups. */
 let lastRenderedRows: LocalPainting[] = [];
 
@@ -303,12 +260,10 @@ function renderRows(rows: LocalPainting[]): void {
   const list = $("edit-list");
   $("collection-refresh").hidden = true;
   lastRenderedRows = rows;
-  // Delegated + idempotent: also joins the SSR first paint, where no
-  // re-render happens (photos must not flicker).
+  // Delegated + idempotent, joining the SSR first paint too.
   wireReorder(list);
   wireReorderHint(list);
-  // SSR folds (no re-render below) wire here; rebuilt folds wire again
-  // after the swap — wiring is idempotent either way.
+  // Folds wire here and again after swaps; wiring is idempotent.
   wireDrawers(list, "details");
   const key = rowsKey(rows);
   if (key === lastRowsKey) return;
@@ -318,9 +273,8 @@ function renderRows(rows: LocalPainting[]): void {
       '<li class="list-plain">Nothing here yet — tap Add painting above.</li>';
     return;
   }
-  // A rebuild mid-toggle must not pop the fold back open: carry each
-  // fold's effective state (mid-flight counts as its target) across
-  // the swap below. Fresh folds keep their markup default.
+  // Carry each fold's effective state across the swap (mid-flight counts
+  // as its target); fresh folds keep their markup default.
   const foldOpen = new Map<string, boolean>();
   for (const el of list.querySelectorAll("details[data-group]")) {
     if (el instanceof HTMLDetailsElement && el.dataset.group !== undefined) {
@@ -372,9 +326,8 @@ function renderRows(rows: LocalPainting[]): void {
   }
   list.innerHTML = html;
   wireReorder(list);
-  // The swap above destroyed the wired nodes — wire the fresh folds,
-  // restoring live open state first (instantly: a re-render is not a
-  // toggle, so it never animates).
+  // Wire the fresh folds, restoring open state instantly (a re-render
+  // never animates).
   for (const el of list.querySelectorAll("details[data-group]")) {
     if (!(el instanceof HTMLDetailsElement) || el.dataset.group === undefined)
       continue;
@@ -384,21 +337,15 @@ function renderRows(rows: LocalPainting[]): void {
   }
 }
 
-/**
- * Gallery drag-to-reorder: Available and Sold cards drag within their own
- * group; dropping writes 0..n into each painting's `order:` frontmatter
- * (one live commit) or the practice overlay in dev. Drafts never drag.
- * Listeners attach once to the list (delegation survives re-renders);
- * per-card flags re-apply on every render including the SSR first paint.
- */
+/** Drag-to-reorder within Available/Sold groups. Listeners attach once (event
+ * delegation); per-card flags re-apply every render. */
 let reorderWired = false;
 let dragSlug: string | null = null;
 /** Serializes reorder commits (see the drop handler). */
 let reorderQueue: Promise<void> = Promise.resolve();
 
 function reorderCard(target: EventTarget | null): Element | null {
-  // Element, not HTMLElement: drop points land on SVG icon paths too,
-  // and those must count the same as the card around them.
+  // Element, not HTMLElement: drops land on SVG icon paths too.
   if (!(target instanceof Element)) return null;
   const card = target.closest(".row-card");
   if (card === null) return null;
@@ -432,13 +379,8 @@ const dropMarks: readonly DropMark[] = [
   "drop-right",
 ];
 
-/**
- * Insertion point follows the pointer: cards sharing a row split
- * left/right (a center drop on a side neighbor used to always land
- * before it, crying "already" on a real move); stacked cards split
- * top/bottom. Dragover and drop share it, so the highlight never lies
- * about the landing.
- */
+/** Insertion point follows the pointer (shared by dragover and drop, so the
+ * highlight never lies about the landing). */
 function dropMark(
   card: Element,
   dragged: Element | null,
@@ -487,7 +429,7 @@ function wireReorder(list: HTMLElement): void {
       try {
         e.dataTransfer.setData("text/plain", slug);
       } catch {
-        // Some browsers need the try — the drag still works.
+        // Some browsers need the try; the drag still works.
       }
     }
   });
@@ -528,9 +470,7 @@ function wireReorder(list: HTMLElement): void {
       return;
     }
     const { after } = dropMark(card, dragged, e.clientX, e.clientY);
-    // Dropping a card where it already sits (the near half of an
-    // adjacent neighbor) changes nothing — stay silent. A toast here
-    // cried "already" on every such miss, which reads as an error.
+    // Dropping where it already sits changes nothing — stay silent.
     if (
       (!after && dragged.nextElementSibling === card) ||
       (after && card.nextElementSibling === dragged)
@@ -557,12 +497,7 @@ function wireReorder(list: HTMLElement): void {
   });
 }
 
-/**
- * Reorder hint as a hover tooltip: resting on an Available or Sold photo
- * for a few seconds reveals that the cards drag (the homepage follows).
- * One shared bubble, instant show/hide, pointer-events off so it never
- * disturbs the drag itself. Keyboard gets the same via focus.
- */
+/** Reorder hint tooltip (hover + focus). Pointer-events off, never disturbs drags. */
 let hintTimer = 0;
 const HINT_DELAY_MS = 3000;
 const REORDER_HINT =
@@ -596,9 +531,7 @@ function showReorderHint(anchor: Element): void {
   const rect = anchor.getBoundingClientRect();
   tip.hidden = false;
   anchor.setAttribute("aria-describedby", "reorder-tip");
-  // Below the photo when it fits, above it when it doesn't; clamped
-  // sideways so narrow phones never push it off-screen. Measured live
-  // (fonts shift it) after unhiding.
+  // Below the photo when it fits, clamped sideways for narrow phones.
   const gap = 8;
   const topBelow = rect.bottom + gap;
   const top =
@@ -652,9 +585,7 @@ function wireReorderHint(list: HTMLElement): void {
     hintTimer = window.setTimeout(() => showReorderHint(photo), HINT_DELAY_MS);
   });
   list.addEventListener("focusout", () => hideReorderHint());
-  // A shown bubble never follows its card: hide on anything that moves
-  // the page or starts a drag, and when leaving for another studio page
-  // (this module outlives ClientRouter navigations).
+  // Bubbles never follow cards: hide on scroll, drag, or navigation.
   list.addEventListener("dragstart", () => hideReorderHint());
   list.addEventListener("click", () => hideReorderHint());
   window.addEventListener("scroll", () => hideReorderHint(), true);
@@ -666,7 +597,7 @@ async function persistOrder(
   moved: string,
 ): Promise<void> {
   if (rows === null) return;
-  // Plain words for the toast: whose order just moved.
+  // Whose order just moved, in plain words for the toast.
   const kind =
     rows.closest('[data-group="sold"]') === null ? "Gallery" : "Sold";
   const slugs: string[] = [];
@@ -700,9 +631,7 @@ async function persistOrder(
         });
         changed += 1;
       }
-      // The drop handler already skips positional no-ops, so landing
-      // here means the order on screen matches what's kept — silence,
-      // not a toast: nothing moved, nothing needs saying.
+      // Nothing moved — silence, not a toast.
       if (changed === 0) return;
       renderLocalCollection();
       setStatus(
@@ -723,16 +652,13 @@ async function persistOrder(
       }
       files.push({ path: row.mdPath, blob: setOrder(content, i) });
     }
-    // Same silence as the overlay path above: the screen already
-    // matches the repo, so there is nothing to announce.
+    // Screen already matches the repo — nothing to announce.
     if (files.length === 0) return;
     setStatus(
       `Saving the ${kind.toLowerCase()} order… (live in a few minutes)`,
     );
     await api.commitFiles("Reorder gallery", files);
-    // The push IS the order now: stamp the dropped indices onto the rows
-    // and show them. A re-read here can lag the push and flash the old
-    // order back; the next visit re-reads from the repo anyway.
+    // Stamp the pushed indices onto the rows (a re-read can flash stale order).
     for (const [i, slug] of slugs.entries()) {
       const row = bySlug.get(slug);
       if (row !== undefined) row.order = i;
@@ -745,13 +671,8 @@ async function persistOrder(
   }
 }
 
-/**
- * Delete straight from a dashboard row, after the confirmation modal.
- * Practice rows vanish locally, live rows commit a delete of .md + photo
- * + models.
- */
-/** Days since a "YYYY-MM-DD" stamp; null when garbled or absent — which
- * reads as just-now, never as expired. */
+/** Row delete after the confirmation modal (practice rows vanish locally). */
+/** Days since a stamp. Garbled/absent reads as just-now, never expired. */
 function trashAgeDays(trashedAt: string): number | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trashedAt.trim());
   if (m === null) return null;
@@ -875,11 +796,7 @@ async function emptyTrash(): Promise<void> {
   );
 }
 
-/**
- * Anything trashed over 30 days ago clears itself on this visit (one
- * commit). Runs only on live rows — the dev overlay never carries trash.
- * Returns the survivors for the render below.
- */
+/** Auto-empty trash older than 30 days (live rows only). Returns survivors. */
 async function purgeOldTrash(rows: LocalPainting[]): Promise<LocalPainting[]> {
   const old = rows.filter(
     (r) => r.trash && (trashAgeDays(r.trashedAt) ?? 0) > 30,
@@ -1004,7 +921,7 @@ function wireRowDelete(): void {
     if (body !== null) body.textContent = bodyText;
     overlay.hidden = false;
     yes.disabled = true;
-    // Deadline-based, not tick-counted: a stalled tab still arms ~3.5s in.
+    // Deadline-based: a stalled tab still arms ~3.5s in.
     const end = Date.now() + 3500;
     const tick = () => {
       const left = Math.max(0, end - Date.now());
@@ -1085,7 +1002,7 @@ function wireRowDelete(): void {
   no.addEventListener("click", () => {
     const btn = pending?.btn;
     close();
-    // Back to the row that asked — unless it re-rendered away.
+    // Focus the asking row, unless it re-rendered away.
     if (btn !== undefined && btn.isConnected) btn.focus();
   });
   overlay.addEventListener("keydown", (e) => {
@@ -1096,7 +1013,7 @@ function wireRowDelete(): void {
       if (btn !== undefined && btn.isConnected) btn.focus();
       return;
     }
-    // Keep tab cycling between the modal's two buttons.
+    // Tab cycles between the modal's two buttons.
     if (e.key === "Tab") {
       e.preventDefault();
       (document.activeElement === no ? yes : no).focus();
@@ -1145,8 +1062,7 @@ async function refreshCollection(): Promise<void> {
     // the page — rows, links, and practice edits, all local.
     if (isLocalPreview() && renderLocalCollection()) return;
     if (await apiReachable()) {
-      // Reachable API but the list failed (a bad token is handled above,
-      // so this is a server problem) — Retry stays out for another try.
+      // Server problem (bad token is handled above) — offer Retry.
       list.innerHTML =
         "<li>Couldn't load the collection — check the connection, then tap Retry.</li>";
       retry.hidden = false;
@@ -1162,9 +1078,8 @@ async function refreshCollection(): Promise<void> {
       '<li class="list-plain">Nothing here yet — tap Add painting above.</li>';
     return;
   }
-  // Thumbnails come from the page's baked-in list (built image URLs the
-  // API can't hand out) — matched by repo file, not title slug, so a
-  // renamed painting keeps its photo. Missing ones simply unshown.
+  // Thumbnails come from the baked-in list, matched by repo file (renames
+  // keep their photo). Missing ones simply unshown.
   if (thumbByMd === null) {
     thumbByMd = {};
     const el = document.getElementById("local-collection");
