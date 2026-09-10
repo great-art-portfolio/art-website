@@ -1344,7 +1344,7 @@ test("banner lifetimes are 1/3/7/14 days plus no end date", async ({
 });
 
 test("tickle button pings browsers without email", async ({ page }) => {
-  await page.goto("/admin/banner");
+  await page.goto("/admin/marketing");
   const btn = page.locator("#tickle-send");
   await expect(btn).toBeVisible();
   // Hugs the left, never the full column.
@@ -1372,7 +1372,7 @@ test("tickle button pings browsers without email", async ({ page }) => {
 });
 
 test("tickle button names its reach and asks first", async ({ page }) => {
-  await page.goto("/admin/banner");
+  await page.goto("/admin/marketing");
   // The field names the default note — blank never surprises.
   await expect(page.locator("#tickle-body")).toHaveAttribute(
     "placeholder",
@@ -1424,7 +1424,7 @@ test("tickle button names its reach and asks first", async ({ page }) => {
 });
 
 test("tickle walks big lists in batches", async ({ page }) => {
-  await page.goto("/admin/banner");
+  await page.goto("/admin/marketing");
   // 65 subscribed browsers: one Worker call can't ping them all.
   await page.route("**/api/notify", async (route) => {
     if (route.request().method() === "GET") {
@@ -1470,6 +1470,60 @@ test("tickle walks big lists in batches", async ({ page }) => {
   await expect.poll(() => posts.length).toBe(2);
   expect(posts).toEqual([0, 40]);
   await expect(status).toContainText("Pinged 65 of 65 browsers.");
+  await expect(btn).toBeEnabled();
+});
+
+test("send email button confirms the list before broadcasting", async ({
+  page,
+}) => {
+  await page.goto("/admin/marketing");
+  // Three addresses on the list: the button must ask before it sends.
+  await page.route("**/api/collectors", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ total: 3 }),
+    });
+  });
+  await page.route("**/api/notify", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ total: 0 }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        sent: 0,
+        total: 0,
+        emailed: true,
+        emailTotal: 3,
+      }),
+    });
+  });
+  const btn = page.locator("#email-send");
+  const status = page.locator("#email-status");
+  const asked: string[] = [];
+  page.on("dialog", async (dialog) => {
+    asked.push(dialog.message());
+    // First say no, then yes.
+    if (asked.length === 1) await dialog.dismiss();
+    else await dialog.accept();
+  });
+  // Saying no sends nothing — still idle, button back.
+  await btn.click();
+  await expect.poll(() => asked.length).toBe(1);
+  expect(asked[0]).toBe("This will email 3 subscribers. Are you sure?");
+  await expect(status).toBeEmpty();
+  await expect(btn).toBeEnabled();
+  // Saying yes emails all three.
+  await btn.click();
+  await expect.poll(() => asked.length).toBe(2);
+  await expect(status).toContainText("Emailed 3 subscribers.");
   await expect(btn).toBeEnabled();
 });
 

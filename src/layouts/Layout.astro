@@ -59,6 +59,7 @@ function adminSection(path: string): string | null {
   const clean = path.length > 1 ? path.replace(/\/$/, "") : path;
   if (clean === "/admin") return "collection";
   if (clean.startsWith("/admin/banner")) return "banner";
+  if (clean.startsWith("/admin/marketing")) return "marketing";
   if (clean.startsWith("/admin/metrics")) return "metrics";
   if (clean.startsWith("/admin/guide")) return "guide";
   return null;
@@ -142,6 +143,7 @@ const currentSection = adminSection(Astro.url.pathname);
                   [
                     ["collection", "/admin", "Collection"],
                     ["banner", "/admin/banner", "Banner"],
+                    ["marketing", "/admin/marketing", "Marketing"],
                     ["metrics", "/admin/metrics", "Metrics"],
                     ["guide", "/admin/guide", "Guide"],
                   ] as const

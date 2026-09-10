@@ -40,27 +40,6 @@ import "../../components/studio.css";
         </div>
       </div>
     </section>
-    <section id="sec-tickle" class="prose">
-      <h2>Ping subscribers</h2>
-      <p class="hint">
-        Sends a browser ping to subscribers (no email). Add a line if you like —
-        otherwise buyers see the standard note.
-      </p>
-      <label
-        >Message (optional)
-        <input
-          type="text"
-          id="tickle-body"
-          maxlength="180"
-          autocomplete="off"
-          placeholder="Blank: Something new in the gallery — tap to see it"
-        />
-      </label>
-      <div class="row">
-        <button type="button" id="tickle-send">Ping subscribers</button>
-      </div>
-      <p class="hint" id="tickle-status" role="status"></p>
-    </section>
   </main>
 </Layout>
 
@@ -74,19 +53,6 @@ import "../../components/studio.css";
     align-self: center;
   }
   #announce-meta:empty {
-    display: none;
-  }
-  /* The ping button hugs the left like the banner buttons above — a flex
-     row that wraps on narrow phones. The result sits below it, hidden
-     until it has something to say. */
-  #sec-tickle .row {
-    margin-top: 1rem;
-    justify-content: start;
-  }
-  #tickle-status {
-    margin: 0.75rem 0 0;
-  }
-  #tickle-status:empty {
     display: none;
   }
   /* Duration, buttons, and status share one line on desktop: the actions

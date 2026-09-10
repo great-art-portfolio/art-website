@@ -269,6 +269,36 @@ export const api = {
       return null;
     }
   },
+  /**
+   * Email the whole list the standard new-painting note. Single shot —
+   * the server fans out; the reply says whether it went and how many
+   * it reached.
+   */
+  async sendCollectorEmail(): Promise<{
+    emailed: boolean;
+    emailTotal: number;
+  }> {
+    const data = await request("/api/notify", notifySchema, {
+      method: "POST",
+      headers: { ...adminHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ push: false }),
+    });
+    return data;
+  },
+  /**
+   * How many addresses an email would reach. Never throws — null means
+   * the count didn't load, and the send should just go ahead unwarned.
+   */
+  async emailSubscriberCount(): Promise<number | null> {
+    try {
+      const data = await request("/api/collectors", pushCountSchema, {
+        headers: adminHeaders(),
+      });
+      return data.total;
+    } catch {
+      return null;
+    }
+  },
 };
 
 /** Repo titles for the duplicate guard. Empty offline — saves proceed anyway. */

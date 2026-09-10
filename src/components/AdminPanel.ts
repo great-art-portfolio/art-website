@@ -1270,7 +1270,10 @@ function init(): void {
   const onCollection = document.getElementById("edit-list") !== null;
   const onBanner = document.getElementById("f-announce") !== null;
   const onGuide = document.getElementById("admin-token") !== null;
-  if (!onCollection && !onBanner && !onGuide) return;
+  const onMarketing = document.getElementById("sec-email") !== null;
+  if (!onCollection && !onBanner && !onGuide && !onMarketing) return;
+  wireTickle();
+  wireBroadcast();
   $("leave-admin").addEventListener("click", () => {
     setApiToken("");
     window.location.href = "/";
@@ -1405,90 +1408,6 @@ function init(): void {
       saveBanner(false);
     });
 
-    // Standalone browser ping (no email). Disabled mid-flight so a double
-    // tap can't fan out twice. A custom line rides along — blank means
-    // the standard note.
-    const tickleBtn = document.getElementById("tickle-send");
-    if (tickleBtn instanceof HTMLButtonElement) {
-      tickleBtn.addEventListener("click", () => {
-        const status = document.getElementById("tickle-status");
-        if (status === null) return;
-        // Answer every tap at once: the count loads behind this, and the
-        // next result can never be mistaken for this tap's leftover text.
-        status.textContent = "Pinging…";
-        fadeIn(status);
-        // Name the reach up front — a ping can't be unsent. Nobody
-        // subscribed (or count failed to load) means no question to ask.
-        // A cancelled ask leaves the line as it found it.
-        void api.pushSubscriberCount().then((total) => {
-          if (
-            total !== null &&
-            total > 0 &&
-            !window.confirm(`This will ping ${total} browsers. Are you sure?`)
-          ) {
-            status.textContent = "";
-            return;
-          }
-          sendTickle();
-        });
-      });
-      function sendTickle(): void {
-        const btn = tickleBtn instanceof HTMLButtonElement ? tickleBtn : null;
-        const status = document.getElementById("tickle-status");
-        if (btn === null || status === null) return;
-        const lineInput = document.getElementById("tickle-body");
-        const line =
-          lineInput instanceof HTMLInputElement ? lineInput.value.trim() : "";
-        btn.disabled = true;
-        status.textContent = "Pinging…";
-        fadeIn(status);
-        // Big lists walk cursor by cursor — one Worker call only pings
-        // ~40 browsers. The counts add up; the screen shows one result.
-        let cursor: number | undefined;
-        let pinged = 0;
-        const pingBatch = (): void => {
-          const push =
-            cursor === undefined ? { body: line } : { body: line, cursor };
-          api
-            .notifyCollectors({ push, email: false })
-            .then((r) => {
-              pinged += r.sent;
-              if (r.nextCursor !== null && r.nextCursor !== undefined) {
-                cursor = r.nextCursor;
-                status.textContent = `Pinging… ${Math.min(cursor, r.total)} of ${r.total} browsers.`;
-                fadeIn(status);
-                pingBatch();
-                return;
-              }
-              status.textContent =
-                r.total === 0
-                  ? "Nobody to ping yet — no browsers subscribed."
-                  : `Pinged ${pinged} of ${r.total} browsers.`;
-              fadeIn(status);
-              // The button stays off until the last batch lands, so a
-              // second tap can't start a second loop mid-walk.
-              btn.disabled = false;
-            })
-            .catch((err: unknown) => {
-              // Name the common failures; anything else keeps the raw words.
-              if (err instanceof ApiError && err.status === 404) {
-                status.textContent =
-                  "Ping isn't available in this preview — it works on the live site.";
-              } else if (err instanceof ApiError && err.status === 429) {
-                // The server's own words, already plain (seconds in dev,
-                // minutes live) — no "Couldn't ping" prefix needed.
-                status.textContent = errorMessage(err);
-              } else {
-                status.textContent = `Couldn't ping: ${errorMessage(err)}`;
-              }
-              fadeIn(status);
-              btn.disabled = false;
-            });
-        };
-        pingBatch();
-      }
-    }
-
     function saveBanner(allowEmpty: boolean): void {
       const text = $("f-announce").value.trim().slice(0, 280);
       if (text === "" && !allowEmpty) {
@@ -1598,6 +1517,141 @@ function init(): void {
     void refreshCollection();
     void refreshRowViews();
   }
+}
+
+// Marketing page (and anywhere else the sections land): the browser
+// ping. Runs only where its markup exists, so pages never touch each
+// other's sections.
+function wireTickle(): void {
+  // Standalone browser ping (no email). Disabled mid-flight so a double
+  // tap can't fan out twice. A custom line rides along — blank means
+  // the standard note.
+  const tickleBtn = document.getElementById("tickle-send");
+  if (tickleBtn instanceof HTMLButtonElement) {
+    tickleBtn.addEventListener("click", () => {
+      const status = document.getElementById("tickle-status");
+      if (status === null) return;
+      // Answer every tap at once: the count loads behind this, and the
+      // next result can never be mistaken for this tap's leftover text.
+      status.textContent = "Pinging…";
+      fadeIn(status);
+      // Name the reach up front — a ping can't be unsent. Nobody
+      // subscribed (or count failed to load) means no question to ask.
+      // A cancelled ask leaves the line as it found it.
+      void api.pushSubscriberCount().then((total) => {
+        if (
+          total !== null &&
+          total > 0 &&
+          !window.confirm(`This will ping ${total} browsers. Are you sure?`)
+        ) {
+          status.textContent = "";
+          return;
+        }
+        sendTickle();
+      });
+    });
+    function sendTickle(): void {
+      const btn = tickleBtn instanceof HTMLButtonElement ? tickleBtn : null;
+      const status = document.getElementById("tickle-status");
+      if (btn === null || status === null) return;
+      const lineInput = document.getElementById("tickle-body");
+      const line =
+        lineInput instanceof HTMLInputElement ? lineInput.value.trim() : "";
+      btn.disabled = true;
+      status.textContent = "Pinging…";
+      fadeIn(status);
+      // Big lists walk cursor by cursor — one Worker call only pings
+      // ~40 browsers. The counts add up; the screen shows one result.
+      let cursor: number | undefined;
+      let pinged = 0;
+      const pingBatch = (): void => {
+        const push =
+          cursor === undefined ? { body: line } : { body: line, cursor };
+        api
+          .notifyCollectors({ push, email: false })
+          .then((r) => {
+            pinged += r.sent;
+            if (r.nextCursor !== null && r.nextCursor !== undefined) {
+              cursor = r.nextCursor;
+              status.textContent = `Pinging… ${Math.min(cursor, r.total)} of ${r.total} browsers.`;
+              fadeIn(status);
+              pingBatch();
+              return;
+            }
+            status.textContent =
+              r.total === 0
+                ? "Nobody to ping yet — no browsers subscribed."
+                : `Pinged ${pinged} of ${r.total} browsers.`;
+            fadeIn(status);
+            // The button stays off until the last batch lands, so a
+            // second tap can't start a second loop mid-walk.
+            btn.disabled = false;
+          })
+          .catch((err: unknown) => {
+            // Name the common failures; anything else keeps the raw words.
+            if (err instanceof ApiError && err.status === 404) {
+              status.textContent =
+                "Ping isn't available in this preview — it works on the live site.";
+            } else if (err instanceof ApiError && err.status === 429) {
+              // The server's own words, already plain (seconds in dev,
+              // minutes live) — no "Couldn't ping" prefix needed.
+              status.textContent = errorMessage(err);
+            } else {
+              status.textContent = `Couldn't ping: ${errorMessage(err)}`;
+            }
+            fadeIn(status);
+            btn.disabled = false;
+          });
+      };
+      pingBatch();
+    }
+  }
+}
+
+// Email broadcast to the whole list, one shot — the server fans out.
+// Count first, ask once (an email can't be unsent either); a cancelled
+// ask leaves the line as it found it. Runs only where its markup exists.
+function wireBroadcast(): void {
+  const btnEl = document.getElementById("email-send");
+  const btn = btnEl instanceof HTMLButtonElement ? btnEl : null;
+  if (btn === null) return;
+  btn.addEventListener("click", () => {
+    const status = document.getElementById("email-status");
+    if (status === null) return;
+    status.textContent = "Sending…";
+    fadeIn(status);
+    void api.emailSubscriberCount().then((total) => {
+      if (
+        total !== null &&
+        total > 0 &&
+        !window.confirm(`This will email ${total} subscribers. Are you sure?`)
+      ) {
+        status.textContent = "";
+        return;
+      }
+      btn.disabled = true;
+      api
+        .sendCollectorEmail()
+        .then((r) => {
+          if (r.emailTotal === 0) {
+            status.textContent =
+              "Nobody to email yet — no addresses subscribed.";
+          } else if (r.emailed) {
+            status.textContent = `Emailed ${r.emailTotal} subscribers.`;
+          } else {
+            status.textContent =
+              "The email list isn't set up yet — try again later.";
+          }
+          fadeIn(status);
+          btn.disabled = false;
+        })
+        .catch((err: unknown) => {
+          status.textContent = `Couldn't email: ${errorMessage(err)}`;
+          fadeIn(status);
+          btn.disabled = false;
+        });
+    });
+  });
 }
 
 // ClientRouter swaps studio pages without a full load — and skips

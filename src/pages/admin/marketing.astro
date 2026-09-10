@@ -1,0 +1,62 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import "../../components/studio.css";
+---
+
+<Layout title="Admin - Marketing" wordmark="admin">
+  <main class="admin" id="main">
+    <section id="sec-tickle" class="prose">
+      <h2>Ping subscribers</h2>
+      <p class="hint">
+        Sends a browser ping to subscribers (no email). Add a line if you like —
+        otherwise buyers see the standard note.
+      </p>
+      <label
+        >Message (optional)
+        <input
+          type="text"
+          id="tickle-body"
+          maxlength="180"
+          autocomplete="off"
+          placeholder="Blank: Something new in the gallery — tap to see it"
+        />
+      </label>
+      <div class="row">
+        <button type="button" id="tickle-send">Ping subscribers</button>
+      </div>
+      <p class="hint" id="tickle-status" role="status"></p>
+    </section>
+    <section id="sec-email" class="prose">
+      <h2>Send email</h2>
+      <p class="hint">
+        Sends one email to the whole list — the standard new-painting note with
+        a link to the gallery.
+      </p>
+      <div class="row">
+        <button type="button" id="email-send">Send email to subscribers</button>
+      </div>
+      <p class="hint" id="email-status" role="status"></p>
+    </section>
+  </main>
+</Layout>
+
+<script src="../../components/AdminPanel.ts"></script>
+
+<style>
+  /* Both buttons hug the left — a flex row that wraps on narrow phones.
+     Each result sits below its button, hidden until it has something
+     to say. */
+  #sec-tickle .row,
+  #sec-email .row {
+    margin-top: 1rem;
+    justify-content: start;
+  }
+  #tickle-status,
+  #email-status {
+    margin: 0.75rem 0 0;
+  }
+  #tickle-status:empty,
+  #email-status:empty {
+    display: none;
+  }
+</style>
