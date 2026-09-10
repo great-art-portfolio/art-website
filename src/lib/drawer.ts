@@ -114,8 +114,17 @@ export function setDrawerOpen(
     return;
   }
   const head = details.firstElementChild;
+  // Land on the full closed box: the summary's bottom margin collapses
+  // through the closed details, so easing to the bare box height ends
+  // short and the footer snaps on arrival. (Leading margins collapse
+  // with the previous sibling outside the box — only trailing counts.)
+  const headStyle =
+    head instanceof HTMLElement ? getComputedStyle(head) : null;
   const end =
-    head instanceof HTMLElement ? head.getBoundingClientRect().height : 0;
+    head instanceof HTMLElement
+      ? head.getBoundingClientRect().height +
+        (Number.parseFloat(headStyle?.marginBottom ?? "") || 0)
+      : 0;
   const start = details.getBoundingClientRect().height;
   if (calm || start <= end) {
     track(fade("1", "0"), () => {

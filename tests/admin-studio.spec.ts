@@ -945,6 +945,43 @@ test("info links list plainly, and Advanced eases open", async ({ page }) => {
   await expect(page.locator("#admin-token")).toBeVisible();
 });
 
+test("Advanced drawer lands without a snap", async ({ page }) => {
+  await page.goto("/admin/guide");
+  await page.locator("#sec-info summary").click();
+  await expect(page.locator("#admin-token")).toBeVisible();
+  // Sample the footer through the close: past the 350ms flight every
+  // step must be still. The old close eased 16px short, then snapped.
+  const lateSteps: number[] = await page.evaluate((): Promise<number[]> => {
+    const footer = document.querySelector("footer");
+    const details = document.querySelector("#sec-info details");
+    if (footer === null || details === null) return Promise.resolve([]);
+    details.querySelector("summary")?.dispatchEvent(
+      new MouseEvent("click", { bubbles: true }),
+    );
+    const t0 = performance.now();
+    const ys: Array<[number, number]> = [];
+    return new Promise<Array<[number, number]>>((resolve) => {
+      const tick = (): void => {
+        ys.push([
+          performance.now() - t0,
+          Math.round(footer.getBoundingClientRect().top),
+        ]);
+        if (performance.now() - t0 < 700) requestAnimationFrame(tick);
+        else resolve(ys);
+      };
+      requestAnimationFrame(tick);
+    }).then((samples) => {
+      const late = samples.filter(([t]) => t > 450).map(([, y]) => y);
+      const steps: number[] = [];
+      for (let i = 1; i < late.length; i++)
+        steps.push(Math.abs(late[i] - late[i - 1]));
+      return steps;
+    });
+  });
+  expect(lateSteps.length).toBeGreaterThan(0);
+  expect(Math.max(...lateSteps)).toBeLessThanOrEqual(2);
+});
+
 test("drawer headers never select their words", async ({ page }) => {
   await page.goto("/admin/guide");
   await page.locator("#sec-info summary").dblclick();

@@ -153,13 +153,13 @@ button:active {
   transform: none;
 }
 button.primary {
-  background: var(--ink);
-  color: var(--paper);
-  border-color: var(--ink);
+  background: var(--primary);
+  color: var(--primary-ink);
+  border-color: var(--primary);
 }
 button.primary:hover {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
   color: var(--accent-ink);
 }
 .admin h3 {

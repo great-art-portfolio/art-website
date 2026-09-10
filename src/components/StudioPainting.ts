@@ -103,13 +103,40 @@ function modelSig(): string | null {
   return [photoGen, rotation, widthIn, heightIn, depthIn].map(String).join("|");
 }
 
+/**
+ * Swap preview words with a breath, not a snap: opacity-only (every
+ * motion setting keeps gentle fades), skipped when nothing changed, and
+ * any still-playing swap retires first so fast typing never shimmers.
+ */
+const previewShown = new WeakMap<HTMLElement, string>();
+
+function setPreviewHtml(el: HTMLElement, html: string): void {
+  // innerHTML round-trips quotes differently, so remember exactly.
+  if (previewShown.get(el) === html) return;
+  previewShown.set(el, html);
+  el.innerHTML = html;
+  if (typeof el.animate === "function") {
+    for (const a of el.getAnimations()) a.cancel();
+    el.animate([{ opacity: 0.35 }, { opacity: 1 }], {
+      duration: 160,
+      easing: "ease",
+    });
+  }
+}
+
 /** Live buyer preview while she types: title, price, measurements, words. */
 function refreshPreview(): void {
   const title = $("de-title").value.trim();
   const priceRaw = $("de-price").value.trim();
-  $("pv-title").textContent = title === "" ? "Untitled" : title;
+  setPreviewHtml(
+    $("pv-title"),
+    escHtml(title === "" ? "Untitled" : title),
+  );
   const cents = dollarsToCents(Number(priceRaw));
-  $("pv-price").textContent = cents === null ? "Price?" : formatCAD(cents);
+  setPreviewHtml(
+    $("pv-price"),
+    escHtml(cents === null ? "Price?" : formatCAD(cents)),
+  );
   const { widthIn, heightIn, depthIn } = readDims();
   const medium = $("de-medium").value.trim();
   const meta = [
@@ -118,14 +145,17 @@ function refreshPreview(): void {
   ]
     .filter((s) => s !== undefined && s !== "")
     .join(" · ");
-  $("pv-meta").textContent = meta;
+  setPreviewHtml($("pv-meta"), escHtml(meta));
   const raw = $("de-desc").value;
-  $("pv-desc").innerHTML = raw
-    .split(/\n\s*\n/)
-    .map((para) => para.trim())
-    .filter((para) => para !== "")
-    .map((para) => `<p>${escHtml(para)}</p>`)
-    .join("");
+  setPreviewHtml(
+    $("pv-desc"),
+    raw
+      .split(/\n\s*\n/)
+      .map((para) => para.trim())
+      .filter((para) => para !== "")
+      .map((para) => `<p>${escHtml(para)}</p>`)
+      .join(""),
+  );
   // Alt text never shows on the page, but the preview photos wear it live
   // so what a screen reader announces matches what buyers will hear.
   const altText = $("de-alt").value.trim();

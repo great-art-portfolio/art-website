@@ -744,6 +744,11 @@ const currentSection = adminSection(Astro.url.pathname);
     --line: #e5dccb;
     --accent: #a44a24;
     --accent-ink: #ffffff;
+    /* Primary buttons: clay on light (an ink slab reads pitch black
+       against cream), light-on-dark ink everywhere else. */
+    --primary: #a44a24;
+    --primary-ink: #ffffff;
+    --primary-hover: color-mix(in srgb, #a44a24 80%, black);
     /* Delete hover only: a soft clay red, clearly not the brand
        orange and nowhere near alarm red. */
     --danger: #b35545;
@@ -1120,13 +1125,13 @@ const currentSection = adminSection(Astro.url.pathname);
       color 0.25s ease;
   }
   #notify-dialog .btn-primary {
-    background: var(--ink);
-    color: var(--paper);
-    border: 1px solid var(--ink);
+    background: var(--primary);
+    color: var(--primary-ink);
+    border: 1px solid var(--primary);
   }
   #notify-dialog .btn-primary:hover {
-    background: var(--accent);
-    border-color: var(--accent);
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
     color: var(--accent-ink);
   }
   #notify-dialog .btn-ghost {
@@ -1345,6 +1350,9 @@ const currentSection = adminSection(Astro.url.pathname);
       --muted: #a89e8e;
       --line: #35302a;
       --accent: #d08159;
+      --primary: #ece5d8;
+      --primary-ink: #171512;
+      --primary-hover: #d08159;
       --card: #211c16;
       --wash: radial-gradient(
         120% 60% at 50% -10%,
