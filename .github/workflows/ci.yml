@@ -35,6 +35,10 @@ jobs:
       # Local D1 tables for the collector tests — .wrangler/ is gitignored,
       # so a clean runner has no tables without this.
       - run: pnpm db:migrate:local
+      # The email-list specs round-trip the dev mock, never Resend — the
+      # flag is local-only (localhost rail), and the runner is local, so
+      # set it the way .dev.vars does. Without it every subscribe 500s.
+      - run: printf 'COLLECTORS_MOCK=true\n' > .dev.vars
       # Smoke tests against the real Pages runtime (static + Functions,
       # no secrets): regressions, validation paths, graceful fallbacks.
       # Google's Chrome repo regularly serves a stale Packages index
