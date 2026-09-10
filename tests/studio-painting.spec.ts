@@ -103,9 +103,9 @@ test("publishing a draft fires only the checked channels", async ({
   let postedMessage: string | null = null;
   await page.route("**/api/commit*", async (route) => {
     if (route.request().method() === "POST") {
-      postedMessage = (
-        route.request().postDataJSON() as { message?: string } | null
-      )?.message;
+      postedMessage =
+        (route.request().postDataJSON() as { message?: string } | null)
+          ?.message ?? null;
       await route.fulfill({ json: { ok: true, commit: "test" }, status: 201 });
     } else {
       await route.continue();
@@ -482,6 +482,9 @@ test("draft save carries its publish-on date", async ({ browser }) => {
   );
   const page = await authed.newPage();
   let posted: Array<{ path: string; contentBase64: string }> | null = null;
+  // Reads go through the closure: assigning the untyped post body
+  // inside the route narrows direct reads to never.
+  const sent = (): typeof posted => posted;
   await page.route("**/api/commit*", async (route) => {
     if (route.request().method() === "POST") {
       posted =
@@ -512,7 +515,7 @@ test("draft save carries its publish-on date", async ({ browser }) => {
   await page.locator("#de-save-draft").click();
   await expect.poll(() => posted, { timeout: 15_000 }).not.toBe(null);
   const md = Buffer.from(
-    posted?.find((f) => f.path.endsWith(".md"))?.contentBase64 ?? "",
+    sent()?.find((f) => f.path.endsWith(".md"))?.contentBase64 ?? "",
     "base64",
   ).toString("utf8");
   expect(md).toMatch(/^draft: true$/m);

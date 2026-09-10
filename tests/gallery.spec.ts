@@ -68,7 +68,7 @@ test("gallery shows one card per available painting, each linked correctly", asy
 
 test("inquiry fields preview their ring on hover", async ({ page }) => {
   expect(available.length).toBeGreaterThan(0);
-  await page.goto(`/paintings/${available[0].slug}`);
+  await page.goto(`/paintings/${available[0]?.slug ?? ""}`);
   // The form hides behind "Interested?" once scripts run. Revealing
   // focuses the name box, so step off it first — this test is about
   // hover, not focus.
@@ -103,7 +103,7 @@ test("inquiry fields preview their ring on hover", async ({ page }) => {
 test("hovering a card prefetches its painting page", async ({ page }) => {
   expect(available.length).toBeGreaterThan(0);
   await page.goto("/");
-  const href = `/paintings/${available[0].slug}`;
+  const href = `/paintings/${available[0]?.slug ?? ""}`;
   const card = page.locator(`#gallery-static .card[href="${href}"]`);
   await expect(card).toHaveAttribute("data-astro-prefetch", "hover");
   // Hover must fetch the page without navigating — the next tap is instant.
@@ -142,12 +142,14 @@ test("sold archive matches the collection (absent while nothing is sold)", async
 test("clicking a card opens its painting page", async ({ page }) => {
   await page.goto("/");
   await page
-    .locator(`#gallery-static .card[href="/paintings/${available[0].slug}"]`)
+    .locator(
+      `#gallery-static .card[href="/paintings/${available[0]?.slug ?? ""}"]`,
+    )
     .click();
   await expect(page).toHaveURL(
-    new RegExp(`/paintings/${available[0].slug}/?$`),
+    new RegExp(`/paintings/${available[0]?.slug ?? ""}/?$`),
   );
-  await expect(page.locator(".info h1")).toHaveText(available[0].title);
+  await expect(page.locator(".info h1")).toHaveText(available[0]?.title ?? "");
 });
 
 for (const p of published) {
@@ -289,7 +291,7 @@ test("3D model waits for the visitor to scroll to it", async ({ browser }) => {
     viewerLibRequests += 1;
     await route.continue();
   });
-  await page.goto(`/paintings/${withModels[0].slug}`);
+  await page.goto(`/paintings/${withModels[0]?.slug ?? ""}`);
   await expect(page.locator("#ar-mount")).toBeVisible();
   // Premise check: the section must actually start out of view, or the
   // zero-request assertions below prove nothing.
@@ -339,7 +341,7 @@ test("install option stays hidden until the browser offers it", async ({
 });
 
 test("photo lightbox opens on tap and closes on Escape", async ({ page }) => {
-  await page.goto(`/paintings/${available[0].slug}`);
+  await page.goto(`/paintings/${available[0]?.slug ?? ""}`);
   await expect(page.locator("#lightbox")).toBeHidden();
   await page.locator("#photo-wrap").click();
   await expect(page.locator("#lightbox")).toBeVisible();
@@ -450,7 +452,7 @@ test("admin mode keeps painting-to-painting navigation in reach", async ({
     sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
   );
   const adminPage = await authed.newPage();
-  await adminPage.goto(`/paintings/${available[0].slug}`);
+  await adminPage.goto(`/paintings/${available[0]?.slug ?? ""}`);
   // Back to the collection (all paintings) and across to the studio.
   await expect(adminPage.locator('.crumbs a[href="/"]')).toBeVisible();
   await expect(adminPage.locator('#admin-bar a[href="/admin"]')).toBeVisible();
@@ -465,13 +467,15 @@ test("admin mode opens the painting's studio room from the buyer page", async ({
     sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
   );
   const adminPage = await authed.newPage();
-  await adminPage.goto(`/paintings/${available[0].slug}`);
+  await adminPage.goto(`/paintings/${available[0]?.slug ?? ""}`);
   const door = adminPage.locator(
-    `#admin-bar a[href="/admin/paintings/${available[0].slug}"]`,
+    `#admin-bar a[href="/admin/paintings/${available[0]?.slug ?? ""}"]`,
   );
   await expect(door).toHaveText("Edit in the studio");
   await door.click();
-  await expect(adminPage.locator("#de-title")).toHaveValue(available[0].title);
+  await expect(adminPage.locator("#de-title")).toHaveValue(
+    available[0]?.title ?? "",
+  );
   await authed.close();
 });
 
@@ -481,7 +485,7 @@ test("studio room toolbar wears the studio styling", async ({ browser }) => {
     sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
   );
   const adminPage = await authed.newPage();
-  await adminPage.goto(`/admin/paintings/${available[0].slug}`);
+  await adminPage.goto(`/admin/paintings/${available[0]?.slug ?? ""}`);
   // Primary Save and plain Delete both styled, not browser defaults.
   await expect(adminPage.locator("#de-save")).toHaveCSS(
     "border-radius",
@@ -554,7 +558,7 @@ test("offline inquiry queues on the phone and sends on reconnect", async ({
       body: "{}",
     });
   });
-  await page.goto(`/paintings/${available[0].slug}`);
+  await page.goto(`/paintings/${available[0]?.slug ?? ""}`);
   // iPhones have no Background Sync — take the worker replay out, so this
   // exercises the reconnect flush instead of the service worker path.
   await page.evaluate(async () => {

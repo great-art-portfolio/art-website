@@ -28,6 +28,9 @@ test("studio banner form offers lifetimes and saves with an expiry", async ({
     message: string;
     files: Array<{ path: string; contentBase64: string }>;
   } | null = null;
+  // Reads go through the closure: assigning the untyped post body
+  // inside the route narrows direct reads to never.
+  const sent = (): typeof posted => posted;
   await page.route("**/api/commit*", async (route) => {
     if (route.request().method() === "POST") {
       posted = route.request().postDataJSON() as typeof posted;
@@ -61,12 +64,12 @@ test("studio banner form offers lifetimes and saves with an expiry", async ({
   await page.locator("#announce-save").click();
   await expect(page.locator("#admin-status")).toContainText("Banner updated");
 
-  expect(posted !== null).toBe(true);
-  expect(posted?.message).toBe("Update homepage banner");
-  expect(posted?.files).toHaveLength(1);
-  expect(posted?.files[0]?.path).toBe("src/content/announcement.txt");
+  expect(sent() !== null).toBe(true);
+  expect(sent()?.message).toBe("Update homepage banner");
+  expect(sent()?.files).toHaveLength(1);
+  expect(sent()?.files[0]?.path).toBe("src/content/announcement.txt");
   const body = Buffer.from(
-    posted?.files[0]?.contentBase64 ?? "",
+    sent()?.files[0]?.contentBase64 ?? "",
     "base64",
   ).toString("utf8");
   expect(body).toBe(`expires: ${localToday(3)}\nLilac Festival this Sunday!`);
@@ -75,6 +78,9 @@ test("studio banner form offers lifetimes and saves with an expiry", async ({
 test("empty update is refused, Remove clears the file", async ({ page }) => {
   let posted: { files: Array<{ path: string; contentBase64: string }> } | null =
     null;
+  // Reads go through the closure: assigning the untyped post body
+  // inside the route narrows direct reads to never.
+  const sent = (): typeof posted => posted;
   await page.route("**/api/commit*", async (route) => {
     if (route.request().method() === "POST") {
       posted = route.request().postDataJSON() as typeof posted;
@@ -99,14 +105,14 @@ test("empty update is refused, Remove clears the file", async ({ page }) => {
   await expect(page.locator("#admin-status")).toContainText(
     "Write the announcement first",
   );
-  expect(posted).toBe(null);
+  expect(sent()).toBe(null);
   // A nudge, not news: gone again within a few seconds.
   await expect(page.locator("#admin-status")).toBeEmpty({ timeout: 8000 });
   // Clearing is Remove's job: same empty commit, its own words.
   await page.locator("#announce-clear").click();
   await expect(page.locator("#admin-status")).toContainText("Banner cleared.");
   const body = Buffer.from(
-    posted?.files[0]?.contentBase64 ?? "",
+    sent()?.files[0]?.contentBase64 ?? "",
     "base64",
   ).toString("utf8");
   expect(body).toBe("");
@@ -194,6 +200,9 @@ test("dev without a backend keeps a banner preview for this browser", async ({
 test("remove banner clears it without typing", async ({ page }) => {
   let posted: { files: Array<{ path: string; contentBase64: string }> } | null =
     null;
+  // Reads go through the closure: assigning the untyped post body
+  // inside the route narrows direct reads to never.
+  const sent = (): typeof posted => posted;
   await page.route("**/api/commit*", async (route) => {
     if (route.request().method() === "POST") {
       posted = route.request().postDataJSON() as typeof posted;
@@ -220,7 +229,7 @@ test("remove banner clears it without typing", async ({ page }) => {
   await expect(page.locator("#admin-status")).toContainText("Banner cleared.");
   await expect(page.locator("#f-announce")).toHaveValue("");
   const body = Buffer.from(
-    posted?.files[0]?.contentBase64 ?? "",
+    sent()?.files[0]?.contentBase64 ?? "",
     "base64",
   ).toString("utf8");
   expect(body).toBe("");

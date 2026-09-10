@@ -32,7 +32,7 @@ test("gallery cards serve responsive webp widths", async ({ page }) => {
     expect(widths(srcset)).toEqual(GALLERY_WIDTHS);
     for (const url of (srcset ?? "")
       .split(",")
-      .map((p) => p.trim().split(" ")[0])) {
+      .map((p) => p.trim().split(" ")[0] ?? "")) {
       expect(url.endsWith(".webp")).toBe(true);
     }
     expect(await img.getAttribute("sizes")).toBe(gallerySizes());

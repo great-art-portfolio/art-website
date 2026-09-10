@@ -6,7 +6,8 @@
     "functions/_lib/**/*",
     "functions/api/**/*",
     "functions/types.d.ts",
-    "functions/globals.d.ts"
+    "functions/globals.d.ts",
+    "tests/**/*.spec.ts"
   ],
   "exclude": ["dist", "node_modules", "src/content/**/*"],
   "compilerOptions": {

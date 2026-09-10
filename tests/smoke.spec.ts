@@ -45,8 +45,8 @@ test("admin mode toolbar appears only with a stored token", async ({
   browser,
 }) => {
   const plain = await browser.newContext();
-  await (await plain.newPage()).goto("/paintings/night-reeds");
-  const plainPage = plain.pages()[0];
+  const plainPage = await plain.newPage();
+  await plainPage.goto("/paintings/night-reeds");
   await expect(plainPage.locator("#admin-bar")).toBeHidden();
   await plain.close();
 

@@ -255,7 +255,7 @@ test("collection rows link to their painting pages", async ({ page }) => {
   }
   // The title link hugs its text: empty space beside it stays dead.
   const title = page.locator(
-    `#edit-list a.row-title[href="/paintings/${paintings[0].slug}"]`,
+    `#edit-list a.row-title[href="/paintings/${paintings[0]?.slug ?? ""}"]`,
   );
   // Retried: hydration can swap the rows mid-measure, briefly detaching
   // the handle (zero box) before the identical markup lands again.
@@ -272,7 +272,7 @@ test("collection rows link to their painting pages", async ({ page }) => {
   }).toPass();
   await title.click();
   await expect(page).toHaveURL(
-    new RegExp(`/paintings/${paintings[0].slug}/?$`),
+    new RegExp(`/paintings/${paintings[0]?.slug ?? ""}/?$`),
   );
 });
 
@@ -453,6 +453,7 @@ test("drafts fold away between available and sold", async ({ page }) => {
 async function dragFirstOntoLast(page: Page): Promise<{
   n: number;
   firstMd: string | null;
+  before: string[];
 }> {
   const cards = page.locator('[data-group="available"] .row-card');
   // The dashboard wires dragging after its first collection pass — a
@@ -486,12 +487,15 @@ test("dragging Available rows commits the new gallery order", async ({
     message: string;
     files: Array<{ path: string; contentBase64: string }>;
   } | null = null;
+  // Reads go through the closure: assigning the untyped post body
+  // inside the route narrows direct reads to never.
+  const sent = (): typeof posted => posted;
   await mockCommitApi(page);
   // Registered after the mock so POST lands here first; everything else
   // falls back through to it.
   await page.route("**/api/commit*", async (route) => {
     if (route.request().method() === "POST") {
-      posted = route.request().postDataJSON();
+      posted = route.request().postDataJSON() as typeof posted;
       await route.fulfill({ json: { ok: true, commit: "test" }, status: 201 });
     } else {
       await route.fallback();
@@ -500,13 +504,13 @@ test("dragging Available rows commits the new gallery order", async ({
   await page.goto("/admin");
   const { n, firstMd, before } = await dragFirstOntoLast(page);
   await expect
-    .poll(() => posted?.message ?? null, { timeout: 15_000 })
+    .poll(() => sent()?.message ?? null, { timeout: 15_000 })
     .toBe("Reorder gallery");
   // Only rows that actually moved rewrite: the last card never budges,
   // so n-1 files commit (unchanged rows are skipped, not rewritten).
-  expect(posted?.files.length).toBe(n - 1);
+  expect(sent()?.files.length).toBe(n - 1);
   // The moved painting now sits just before the last card.
-  const moved = posted?.files.find((f) => f.path === firstMd);
+  const moved = sent()?.files.find((f) => f.path === firstMd);
   expect(moved).not.toBe(undefined);
   const body = Buffer.from(moved?.contentBase64 ?? "", "base64").toString(
     "utf8",
@@ -570,11 +574,14 @@ test("dragging Sold rows commits the new sold order", async ({ browser }) => {
     message: string;
     files: Array<{ path: string; contentBase64: string }>;
   } | null = null;
+  // Reads go through the closure: assigning the untyped post body
+  // inside the route narrows direct reads to never.
+  const sent = (): typeof posted => posted;
   // Registered after the stub so POST lands here first; everything else
   // falls back through to it.
   await page.route("**/api/commit*", async (route) => {
     if (route.request().method() === "POST") {
-      posted = route.request().postDataJSON();
+      posted = route.request().postDataJSON() as typeof posted;
       await route.fulfill({ json: { ok: true, commit: "test" }, status: 201 });
     } else {
       await route.fallback();
@@ -594,10 +601,10 @@ test("dragging Sold rows commits the new sold order", async ({ browser }) => {
     .getAttribute("data-md");
   await cards.nth(0).dragTo(cards.nth(2));
   await expect
-    .poll(() => posted?.message ?? null, { timeout: 15_000 })
+    .poll(() => sent()?.message ?? null, { timeout: 15_000 })
     .toBe("Reorder gallery");
   // The moved painting's file carries its new index…
-  const moved = posted?.files.find((f) => f.path === firstMd);
+  const moved = sent()?.files.find((f) => f.path === firstMd);
   expect(moved).not.toBe(undefined);
   const body = Buffer.from(moved?.contentBase64 ?? "", "base64").toString(
     "utf8",
@@ -957,16 +964,16 @@ test("Advanced drawer lands without a snap", async ({ page }) => {
   await expect(page.locator("#admin-token")).toBeVisible();
   // Sample the footer through the close: past the 350ms flight every
   // step must be still. The old close eased 16px short, then snapped.
-  const lateSteps: number[] = await page.evaluate((): Promise<number[]> => {
+  const lateSteps: number[] = await page.evaluate(async () => {
     const footer = document.querySelector("footer");
     const details = document.querySelector("#sec-info details");
-    if (footer === null || details === null) return Promise.resolve([]);
+    if (footer === null || details === null) return [];
     details
       .querySelector("summary")
       ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     const t0 = performance.now();
     const ys: Array<[number, number]> = [];
-    return new Promise<Array<[number, number]>>((resolve) => {
+    const samples = await new Promise<Array<[number, number]>>((resolve) => {
       const tick = (): void => {
         ys.push([
           performance.now() - t0,
@@ -976,13 +983,12 @@ test("Advanced drawer lands without a snap", async ({ page }) => {
         else resolve(ys);
       };
       requestAnimationFrame(tick);
-    }).then((samples) => {
-      const late = samples.filter(([t]) => t > 450).map(([, y]) => y);
-      const steps: number[] = [];
-      for (let i = 1; i < late.length; i++)
-        steps.push(Math.abs(late[i] - late[i - 1]));
-      return steps;
     });
+    const late = samples.filter(([t]) => t > 450).map(([, y]) => y);
+    const steps: number[] = [];
+    for (let i = 1; i < late.length; i++)
+      steps.push(Math.abs((late[i] ?? 0) - (late[i - 1] ?? 0)));
+    return steps;
   });
   expect(lateSteps.length).toBeGreaterThan(0);
   expect(Math.max(...lateSteps)).toBeLessThanOrEqual(2);
@@ -1294,7 +1300,7 @@ test("admin mode follows her through the whole gallery", async ({
 });
 
 test("visitors see zero admin chrome", async ({ page }) => {
-  await page.goto(`/paintings/${paintings[0].slug}`);
+  await page.goto(`/paintings/${paintings[0]?.slug ?? ""}`);
   await expect(page.locator("#admin-bar")).toBeHidden();
   await page.goto("/admin");
   await expect(page.locator('nav a[href="/#notify"]')).toHaveCount(0);
@@ -1498,8 +1504,8 @@ test("tickle walks big lists in batches", async ({ page }) => {
       }),
     });
   });
-  const posts = [];
-  const asked = [];
+  const posts: number[] = [];
+  const asked: string[] = [];
   page.on("dialog", async (dialog) => {
     asked.push(dialog.message());
     await dialog.accept();
@@ -1619,7 +1625,7 @@ test("marketing page previews the exact email buyers get", async ({ page }) => {
   let posted: unknown = null;
   await page.route("**/api/notify", async (route) => {
     if (route.request().method() === "POST") {
-      posted = route.request().postDataJSON();
+      posted = route.request().postDataJSON() as typeof posted;
       await route.fulfill({
         status: 200,
         contentType: "application/json",
