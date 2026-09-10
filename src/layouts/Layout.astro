@@ -463,13 +463,18 @@ const currentSection = adminSection(Astro.url.pathname);
                       d.devConfirmUrl !== ""
                     ) {
                       // Dev mock list only — the link finishes the loop
-                      // locally. The words tap to copy, so it travels to
-                      // the address bar. (A resend.dev test address also
-                      // rode the true API — check Resend's dashboard.)
-                      notifySay(
-                        hint,
-                        "Dev list — confirm here: " + d.devConfirmUrl,
-                      );
+                      // locally, so it rides as a real anchor: tap visits
+                      // it. (A resend.dev test address also rode the true
+                      // API — check Resend's dashboard.) Tapping the bare
+                      // words still copies, as everywhere else.
+                      notifySay(hint, "Dev list — confirm here: ");
+                      const go = document.createElement("a");
+                      go.href = d.devConfirmUrl;
+                      go.textContent = "open the confirm page";
+                      go.addEventListener("click", (e) => {
+                        e.stopPropagation();
+                      });
+                      hint.appendChild(go);
                     } else {
                       notifySay(
                         hint,
@@ -1021,6 +1026,14 @@ const currentSection = adminSection(Astro.url.pathname);
      setting — and takes no clicks. */
   #notify-dialog #notify-status {
     cursor: copy;
+  }
+  /* The dev confirm rides as a link, not words — same ink, underlined,
+     and a real pointer instead of the copy one. */
+  #notify-dialog #notify-status a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
   }
   #notify-dialog .toast {
     position: absolute;

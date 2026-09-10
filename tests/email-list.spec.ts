@@ -73,6 +73,32 @@ test("pages without links explain themselves", async ({ page }) => {
   );
 });
 
+test("dev confirm link visits instead of copying", async ({ page }) => {
+  // The mock answers the join itself; the box must offer the loop as a
+  // link that goes there, not words to copy.
+  await page.route("**/api/collectors", async (route) =>
+    route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        already: false,
+        emailed: true,
+        devConfirmUrl:
+          "http://127.0.0.1:4331/email/confirmed?email=t%40example.com&token=t",
+      }),
+    }),
+  );
+  await page.goto("/");
+  await page.locator("#notify-nav").click();
+  await page.locator("#notify-email").fill("t@example.com");
+  await page.locator("#notify-email-form button[type=submit]").click();
+  const link = page.locator("#notify-status a");
+  await expect(link).toHaveText("open the confirm page");
+  await link.click();
+  await expect(page).toHaveURL(/\/email\/confirmed/);
+});
+
 test("notify box validates before sending", async ({ page }) => {
   await page.goto("/");
   await page.locator("#notify-nav").click();
