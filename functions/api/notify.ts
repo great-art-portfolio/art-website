@@ -2,6 +2,7 @@ import type { AppEnv } from "../_lib/env";
 import { json, requireAdmin, serverError } from "../_lib/http";
 import { sendCollectorBroadcast } from "../_lib/notify";
 import {
+  countSubscriptions,
   listSubscriptions,
   pushCooldownMs,
   readLastPushAt,
@@ -9,6 +10,8 @@ import {
   savePushMessage,
   sendTickle,
   stampPushAt,
+  TICKLE_BATCH,
+  type StoredSubscription,
 } from "../_lib/push";
 
 /** Admin: ping collectors. { push: false } / { email: false } send one side
@@ -32,34 +35,54 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     let gone = 0;
     let failed = 0;
     let total = 0;
+    let nextCursor: number | null = null;
     if (wantPush) {
       const pushOpt = body["push"];
       // Object form is the standalone Ping button; plain booleans are
       // publish alerts, which always go through (email especially).
       const isTickle = typeof pushOpt === "object" && pushOpt !== null;
+      let subs: StoredSubscription[];
       if (isTickle) {
-        const line = String((pushOpt as Record<string, unknown>)["body"] ?? "")
-          .trim()
-          .slice(0, 180);
-        // A missing table (DB not yet migrated) must not eat the ping.
-        await savePushMessage(context.env, line).catch((err: unknown) =>
-          console.error("push message store failed", err),
+        // One Worker call only carries ~50 subrequests, so big lists walk
+        // cursor by cursor — the button loops until nextCursor comes back
+        // null. Only the first batch stores the line and stamps the
+        // cooldown; continuations (cursor > 0) are the same ping.
+        const tickle = pushOpt as Record<string, unknown>;
+        const cursor = Math.max(
+          0,
+          Math.floor(Number(tickle["cursor"] ?? 0)) || 0,
         );
-      }
-      const subs = await listSubscriptions(context.env);
-      total = subs.length;
-      if (isTickle && total > 0) {
-        const cooldown = pushCooldownMs(context.env);
-        const since = Date.now() - (await readLastPushAt(context.env));
-        if (since < cooldown) {
-          const wait = cooldown < 60 * 1000 ? "a few seconds" : "a few minutes";
-          return json(
-            { error: `Just pinged — give it ${wait} before the next one.` },
-            { status: 429 },
+        total = await countSubscriptions(context.env);
+        if (cursor === 0) {
+          const line = String(tickle["body"] ?? "")
+            .trim()
+            .slice(0, 180);
+          // A missing table (DB not yet migrated) must not eat the ping.
+          await savePushMessage(context.env, line).catch((err: unknown) =>
+            console.error("push message store failed", err),
           );
+          if (total > 0) {
+            const cooldown = pushCooldownMs(context.env);
+            const since = Date.now() - (await readLastPushAt(context.env));
+            if (since < cooldown) {
+              const wait =
+                cooldown < 60 * 1000 ? "a few seconds" : "a few minutes";
+              return json(
+                {
+                  error: `Just pinged — give it ${wait} before the next one.`,
+                },
+                { status: 429 },
+              );
+            }
+            // Stamp before fanning out so a double tap can't slip through.
+            await stampPushAt(context.env);
+          }
         }
-        // Stamp before fanning out so a double tap can't slip through.
-        await stampPushAt(context.env);
+        subs = await listSubscriptions(context.env, TICKLE_BATCH, cursor);
+        nextCursor = cursor + subs.length < total ? cursor + subs.length : null;
+      } else {
+        subs = await listSubscriptions(context.env);
+        total = subs.length;
       }
       await Promise.all(
         subs.map(async (sub) => {
@@ -89,6 +112,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       gone,
       failed,
       total,
+      nextCursor,
       emailed,
       emailTotal,
     });

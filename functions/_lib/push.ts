@@ -94,12 +94,38 @@ export async function sendTickle(
 
 export async function listSubscriptions(
   env: AppEnv,
+  limit?: number,
+  offset?: number,
 ): Promise<StoredSubscription[]> {
+  if (limit === undefined) {
+    const res = await env.DB.prepare(
+      "SELECT endpoint, p256dh, auth FROM push_subscriptions",
+    ).all<StoredSubscription>();
+    return res.results ?? [];
+  }
   const res = await env.DB.prepare(
-    "SELECT endpoint, p256dh, auth FROM push_subscriptions",
-  ).all<StoredSubscription>();
+    "SELECT endpoint, p256dh, auth FROM push_subscriptions LIMIT ? OFFSET ?",
+  )
+    .bind(limit, offset ?? 0)
+    .all<StoredSubscription>();
   return res.results ?? [];
 }
+
+/** How many browsers a ping reaches. The count rides along so the Ping
+ * button can ask first — and the fan-out below goes out in batches. */
+export async function countSubscriptions(env: AppEnv): Promise<number> {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS total FROM push_subscriptions",
+  )
+    .bind()
+    .first<{ total: number }>();
+  return row?.total ?? 0;
+}
+
+/** Browsers pinged per Worker call. One call only carries about 50
+ * subrequests on the free allowance, and each ping is one — 40 leaves
+ * room to spare. Big lists walk cursor by cursor. */
+export const TICKLE_BATCH = 40;
 
 export async function removeSubscription(
   env: AppEnv,

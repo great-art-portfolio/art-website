@@ -232,14 +232,16 @@ export const api = {
   /**
    * Ping subscribers about a new painting. Channels default on — pass
    * { push: false } or { email: false } to send one side only.
-   * { push: { body } } stores a custom line the ping shows.
+   * { push: { body } } stores a custom line the ping shows; { push: {
+   * body, cursor } } continues a big list where the last batch stopped.
    */
   async notifyCollectors(channels?: {
-    push?: boolean | { body?: string };
+    push?: boolean | { body?: string; cursor?: number };
     email?: boolean;
   }): Promise<{
     sent: number;
     total: number;
+    nextCursor?: number | null | undefined;
     emailed: boolean;
     emailTotal: number;
   }> {

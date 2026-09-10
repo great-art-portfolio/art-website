@@ -171,7 +171,8 @@ export function createStudioPushMock(cacheDir) {
       body = {};
     }
     const pushOpt = body?.push;
-    if (typeof pushOpt === "object" && pushOpt !== null) {
+    const isTickle = typeof pushOpt === "object" && pushOpt !== null;
+    if (isTickle) {
       customLine = String(pushOpt.body ?? "")
         .trim()
         .slice(0, 180);
@@ -180,10 +181,17 @@ export function createStudioPushMock(cacheDir) {
     let sent = 0;
     let gone = 0;
     let failed = 0;
+    let nextCursor = null;
     const total = wantPush ? subs.size : 0;
     if (wantPush) {
+      // Same cursor batches as the live endpoint (40 per call).
+      const all = [...subs.keys()];
+      const cursor = isTickle
+        ? Math.max(0, Math.floor(Number(pushOpt.cursor ?? 0)) || 0)
+        : 0;
+      const batch = isTickle ? all.slice(cursor, cursor + 40) : all;
       await Promise.all(
-        [...subs.keys()].map(async (endpoint) => {
+        batch.map(async (endpoint) => {
           const result = await sendTickle(endpoint);
           if (result === "sent") sent += 1;
           else if (result === "gone") {
@@ -192,12 +200,15 @@ export function createStudioPushMock(cacheDir) {
           } else failed += 1;
         }),
       );
+      if (isTickle && cursor + batch.length < all.length)
+        nextCursor = cursor + batch.length;
     }
     return json({
       sent,
       total,
       gone,
       failed,
+      nextCursor,
       emailed: false,
       emailTotal: 0,
     });

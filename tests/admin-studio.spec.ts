@@ -1423,6 +1423,56 @@ test("tickle button names its reach and asks first", async ({ page }) => {
   await expect(btn).toBeEnabled();
 });
 
+test("tickle walks big lists in batches", async ({ page }) => {
+  await page.goto("/admin/banner");
+  // 65 subscribed browsers: one Worker call can't ping them all.
+  await page.route("**/api/notify", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ total: 65 }),
+      });
+      return;
+    }
+    const sent = await route.request().postDataJSON();
+    const cursor = Number(sent?.push?.cursor ?? 0) || 0;
+    const batch = 40;
+    const done = Math.min(batch, 65 - cursor);
+    const next = cursor + done < 65 ? cursor + done : null;
+    posts.push(cursor);
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        sent: done,
+        total: 65,
+        gone: 0,
+        failed: 0,
+        emailed: false,
+        emailTotal: 0,
+        nextCursor: next,
+      }),
+    });
+  });
+  const posts = [];
+  const asked = [];
+  page.on("dialog", async (dialog) => {
+    asked.push(dialog.message());
+    await dialog.accept();
+  });
+  const btn = page.locator("#tickle-send");
+  const status = page.locator("#tickle-status");
+  await btn.click();
+  await expect.poll(() => asked.length).toBe(1);
+  expect(asked[0]).toBe("This will ping 65 browsers. Are you sure?");
+  // Two taps behind the scenes — 40 then 25 — one result on screen.
+  await expect.poll(() => posts.length).toBe(2);
+  expect(posts).toEqual([0, 40]);
+  await expect(status).toContainText("Pinged 65 of 65 browsers.");
+  await expect(btn).toBeEnabled();
+});
+
 test("collection groups available then sold, never bare statuses", async ({
   page,
 }) => {

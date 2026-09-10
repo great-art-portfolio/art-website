@@ -172,6 +172,8 @@ export const notifySchema = z.object({
   total: z.number(),
   gone: z.number().optional(),
   failed: z.number().optional(),
+  // Big lists walk cursor by cursor — null (or missing) means done.
+  nextCursor: z.number().nullable().optional(),
   emailed: z.boolean(),
   emailTotal: z.number(),
 });

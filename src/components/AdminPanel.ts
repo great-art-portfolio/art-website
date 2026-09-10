@@ -1406,32 +1406,50 @@ function init(): void {
         btn.disabled = true;
         status.textContent = "Pinging…";
         fadeIn(status);
-        api
-          .notifyCollectors({ push: { body: line }, email: false })
-          .then((r) => {
-            status.textContent =
-              r.total === 0
-                ? "Nobody to ping yet — no browsers subscribed."
-                : `Pinged ${r.sent} of ${r.total} browsers.`;
-            fadeIn(status);
-          })
-          .catch((err: unknown) => {
-            // Name the common failures; anything else keeps the raw words.
-            if (err instanceof ApiError && err.status === 404) {
+        // Big lists walk cursor by cursor — one Worker call only pings
+        // ~40 browsers. The counts add up; the screen shows one result.
+        let cursor: number | undefined;
+        let pinged = 0;
+        const pingBatch = (): void => {
+          const push =
+            cursor === undefined ? { body: line } : { body: line, cursor };
+          api
+            .notifyCollectors({ push, email: false })
+            .then((r) => {
+              pinged += r.sent;
+              if (r.nextCursor !== null && r.nextCursor !== undefined) {
+                cursor = r.nextCursor;
+                status.textContent = `Pinging… ${Math.min(cursor, r.total)} of ${r.total} browsers.`;
+                fadeIn(status);
+                pingBatch();
+                return;
+              }
               status.textContent =
-                "Ping isn't available in this preview — it works on the live site.";
-            } else if (err instanceof ApiError && err.status === 429) {
-              // The server's own words, already plain (seconds in dev,
-              // minutes live) — no "Couldn't ping" prefix needed.
-              status.textContent = errorMessage(err);
-            } else {
-              status.textContent = `Couldn't ping: ${errorMessage(err)}`;
-            }
-            fadeIn(status);
-          })
-          .finally(() => {
-            btn.disabled = false;
-          });
+                r.total === 0
+                  ? "Nobody to ping yet — no browsers subscribed."
+                  : `Pinged ${pinged} of ${r.total} browsers.`;
+              fadeIn(status);
+              // The button stays off until the last batch lands, so a
+              // second tap can't start a second loop mid-walk.
+              btn.disabled = false;
+            })
+            .catch((err: unknown) => {
+              // Name the common failures; anything else keeps the raw words.
+              if (err instanceof ApiError && err.status === 404) {
+                status.textContent =
+                  "Ping isn't available in this preview — it works on the live site.";
+              } else if (err instanceof ApiError && err.status === 429) {
+                // The server's own words, already plain (seconds in dev,
+                // minutes live) — no "Couldn't ping" prefix needed.
+                status.textContent = errorMessage(err);
+              } else {
+                status.textContent = `Couldn't ping: ${errorMessage(err)}`;
+              }
+              fadeIn(status);
+              btn.disabled = false;
+            });
+        };
+        pingBatch();
       }
     }
 

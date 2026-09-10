@@ -75,6 +75,7 @@ describe("studio push mock", () => {
       total: 1,
       gone: 0,
       failed: 0,
+      nextCursor: null,
       emailed: false,
       emailTotal: 0,
     });
@@ -120,6 +121,7 @@ describe("studio push mock", () => {
       total: 2,
       gone: 1,
       failed: 0,
+      nextCursor: null,
       emailed: false,
       emailTotal: 0,
     });
