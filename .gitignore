@@ -33,4 +33,4 @@ test-results/
 # jetbrains setting folder
 .idea/
 
-NEXT_PROMPT.md
+NEXT_PROMPT.md*.csv
