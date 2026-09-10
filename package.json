@@ -8,6 +8,7 @@
     "dev:studio": "node scripts/dev-studio.mjs",
     "dev:prod": "astro build && wrangler pages dev dist --port 4331 --ip 127.0.0.1",
     "studio:reset": "node scripts/studio-reset.mjs",
+    "seed:gallery": "node scripts/seed-gallery.mjs",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
