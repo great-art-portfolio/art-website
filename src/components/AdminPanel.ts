@@ -1369,6 +1369,35 @@ function init(): void {
       saveBanner(false);
     });
 
+    // Standalone browser ping (no email). Disabled mid-flight so a double
+    // tap can't fan out twice.
+    const tickleBtn = document.getElementById("tickle-send");
+    if (tickleBtn instanceof HTMLButtonElement) {
+      tickleBtn.addEventListener("click", () => {
+        const status = document.getElementById("tickle-status");
+        if (status === null) return;
+        tickleBtn.disabled = true;
+        status.textContent = "Pinging…";
+        fadeIn(status);
+        api
+          .notifyCollectors({ push: true, email: false })
+          .then((r) => {
+            status.textContent =
+              r.total === 0
+                ? "Nobody to ping yet — no browsers subscribed."
+                : `Pinged ${r.sent} of ${r.total} browsers.`;
+            fadeIn(status);
+          })
+          .catch((err: unknown) => {
+            status.textContent = `Couldn't ping: ${errorMessage(err)}`;
+            fadeIn(status);
+          })
+          .finally(() => {
+            tickleBtn.disabled = false;
+          });
+      });
+    }
+
     function saveBanner(allowEmpty: boolean): void {
       const text = $("f-announce").value.trim().slice(0, 280);
       if (text === "" && !allowEmpty) {

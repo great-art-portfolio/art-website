@@ -7,9 +7,6 @@ import "../../components/studio.css";
   <main class="admin" id="main">
     <section id="sec-banner" class="prose">
       <h2>Homepage banner</h2>
-      <p>
-        One note on the homepage at a time — what you type is what buyers see.
-      </p>
       <aside id="banner-preview" hidden></aside>
       <label
         >Announcement
@@ -40,10 +37,14 @@ import "../../components/studio.css";
         </button>
       </div>
       <p class="hint" id="announce-meta"></p>
-      <p class="hint">
-        Banners end on their own, so a forgotten one doesn't linger. Saving
-        replaces the one showing now; Remove hides it.
-      </p>
+    </section>
+    <section id="sec-tickle" class="prose">
+      <h2>Ping subscribers</h2>
+      <p class="hint">Sends a browser ping to subscribers (no email).</p>
+      <div class="row">
+        <button type="button" id="tickle-send">Ping subscribers</button>
+      </div>
+      <p class="hint" id="tickle-status" role="status"></p>
     </section>
   </main>
 </Layout>
@@ -56,6 +57,19 @@ import "../../components/studio.css";
     margin: 0.75rem 0 0;
   }
   #announce-meta:empty {
+    display: none;
+  }
+  /* The ping button hugs the left like the banner buttons above — a flex
+     row that wraps on narrow phones. The result sits below it, hidden
+     until it has something to say. */
+  #sec-tickle .row {
+    margin-top: 1rem;
+    justify-content: start;
+  }
+  #tickle-status {
+    margin: 0.75rem 0 0;
+  }
+  #tickle-status:empty {
     display: none;
   }
   /* The banner actions sit clear of the lifetime dropdown above. */

@@ -1341,6 +1341,25 @@ test("banner lifetimes are 1/3/7/14 days plus no end date", async ({
   }
 });
 
+test("tickle button pings browsers without email", async ({ page }) => {
+  await page.goto("/admin/banner");
+  const btn = page.locator("#tickle-send");
+  await expect(btn).toBeVisible();
+  // Hugs the left, never the full column.
+  const btnBox = await btn.boundingBox();
+  const secBox = await page.locator("#sec-tickle").boundingBox();
+  expect(btnBox !== null && secBox !== null).toBe(true);
+  if (btnBox !== null && secBox !== null) {
+    expect(btnBox.width).toBeLessThan(secBox.width / 2);
+  }
+  // Keyless there are no subscribers: the honest empty result, faded in.
+  await btn.click();
+  const status = page.locator("#tickle-status");
+  await expect(status).toContainText("Nobody to ping yet");
+  await expect(status).toHaveClass(/fade-in/);
+  await expect(btn).toBeEnabled();
+});
+
 test("collection groups available then sold, never bare statuses", async ({
   page,
 }) => {
