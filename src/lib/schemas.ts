@@ -181,6 +181,13 @@ export const notifySchema = z.object({
 /** Admin: how many browsers would a ping reach. */
 export const pushCountSchema = z.object({ total: z.number() });
 
+/** Admin: ping reach plus the exact email a send would deliver. */
+export const notifyStatusSchema = z.object({
+  total: z.number(),
+  emailSubject: z.string(),
+  emailText: z.string(),
+});
+
 export const localBackendSchema = z.object({ local: z.unknown().optional() });
 
 export const pushConfigSchema = z.object({ publicKey: z.string() });

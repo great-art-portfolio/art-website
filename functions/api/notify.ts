@@ -1,6 +1,6 @@
 import type { AppEnv } from "../_lib/env";
 import { json, requireAdmin, serverError } from "../_lib/http";
-import { sendCollectorBroadcast } from "../_lib/notify";
+import { segmentBroadcastEmail, sendCollectorBroadcast } from "../_lib/notify";
 import {
   countSubscriptions,
   listSubscriptions,
@@ -122,12 +122,20 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   }
 };
 
-/** Admin: push subscriber count for the share panel. */
+/** Admin: push subscriber count plus the exact email a send would
+ * deliver — the Marketing preview reads it, so what she sees is what
+ * buyers get. */
 export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
   const denied = requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
   try {
-    return json({ total: (await listSubscriptions(context.env)).length });
+    const site = context.env.SITE_URL ?? "https://barbart.ca";
+    const { subject, text } = segmentBroadcastEmail(site);
+    return json({
+      total: (await listSubscriptions(context.env)).length,
+      emailSubject: subject,
+      emailText: text,
+    });
   } catch (err) {
     console.error(err);
     return serverError();

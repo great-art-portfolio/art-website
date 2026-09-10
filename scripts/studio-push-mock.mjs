@@ -16,6 +16,7 @@
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { segmentBroadcastEmail } from "../functions/_lib/notify.ts";
 
 const CACHE_FILE = "studio-push.json";
 const VAPID_CONTACT = "mailto:localhost";
@@ -161,6 +162,13 @@ export function createStudioPushMock(cacheDir) {
   }
 
   async function handleNotify(req) {
+    // Preview read for the Marketing page: the same template the live
+    // endpoint composes, so dev shows what buyers would get. Sends stay
+    // mock (emailed is always false below).
+    if (req.method === "GET") {
+      const { subject, text } = segmentBroadcastEmail("https://barbart.ca");
+      return json({ total: subs.size, emailSubject: subject, emailText: text });
+    }
     if (req.method !== "POST") {
       return json({ error: "Method not allowed" }, { status: 405 });
     }

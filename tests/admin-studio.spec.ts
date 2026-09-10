@@ -1533,7 +1533,11 @@ test("send email button confirms the list before broadcasting", async ({
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ total: 0 }),
+        body: JSON.stringify({
+          total: 0,
+          emailSubject: "New painting at Barbara Straka's studio",
+          emailText: "A new painting is hung in the gallery — come look:",
+        }),
       });
       return;
     }
@@ -1568,6 +1572,28 @@ test("send email button confirms the list before broadcasting", async ({
   await expect.poll(() => asked.length).toBe(2);
   await expect(status).toContainText("Emailed 3 subscribers.");
   await expect(btn).toBeEnabled();
+});
+
+test("marketing page previews the exact email buyers get", async ({ page }) => {
+  await page.route("**/api/notify", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        total: 0,
+        emailSubject: "Preview subject line",
+        emailText: "Preview body words.",
+      }),
+    });
+  });
+  await page.goto("/admin/marketing");
+  await expect(page.locator("#email-preview")).toBeVisible();
+  await expect(page.locator("#email-preview-subject")).toHaveText(
+    "Preview subject line",
+  );
+  await expect(page.locator("#email-preview-body")).toContainText(
+    "Preview body words.",
+  );
 });
 
 test("collection groups available then sold, never bare statuses", async ({

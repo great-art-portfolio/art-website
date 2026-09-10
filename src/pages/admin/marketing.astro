@@ -29,8 +29,18 @@ import "../../components/studio.css";
     <section id="sec-email" class="prose">
       <h2>Send email</h2>
       <p class="hint">
-        Sends one email to the whole list — the standard new-painting note with
-        a link to the gallery.
+        Sends one email to the whole list — exactly what's shown below, with a
+        link to the gallery.
+      </p>
+      <div id="email-preview" hidden>
+        <p class="preview-subject">
+          <span>Subject:</span>
+          <strong id="email-preview-subject"></strong>
+        </p>
+        <pre id="email-preview-body"></pre>
+      </div>
+      <p class="hint" id="email-preview-fallback" hidden>
+        The preview didn't load — the button still sends the standard note.
       </p>
       <div class="row">
         <button type="button" id="email-send">Send email to subscribers</button>
@@ -58,5 +68,29 @@ import "../../components/studio.css";
   #tickle-status:empty,
   #email-status:empty {
     display: none;
+  }
+  /* The email preview wears a card so the shape reads "this is the
+     message", not page copy. The body keeps its line breaks exactly. */
+  #email-preview {
+    margin-top: 1rem;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 1rem 1.1rem;
+  }
+  #email-preview[hidden],
+  #email-preview-fallback[hidden] {
+    display: none;
+  }
+  #email-preview .preview-subject {
+    margin: 0 0 0.6rem;
+  }
+  #email-preview .preview-subject span {
+    opacity: 0.7;
+    margin-right: 0.4rem;
+  }
+  #email-preview-body {
+    margin: 0;
+    white-space: pre-wrap;
+    font: inherit;
   }
 </style>

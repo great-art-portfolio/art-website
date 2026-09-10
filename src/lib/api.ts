@@ -5,6 +5,7 @@ import {
   commitSchema,
   localBackendSchema,
   notifySchema,
+  notifyStatusSchema,
   pushCountSchema,
   paintingFileSchema,
   paintingFilesSchema,
@@ -289,6 +290,23 @@ export const api = {
    * How many addresses an email would reach. Never throws — null means
    * the count didn't load, and the send should just go ahead unwarned.
    */
+  /**
+   * The exact email a send would deliver. Never throws — null means the
+   * preview didn't load, and the send still delivers the standard note.
+   */
+  async emailPreview(): Promise<{
+    subject: string;
+    text: string;
+  } | null> {
+    try {
+      const data = await request("/api/notify", notifyStatusSchema, {
+        headers: adminHeaders(),
+      });
+      return { subject: data.emailSubject, text: data.emailText };
+    } catch {
+      return null;
+    }
+  },
   async emailSubscriberCount(): Promise<number | null> {
     try {
       const data = await request("/api/collectors", pushCountSchema, {

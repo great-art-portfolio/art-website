@@ -1274,6 +1274,7 @@ function init(): void {
   if (!onCollection && !onBanner && !onGuide && !onMarketing) return;
   wireTickle();
   wireBroadcast();
+  wireEmailPreview();
   $("leave-admin").addEventListener("click", () => {
     setApiToken("");
     window.location.href = "/";
@@ -1651,6 +1652,38 @@ function wireBroadcast(): void {
           btn.disabled = false;
         });
     });
+  });
+}
+
+// The Marketing preview shows the exact email a send delivers — the
+// server composes both from one template, so they can't drift. Runs
+// only where its markup exists; a missed load leaves the fallback line.
+function wireEmailPreview(): void {
+  const boxEl = document.getElementById("email-preview");
+  if (!(boxEl instanceof HTMLElement)) return;
+  const subjectEl = document.getElementById("email-preview-subject");
+  const bodyEl = document.getElementById("email-preview-body");
+  const fallbackEl = document.getElementById("email-preview-fallback");
+  if (
+    !(subjectEl instanceof HTMLElement) ||
+    !(bodyEl instanceof HTMLElement) ||
+    !(fallbackEl instanceof HTMLElement)
+  )
+    return;
+  void api.emailPreview().then((preview) => {
+    if (preview === null) {
+      fallbackEl.hidden = false;
+      return;
+    }
+    subjectEl.textContent = preview.subject;
+    // Resend swaps the placeholder for a real link at send time — say
+    // so in plain words instead of showing the raw curly braces.
+    bodyEl.textContent = preview.text.replace(
+      "{{{RESEND_UNSUBSCRIBE_URL}}}",
+      "(unsubscribe link added automatically)",
+    );
+    boxEl.hidden = false;
+    fadeIn(boxEl);
   });
 }
 
