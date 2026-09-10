@@ -1,11 +1,19 @@
 /** Local content API for `pnpm dev:studio` (:4333, working-tree backed).
  * Localhost-only, never deployed. */
 import { createServer } from "node:http";
+import { join } from "node:path";
 import { createStudioDevApi } from "./studio-dev-api.mjs";
+import { createStudioPushMock } from "./studio-push-mock.mjs";
 
 export const STUDIO_DEV_API_PORT = 4333;
 
 const api = createStudioDevApi(process.cwd());
+// Dev-only push loop (own VAPID keypair, in-memory subscribers): the same
+// /api/push + /api/push-message + /api/notify shapes the Pages Functions
+// serve, so subscribe and Ping click through in studio dev.
+const pushMock = createStudioPushMock(
+  join(process.cwd(), "node_modules", ".cache"),
+);
 
 function json404() {
   return new Response(JSON.stringify({ error: "Not found" }), {
@@ -41,6 +49,15 @@ const server = createServer((req, res) => {
         }
         if (path === "/api/studio-dev" || path === "/api/studio-dev/") {
           return api.handleProbe();
+        }
+        if (path === "/api/push" || path === "/api/push/") {
+          return pushMock.handlePush(request);
+        }
+        if (path === "/api/push-message" || path === "/api/push-message/") {
+          return pushMock.handlePushMessage(request);
+        }
+        if (path === "/api/notify" || path === "/api/notify/") {
+          return pushMock.handleNotify(request);
         }
         return json404();
       })

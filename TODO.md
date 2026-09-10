@@ -359,3 +359,11 @@ Push to main for CI; real upload test on barbart.ca/admin.
 - Modal specs wait for the push paint to settle before submitting, use
   missing@tld for backend-agnostic validation coverage, and detect mock
   mode for valid-address submits.
+
+## Status 2026-09-10 — studio dev push loop (committed below)
+
+- Sidecar hosts push now (scripts/studio-push-mock.mjs): own VAPID keypair
+  cached in node_modules/.cache, in-memory subscribers + ping line, same
+  /api/push + /api/push-message + /api/notify shapes. Tickles go over the
+  real push service. No cooldown, no email in studio. Needs a studio stack
+  restart to pick up (sidecar predates the routes).
