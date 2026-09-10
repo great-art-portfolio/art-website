@@ -1574,6 +1574,47 @@ test("send email button confirms the list before broadcasting", async ({
   await expect(btn).toBeEnabled();
 });
 
+test("send email asks even when the count didn't load", async ({ page }) => {
+  // The count request fails, so the button asks blind rather than
+  // sending blind — saying no sends nothing.
+  await page.route("**/api/collectors", async (route) => {
+    await route.abort();
+  });
+  let posted = false;
+  await page.route("**/api/notify", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          total: 0,
+          emailSubject: "Preview subject line",
+          emailText: "Preview body words.",
+        }),
+      });
+      return;
+    }
+    posted = true;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ sent: 0, total: 0, emailed: true, emailTotal: 0 }),
+    });
+  });
+  await page.goto("/admin/marketing");
+  const asked: string[] = [];
+  page.on("dialog", async (dialog) => {
+    asked.push(dialog.message());
+    await dialog.dismiss();
+  });
+  await page.locator("#email-send").click();
+  await expect.poll(() => asked.length).toBe(1);
+  expect(asked[0]).toBe("Couldn't load the subscriber count — send anyway?");
+  await expect(page.locator("#email-status")).toBeEmpty();
+  await expect(page.locator("#email-send")).toBeEnabled();
+  expect(posted).toBe(false);
+});
+
 test("marketing page previews the exact email buyers get", async ({ page }) => {
   await page.route("**/api/notify", async (route) => {
     await route.fulfill({

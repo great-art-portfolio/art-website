@@ -1622,11 +1622,16 @@ function wireBroadcast(): void {
     status.textContent = "Sending…";
     fadeIn(status);
     void api.emailSubscriberCount().then((total) => {
-      if (
-        total !== null &&
-        total > 0 &&
-        !window.confirm(`This will email ${total} subscribers. Are you sure?`)
-      ) {
+      // An email can't be unsent: always ask when someone's listening,
+      // and ask anyway when the count didn't load rather than sending
+      // blind. Only an empty list skips the question.
+      const question =
+        total === null
+          ? "Couldn't load the subscriber count — send anyway?"
+          : total > 0
+            ? `This will email ${total} subscribers. Are you sure?`
+            : null;
+      if (question !== null && !window.confirm(question)) {
         status.textContent = "";
         return;
       }
