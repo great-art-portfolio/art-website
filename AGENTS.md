@@ -32,7 +32,10 @@ proxy answers `/api/*` from. Same contract as the Pages Functions, but
 backed by the working tree: banner, painting, photo, and model writes
 land as uncommitted files. Push subscribe + Ping run a dev-only loop
 instead (own VAPID key, in-memory subscribers, real push service — no
-cooldown, no email). Never test publish flows in prod.
+cooldown, no email). The email list runs the REAL collectors handler with
+a file-backed mock table: the loop completes locally, and `*@resend.dev`
+addresses additionally ride the true API when `.dev.vars` holds a key.
+Never test publish flows in prod.
 `pnpm studio:reset` restores gallery paths (`src/content`,
 `public/models`) and deletes new studio outputs — nothing else is
 touched. The sidecar never ships; the static build and 4331 are

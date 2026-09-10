@@ -72,7 +72,17 @@ async function main() {
   if (await contentApiAlive()) {
     console.log("  content API already running — reusing it.");
   } else {
-    run(process.execPath, ["scripts/studio-dev-server.mjs"], "content-api");
+    // The extension hook lets the sidecar import the real Functions
+    // handlers (TypeScript, extensionless) instead of reimplementing them.
+    run(
+      process.execPath,
+      [
+        "--import",
+        "./tests/unit/register-loader.mjs",
+        "scripts/studio-dev-server.mjs",
+      ],
+      "content-api",
+    );
   }
   if (await astroAlive()) {
     console.log("  site already running — reusing it.");

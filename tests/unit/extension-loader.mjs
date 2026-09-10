@@ -3,12 +3,13 @@ import { dirname, resolve as resolvePath } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 /**
- * Test-only ESM hook: resolve the bundler-style extensionless relative
+ * Dev + test ESM hook: resolve the bundler-style extensionless relative
  * imports (`../_lib/x` → `../_lib/x.ts`) that Astro, Vite, and wrangler
  * understand but node cannot. Only fires after node's own resolution
  * fails, only for relative specifiers without an extension, and only
  * when the .ts file actually exists — everything else rethrows.
- * Production code stays extensionless; this never ships.
+ * Production code stays extensionless; this never ships (the studio
+ * sidecar uses it so `pnpm dev` runs the real Functions handlers).
  */
 export async function resolve(specifier, context, nextResolve) {
   try {

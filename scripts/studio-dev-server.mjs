@@ -4,6 +4,11 @@ import { createServer } from "node:http";
 import { join } from "node:path";
 import { createStudioDevApi } from "./studio-dev-api.mjs";
 import { createStudioPushMock } from "./studio-push-mock.mjs";
+import {
+  onRequestGet as collectorsGet,
+  onRequestPost as collectorsPost,
+} from "../functions/api/collectors.ts";
+import { collectorsEnv, createCollectorsDb } from "./studio-collectors.mjs";
 
 export const STUDIO_DEV_API_PORT = 4333;
 
@@ -14,6 +19,12 @@ const api = createStudioDevApi(process.cwd());
 const pushMock = createStudioPushMock(
   join(process.cwd(), "node_modules", ".cache"),
 );
+// Email list: the REAL collectors handler, adapted to the sidecar (mock
+// forced on, mail settings from .dev.vars, file-backed mock table). Same
+// function Pages serves — no second implementation to drift.
+const collectorsDb = createCollectorsDb(
+  join(process.cwd(), "node_modules", ".cache"),
+);
 
 function json404() {
   return new Response(JSON.stringify({ error: "Not found" }), {
@@ -22,8 +33,8 @@ function json404() {
   });
 }
 
-async function toRequest(req, chunks) {
-  const url = `http://127.0.0.1:${STUDIO_DEV_API_PORT}${req.url ?? "/"}`;
+async function toRequest(req, chunks, host) {
+  const url = `http://${host ?? `127.0.0.1:${STUDIO_DEV_API_PORT}`}${req.url ?? "/"}`;
   const init = { method: req.method ?? "GET", headers: { ...req.headers } };
   delete init.headers.host;
   delete init.headers.connection;
@@ -32,6 +43,19 @@ async function toRequest(req, chunks) {
     init.duplex = "half";
   }
   return new Request(url, init);
+}
+
+/** Collectors requests keep the browser-facing host, so the dev confirm
+ * link points at the site (:4332) instead of this sidecar. */
+async function toCollectorsContext(req, chunks) {
+  const host =
+    typeof req.headers.host === "string" && req.headers.host !== ""
+      ? req.headers.host
+      : "127.0.0.1:4332";
+  return {
+    request: await toRequest(req, chunks, host),
+    env: collectorsEnv(process.cwd(), collectorsDb),
+  };
 }
 
 const server = createServer((req, res) => {
@@ -58,6 +82,12 @@ const server = createServer((req, res) => {
         }
         if (path === "/api/notify" || path === "/api/notify/") {
           return pushMock.handleNotify(request);
+        }
+        if (path === "/api/collectors" || path === "/api/collectors/") {
+          const ctx = await toCollectorsContext(req, chunks);
+          return request.method === "GET"
+            ? collectorsGet(ctx)
+            : collectorsPost(ctx);
         }
         return json404();
       })
