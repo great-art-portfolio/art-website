@@ -313,3 +313,17 @@ Push to main for CI; real upload test on barbart.ca/admin.
   workflow drops every apt source pointing at dl.google.com by URL
   (a filename-based removal missed it) and keeps the retry for real
   blips. Verified: full CI success after the URL-based removal.
+
+## Status 2026-09-10 — ping customization + banner layout (uncommitted)
+
+- Ping box on /admin/banner has an optional Message line; stored in new
+  `push_message` table (migration 0005, applied remote + local), served by
+  public GET /api/push-message, shown by the service worker instead of the
+  standard note. Tap still opens the site homepage.
+- Banner controls are one desktop line: Show-until select, Update banner,
+  status text. Wraps on narrow phones.
+- `pnpm db:migrate` (full chain) is NOT re-runnable: 0004's ALTERs fail on
+  an already-migrated DB (duplicate column: token). Apply single files
+  instead. CI's db:migrate:local is fine (fresh state each run).
+- Leaving uncommitted for review: banner/ping work + user's own gallery
+  order edits in three painting .md files.

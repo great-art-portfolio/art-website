@@ -1328,8 +1328,10 @@ test("banner lifetimes are 1/3/7/14 days plus no end date", async ({
     .locator("#f-duration option")
     .evaluateAll((opts) => opts.map((o) => (o as HTMLOptionElement).value));
   expect(values).toEqual(["", "1", "3", "7", "14"]);
-  // Actions side by side, status always below them.
-  await expect(page.locator("#announce-save + #announce-clear")).toHaveCount(1);
+  // Actions side by side, status beside them in the same row.
+  await expect(
+    page.locator("#announce-save + #announce-clear + #announce-meta"),
+  ).toHaveCount(1);
   await expect(page.locator("#announce-meta")).not.toBeEmpty();
   // …and fades in instead of snapping.
   await expect(page.locator("#announce-meta")).toHaveClass(/fade-in/);
@@ -1337,7 +1339,7 @@ test("banner lifetimes are 1/3/7/14 days plus no end date", async ({
   const metaBox = await page.locator("#announce-meta").boundingBox();
   expect(btnBox !== null && metaBox !== null).toBe(true);
   if (btnBox !== null && metaBox !== null) {
-    expect(metaBox.y).toBeGreaterThanOrEqual(btnBox.y + btnBox.height - 4);
+    expect(metaBox.x).toBeGreaterThanOrEqual(btnBox.x + btnBox.width - 4);
   }
 });
 
@@ -1358,6 +1360,12 @@ test("tickle button pings browsers without email", async ({ page }) => {
   await expect(status).toContainText("Nobody to ping yet");
   await expect(status).toHaveClass(/fade-in/);
   await expect(btn).toBeEnabled();
+  // A custom line rides along and is stored for the ping to show.
+  await page.locator("#tickle-body").fill("New seascape just listed");
+  await btn.click();
+  await expect(status).toContainText("Nobody to ping yet");
+  const stored = await page.request.get("/api/push-message");
+  expect(await stored.json()).toEqual({ body: "New seascape just listed" });
 });
 
 test("collection groups available then sold, never bare statuses", async ({

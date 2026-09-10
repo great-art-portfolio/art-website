@@ -148,17 +148,27 @@ self.addEventListener("sync", (event) => {
   if (event.tag === "gallery-outbox") event.waitUntil(replayOutbox());
 });
 
-// Web Push "tickle": the server sends no body, so announce generically
-// and let the gallery itself do the talking on tap.
+// Web Push "tickle": the server sends no body (no payload encryption),
+// so the custom line is fetched — blank means the standard note. The
+// tap opens the site's homepage, whatever origin that is in production.
 self.addEventListener("push", (event) => {
   event.waitUntil(
-    self.registration.showNotification("Something new in the gallery", {
-      body: "Tap to see it.",
-      icon: "/favicon.png",
-      badge: "/favicon.png",
-      tag: "new-painting",
-      data: { url: "/" },
-    }),
+    fetch("/api/push-message")
+      .then((res) => (res.ok ? res.json() : {}))
+      .catch(() => ({}))
+      .then((msg) => {
+        const line = msg && typeof msg.body === "string" ? msg.body.trim() : "";
+        return self.registration.showNotification(
+          "Something new in the gallery",
+          {
+            body: line === "" ? "Tap to see it." : line,
+            icon: "/favicon.png",
+            badge: "/favicon.png",
+            tag: "new-painting",
+            data: { url: "/" },
+          },
+        );
+      }),
   );
 });
 

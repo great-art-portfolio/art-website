@@ -4,11 +4,14 @@ import { sendCollectorBroadcast } from "../_lib/notify";
 import {
   listSubscriptions,
   removeSubscription,
+  savePushMessage,
   sendTickle,
 } from "../_lib/push";
 
 /** Admin: ping collectors. { push: false } / { email: false } send one side
- * only; both default on. Missing channels skip quietly. */
+ * only; both default on. { push: { body } } stores a custom line the
+ * ping shows instead of the standard note. Missing channels skip
+ * quietly. */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   const denied = requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
@@ -26,6 +29,16 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     let failed = 0;
     let total = 0;
     if (wantPush) {
+      const pushOpt = body["push"];
+      if (typeof pushOpt === "object" && pushOpt !== null) {
+        const line = String((pushOpt as Record<string, unknown>)["body"] ?? "")
+          .trim()
+          .slice(0, 180);
+        // A missing table (DB not yet migrated) must not eat the ping.
+        await savePushMessage(context.env, line).catch((err: unknown) =>
+          console.error("push message store failed", err),
+        );
+      }
       const subs = await listSubscriptions(context.env);
       total = subs.length;
       await Promise.all(

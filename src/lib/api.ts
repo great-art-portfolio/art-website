@@ -231,9 +231,10 @@ export const api = {
   /**
    * Ping subscribers about a new painting. Channels default on — pass
    * { push: false } or { email: false } to send one side only.
+   * { push: { body } } stores a custom line the ping shows.
    */
   async notifyCollectors(channels?: {
-    push?: boolean;
+    push?: boolean | { body?: string };
     email?: boolean;
   }): Promise<{
     sent: number;
@@ -245,8 +246,8 @@ export const api = {
       method: "POST",
       headers: { ...adminHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({
-        push: channels?.push !== false,
-        email: channels?.email !== false,
+        push: channels?.push ?? true,
+        email: channels?.email ?? true,
       }),
     });
     return data;

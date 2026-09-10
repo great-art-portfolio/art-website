@@ -109,3 +109,24 @@ export async function removeSubscription(
     .bind(endpoint)
     .run();
 }
+
+/** Custom ping line the next tickle shows. Tickles carry no payload (no
+ * encryption), so the service worker fetches this when one arrives;
+ * empty means the standard note. One row, ever. */
+export async function savePushMessage(
+  env: AppEnv,
+  body: string,
+): Promise<void> {
+  await env.DB.prepare(
+    "INSERT INTO push_message (id, body) VALUES (1, ?) ON CONFLICT (id) DO UPDATE SET body = excluded.body",
+  )
+    .bind(body)
+    .run();
+}
+
+export async function readPushMessage(env: AppEnv): Promise<string> {
+  const row = await env.DB.prepare("SELECT body FROM push_message WHERE id = 1")
+    .bind()
+    .first<{ body: string }>();
+  return row?.body ?? "";
+}

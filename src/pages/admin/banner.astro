@@ -18,29 +18,44 @@ import "../../components/studio.css";
           placeholder="Find me at the Lilac Festival this Sunday!"
         />
       </label>
-      <label
-        >Show until
-        <select id="f-duration">
-          <option value="">No end date</option>
-          <option value="1">1 day</option>
-          <option value="3">3 days</option>
-          <option value="7" selected>7 days</option>
-          <option value="14">2 weeks</option>
-        </select>
-      </label>
-      <div class="row banner-actions">
-        <button type="button" id="announce-save" class="primary"
-          >Update banner</button
-        >
-        <button type="button" id="announce-clear" hidden>
-          Remove banner
-        </button>
+      <div class="row banner-line">
+        <label
+          >Show until
+          <select id="f-duration">
+            <option value="">No end date</option>
+            <option value="1">1 day</option>
+            <option value="3">3 days</option>
+            <option value="7" selected>7 days</option>
+            <option value="14">2 weeks</option>
+          </select>
+        </label>
+        <div class="row banner-actions">
+          <button type="button" id="announce-save" class="primary"
+            >Update banner</button
+          >
+          <button type="button" id="announce-clear" hidden>
+            Remove banner
+          </button>
+          <p class="hint" id="announce-meta"></p>
+        </div>
       </div>
-      <p class="hint" id="announce-meta"></p>
     </section>
     <section id="sec-tickle" class="prose">
       <h2>Ping subscribers</h2>
-      <p class="hint">Sends a browser ping to subscribers (no email).</p>
+      <p class="hint">
+        Sends a browser ping to subscribers (no email). Add a line if you like —
+        otherwise buyers see the standard note.
+      </p>
+      <label
+        >Message (optional)
+        <input
+          type="text"
+          id="tickle-body"
+          maxlength="180"
+          autocomplete="off"
+          placeholder="e.g. New seascape just listed"
+        />
+      </label>
       <div class="row">
         <button type="button" id="tickle-send">Ping subscribers</button>
       </div>
@@ -52,9 +67,11 @@ import "../../components/studio.css";
 <script src="../../components/AdminPanel.ts"></script>
 
 <style>
-  /* Banner status always sits below both buttons, never between them. */
+  /* Banner status rides beside the buttons, never below them — the row
+     wraps on narrow phones, so it can still fall underneath there. */
   #announce-meta {
-    margin: 0.75rem 0 0;
+    margin: 0;
+    align-self: center;
   }
   #announce-meta:empty {
     display: none;
@@ -72,9 +89,17 @@ import "../../components/studio.css";
   #tickle-status:empty {
     display: none;
   }
-  /* The banner actions sit clear of the lifetime dropdown above. */
-  #sec-banner .row {
+  /* Duration, buttons, and status share one line on desktop: the actions
+     sit level with the dropdown, and the row wraps on narrow phones. */
+  #sec-banner .banner-line {
     margin-top: 1.25rem;
+    align-items: end;
+  }
+  #sec-banner .banner-line > label {
+    flex: 0 0 auto;
+  }
+  #sec-banner .banner-actions {
+    margin-block: 0;
   }
   /* Three words at most ("No end date") — no reason to span the
      column. The label is a grid, so auto width alone still stretches:

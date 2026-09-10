@@ -1370,17 +1370,21 @@ function init(): void {
     });
 
     // Standalone browser ping (no email). Disabled mid-flight so a double
-    // tap can't fan out twice.
+    // tap can't fan out twice. A custom line rides along — blank means
+    // the standard note.
     const tickleBtn = document.getElementById("tickle-send");
     if (tickleBtn instanceof HTMLButtonElement) {
       tickleBtn.addEventListener("click", () => {
         const status = document.getElementById("tickle-status");
         if (status === null) return;
+        const lineInput = document.getElementById("tickle-body");
+        const line =
+          lineInput instanceof HTMLInputElement ? lineInput.value.trim() : "";
         tickleBtn.disabled = true;
         status.textContent = "Pinging…";
         fadeIn(status);
         api
-          .notifyCollectors({ push: true, email: false })
+          .notifyCollectors({ push: { body: line }, email: false })
           .then((r) => {
             status.textContent =
               r.total === 0
