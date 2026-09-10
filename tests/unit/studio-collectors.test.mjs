@@ -7,6 +7,7 @@ import {
   collectorsEnv,
   createCollectorsDb,
   readDevVars,
+  siteOriginFor,
 } from "../../scripts/studio-collectors.mjs";
 import {
   mockConfirm,
@@ -55,6 +56,15 @@ describe("collectorsEnv", () => {
     assert.equal(env.RESEND_API_KEY, "re_test");
     assert.equal(env.ARTIST_SENDER, "G <a@b.c>");
     assert.equal(env.ARTIST_INBOX, "a@b.c");
+  });
+});
+
+describe("siteOriginFor", () => {
+  it("points the dev link at the site, never the sidecar", () => {
+    assert.equal(siteOriginFor("127.0.0.1:4333"), "http://127.0.0.1:4332");
+    assert.equal(siteOriginFor("localhost:4332"), "http://localhost:4332");
+    assert.equal(siteOriginFor(""), "http://127.0.0.1:4332");
+    assert.equal(siteOriginFor(undefined), "http://127.0.0.1:4332");
   });
 });
 

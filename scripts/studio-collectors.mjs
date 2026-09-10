@@ -99,6 +99,17 @@ export function createCollectorsDb(cacheDir) {
   };
 }
 
+/** Browser-facing origin for the dev confirm link. The proxy rewrites the
+ * host to the sidecar's own (:4333, which serves no pages), so only the
+ * hostname is kept and the port always points back at the site. */
+export function siteOriginFor(hostHeader) {
+  const hostname =
+    typeof hostHeader === "string" && hostHeader !== ""
+      ? hostHeader.split(":")[0] || "127.0.0.1"
+      : "127.0.0.1";
+  return `http://${hostname}:4332`;
+}
+
 /** Handler env: mock forced on (localhost-only anyway), mail settings
  * from .dev.vars. A real key plus a *@resend.dev address rides the true
  * Resend confirm; anything else (or no key) stays fully local. */

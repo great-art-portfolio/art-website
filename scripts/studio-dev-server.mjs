@@ -45,15 +45,12 @@ async function toRequest(req, chunks, host) {
   return new Request(url, init);
 }
 
-/** Collectors requests keep the browser-facing host, so the dev confirm
+/** Collectors requests keep the browser-facing origin, so the dev confirm
  * link points at the site (:4332) instead of this sidecar. */
 async function toCollectorsContext(req, chunks) {
-  const host =
-    typeof req.headers.host === "string" && req.headers.host !== ""
-      ? req.headers.host
-      : "127.0.0.1:4332";
+  const origin = siteOriginFor(req.headers.host);
   return {
-    request: await toRequest(req, chunks, host),
+    request: await toRequest(req, chunks, origin.replace(/^http:\/\//, "")),
     env: collectorsEnv(process.cwd(), collectorsDb),
   };
 }
