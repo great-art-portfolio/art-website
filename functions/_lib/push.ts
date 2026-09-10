@@ -131,9 +131,17 @@ export async function readPushMessage(env: AppEnv): Promise<string> {
   return row?.body ?? "";
 }
 
-/** Minimum gap between browser ping fan-outs, so a repeated tap can't
- * spam subscribers. Empty pings (nobody subscribed) never count. */
-export const PUSH_COOLDOWN_MS = 5 * 60 * 1000;
+/** Default gap between browser ping fan-outs, so a repeated tap can't
+ * spam subscribers. Overridable per environment via PUSH_COOLDOWN_S
+ * (seconds); empty pings (nobody subscribed) never count. */
+export const DEFAULT_PUSH_COOLDOWN_MS = 5 * 60 * 1000;
+
+export function pushCooldownMs(env: AppEnv): number {
+  const raw = Number(env.PUSH_COOLDOWN_S ?? "");
+  return Number.isFinite(raw) && raw > 0
+    ? Math.floor(raw) * 1000
+    : DEFAULT_PUSH_COOLDOWN_MS;
+}
 
 export async function readLastPushAt(env: AppEnv): Promise<number> {
   const row = await env.DB.prepare(

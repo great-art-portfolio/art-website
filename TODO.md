@@ -339,3 +339,10 @@ Push to main for CI; real upload test on barbart.ca/admin.
 - Notify modal: drag-select spilling past the card no longer closes it
   (selection guard; closedby="closerequest"); tapping the status line copies
   it with a "Copied." toast.
+
+## Status 2026-09-10 — dev cooldown 20s (committed below)
+
+- PUSH_COOLDOWN_S env override (seconds, default five minutes); local
+  .dev.vars sets 20. 429 wording follows the cooldown (seconds vs minutes).
+- Subscribe "unavailable" message verified true: studio sidecar 404s both
+  /api/push and /api/notify, while 4331 serves the VAPID key (works there).

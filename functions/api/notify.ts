@@ -3,7 +3,7 @@ import { json, requireAdmin, serverError } from "../_lib/http";
 import { sendCollectorBroadcast } from "../_lib/notify";
 import {
   listSubscriptions,
-  PUSH_COOLDOWN_MS,
+  pushCooldownMs,
   readLastPushAt,
   removeSubscription,
   savePushMessage,
@@ -49,12 +49,12 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       const subs = await listSubscriptions(context.env);
       total = subs.length;
       if (isTickle && total > 0) {
+        const cooldown = pushCooldownMs(context.env);
         const since = Date.now() - (await readLastPushAt(context.env));
-        if (since < PUSH_COOLDOWN_MS) {
+        if (since < cooldown) {
+          const wait = cooldown < 60 * 1000 ? "a few seconds" : "a few minutes";
           return json(
-            {
-              error: "Just pinged — give it a few minutes before the next one.",
-            },
+            { error: `Just pinged — give it ${wait} before the next one.` },
             { status: 429 },
           );
         }

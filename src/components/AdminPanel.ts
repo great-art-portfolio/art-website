@@ -1398,8 +1398,9 @@ function init(): void {
               status.textContent =
                 "Ping isn't available in this preview — it works on the live site.";
             } else if (err instanceof ApiError && err.status === 429) {
-              status.textContent =
-                "Just pinged — give it a few minutes before the next one.";
+              // The server's own words, already plain (seconds in dev,
+              // minutes live) — no "Couldn't ping" prefix needed.
+              status.textContent = errorMessage(err);
             } else {
               status.textContent = `Couldn't ping: ${errorMessage(err)}`;
             }

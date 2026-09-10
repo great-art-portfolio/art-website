@@ -1,7 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
-  PUSH_COOLDOWN_MS,
+  DEFAULT_PUSH_COOLDOWN_MS,
+  pushCooldownMs,
   readLastPushAt,
   readPushMessage,
   savePushMessage,
@@ -51,8 +52,19 @@ describe("push message", () => {
 });
 
 describe("push cooldown", () => {
-  it("is five minutes", () => {
-    assert.equal(PUSH_COOLDOWN_MS, 5 * 60 * 1000);
+  it("defaults to five minutes", () => {
+    assert.equal(DEFAULT_PUSH_COOLDOWN_MS, 5 * 60 * 1000);
+    assert.equal(pushCooldownMs({}), 5 * 60 * 1000);
+  });
+
+  it("takes PUSH_COOLDOWN_S seconds when set", () => {
+    assert.equal(pushCooldownMs({ PUSH_COOLDOWN_S: "20" }), 20 * 1000);
+  });
+
+  it("ignores blank and garbage overrides", () => {
+    assert.equal(pushCooldownMs({ PUSH_COOLDOWN_S: "" }), 5 * 60 * 1000);
+    assert.equal(pushCooldownMs({ PUSH_COOLDOWN_S: "soon" }), 5 * 60 * 1000);
+    assert.equal(pushCooldownMs({ PUSH_COOLDOWN_S: "-5" }), 5 * 60 * 1000);
   });
 
   it("reads zero before any ping", async () => {
@@ -63,7 +75,7 @@ describe("push cooldown", () => {
     const env = { DB: stubDb() };
     await stampPushAt(env);
     const age = Date.now() - (await readLastPushAt(env));
-    assert.ok(age >= 0 && age < PUSH_COOLDOWN_MS);
+    assert.ok(age >= 0 && age < DEFAULT_PUSH_COOLDOWN_MS);
   });
 
   it("stamping keeps the custom line", async () => {

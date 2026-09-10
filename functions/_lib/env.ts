@@ -12,6 +12,9 @@ export interface AppEnv {
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_JWK?: string;
   VAPID_CONTACT?: string;
+  /** Ping cooldown in seconds. Unset means the five-minute default;
+   * local .dev.vars sets 20 so dev never waits. */
+  PUSH_COOLDOWN_S?: string;
   TURNSTILE_SITE_KEY?: string;
   TURNSTILE_SECRET_KEY?: string;
   CF_ACCOUNT_ID?: string;
