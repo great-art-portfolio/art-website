@@ -444,15 +444,29 @@ const currentSection = adminSection(Astro.url.pathname);
                 res
                   .json()
                   .then((data) => {
-                    notifySay(
-                      hint,
-                      data !== null &&
-                        typeof data === "object" &&
-                        "already" in data &&
-                        data.already === true
-                        ? "You're already on the list."
-                        : "Check your inbox — one tap confirms it.",
-                    );
+                    const d =
+                      data !== null && typeof data === "object" ? data : null;
+                    if (d !== null && "already" in d && d.already === true) {
+                      notifySay(hint, "You're already on the list.");
+                    } else if (
+                      d !== null &&
+                      "devConfirmUrl" in d &&
+                      typeof d.devConfirmUrl === "string" &&
+                      d.devConfirmUrl !== ""
+                    ) {
+                      // Dev mock list only — no email went out. The words
+                      // tap to copy, so the link travels to the address bar.
+                      notifySay(
+                        hint,
+                        "Dev list — no email sent. Confirm here: " +
+                          d.devConfirmUrl,
+                      );
+                    } else {
+                      notifySay(
+                        hint,
+                        "Check your inbox — one tap confirms it.",
+                      );
+                    }
                   })
                   .catch(() => {
                     notifySay(hint, "Check your inbox — one tap confirms it.");
@@ -1073,9 +1087,10 @@ const currentSection = adminSection(Astro.url.pathname);
     padding-top: 1.25rem;
     border-top: 1px solid var(--line);
   }
-  /* Email field and button share one row, bottom-aligned so the
-     button sits level with the box. The field claims first share and
-     wraps underneath on widths where side-by-side would squeeze it. */
+  /* Email field takes the full row; Join and Leave share the row below
+     it as equal halves (Join first — the primary action reads first in
+     LTR). Halves wrap stacked on widths where side-by-side would
+     squeeze the words. */
   #notify-dialog .email-capture form {
     display: flex;
     flex-wrap: wrap;
@@ -1085,13 +1100,13 @@ const currentSection = adminSection(Astro.url.pathname);
   #notify-dialog .email-capture label {
     display: grid;
     gap: 0.3rem;
-    flex: 1 1 10rem;
+    flex: 1 1 100%;
     min-width: 0;
     font-size: 0.88rem;
     font-weight: 600;
   }
   #notify-dialog .email-capture .btn-ghost {
-    flex-shrink: 0;
+    flex: 1 1 9rem;
     /* Fixed (not min) height: the emoji fattens the line box past 3rem,
        so min-height alone leaves this button 4px taller than the field. */
     height: 3rem;

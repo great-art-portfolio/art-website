@@ -11,8 +11,38 @@ test("rejects a bad address before touching Resend", async ({ request }) => {
   expect(res.status()).toBe(400);
 });
 
-test("says the list isn't set up without a key", async ({ request }) => {
+test("keyless joins fail loudly, or round-trip the dev mock", async ({
+  request,
+}) => {
   const email = `e2e-${Date.now()}@example.com`;
+  // The dev mock (local .dev.vars only) answers joins itself; without it
+  // a keyless server has no list. The admin count tells the modes apart.
+  const mode = await request.get("/api/collectors");
+  if (mode.status() === 200) {
+    // Mock round trip, Resend never involved — counts move relative to
+    // whatever earlier dev-testing rows linger.
+    const before = (await mode.json()).total;
+    const sub = await request.post("/api/collectors", { data: { email } });
+    expect(sub.status()).toBe(201);
+    const link = new URL((await sub.json()).devConfirmUrl);
+    const confirmed = await request.post("/api/collectors", {
+      data: {
+        action: "confirm",
+        email: link.searchParams.get("email"),
+        token: link.searchParams.get("token"),
+      },
+    });
+    expect(confirmed.status()).toBe(200);
+    const joined = await request.get("/api/collectors");
+    expect(await joined.json()).toEqual({ total: before + 1 });
+    const left = await request.post("/api/collectors", {
+      data: { action: "unsubscribe", email },
+    });
+    expect(left.status()).toBe(200);
+    const empty = await request.get("/api/collectors");
+    expect(await empty.json()).toEqual({ total: before });
+    return;
+  }
   const sub = await request.post("/api/collectors", { data: { email } });
   expect(sub.status()).toBe(500);
   const confirmed = await request.post("/api/collectors", {

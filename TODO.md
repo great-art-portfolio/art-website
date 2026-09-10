@@ -346,3 +346,16 @@ Push to main for CI; real upload test on barbart.ca/admin.
   .dev.vars sets 20. 429 wording follows the cooldown (seconds vs minutes).
 - Subscribe "unavailable" message verified true: studio sidecar 404s both
   /api/push and /api/notify, while 4331 serves the VAPID key (works there).
+
+## Status 2026-09-10 — modal email layout + dev mock list (committed below)
+
+- Notify modal: email field spans the full row; Join then Leave share the
+  row below as halves (primary first, LTR).
+- Dev mock list: COLLECTORS_MOCK=true in local .dev.vars only, plus a
+  localhost hostname rail, so dev can never touch the Resend segment.
+  Joins store pending rows in local D1 email_collectors and answer with a
+  localhost confirm link shown in the modal (tap copies it); confirm and
+  leave round-trip the same table; admin count reads confirmed rows.
+- Modal specs wait for the push paint to settle before submitting, use
+  missing@tld for backend-agnostic validation coverage, and detect mock
+  mode for valid-address submits.

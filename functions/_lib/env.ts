@@ -12,6 +12,9 @@ export interface AppEnv {
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_JWK?: string;
   VAPID_CONTACT?: string;
+  /** Dev mock email list (local D1, confirm links instead of mail).
+   * Localhost-only by construction; never set outside local .dev.vars. */
+  COLLECTORS_MOCK?: string;
   /** Ping cooldown in seconds. Unset means the five-minute default;
    * local .dev.vars sets 20 so dev never waits. */
   PUSH_COOLDOWN_S?: string;

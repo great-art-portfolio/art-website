@@ -7,6 +7,13 @@ import {
   verifyLinkToken,
 } from "../_lib/collectors";
 import {
+  mockConfirm,
+  mockCount,
+  mockList,
+  mockSubscribe,
+  mockUnsubscribe,
+} from "../_lib/collectors-mock";
+import {
   artistInbox,
   confirmEmail,
   countSegmentContacts,
@@ -69,8 +76,26 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     }
     const email = parseCollectorEmail(body["email"]);
     if (email === null) return badRequest("A valid email address is required");
-    if (!hasList(context.env)) {
+    const mock = mockList(context.env, context.request);
+    if (!hasList(context.env) && !mock) {
       return serverError("The email list isn't set up yet — try again later.");
+    }
+    if (mock) {
+      const sub = await mockSubscribe(context.env, email).catch(() => null);
+      if (sub === null) return serverError();
+      if (sub.already) return json({ ok: true, already: true, emailed: true });
+      // No mail leaves dev: the confirm link rides home in the response,
+      // addressed to this server (the tester opens it in the same browser).
+      const origin = new URL(context.request.url).origin;
+      return json(
+        {
+          ok: true,
+          already: false,
+          emailed: true,
+          devConfirmUrl: confirmLink(origin, email, sub.token),
+        },
+        { status: 201 },
+      );
     }
     try {
       if (await isConfirmedContact(context.env, email).catch(() => false)) {
@@ -94,6 +119,18 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       body["email"] ?? params.get("email") ?? "",
     );
     const token = body["token"] ?? params.get("token") ?? "";
+    const mock = mockList(context.env, context.request);
+    if (mock) {
+      if (
+        email === null ||
+        !(await mockConfirm(context.env, email, token).catch(() => false))
+      ) {
+        return badRequest(
+          "That link didn't work — join again from any Notify me box.",
+        );
+      }
+      return json({ ok: true });
+    }
     try {
       if (
         email === null ||
@@ -129,6 +166,13 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       body["email"] ?? params.get("email") ?? "",
     );
     const token = body["token"] ?? params.get("token") ?? "";
+    // The mock skips the spam check like the modal's Leave request,
+    // which carries no token to check — local only, nothing to abuse.
+    if (mockList(context.env, context.request)) {
+      if (email === null) return badRequest("Invalid request");
+      await mockUnsubscribe(context.env, email).catch(() => undefined);
+      return json({ ok: true });
+    }
     try {
       if (email === null) return badRequest("Invalid request");
       if (token !== "") {
@@ -169,11 +213,14 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   return badRequest("Invalid request");
 };
 
-/** Admin: list size. */
+/** Admin: list size — the mock table's confirmed rows in mock mode. */
 export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
   const denied = requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
   try {
+    if (mockList(context.env, context.request)) {
+      return json({ total: await mockCount(context.env) });
+    }
     return json({ total: await countSegmentContacts(context.env) });
   } catch (err) {
     console.error(err);

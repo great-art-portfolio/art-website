@@ -143,11 +143,15 @@ test("email capture form answers in accent", async ({ page }) => {
   await expect(page.locator("#notify-dialog")).toBeVisible();
   // The email channel shows in every browser — no push needed.
   await expect(page.locator("#notify-email-form")).toBeVisible();
-  await page.locator("#notify-email").fill("e2e-fan@example.com");
+  // A bad address fails client-side, so this holds with the real list,
+  // the dev mock, or no backend at all. Headless denies notification
+  // permission, so wait for that paint to settle first — otherwise it
+  // lands after and buries the validation words.
+  await expect(page.locator("#notify-status")).toContainText("blocked");
+  await page.locator("#notify-email").fill("missing@tld");
   await page.locator("#notify-email-form button[type=submit]").click();
-  // Keyless the list isn't set up — the error still answers in theme accent.
   await expect(page.locator("#notify-status")).toContainText(
-    "That didn't work",
+    "doesn't look right",
   );
   // Status answers in the theme's accent, not body-copy muted.
   await expect(page.locator("#notify-status")).toHaveCSS(
@@ -156,7 +160,9 @@ test("email capture form answers in accent", async ({ page }) => {
   );
 });
 
-test("email field and button share a row", async ({ page }) => {
+test("email field spans full width, join and leave share the row below", async ({
+  page,
+}) => {
   await page.goto("/");
   await page.locator("#notify-nav").click();
   // One frame for both boxes: sequential reads can straddle a font swap
@@ -169,38 +175,47 @@ test("email field and button share a row", async ({ page }) => {
       btn: box("#notify-email-form button[type=submit]").toJSON(),
     };
   });
-  // Side by side: same height, bottoms lined up with the box (not
-  // the label text), and the button starts right of the field instead
-  // of below it.
-  expect(Math.abs(field.height - btn.height)).toBeLessThan(4);
-  const fieldBottom = field.y + field.height;
-  const btnBottom = btn.y + btn.height;
-  expect(Math.abs(fieldBottom - btnBottom)).toBeLessThan(4);
-  expect(btn.x).toBeGreaterThan(field.x + field.width / 2);
+  // The field claims the full row: nearly the dialog's content width.
+  const dialog = await page
+    .locator("#notify-dialog")
+    .evaluate((el) => el.getBoundingClientRect().width);
+  expect(field.width).toBeGreaterThan(dialog * 0.7);
+  // Both buttons sit below the field, level with each other, Leave
+  // right of Join.
+  expect(btn.y).toBeGreaterThanOrEqual(field.y + field.height);
+  const leave = await page
+    .locator("#notify-email-leave")
+    .evaluate((el) => el.getBoundingClientRect().toJSON());
+  expect(Math.abs(btn.height - leave.height)).toBeLessThan(4);
+  const joinBottom = btn.y + btn.height;
+  const leaveBottom = leave.y + leave.height;
+  expect(Math.abs(joinBottom - leaveBottom)).toBeLessThan(4);
+  expect(leave.x).toBeGreaterThan(btn.x + btn.width / 2);
 });
 
 test("modal status fades away on its own", async ({ page }) => {
   await page.goto("/");
   await page.locator("#notify-nav").click();
-  await page.locator("#notify-email").fill("e2e-fan@example.com");
+  // Settle the push paint first (see above), then validate off-backend.
+  await expect(page.locator("#notify-status")).toContainText("blocked");
+  await page.locator("#notify-email").fill("missing@tld");
   await page.locator("#notify-email-form button[type=submit]").click();
   const hint = page.locator("#notify-status");
-  // Keyless the list isn't set up (the error, not the inbox line) —
-  // either way it fades on its own.
-  await expect(hint).toContainText("That didn't work");
+  await expect(hint).toContainText("doesn't look right");
   await expect(hint).toBeEmpty({ timeout: 10_000 });
 });
 
 test("modal status unfolds the card, then folds away", async ({ page }) => {
   await page.goto("/");
   await page.locator("#notify-nav").click();
+  await expect(page.locator("#notify-status")).toContainText("blocked");
   const dialog = page.locator("#notify-dialog");
   const wrap = page.locator("#notify-status-wrap");
-  await page.locator("#notify-email").fill("e2e-fan@example.com");
+  await page.locator("#notify-email").fill("missing@tld");
   await page.locator("#notify-email-form button[type=submit]").click();
   const hint = page.locator("#notify-status");
-  // Keyless the list isn't set up — the error text still unfolds the card.
-  await expect(hint).toContainText("That didn't work");
+  // The error text still unfolds the card, backend or not.
+  await expect(hint).toContainText("doesn't look right");
   // Unfolded: the row holds real height and the card grew for it.
   await expect(wrap).toHaveCSS("grid-template-rows", /[1-9]/);
   const mid = await dialog.evaluate((el) => el.getBoundingClientRect().height);
@@ -226,13 +241,18 @@ test("blocked push state stays put, not faded", async ({ page }) => {
 
 test("selecting status text never closes the modal", async ({ page }) => {
   await page.goto("/");
+  // The dev mock answers joins itself; without it the same submit fails
+  // loudly — either way the words below are the test's handle.
+  const mock = (await page.request.get("/api/collectors")).status() === 200;
   await page.locator("#notify-nav").click();
   const dialog = page.locator("#notify-dialog");
   await expect(dialog).toBeVisible();
-  await page.locator("#notify-email").fill("e2e-fan@example.com");
-  await page.locator("#notify-email-form button[type=submit]").click();
+  // Settle the push paint before submitting, so nothing lands after.
   const hint = page.locator("#notify-status");
-  await expect(hint).toContainText("That didn't work");
+  await expect(hint).toContainText("blocked");
+  await page.locator("#notify-email").fill(`e2e-${Date.now()}@example.com`);
+  await page.locator("#notify-email-form button[type=submit]").click();
+  await expect(hint).toContainText(mock ? "Dev list" : "That didn't work");
   // Drag-select from the words out past the card edge: the click that
   // lands on the dialog itself must not dismiss it.
   const box = await hint.boundingBox();
@@ -256,15 +276,18 @@ test("tapping status text copies it with a toast", async ({
 }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.goto("/");
+  const mock = (await page.request.get("/api/collectors")).status() === 200;
   await page.locator("#notify-nav").click();
-  await page.locator("#notify-email").fill("e2e-fan@example.com");
-  await page.locator("#notify-email-form button[type=submit]").click();
   const hint = page.locator("#notify-status");
-  await expect(hint).toContainText("That didn't work");
+  await expect(hint).toContainText("blocked");
+  await page.locator("#notify-email").fill(`e2e-${Date.now()}@example.com`);
+  await page.locator("#notify-email-form button[type=submit]").click();
+  const words = mock ? "Dev list" : "That didn't work";
+  await expect(hint).toContainText(words);
   await hint.click();
   await expect(page.locator("#notify-toast")).toContainText("Copied.");
   const pasted = await page.evaluate(() => navigator.clipboard.readText());
-  expect(pasted).toContain("That didn't work");
+  expect(pasted).toContain(words);
 });
 
 test("buyer signup validates, and needs the list set up", async ({
