@@ -1239,6 +1239,10 @@ const currentSection = adminSection(Astro.url.pathname);
     }
     .nav-links {
       gap: 0.5rem;
+      /* Five sections plus the CTA no longer fit one 390px row — wrap
+         instead of scrolling sideways. */
+      flex-wrap: wrap;
+      row-gap: 0.35rem;
     }
     /* Studio sections sit their own row below the wordmark: smaller
        words, arrow-only way home, CTA at the end. One row proved

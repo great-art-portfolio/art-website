@@ -185,11 +185,17 @@ function stubMd(title: string, extra = ""): string {
 test("studio header links home, never to visitor funnels", async ({ page }) => {
   await mockCommitApi(page);
   await page.goto("/admin");
-  // One nav: four sections, ← Leave Admin, Add painting. Leave doubles
+  // One nav: five sections, ← Leave Admin, Add painting. Leave doubles
   // as logout (clears the token). View counts live inside the
   // collection rows themselves, so the nav carries no metrics link.
-  await expect(page.locator(".site-nav .nav-links a")).toHaveCount(6);
-  for (const label of ["Collection", "Banner", "Metrics", "Guide"]) {
+  await expect(page.locator(".site-nav .nav-links a")).toHaveCount(7);
+  for (const label of [
+    "Collection",
+    "Banner",
+    "Marketing",
+    "Metrics",
+    "Guide",
+  ]) {
     await expect(
       page.locator(".site-nav").getByRole("link", { name: label }),
     ).toBeVisible();

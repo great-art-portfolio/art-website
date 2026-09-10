@@ -487,9 +487,10 @@ test("studio room toolbar wears the studio styling", async ({ browser }) => {
     "border-radius",
     "12px",
   );
+  // Light-theme primary is clay (--primary #a44a24); dark stays ink.
   await expect(adminPage.locator("#de-save")).toHaveCSS(
     "background-color",
-    "rgb(35, 32, 27)",
+    "rgb(164, 74, 36)",
   );
   await expect(adminPage.locator("#de-del")).toHaveCSS("border-radius", "12px");
   await authed.close();

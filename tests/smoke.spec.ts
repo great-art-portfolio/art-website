@@ -252,7 +252,10 @@ test("selecting status text never closes the modal", async ({ page }) => {
   await expect(hint).toContainText("blocked");
   await page.locator("#notify-email").fill(`e2e-${Date.now()}@example.com`);
   await page.locator("#notify-email-form button[type=submit]").click();
-  await expect(hint).toContainText(mock ? "Dev list" : "That didn't work");
+  // The dev mock answers with a bare confirm link, not words.
+  await expect(hint).toContainText(
+    mock ? "open the confirm page" : "That didn't work",
+  );
   // Drag-select from the words out past the card edge: the click that
   // lands on the dialog itself must not dismiss it.
   const box = await hint.boundingBox();
@@ -282,9 +285,12 @@ test("tapping status text copies it with a toast", async ({
   await expect(hint).toContainText("blocked");
   await page.locator("#notify-email").fill(`e2e-${Date.now()}@example.com`);
   await page.locator("#notify-email-form button[type=submit]").click();
-  const words = mock ? "Dev list" : "That didn't work";
+  // The dev mock answers with a bare confirm link, not words.
+  const words = mock ? "open the confirm page" : "That didn't work";
   await expect(hint).toContainText(words);
-  await hint.click();
+  // Click the status line itself, not the link inside it: a hit-tested
+  // tap lands on the anchor and follows it instead of copying.
+  await hint.evaluate((el) => (el as HTMLElement).click());
   await expect(page.locator("#notify-toast")).toContainText("Copied.");
   const pasted = await page.evaluate(() => navigator.clipboard.readText());
   expect(pasted).toContain(words);
