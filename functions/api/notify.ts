@@ -1,6 +1,10 @@
 import type { AppEnv } from "../_lib/env";
 import { json, requireAdmin, serverError } from "../_lib/http";
-import { segmentBroadcastEmail, sendCollectorBroadcast } from "../_lib/notify";
+import {
+  cleanBroadcastMessage,
+  segmentBroadcastEmail,
+  sendCollectorBroadcast,
+} from "../_lib/notify";
 import {
   countSubscriptions,
   listSubscriptions,
@@ -101,9 +105,20 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     let emailTotal = 0;
     if (wantEmail) {
       const site = context.env.SITE_URL ?? "https://barbart.ca";
-      const result = await sendCollectorBroadcast(context.env, site).catch(
-        () => ({ sent: 0, total: 0 }),
-      );
+      // Object form is the Marketing send with her own line riding
+      // along; plain booleans send the standard note.
+      const emailOpt = body["email"];
+      const message =
+        typeof emailOpt === "object" &&
+        emailOpt !== null &&
+        "message" in emailOpt
+          ? cleanBroadcastMessage(emailOpt.message)
+          : "";
+      const result = await sendCollectorBroadcast(
+        context.env,
+        site,
+        message,
+      ).catch(() => ({ sent: 0, total: 0 }));
       emailed = result.sent > 0;
       emailTotal = result.total;
     }
@@ -130,7 +145,13 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
   if (denied !== null) return denied;
   try {
     const site = context.env.SITE_URL ?? "https://barbart.ca";
-    const { subject, text } = segmentBroadcastEmail(site);
+    // The preview carries her draft line when she's typed one, so what
+    // she reads is what the send delivers.
+    const params = new URL(context.request.url).searchParams;
+    const { subject, text } = segmentBroadcastEmail(
+      site,
+      cleanBroadcastMessage(params.get("message")),
+    );
     return json({
       total: (await listSubscriptions(context.env)).length,
       emailSubject: subject,

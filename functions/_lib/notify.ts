@@ -220,29 +220,73 @@ export async function isConfirmedContact(
   );
 }
 
-/** One template for the whole segment; the exit is Resend's placeholder. */
-export function segmentBroadcastEmail(site: string): {
-  subject: string;
-  text: string;
-} {
-  return {
-    subject: "New painting at Barbara Straka's studio",
-    text: [
-      "A new painting is hung in the gallery — come look:",
-      site,
-      "",
-      "— Barbara",
-      "",
-      "Tired of these? Unsubscribe here:",
-      "{{{RESEND_UNSUBSCRIBE_URL}}}",
-    ].join("\n"),
-  };
+/** A line of her own riding with the standard note. Trimmed, capped —
+ * an email can't be unsent, so overlong input shrinks instead of failing.
+ */
+export const MAX_BROADCAST_MESSAGE = 500;
+
+export function cleanBroadcastMessage(value: unknown): string {
+  return typeof value === "string" ? value.trim().slice(0, 500) : "";
 }
 
-/** Broadcast to the whole segment in one call. False when unconfigured. */
+/** The custom line inside the styled body — buyer-invisible escaping,
+ * so her words can't break the markup (or smuggle any in). */
+export function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/** One template for the whole segment; the exit is Resend's placeholder.
+ * The text stays plain (inboxes still render it); the styled body dresses
+ * the same words in the gallery's paper-and-clay for clients that render
+ * HTML. The link rides the same line as the invitation. */
+export function segmentBroadcastEmail(
+  site: string,
+  message = "",
+): {
+  subject: string;
+  text: string;
+  html: string;
+} {
+  const custom = cleanBroadcastMessage(message);
+  const text = [
+    `A new painting is hung in the gallery — come look: ${site}`,
+    ...(custom === "" ? [] : ["", custom]),
+    "",
+    "— Barbara",
+    "",
+    "Tired of these? Unsubscribe here:",
+    "{{{RESEND_UNSUBSCRIBE_URL}}}",
+  ].join("\n");
+  const safeSite = escapeHtml(site);
+  const html = [
+    '<!doctype html><html><body style="margin:0;padding:0;background-color:#f4eee1;">',
+    "<div style=\"max-width:560px;margin:0 auto;padding:32px 20px;font-family:Georgia,'Times New Roman',serif;color:#2b2721;\">",
+    '<p style="font-size:13px;letter-spacing:3px;text-transform:uppercase;color:#a44a24;margin:0 0 8px;">Barbara Straka</p>',
+    '<h1 style="font-size:26px;font-weight:normal;margin:0 0 16px;">A new painting is hung in the gallery</h1>',
+    `<p style="font-size:16px;line-height:1.6;margin:0 0 16px;">Come look: <a href="${safeSite}" style="color:#a44a24;">${safeSite}</a></p>`,
+    ...(custom === ""
+      ? []
+      : [
+          `<p style="font-size:16px;line-height:1.6;margin:0 0 16px;">${escapeHtml(custom)}</p>`,
+        ]),
+    '<p style="font-size:16px;margin:0 0 24px;">— Barbara</p>',
+    '<hr style="border:none;border-top:1px solid #d8cdb8;margin:0 0 16px;" />',
+    '<p style="font-size:13px;color:#6b6257;margin:0;">Tired of these? <a href="{{{RESEND_UNSUBSCRIBE_URL}}}" style="color:#a44a24;">Unsubscribe here</a></p>',
+    "</div></body></html>",
+  ].join("");
+  return { subject: "New painting at Barbara Straka's studio", text, html };
+}
+
+/** Broadcast to the whole segment in one call. False when unconfigured.
+ * A custom line rides along when she wrote one. */
 export async function sendSegmentBroadcast(
   env: AppEnv,
   site: string,
+  message = "",
 ): Promise<boolean> {
   const seg = segmentId(env);
   if (env.RESEND_API_KEY === undefined || env.RESEND_API_KEY === "") {
@@ -251,7 +295,7 @@ export async function sendSegmentBroadcast(
   if (seg === "") return false;
   const inbox = artistInbox(env);
   if (inbox === "") return false;
-  const { subject, text } = segmentBroadcastEmail(site);
+  const { subject, text, html } = segmentBroadcastEmail(site, message);
   try {
     const res = await fetch("https://api.resend.com/broadcasts", {
       method: "POST",
@@ -262,6 +306,7 @@ export async function sendSegmentBroadcast(
         reply_to: inbox,
         subject,
         text,
+        html,
         send: true,
       }),
     });
@@ -333,6 +378,7 @@ export async function syncContactRemoved(
 export async function sendCollectorBroadcast(
   env: AppEnv,
   site: string,
+  message = "",
 ): Promise<{ sent: number; total: number }> {
   const total = await countSegmentContacts(env).catch(() => 0);
   const inbox = artistInbox(env);
@@ -340,7 +386,7 @@ export async function sendCollectorBroadcast(
     return { sent: 0, total };
   }
   if (inbox === "" || total === 0) return { sent: 0, total };
-  const ok = await sendSegmentBroadcast(env, site).catch(() => false);
+  const ok = await sendSegmentBroadcast(env, site, message).catch(() => false);
   return { sent: ok ? total : 0, total };
 }
 

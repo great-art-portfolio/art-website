@@ -166,7 +166,11 @@ export function createStudioPushMock(cacheDir) {
     // endpoint composes, so dev shows what buyers would get. Sends stay
     // mock (emailed is always false below).
     if (req.method === "GET") {
-      const { subject, text } = segmentBroadcastEmail("https://barbart.ca");
+      const draft = new URL(req.url).searchParams.get("message") ?? "";
+      const { subject, text } = segmentBroadcastEmail(
+        "https://barbart.ca",
+        draft,
+      );
       return json({ total: subs.size, emailSubject: subject, emailText: text });
     }
     if (req.method !== "POST") {

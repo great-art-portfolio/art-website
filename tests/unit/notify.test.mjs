@@ -75,12 +75,37 @@ describe("segmentId", () => {
 
 describe("segmentBroadcastEmail", () => {
   it("uses Resend's unsubscribe placeholder, not per-recipient links", () => {
-    const { subject, text } = segmentBroadcastEmail("https://barbart.ca");
+    const { subject, text, html } = segmentBroadcastEmail("https://barbart.ca");
     assert.equal(subject, "New painting at Barbara Straka's studio");
-    assert.match(text, /https:\/\/barbart\.ca/);
+    assert.match(text, /come look: https:\/\/barbart\.ca/);
     assert.match(text, /— Barbara/);
     assert.ok(text.includes("{{{RESEND_UNSUBSCRIBE_URL}}}"));
     assert.ok(!text.includes("token="));
+    // The styled body dresses the same words: brand line, clay link,
+    // sign-off, and the placeholder exit.
+    assert.ok(html.includes("Barbara Straka"));
+    assert.ok(html.includes('href="https://barbart.ca"'));
+    assert.ok(html.includes("— Barbara"));
+    assert.ok(html.includes('href="{{{RESEND_UNSUBSCRIBE_URL}}}"'));
+  });
+
+  it("rides her own line along in text and HTML, escaped", () => {
+    const { text, html } = segmentBroadcastEmail(
+      "https://barbart.ca",
+      "  Fresh off the easel <b>today</b>  ",
+    );
+    assert.ok(text.includes("Fresh off the easel <b>today</b>"));
+    assert.ok(!html.includes("<b>today</b>"));
+    assert.ok(html.includes("Fresh off the easel &lt;b&gt;today&lt;/b&gt;"));
+  });
+
+  it("trims and caps the custom line", () => {
+    const { text } = segmentBroadcastEmail(
+      "https://barbart.ca",
+      `  ${"x".repeat(600)}  `,
+    );
+    assert.ok(text.includes("x".repeat(500)));
+    assert.ok(!text.includes("x".repeat(501)));
   });
 });
 
@@ -99,6 +124,18 @@ describe("sendSegmentBroadcast", () => {
     assert.equal(body.reply_to, "studio@example.com");
     assert.equal(body.send, true);
     assert.ok(body.text.includes("{{{RESEND_UNSUBSCRIBE_URL}}}"));
+  });
+
+  it("sends text plus the styled body, carrying her line", async () => {
+    stubFetch(() => okRes());
+    assert.equal(
+      await sendSegmentBroadcast(fullEnv, "https://barbart.ca", "Hello all"),
+      true,
+    );
+    const body = JSON.parse(calls[0].init.body);
+    assert.ok(body.text.includes("Hello all"));
+    assert.ok(body.html.includes("Hello all"));
+    assert.ok(body.html.includes("<!doctype html>"));
   });
 
   it("stays quiet without a key, segment, or inbox", async () => {

@@ -29,9 +29,19 @@ import "../../components/studio.css";
     <section id="sec-email" class="prose">
       <h2>Send email</h2>
       <p class="hint">
-        Sends one email to the whole list — exactly what's shown below, with a
-        link to the gallery.
+        Sends one email to the whole list — the standard note below, with your
+        line riding along when you write one. Buyers see it dressed in the
+        gallery style.
       </p>
+      <label
+        >Your line (optional)
+        <textarea
+          id="email-message"
+          rows="2"
+          maxlength="500"
+          autocomplete="off"
+          placeholder="Blank: the standard note goes as-is"></textarea>
+      </label>
       <div id="email-preview" hidden>
         <p class="preview-subject">
           <span>Subject:</span>

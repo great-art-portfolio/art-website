@@ -1637,7 +1637,7 @@ function wireBroadcast(): void {
       }
       btn.disabled = true;
       api
-        .sendCollectorEmail()
+        .sendCollectorEmail(readEmailMessage())
         .then((r) => {
           if (r.emailTotal === 0) {
             status.textContent =
@@ -1660,9 +1660,18 @@ function wireBroadcast(): void {
   });
 }
 
+// Her own line on the Marketing send, trimmed. Blank means the
+// standard note goes as-is.
+function readEmailMessage(): string {
+  const fieldEl = document.getElementById("email-message");
+  const field = fieldEl instanceof HTMLTextAreaElement ? fieldEl : null;
+  return (field?.value ?? "").trim();
+}
+
 // The Marketing preview shows the exact email a send delivers — the
-// server composes both from one template, so they can't drift. Runs
-// only where its markup exists; a missed load leaves the fallback line.
+// server composes both from one template, so they can't drift. Typing
+// in the line refetches (briefly held, so fast typing sends one read).
+// Runs only where its markup exists; a missed load leaves the fallback.
 function wireEmailPreview(): void {
   const boxEl = document.getElementById("email-preview");
   if (!(boxEl instanceof HTMLElement)) return;
@@ -1675,7 +1684,8 @@ function wireEmailPreview(): void {
     !(fallbackEl instanceof HTMLElement)
   )
     return;
-  void api.emailPreview().then((preview) => {
+  let timer: number | null = null;
+  const paint = (preview: { subject: string; text: string } | null): void => {
     if (preview === null) {
       fallbackEl.hidden = false;
       return;
@@ -1687,9 +1697,23 @@ function wireEmailPreview(): void {
       "{{{RESEND_UNSUBSCRIBE_URL}}}",
       "(unsubscribe link added automatically)",
     );
+    fallbackEl.hidden = true;
     boxEl.hidden = false;
     fadeIn(boxEl);
-  });
+  };
+  const refresh = (): void => {
+    void api.emailPreview(readEmailMessage()).then(paint);
+  };
+  refresh();
+  const fieldEl = document.getElementById("email-message");
+  const field = fieldEl instanceof HTMLTextAreaElement ? fieldEl : null;
+  if (field !== null && field.dataset.previewWired !== "1") {
+    field.dataset.previewWired = "1";
+    field.addEventListener("input", () => {
+      if (timer !== null) window.clearTimeout(timer);
+      timer = window.setTimeout(refresh, 300);
+    });
+  }
 }
 
 // ClientRouter swaps studio pages without a full load — and skips

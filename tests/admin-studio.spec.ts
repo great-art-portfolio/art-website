@@ -1616,14 +1616,32 @@ test("send email asks even when the count didn't load", async ({ page }) => {
 });
 
 test("marketing page previews the exact email buyers get", async ({ page }) => {
+  let posted: unknown = null;
   await page.route("**/api/notify", async (route) => {
+    if (route.request().method() === "POST") {
+      posted = route.request().postDataJSON();
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          sent: 1,
+          total: 1,
+          emailed: true,
+          emailTotal: 1,
+        }),
+      });
+      return;
+    }
+    // Echo the draft line the way the server composes it.
+    const line =
+      new URL(route.request().url()).searchParams.get("message") ?? "";
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
-        total: 0,
+        total: 1,
         emailSubject: "Preview subject line",
-        emailText: "Preview body words.",
+        emailText: `Preview body words.${line === "" ? "" : `\n\n${line}`}`,
       }),
     });
   });
@@ -1632,9 +1650,22 @@ test("marketing page previews the exact email buyers get", async ({ page }) => {
   await expect(page.locator("#email-preview-subject")).toHaveText(
     "Preview subject line",
   );
-  await expect(page.locator("#email-preview-body")).toContainText(
-    "Preview body words.",
+  const previewBody = page.locator("#email-preview-body");
+  await expect(previewBody).toContainText("Preview body words.");
+  // Her line lands in the preview as she types, and rides the send.
+  await page.locator("#email-message").fill("Fresh off the easel");
+  await expect(previewBody).toContainText("Fresh off the easel");
+  page.on("dialog", async (dialog) => {
+    await dialog.accept();
+  });
+  await page.locator("#email-send").click();
+  await expect(page.locator("#email-status")).toContainText(
+    "Emailed 1 subscribers.",
   );
+  expect(posted).toEqual({
+    push: false,
+    email: { message: "Fresh off the easel" },
+  });
 });
 
 test("collection groups available then sold, never bare statuses", async ({
