@@ -1139,8 +1139,22 @@ const currentSection = adminSection(Astro.url.pathname);
   #notify-dialog .email-capture form {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    /* Roomier above the buttons than between them — the pair should
+       breathe below the field, not crowd it. */
+    column-gap: 0.5rem;
+    row-gap: 1rem;
     align-items: end;
+  }
+  /* The spam-check mount shares the button row: empty (no keys in dev)
+     it still eats one gap's worth of space to the pair's left, so hide
+     it until the widget moves in. With a widget, it takes its own full
+     row so the buttons always share theirs. */
+  #notify-dialog #notify-turnstile-mount {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  #notify-dialog #notify-turnstile-mount:empty {
+    display: none;
   }
   #notify-dialog .email-capture label {
     display: grid;
