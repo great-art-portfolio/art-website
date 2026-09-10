@@ -367,3 +367,11 @@ Push to main for CI; real upload test on barbart.ca/admin.
   /api/push + /api/push-message + /api/notify shapes. Tickles go over the
   real push service. No cooldown, no email in studio. Needs a studio stack
   restart to pick up (sidecar predates the routes).
+
+## Status 2026-09-10 — modal adapts to dead push (committed below)
+
+- subscribePush maps AbortError push-service failures to nopushservice with
+  its own words (unit-covered). The result is remembered per browser
+  (localStorage); later modal paints hide the push half and leave email
+  standing, with a quiet Try-again button that lifts the flag. Success
+  clears it. Modal specs detect mock mode and wait for the push paint.

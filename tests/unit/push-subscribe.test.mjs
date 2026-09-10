@@ -1,14 +1,16 @@
 import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { subscribePush } from "../../src/lib/push.ts";
+import {
+  clearPushUnavailable,
+  isPushUnavailable,
+  notePushUnavailable,
+  subscribePush,
+} from "../../src/lib/push.ts";
 
 /** subscribePush maps a dead push service to its own plain-words result. */
 
 const realFetch = globalThis.fetch;
-const realNavigator = Object.getOwnPropertyDescriptor(
-  globalThis,
-  "navigator",
-);
+const realNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
 
 afterEach(() => {
   globalThis.fetch = realFetch;
@@ -58,5 +60,37 @@ describe("subscribePush push-service failure", () => {
       throw new Error("boom");
     });
     assert.equal(await subscribePush(), "failed");
+  });
+});
+
+describe("push unavailable flag", () => {
+  it("stays silent with no storage", () => {
+    assert.equal(isPushUnavailable(), false);
+    notePushUnavailable();
+    assert.equal(isPushUnavailable(), false);
+    clearPushUnavailable();
+    assert.equal(isPushUnavailable(), false);
+  });
+
+  it("round-trips through storage", () => {
+    const store = new Map();
+    Object.defineProperty(globalThis, "localStorage", {
+      value: {
+        getItem: (k) => (store.has(k) ? store.get(k) : null),
+        setItem: (k, v) => void store.set(k, String(v)),
+        removeItem: (k) => void store.delete(k),
+      },
+      configurable: true,
+      writable: true,
+    });
+    try {
+      assert.equal(isPushUnavailable(), false);
+      notePushUnavailable();
+      assert.equal(isPushUnavailable(), true);
+      clearPushUnavailable();
+      assert.equal(isPushUnavailable(), false);
+    } finally {
+      delete globalThis.localStorage;
+    }
   });
 });
