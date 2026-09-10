@@ -3,15 +3,19 @@ import { json, requireAdmin, serverError } from "../_lib/http";
 import { sendCollectorBroadcast } from "../_lib/notify";
 import {
   listSubscriptions,
+  PUSH_COOLDOWN_MS,
+  readLastPushAt,
   removeSubscription,
   savePushMessage,
   sendTickle,
+  stampPushAt,
 } from "../_lib/push";
 
 /** Admin: ping collectors. { push: false } / { email: false } send one side
  * only; both default on. { push: { body } } stores a custom line the
- * ping shows instead of the standard note. Missing channels skip
- * quietly. */
+ * ping shows instead of the standard note. Repeat Ping taps within the
+ * cooldown answer 429; empty pings and publish alerts never count.
+ * Missing channels skip quietly. */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   const denied = requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
@@ -30,7 +34,10 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     let total = 0;
     if (wantPush) {
       const pushOpt = body["push"];
-      if (typeof pushOpt === "object" && pushOpt !== null) {
+      // Object form is the standalone Ping button; plain booleans are
+      // publish alerts, which always go through (email especially).
+      const isTickle = typeof pushOpt === "object" && pushOpt !== null;
+      if (isTickle) {
         const line = String((pushOpt as Record<string, unknown>)["body"] ?? "")
           .trim()
           .slice(0, 180);
@@ -41,6 +48,19 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       }
       const subs = await listSubscriptions(context.env);
       total = subs.length;
+      if (isTickle && total > 0) {
+        const since = Date.now() - (await readLastPushAt(context.env));
+        if (since < PUSH_COOLDOWN_MS) {
+          return json(
+            {
+              error: "Just pinged — give it a few minutes before the next one.",
+            },
+            { status: 429 },
+          );
+        }
+        // Stamp before fanning out so a double tap can't slip through.
+        await stampPushAt(context.env);
+      }
       await Promise.all(
         subs.map(async (sub) => {
           const result = await sendTickle(context.env, sub);

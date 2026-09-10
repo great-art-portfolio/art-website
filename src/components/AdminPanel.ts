@@ -1393,7 +1393,16 @@ function init(): void {
             fadeIn(status);
           })
           .catch((err: unknown) => {
-            status.textContent = `Couldn't ping: ${errorMessage(err)}`;
+            // Name the common failures; anything else keeps the raw words.
+            if (err instanceof ApiError && err.status === 404) {
+              status.textContent =
+                "Ping isn't available in this preview — it works on the live site.";
+            } else if (err instanceof ApiError && err.status === 429) {
+              status.textContent =
+                "Just pinged — give it a few minutes before the next one.";
+            } else {
+              status.textContent = `Couldn't ping: ${errorMessage(err)}`;
+            }
             fadeIn(status);
           })
           .finally(() => {

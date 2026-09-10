@@ -1,19 +1,31 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { readPushMessage, savePushMessage } from "../../functions/_lib/push.ts";
+import {
+  PUSH_COOLDOWN_MS,
+  readLastPushAt,
+  readPushMessage,
+  savePushMessage,
+  stampPushAt,
+} from "../../functions/_lib/push.ts";
 
-/** Custom ping line round-trips through the one-row table (no live D1). */
+/** Custom ping line + cooldown stamp round-trip through the one-row
+ * table (no live D1). */
 
 function stubDb() {
-  let body = null;
+  const row = { body: null, pushed_at: "" };
   return {
-    prepare: () => ({
+    prepare: (sql) => ({
       bind: (...args) => ({
         run: async () => {
-          if (args.length > 0) body = args[0];
+          if (String(sql).includes("pushed_at")) row.pushed_at = args[0];
+          else if (args.length > 0) row.body = args[0];
           return {};
         },
-        first: async () => (body === null ? null : { body }),
+        first: async () => {
+          if (String(sql).includes("pushed_at"))
+            return { pushed_at: row.pushed_at };
+          return row.body === null ? null : { body: row.body };
+        },
       }),
     }),
   };
@@ -35,5 +47,29 @@ describe("push message", () => {
     await savePushMessage(env, "Something custom");
     await savePushMessage(env, "");
     assert.equal(await readPushMessage(env), "");
+  });
+});
+
+describe("push cooldown", () => {
+  it("is five minutes", () => {
+    assert.equal(PUSH_COOLDOWN_MS, 5 * 60 * 1000);
+  });
+
+  it("reads zero before any ping", async () => {
+    assert.equal(await readLastPushAt({ DB: stubDb() }), 0);
+  });
+
+  it("stamp then read lands within the cooldown", async () => {
+    const env = { DB: stubDb() };
+    await stampPushAt(env);
+    const age = Date.now() - (await readLastPushAt(env));
+    assert.ok(age >= 0 && age < PUSH_COOLDOWN_MS);
+  });
+
+  it("stamping keeps the custom line", async () => {
+    const env = { DB: stubDb() };
+    await savePushMessage(env, "New seascape just listed");
+    await stampPushAt(env);
+    assert.equal(await readPushMessage(env), "New seascape just listed");
   });
 });

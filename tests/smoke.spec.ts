@@ -224,6 +224,49 @@ test("blocked push state stays put, not faded", async ({ page }) => {
   await expect(hint).toContainText("blocked");
 });
 
+test("selecting status text never closes the modal", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("#notify-nav").click();
+  const dialog = page.locator("#notify-dialog");
+  await expect(dialog).toBeVisible();
+  await page.locator("#notify-email").fill("e2e-fan@example.com");
+  await page.locator("#notify-email-form button[type=submit]").click();
+  const hint = page.locator("#notify-status");
+  await expect(hint).toContainText("That didn't work");
+  // Drag-select from the words out past the card edge: the click that
+  // lands on the dialog itself must not dismiss it.
+  const box = await hint.boundingBox();
+  expect(box).not.toBe(null);
+  if (box !== null) {
+    await page.mouse.move(box.x + 4, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(6, box.y + box.height / 2, { steps: 8 });
+    await page.mouse.up();
+  }
+  await expect(dialog).toBeVisible();
+  // A clean backdrop tap still dismisses, like the × button.
+  await page.evaluate(() => window.getSelection()?.removeAllRanges());
+  await page.mouse.click(6, 6);
+  await expect(dialog).toBeHidden();
+});
+
+test("tapping status text copies it with a toast", async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto("/");
+  await page.locator("#notify-nav").click();
+  await page.locator("#notify-email").fill("e2e-fan@example.com");
+  await page.locator("#notify-email-form button[type=submit]").click();
+  const hint = page.locator("#notify-status");
+  await expect(hint).toContainText("That didn't work");
+  await hint.click();
+  await expect(page.locator("#notify-toast")).toContainText("Copied.");
+  const pasted = await page.evaluate(() => navigator.clipboard.readText());
+  expect(pasted).toContain("That didn't work");
+});
+
 test("buyer signup validates, and needs the list set up", async ({
   request,
 }) => {

@@ -47,12 +47,17 @@ export async function pushState(): Promise<PushState> {
  * something genuinely failed. Callers message each case in plain words —
  * a dismissal is never reported as a server problem.
  */
-export type SubscribeResult = "subscribed" | "cancelled" | "blocked" | "failed";
+export type SubscribeResult =
+  "subscribed" | "cancelled" | "blocked" | "failed" | "unavailable";
 
 export async function subscribePush(): Promise<SubscribeResult> {
   if (!supported()) return "failed";
   try {
-    const raw = (await (await fetch("/api/push")).json()) as unknown;
+    const cfgRes = await fetch("/api/push");
+    // No push endpoint here at all (a dev preview) — different from a
+    // real failure, so callers can say so in plain words.
+    if (!cfgRes.ok) return "unavailable";
+    const raw = (await cfgRes.json()) as unknown;
     const parsed = pushConfigSchema.safeParse(raw);
     if (!parsed.success || parsed.data.publicKey === "") return "failed"; // Server keys not set up yet.
     const permission = await Notification.requestPermission();

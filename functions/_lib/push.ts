@@ -130,3 +130,25 @@ export async function readPushMessage(env: AppEnv): Promise<string> {
     .first<{ body: string }>();
   return row?.body ?? "";
 }
+
+/** Minimum gap between browser ping fan-outs, so a repeated tap can't
+ * spam subscribers. Empty pings (nobody subscribed) never count. */
+export const PUSH_COOLDOWN_MS = 5 * 60 * 1000;
+
+export async function readLastPushAt(env: AppEnv): Promise<number> {
+  const row = await env.DB.prepare(
+    "SELECT pushed_at FROM push_message WHERE id = 1",
+  )
+    .bind()
+    .first<{ pushed_at: string }>();
+  const at = Date.parse(row?.pushed_at ?? "");
+  return Number.isNaN(at) ? 0 : at;
+}
+
+export async function stampPushAt(env: AppEnv): Promise<void> {
+  await env.DB.prepare(
+    "INSERT INTO push_message (id, pushed_at) VALUES (1, ?) ON CONFLICT (id) DO UPDATE SET pushed_at = excluded.pushed_at",
+  )
+    .bind(new Date().toISOString())
+    .run();
+}

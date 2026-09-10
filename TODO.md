@@ -327,3 +327,15 @@ Push to main for CI; real upload test on barbart.ca/admin.
   instead. CI's db:migrate:local is fine (fresh state each run).
 - Leaving uncommitted for review: banner/ping work + user's own gallery
   order edits in three painting .md files.
+
+## Status 2026-09-10 — ping errors, cooldown, modal copy (uncommitted)
+
+- Ping 404 in studio dev is the sidecar (only content endpoints; /api/notify
+  404s): admin now says plainly the ping needs the live site. 429 from the
+  new 5-minute tickle cooldown (migration 0006, applied remote + local)
+  says to wait a few minutes. Empty pings and publish alerts never count.
+- Subscribe in studio dev 404s on /api/push the same way: new "unavailable"
+  result says browser alerts need the live site.
+- Notify modal: drag-select spilling past the card no longer closes it
+  (selection guard; closedby="closerequest"); tapping the status line copies
+  it with a "Copied." toast.

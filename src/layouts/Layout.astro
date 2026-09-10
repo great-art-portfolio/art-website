@@ -222,7 +222,7 @@ const currentSection = adminSection(Astro.url.pathname);
         <dialog
           id="notify-dialog"
           aria-labelledby="notify-dialog-title"
-          closedby="any"
+          closedby="closerequest"
         >
           <form method="dialog" class="notify-close-row">
             <button
@@ -282,6 +282,7 @@ const currentSection = adminSection(Astro.url.pathname);
           <div class="status-wrap" id="notify-status-wrap">
             <p class="hint" id="notify-status" role="status" />
           </div>
+          <p class="toast" id="notify-toast" role="status" />
         </dialog>
       )
     }
@@ -539,6 +540,41 @@ const currentSection = adminSection(Astro.url.pathname);
         }
       }
 
+      // One quiet toast for the signup card (copy confirmations live
+      // here, not in the status line they'd overwrite). Opacity-only, so
+      // every motion setting keeps it.
+      let notifyToastTimer = 0;
+      function notifyToast(msg = "") {
+        const toastEl = document.getElementById("notify-toast");
+        const toast = toastEl instanceof HTMLElement ? toastEl : null;
+        if (toast === null) return;
+        window.clearTimeout(notifyToastTimer);
+        toast.textContent = msg;
+        toast.classList.add("show");
+        notifyToastTimer = window.setTimeout(() => {
+          toast.classList.remove("show");
+          toast.textContent = "";
+        }, 2500);
+      }
+      // Tap the status line to copy it; a toast says it landed. Every
+      // real deployment is a secure context, so the Clipboard API is
+      // always there — otherwise selecting the words by hand still works.
+      function copyNotifyStatus(hint = document.body) {
+        const text = (hint.textContent ?? "").trim();
+        if (text === "") return;
+        if (
+          typeof navigator.clipboard === "undefined" ||
+          typeof navigator.clipboard.writeText !== "function"
+        ) {
+          notifyToast("Couldn't copy — select the text instead.");
+          return;
+        }
+        navigator.clipboard.writeText(text).then(
+          () => notifyToast("Copied."),
+          () => notifyToast("Couldn't copy — select the text instead."),
+        );
+      }
+
       function initNotify() {
         const navEl = document.getElementById("notify-nav");
         const nav = navEl instanceof HTMLButtonElement ? navEl : null;
@@ -560,10 +596,27 @@ const currentSection = adminSection(Astro.url.pathname);
         const dlg = dlgEl instanceof HTMLDialogElement ? dlgEl : null;
         if (dlg !== null && dlg.dataset.wired !== "1") {
           dlg.dataset.wired = "1";
-          // Tapping the backdrop dismisses, like the × button.
+          // Tapping the backdrop dismisses, like the × button — but a
+          // drag-select that spills past the card edge must not. That
+          // drag fires a click on the dialog itself, so skip it while
+          // any text stands selected.
           dlg.addEventListener("click", (e) => {
-            if (e.target === dlg) dlg.close();
+            if (e.target !== dlg) return;
+            const sel = window.getSelection();
+            if (sel !== null && sel.toString() !== "") return;
+            dlg.close();
           });
+          // Tapping the status line copies it — selecting it by hand is
+          // fiddly in a card, so a tap plus a toast does the job.
+          const hintEl = document.getElementById("notify-status");
+          const hint = hintEl instanceof HTMLElement ? hintEl : null;
+          if (hint !== null && hint.dataset.copyWired !== "1") {
+            hint.dataset.copyWired = "1";
+            hint.title = "Tap to copy this message";
+            hint.addEventListener("click", () => {
+              copyNotifyStatus(hint);
+            });
+          }
           const btnEl = document.getElementById("notify-btn");
           const btn = btnEl instanceof HTMLButtonElement ? btnEl : null;
           if (btn !== null) {
@@ -591,6 +644,11 @@ const currentSection = adminSection(Astro.url.pathname);
                         notifySay(hint, "Request cancelled.");
                       } else if (result === "blocked") {
                         // paintNotify already said it, in plain words.
+                      } else if (result === "unavailable") {
+                        notifySay(
+                          hint,
+                          "Browser alerts need the live site — this preview can't register this browser.",
+                        );
                       } else {
                         notifySay(
                           hint,
@@ -898,6 +956,32 @@ const currentSection = adminSection(Astro.url.pathname);
     #notify-dialog .status-wrap {
       transition: none;
     }
+  }
+  /* The status line taps to copy, so it wears the copy pointer. The
+     toast floats over the card's foot — opacity-only, in every motion
+     setting — and takes no clicks. */
+  #notify-dialog #notify-status {
+    cursor: copy;
+  }
+  #notify-dialog .toast {
+    position: absolute;
+    left: 50%;
+    bottom: 1rem;
+    transform: translateX(-50%);
+    margin: 0;
+    padding: 0.4rem 0.9rem;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--ink);
+    color: var(--paper);
+    font-size: 0.85rem;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  #notify-dialog .toast.show {
+    opacity: 1;
   }
   /* The × floats in the top-right corner instead of owning a full
      row, so the title starts at the card's own padding. The heading
