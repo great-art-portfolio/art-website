@@ -156,7 +156,7 @@ test("email capture form answers in accent", async ({ page }) => {
   // Status answers in the theme's accent, not body-copy muted.
   await expect(page.locator("#notify-status")).toHaveCSS(
     "color",
-    "rgb(164, 74, 36)",
+    /164, 74, 36|0\.622 0\.289 0\.133/,
   );
 });
 

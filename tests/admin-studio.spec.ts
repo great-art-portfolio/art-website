@@ -291,7 +291,8 @@ test("admin links wear the accent, never browser blue", async ({ page }) => {
     .locator("#edit-list .row-title")
     .first()
     .evaluate((el) => getComputedStyle(el).color);
-  expect(color).toBe("rgb(164, 74, 36)");
+  // Same clay in both computed-color serializations (rgb vs P3).
+  expect(color).toMatch(/164, 74, 36|0\.622 0\.289 0\.133/);
 });
 
 test("studio hovers match the footer: underline only, no color flash", async ({
@@ -299,7 +300,8 @@ test("studio hovers match the footer: underline only, no color flash", async ({
 }) => {
   await page.emulateMedia({ colorScheme: "dark" });
   await page.goto("/admin");
-  const accent = "rgb(208, 129, 89)";
+  // Dark clay in both computed-color serializations (rgb vs P3).
+  const accent = /208, 129, 89|0\.795 0\.506 0\.342/;
   for (const sel of ["#edit-list .row-title", "#edit-list .row-edit"]) {
     const link = page.locator(sel).first();
     await expect(link).toHaveCSS("color", accent);
@@ -330,7 +332,7 @@ test("reduced motion kills movement, keeps gentle fades", async ({ page }) => {
   ).toHaveCSS("transform", "none");
   await expect(page.locator("#edit-list .row-edit").first()).toHaveCSS(
     "color",
-    "rgb(164, 74, 36)",
+    /164, 74, 36|0\.622 0\.289 0\.133/,
   );
 });
 
@@ -1722,7 +1724,8 @@ test("collection falls back to the baked-in list when the API fails", async ({
   );
   // Script-built rows still wear the studio styles (accent links, boxed rows).
   const color = await rows.first().evaluate((el) => getComputedStyle(el).color);
-  expect(color).toBe("rgb(164, 74, 36)");
+  // Same clay in both computed-color serializations (rgb vs P3).
+  expect(color).toMatch(/164, 74, 36|0\.622 0\.289 0\.133/);
   const box = await rows.first().evaluate((el) => {
     const li = el.closest("li");
     return li === null ? "" : getComputedStyle(li).borderStyle;

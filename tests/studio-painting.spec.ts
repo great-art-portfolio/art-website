@@ -296,7 +296,7 @@ test("secondary actions fade their hovers", async ({ page }) => {
   await page.locator(".de-check:has(#de-sold)").hover();
   await expect(page.locator("#de-sold")).toHaveCSS(
     "border-color",
-    "rgb(164, 74, 36)",
+    /164, 74, 36|0\.622 0\.289 0\.133/,
   );
 });
 
