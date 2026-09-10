@@ -252,9 +252,6 @@ const currentSection = adminSection(Astro.url.pathname);
           <button type="button" id="notify-btn" class="btn-primary">
             Notify me with this browser
           </button>
-          <button type="button" id="notify-push-retry" class="btn-ghost" hidden>
-            Try browser alerts again
-          </button>
           <div class="email-capture">
             <p>
               Prefer email? One email per new painting, nothing else, and your
@@ -528,35 +525,19 @@ const currentSection = adminSection(Astro.url.pathname);
         const btn = btnEl instanceof HTMLButtonElement ? btnEl : null;
         const hint = document.getElementById("notify-status");
         const blurb = document.getElementById("notify-push-blurb");
-        const retryEl = document.getElementById("notify-push-retry");
-        const retry = retryEl instanceof HTMLButtonElement ? retryEl : null;
         if (btn === null || hint === null) return;
         wireNotifyEmail();
         // Email works everywhere; the push button only where push can.
+        // A dead push service keeps its button: the verdict says what to
+        // fix, and tapping Notify retries the attempt directly.
         const run = ++paintSeq;
-        const api = await notifyPush();
-        const s = await api.pushState();
+        const s = await notifyPush().then((api) => api.pushState());
         if (run !== paintSeq) return;
-        const hidePush = (reoffer = false) => {
+        if (s === "unsupported") {
           btn.hidden = true;
           if (blurb !== null) blurb.hidden = true;
-          if (retry !== null) retry.hidden = !reoffer;
-        };
-        if (s === "unsupported") {
-          hidePush(false);
           return;
         }
-        // A remembered dead push service: email only, with a quiet way
-        // back if the browser gets fixed.
-        if (api.isPushUnavailable()) {
-          hidePush(true);
-          return;
-        }
-        // Push is offerable again (the flag just cleared, or never
-        // stood) — unhide whatever an earlier paint put away.
-        btn.hidden = false;
-        if (blurb !== null) blurb.hidden = false;
-        if (retry !== null) retry.hidden = true;
         if (s === "subscribed") {
           btn.textContent = "Notifying this browser — turn off";
           notifyUnsay(hint);
@@ -641,19 +622,6 @@ const currentSection = adminSection(Astro.url.pathname);
             if (sel !== null && sel.toString() !== "") return;
             dlg.close();
           });
-          // A browser fixed later gets its button back through here.
-          const retryEl = document.getElementById("notify-push-retry");
-          const retryBtn =
-            retryEl instanceof HTMLButtonElement ? retryEl : null;
-          if (retryBtn !== null && retryBtn.dataset.wired !== "1") {
-            retryBtn.dataset.wired = "1";
-            retryBtn.addEventListener("click", () => {
-              void notifyPush().then((api) => {
-                api.clearPushUnavailable();
-                void paintNotify();
-              });
-            });
-          }
           // Tapping the status line copies it — selecting it by hand is
           // fiddly in a card, so a tap plus a toast does the job.
           const hintEl = document.getElementById("notify-status");
@@ -684,11 +652,6 @@ const currentSection = adminSection(Astro.url.pathname);
                     // "Waiting…" line, and the verdict below survives
                     // because nothing runs after it.
                     void api.subscribePush().then(async (result) => {
-                      // Proof either way: success lifts any earlier flag,
-                      // a dead service raises it (the next paint hides
-                      // push and leaves email standing).
-                      if (result === "subscribed") api.clearPushUnavailable();
-                      if (result === "nopushservice") api.notePushUnavailable();
                       await paintNotify();
                       if (hint === null) return;
                       if (result === "subscribed") {
@@ -1129,7 +1092,6 @@ const currentSection = adminSection(Astro.url.pathname);
   }
   /* Author display beats the UA [hidden] rule — re-hide. */
   #notify-dialog #notify-btn[hidden],
-  #notify-dialog #notify-push-retry[hidden],
   #notify-dialog #notify-push-blurb[hidden] {
     display: none;
   }

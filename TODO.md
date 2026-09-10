@@ -375,3 +375,9 @@ Push to main for CI; real upload test on barbart.ca/admin.
   (localStorage); later modal paints hide the push half and leave email
   standing, with a quiet Try-again button that lifts the flag. Success
   clears it. Modal specs detect mock mode and wait for the push paint.
+
+## Status 2026-09-10 — retry button removed (committed below)
+
+- No Try-again button: the Notify button itself is the retry path. The
+  flag machinery, hiding, and their tests are gone; detection plus the
+  sticky settings-worded verdict stay.

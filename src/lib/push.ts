@@ -29,44 +29,6 @@ function supported(): boolean {
   );
 }
 
-/** Remembered proof this browser can't reach its push service (a subscribe
- * attempt failed at the service). Local only, silent when storage is
- * missing — the modal hides the push half while this stands. */
-const UNAVAILABLE_KEY = "notify-push-unavailable";
-
-function storage(): Storage | null {
-  try {
-    if (typeof localStorage === "undefined") return null;
-    return localStorage;
-  } catch {
-    return null;
-  }
-}
-
-export function isPushUnavailable(): boolean {
-  try {
-    return storage()?.getItem(UNAVAILABLE_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-export function notePushUnavailable(): void {
-  try {
-    storage()?.setItem(UNAVAILABLE_KEY, "1");
-  } catch {
-    // A browser that refuses storage still gets the message once.
-  }
-}
-
-export function clearPushUnavailable(): void {
-  try {
-    storage()?.removeItem(UNAVAILABLE_KEY);
-  } catch {
-    // Nothing to clear.
-  }
-}
-
 export async function pushState(): Promise<PushState> {
   if (!supported()) return "unsupported";
   if (Notification.permission === "denied") return "denied";

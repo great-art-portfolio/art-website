@@ -290,28 +290,6 @@ test("tapping status text copies it with a toast", async ({
   expect(pasted).toContain(words);
 });
 
-test("remembered dead push folds the modal to email-only", async ({ page }) => {
-  await page.goto("/");
-  // An earlier visit proved push can't work here — the modal adapts.
-  await page.evaluate(() =>
-    localStorage.setItem("notify-push-unavailable", "1"),
-  );
-  await page.locator("#notify-nav").click();
-  await expect(page.locator("#notify-dialog")).toBeVisible();
-  await expect(page.locator("#notify-btn")).toBeHidden();
-  await expect(page.locator("#notify-push-blurb")).toBeHidden();
-  // Email still stands, with a quiet way back if the browser gets fixed.
-  await expect(page.locator("#notify-email-form")).toBeVisible();
-  const retry = page.locator("#notify-push-retry");
-  await expect(retry).toBeVisible();
-  await retry.click();
-  await expect(page.locator("#notify-btn")).toBeVisible();
-  const flag = await page.evaluate(() =>
-    localStorage.getItem("notify-push-unavailable"),
-  );
-  expect(flag).toBe(null);
-});
-
 test("buyer signup validates, and needs the list set up", async ({
   request,
 }) => {
