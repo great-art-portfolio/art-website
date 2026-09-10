@@ -3,16 +3,9 @@ import type { AppEnv } from "./env";
 /**
  * Buyer-inquiry notifications.
  *
- * Why Resend: a Worker cannot run an SMTP server on its own — mail has to be
- * handed to a sending service. Resend's free tier fits this shop two ways:
- * one-to-one mail (inquiries, confirmations, goodbyes) goes transactional
- * (3,000/month, 100/day — plenty here), while new-painting broadcasts go
- * to a Resend segment via the Broadcasts API (free marketing tier:
- * 1,000 contacts, unlimited sends). The alternative is Gmail API + OAuth
- * tokens, which is more fragile.
- *
- * Phone ping for inquiry alerts is Pushover-only, and optional: email
- * already reaches the artist, so nothing breaks with it unset.
+ * One-to-one mail (inquiries, confirmations, goodbyes) goes transactional;
+ * new-painting broadcasts go to a Resend segment via the Broadcasts API.
+ * Inquiry phone pings are Pushover-only and optional.
  */
 
 export interface InquiryAlert {
@@ -289,11 +282,7 @@ export async function sendSegmentBroadcast(
   }
 }
 
-/**
- * Keep the segment mirroring the confirmed list: confirming adds the
- * contact, leaving deletes it. D1 stays the source of truth — a failed
- * sync only logs, it never blocks the join or the goodbye.
- */
+/** Confirming creates the contact in the segment (or re-adds it). */
 export async function syncContactSubscribed(
   env: AppEnv,
   email: string,
