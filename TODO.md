@@ -381,3 +381,10 @@ Push to main for CI; real upload test on barbart.ca/admin.
 - No Try-again button: the Notify button itself is the retry path. The
   flag machinery, hiding, and their tests are gone; detection plus the
   sticky settings-worded verdict stay.
+
+## Status 2026-09-10 — per-visit dead-push note (committed below)
+
+- No retry button, no flag: a nopushservice failure hides the push button
+  for that modal visit and shows a persistent settings note; reopening
+  starts fresh, so Notify itself is the retry path. Covered by a spec
+  that forces the service error in-browser.

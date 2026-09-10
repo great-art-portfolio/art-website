@@ -290,6 +290,48 @@ test("tapping status text copies it with a toast", async ({
   expect(pasted).toContain(words);
 });
 
+test("dead push service stands its button down with a settings note", async ({
+  page,
+}) => {
+  // Headless denies notification permission no matter the grant, so
+  // force it: permission reads granted, the prompt answers granted, and
+  // registration then fails the way a browser with no push service does.
+  await page.addInitScript(() => {
+    Object.defineProperty(window.Notification, "permission", {
+      value: "granted",
+      configurable: true,
+    });
+    Object.defineProperty(window.Notification, "requestPermission", {
+      value: async () => "granted",
+      configurable: true,
+    });
+    const failure = new DOMException(
+      "Registration failed - push service error",
+      "AbortError",
+    );
+    const proto = window.PushManager?.prototype;
+    if (proto) {
+      proto.subscribe = async () => {
+        throw failure;
+      };
+    }
+  });
+  await page.goto("/");
+  await page.locator("#notify-nav").click();
+  await page.locator("#notify-btn").click();
+  const note = page.locator("#notify-push-note");
+  await expect(note).toBeVisible();
+  await expect(note).toContainText("push messaging");
+  await expect(page.locator("#notify-btn")).toBeHidden();
+  // Email stands; reopening starts fresh with the button back.
+  await expect(page.locator("#notify-email-form")).toBeVisible();
+  await page.locator("#notify-close").click();
+  await expect(page.locator("#notify-dialog")).toBeHidden();
+  await page.locator("#notify-nav").click();
+  await expect(page.locator("#notify-btn")).toBeVisible();
+  await expect(note).toBeHidden();
+});
+
 test("buyer signup validates, and needs the list set up", async ({
   request,
 }) => {

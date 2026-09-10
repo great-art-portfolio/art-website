@@ -252,6 +252,11 @@ const currentSection = adminSection(Astro.url.pathname);
           <button type="button" id="notify-btn" class="btn-primary">
             Notify me with this browser
           </button>
+          <p class="hint" id="notify-push-note" role="status" hidden>
+            Browser alerts aren't available in this browser — check that push
+            messaging is switched on in its settings, then close and reopen this
+            box to try again.
+          </p>
           <div class="email-capture">
             <p>
               Prefer email? One email per new painting, nothing else, and your
@@ -400,6 +405,10 @@ const currentSection = adminSection(Astro.url.pathname);
           if (typeof dlg.showModal === "function") dlg.showModal();
           else dlg.setAttribute("open", "");
         }
+        // Every opening starts fresh: last visit's dead service gets its
+        // button back, and the attempt decides again.
+        pushDeadThisVisit = false;
+        void paintNotify();
         // Render the spam check on open (hidden modals mismeasure). No-op twice.
         loadNotifyTurnstile();
         const closeEl = document.getElementById("notify-close");
@@ -518,18 +527,21 @@ const currentSection = adminSection(Astro.url.pathname);
       }
 
       // Drawer opens repaint while the load-time paint may still await push
-      // state — only the latest run writes.
+      // state — only the latest run writes. A dead service stands its
+      // button down for this visit only; reopening starts fresh, so no
+      // remembered state and no extra button are needed.
       let paintSeq = 0;
+      let pushDeadThisVisit = false;
       async function paintNotify() {
         const btnEl = document.getElementById("notify-btn");
         const btn = btnEl instanceof HTMLButtonElement ? btnEl : null;
         const hint = document.getElementById("notify-status");
         const blurb = document.getElementById("notify-push-blurb");
+        const noteEl = document.getElementById("notify-push-note");
+        const note = noteEl instanceof HTMLElement ? noteEl : null;
         if (btn === null || hint === null) return;
         wireNotifyEmail();
         // Email works everywhere; the push button only where push can.
-        // A dead push service keeps its button: the verdict says what to
-        // fix, and tapping Notify retries the attempt directly.
         const run = ++paintSeq;
         const s = await notifyPush().then((api) => api.pushState());
         if (run !== paintSeq) return;
@@ -538,6 +550,18 @@ const currentSection = adminSection(Astro.url.pathname);
           if (blurb !== null) blurb.hidden = true;
           return;
         }
+        // Known dead this visit: the button stands down, the note says
+        // what to check, email carries on.
+        if (pushDeadThisVisit) {
+          btn.hidden = true;
+          if (blurb !== null) blurb.hidden = true;
+          if (note !== null) note.hidden = false;
+          notifyUnsay(hint);
+          return;
+        }
+        btn.hidden = false;
+        if (blurb !== null) blurb.hidden = false;
+        if (note !== null) note.hidden = true;
         if (s === "subscribed") {
           btn.textContent = "Notifying this browser — turn off";
           notifyUnsay(hint);
@@ -652,6 +676,13 @@ const currentSection = adminSection(Astro.url.pathname);
                     // "Waiting…" line, and the verdict below survives
                     // because nothing runs after it.
                     void api.subscribePush().then(async (result) => {
+                      // A dead service stands down for this visit — the
+                      // paint shows the note, so no verdict is needed.
+                      if (result === "nopushservice") {
+                        pushDeadThisVisit = true;
+                        await paintNotify();
+                        return;
+                      }
                       await paintNotify();
                       if (hint === null) return;
                       if (result === "subscribed") {
@@ -667,14 +698,6 @@ const currentSection = adminSection(Astro.url.pathname);
                         notifySay(
                           hint,
                           "Browser alerts need the live site — this preview can't register this browser.",
-                        );
-                      } else if (result === "nopushservice") {
-                        // Sticky: acting on this means leaving for the
-                        // browser's settings and coming back.
-                        notifySay(
-                          hint,
-                          "This browser couldn't reach the push service — check that push messaging is switched on in your browser settings and you're online, then try again.",
-                          true,
                         );
                       } else {
                         notifySay(
@@ -983,6 +1006,15 @@ const currentSection = adminSection(Astro.url.pathname);
     #notify-dialog .status-wrap {
       transition: none;
     }
+  }
+  /* The dead-service note speaks in the status line's accent voice and,
+     unlike status words, never fades — acting on it means leaving for
+     the browser's settings and coming back. */
+  #notify-dialog #notify-push-note {
+    margin: 0.6rem 0 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--accent);
   }
   /* The status line taps to copy, so it wears the copy pointer. The
      toast floats over the card's foot — opacity-only, in every motion
