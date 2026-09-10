@@ -706,9 +706,12 @@ const currentSection = adminSection(Astro.url.pathname);
                           "Browser alerts need the live site — this preview can't register this browser.",
                         );
                       } else if (result === "nopushservice") {
+                        // Sticky: acting on this means leaving for the
+                        // browser's settings and coming back.
                         notifySay(
                           hint,
-                          "This browser couldn't reach the push service — check your connection, or try a different browser.",
+                          "This browser couldn't reach the push service — check that push messaging is switched on in your browser settings and you're online, then try again.",
+                          true,
                         );
                       } else {
                         notifySay(
