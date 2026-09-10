@@ -1,5 +1,6 @@
 import type { AppEnv } from "../_lib/env";
 import { badRequest, json, serverError } from "../_lib/http";
+import { parsePushSubscribe, parsePushUnsubscribe } from "../_lib/validation";
 
 /** Public: VAPID public key so browsers can subscribe (safe to expose). */
 export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
@@ -20,9 +21,8 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   }
   try {
     if (body["action"] === "unsubscribe") {
-      const endpoint =
-        typeof body["endpoint"] === "string" ? body["endpoint"] : "";
-      if (endpoint === "") return badRequest("endpoint is required");
+      const endpoint = parsePushUnsubscribe(body);
+      if (endpoint === null) return badRequest("endpoint is required");
       await context.env.DB.prepare(
         "DELETE FROM push_subscriptions WHERE endpoint = ?",
       )
@@ -30,22 +30,13 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
         .run();
       return json({ ok: true });
     }
-    const sub = body["subscription"] as
-      | { endpoint?: unknown; keys?: { p256dh?: unknown; auth?: unknown } }
-      | undefined;
-    const endpoint = typeof sub?.endpoint === "string" ? sub.endpoint : "";
-    if (endpoint === "" || !endpoint.startsWith("https://")) {
-      return badRequest("A valid subscription is required");
-    }
-    // Throws on malformed URLs — also proves it's parseable for VAPID aud.
-    new URL(endpoint);
-    const p256dh = typeof sub?.keys?.p256dh === "string" ? sub.keys.p256dh : "";
-    const auth = typeof sub?.keys?.auth === "string" ? sub.keys.auth : "";
+    const sub = parsePushSubscribe(body);
+    if (sub === null) return badRequest("A valid subscription is required");
     await context.env.DB.prepare(
       `INSERT INTO push_subscriptions (endpoint, p256dh, auth) VALUES (?, ?, ?)
        ON CONFLICT(endpoint) DO UPDATE SET p256dh = excluded.p256dh, auth = excluded.auth`,
     )
-      .bind(endpoint, p256dh, auth)
+      .bind(sub.endpoint, sub.p256dh, sub.auth)
       .run();
     return json({ ok: true }, { status: 201 });
   } catch (err) {

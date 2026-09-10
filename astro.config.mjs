@@ -5,6 +5,11 @@ import { defineConfig } from "astro/config";
 export default defineConfig({
   // Live origin: feeds absolute share/sitemap addresses at build time.
   site: "https://barbart.ca",
+  image: {
+    // Stock sharp drops embedded ICC profiles; five of seven painting
+    // photos are Display P3. Ours keeps them (see src/lib/image-service).
+    service: { entrypoint: "./src/lib/image-service.ts" },
+  },
   vite: {
     server: {
       // Studio dev loop only (`pnpm dev:studio`): the local content API

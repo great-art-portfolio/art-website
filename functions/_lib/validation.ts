@@ -72,3 +72,51 @@ export function parseJwk(raw: unknown): JsonWebKey | null {
   // structurally a JsonWebKey, no cast.
   return result.data;
 }
+
+/** Push subscribe / unsubscribe POST bodies. Endpoints must be https
+ * (and parseable — the VAPID audience reads the origin); keys ride
+ * along as strings when the browser sends them. */
+const pushSubscribeSchema = z.object({
+  subscription: z.object({
+    endpoint: z.string().refine(
+      (url) => {
+        if (!url.startsWith("https://")) return false;
+        try {
+          new URL(url);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      { message: "A valid subscription is required" },
+    ),
+    keys: z
+      .object({ p256dh: z.unknown(), auth: z.unknown() })
+      .partial()
+      .optional(),
+  }),
+});
+
+export interface PushSubscription {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+}
+
+export function parsePushSubscribe(raw: unknown): PushSubscription | null {
+  const result = pushSubscribeSchema.safeParse(raw);
+  if (!result.success) return null;
+  const keys = result.data.subscription.keys ?? {};
+  return {
+    endpoint: result.data.subscription.endpoint,
+    p256dh: typeof keys.p256dh === "string" ? keys.p256dh : "",
+    auth: typeof keys.auth === "string" ? keys.auth : "",
+  };
+}
+
+const pushUnsubscribeSchema = z.object({ endpoint: z.string().min(1) });
+
+export function parsePushUnsubscribe(raw: unknown): string | null {
+  const result = pushUnsubscribeSchema.safeParse(raw);
+  return result.success ? result.data.endpoint : null;
+}

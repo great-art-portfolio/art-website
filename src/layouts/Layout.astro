@@ -743,10 +743,15 @@ const currentSection = adminSection(Astro.url.pathname);
     --muted: #756a5c;
     --line: #e5dccb;
     --accent: #a44a24;
+    /* Wide-gamut screens get the same clay with more chroma — computed
+       same-hue in Oklch, verified against the system color engine.
+       Older browsers keep the hex above. */
+    --accent: color(display-p3 0.622 0.289 0.133);
     --accent-ink: #ffffff;
     /* Primary buttons: clay on light (an ink slab reads pitch black
        against cream), light-on-dark ink everywhere else. */
     --primary: #a44a24;
+    --primary: color(display-p3 0.622 0.289 0.133);
     --primary-ink: #ffffff;
     --primary-hover: color-mix(in srgb, #a44a24 80%, black);
     /* Delete hover only: a soft clay red, clearly not the brand
@@ -1354,6 +1359,7 @@ const currentSection = adminSection(Astro.url.pathname);
       --muted: #a89e8e;
       --line: #35302a;
       --accent: #d08159;
+      --accent: color(display-p3 0.795 0.506 0.342);
       --primary: #ece5d8;
       --primary-ink: #171512;
       --primary-hover: #d08159;
