@@ -60,10 +60,10 @@ export function confirmEmail(confirmUrl: string): {
   text: string;
 } {
   return {
-    subject: "Confirm your new-painting alerts",
+    subject: "Confirm your studio alerts",
     text: [
-      "Someone (hopefully you) asked for one email per new painting",
-      "from Barbara Straka's studio.",
+      "Someone (hopefully you) asked for new paintings and events",
+      "by email from Barbara Straka's studio.",
       "",
       "Confirm here:",
       confirmUrl,

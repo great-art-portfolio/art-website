@@ -38,7 +38,7 @@ import Layout from "../../layouts/Layout.astro";
         lib.settleToken("confirm", email, token).then(function (verdict) {
           el.textContent =
             verdict === "ok"
-              ? "You're on the list — one email per new painting."
+              ? "You're on the list — new paintings and events."
               : "That link didn't work — it may be older than a week. Join again from any Notify me box.";
         });
       });
