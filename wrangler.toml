@@ -48,20 +48,8 @@ CF_ACCOUNT_ID = "ee6937662d7aeda01d2a6f1f49a1168a"  # feeds /admin "Most viewed"
 CF_ANALYTICS_SITE = "ddd0b31f86c24e31a4fbabd86185e210"  # beacon token doubles as the site tag
 # (CF_ANALYTICS_TOKEN is a secret: API token with Account Analytics: Read)
 
-# Secrets (set in the Cloudflare dashboard, never committed):
-#   VAPID_PRIVATE_JWK   - secret JSON from `node scripts/gen-vapid.mjs`
-#   TURNSTILE_SECRET_KEY - secret from the same Turnstile widget
-#   RESEND_API_KEY      - Resend API key for buyer-inquiry emails
-#   ARTIST_INBOX        - the artist's inbox (mom's email address)
-# Plain vars (dashboard > Environment variables, or committed above):
-#   VAPID_PUBLIC_KEY    - actually public: also served via GET /api/push
-#   VAPID_CONTACT       - plain var, e.g. mailto:hello@barbart.ca
-#   TURNSTILE_SITE_KEY  - plain var from Security > Turnstile > Add site
-#   RESEND_SEGMENT_ID   - Resend segment for the new-painting list (dashboard > Audiences > Segments > copy ID).
-#                         The segment IS the list. Required for subscribe/broadcast/count; empty = list endpoints 500.
-#   ARTIST_SENDER       - plain var, e.g. "Gallery <hello@yourdomain.ca>"
-#   ADMIN_API_TOKEN     - shared secret for /admin API calls (defense in depth behind Access)
-#   PUSHOVER_APP_TOKEN / PUSHOVER_USER_KEY - optional, if she prefers Pushover over ntfy
-#   STRIPE_SECRET_KEY   - only when ENABLE_STRIPE = "true"
-#   SHIPPO_API_TOKEN    - only when ENABLE_SHIPPO = "true"
-#   AYRSHARE_API_KEY    - only when ENABLE_SOCIAL_POST = "true"
+# Dashboard secrets (never committed): VAPID_PRIVATE_JWK, TURNSTILE_SECRET_KEY,
+# RESEND_API_KEY, ARTIST_INBOX, ADMIN_API_TOKEN, PUSHOVER_APP_TOKEN,
+# PUSHOVER_USER_KEY, STRIPE_SECRET_KEY, SHIPPO_API_TOKEN, AYRSHARE_API_KEY.
+# Dashboard plain vars: TURNSTILE_SITE_KEY, RESEND_SEGMENT_ID (the new-painting
+# list; blank disables it).
