@@ -321,7 +321,7 @@ test("dead push service stands its button down with a settings note", async ({
   await page.locator("#notify-btn").click();
   const note = page.locator("#notify-push-note");
   await expect(note).toBeVisible();
-  await expect(note).toContainText("push messaging");
+  await expect(note).toContainText("push notifications aren't enabled");
   await expect(page.locator("#notify-btn")).toBeHidden();
   // Email stands; reopening starts fresh with the button back.
   await expect(page.locator("#notify-email-form")).toBeVisible();
