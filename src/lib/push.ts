@@ -52,6 +52,9 @@ export type SubscribeResult =
 
 export async function subscribePush(): Promise<SubscribeResult> {
   if (!supported()) return "failed";
+  // Stage-tagged console breadcrumbs: the page shows plain words, but a
+  // failure like this one needs a trail when it is reported.
+  let stage = "config";
   try {
     const cfgRes = await fetch("/api/push");
     // No push endpoint here at all (a dev preview) — different from a
@@ -60,9 +63,11 @@ export async function subscribePush(): Promise<SubscribeResult> {
     const raw = (await cfgRes.json()) as unknown;
     const parsed = pushConfigSchema.safeParse(raw);
     if (!parsed.success || parsed.data.publicKey === "") return "failed"; // Server keys not set up yet.
+    stage = "permission";
     const permission = await Notification.requestPermission();
     if (permission === "default") return "cancelled";
     if (permission !== "granted") return "blocked";
+    stage = "service-worker";
     const reg = await navigator.serviceWorker.ready;
     const sub =
       (await reg.pushManager.getSubscription()) ??
@@ -70,13 +75,15 @@ export async function subscribePush(): Promise<SubscribeResult> {
         userVisibleOnly: true,
         applicationServerKey: b64ToU8(parsed.data.publicKey),
       }));
+    stage = "store";
     const res = await fetch("/api/push", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "subscribe", subscription: sub.toJSON() }),
     });
     return res.ok ? "subscribed" : "failed";
-  } catch {
+  } catch (err) {
+    console.warn(`push subscribe failed at ${stage}`, err);
     return "failed";
   }
 }

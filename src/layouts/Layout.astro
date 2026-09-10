@@ -641,8 +641,11 @@ const currentSection = adminSection(Astro.url.pathname);
                   if (state === "subscribed") {
                     void api.unsubscribePush().then(() => void paintNotify());
                   } else {
+                    // Sticky: the browser's permission popup can sit open
+                    // past the normal fade, and the verdict below replaces
+                    // this either way.
                     if (hint !== null)
-                      notifySay(hint, "Waiting for your browser…");
+                      notifySay(hint, "Waiting for your browser…", true);
                     // Repaint first, then report: painting clears the
                     // "Waiting…" line, and the verdict below survives
                     // because nothing runs after it.
