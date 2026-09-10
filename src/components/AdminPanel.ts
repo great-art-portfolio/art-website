@@ -1377,10 +1377,33 @@ function init(): void {
       tickleBtn.addEventListener("click", () => {
         const status = document.getElementById("tickle-status");
         if (status === null) return;
+        // Answer every tap at once: the count loads behind this, and the
+        // next result can never be mistaken for this tap's leftover text.
+        status.textContent = "Pinging…";
+        fadeIn(status);
+        // Name the reach up front — a ping can't be unsent. Nobody
+        // subscribed (or count failed to load) means no question to ask.
+        // A cancelled ask leaves the line as it found it.
+        void api.pushSubscriberCount().then((total) => {
+          if (
+            total !== null &&
+            total > 0 &&
+            !window.confirm(`This will ping ${total} browsers. Are you sure?`)
+          ) {
+            status.textContent = "";
+            return;
+          }
+          sendTickle();
+        });
+      });
+      function sendTickle(): void {
+        const btn = tickleBtn instanceof HTMLButtonElement ? tickleBtn : null;
+        const status = document.getElementById("tickle-status");
+        if (btn === null || status === null) return;
         const lineInput = document.getElementById("tickle-body");
         const line =
           lineInput instanceof HTMLInputElement ? lineInput.value.trim() : "";
-        tickleBtn.disabled = true;
+        btn.disabled = true;
         status.textContent = "Pinging…";
         fadeIn(status);
         api
@@ -1407,9 +1430,9 @@ function init(): void {
             fadeIn(status);
           })
           .finally(() => {
-            tickleBtn.disabled = false;
+            btn.disabled = false;
           });
-      });
+      }
     }
 
     function saveBanner(allowEmpty: boolean): void {

@@ -5,6 +5,7 @@ import {
   commitSchema,
   localBackendSchema,
   notifySchema,
+  pushCountSchema,
   paintingFileSchema,
   paintingFilesSchema,
   statusSchema,
@@ -251,6 +252,20 @@ export const api = {
       }),
     });
     return data;
+  },
+  /**
+   * How many browsers a ping would reach. Never throws — null means the
+   * count didn't load, and the ping should just go ahead unwarned.
+   */
+  async pushSubscriberCount(): Promise<number | null> {
+    try {
+      const data = await request("/api/notify", pushCountSchema, {
+        headers: adminHeaders(),
+      });
+      return data.total;
+    } catch {
+      return null;
+    }
   },
 };
 

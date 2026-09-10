@@ -1363,9 +1363,64 @@ test("tickle button pings browsers without email", async ({ page }) => {
   // A custom line rides along and is stored for the ping to show.
   await page.locator("#tickle-body").fill("New seascape just listed");
   await btn.click();
+  // Every tap answers at once, so this result can't be the first tap's
+  // leftover text — wait out this tap's own cycle.
+  await expect(status).toContainText("Pinging");
   await expect(status).toContainText("Nobody to ping yet");
   const stored = await page.request.get("/api/push-message");
   expect(await stored.json()).toEqual({ body: "New seascape just listed" });
+});
+
+test("tickle button names its reach and asks first", async ({ page }) => {
+  await page.goto("/admin/banner");
+  // The field names the default note — blank never surprises.
+  await expect(page.locator("#tickle-body")).toHaveAttribute(
+    "placeholder",
+    "Blank: Something new in the gallery — tap to see it",
+  );
+  // Five subscribed browsers: the button must ask before it pings.
+  await page.route("**/api/notify", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ total: 5 }),
+      });
+    } else {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          sent: 5,
+          total: 5,
+          gone: 0,
+          failed: 0,
+          emailed: false,
+          emailTotal: 0,
+        }),
+      });
+    }
+  });
+  const btn = page.locator("#tickle-send");
+  const status = page.locator("#tickle-status");
+  const asked: string[] = [];
+  page.on("dialog", async (dialog) => {
+    asked.push(dialog.message());
+    // First say no, then yes.
+    if (asked.length === 1) await dialog.dismiss();
+    else await dialog.accept();
+  });
+  // Saying no sends nothing — still idle, button back.
+  await btn.click();
+  await expect.poll(() => asked.length).toBe(1);
+  expect(asked[0]).toBe("This will ping 5 browsers. Are you sure?");
+  await expect(status).toBeEmpty();
+  await expect(btn).toBeEnabled();
+  // Saying yes pings all five.
+  await btn.click();
+  await expect.poll(() => asked.length).toBe(2);
+  await expect(status).toContainText("Pinged 5 of 5 browsers.");
+  await expect(btn).toBeEnabled();
 });
 
 test("collection groups available then sold, never bare statuses", async ({
