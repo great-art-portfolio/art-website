@@ -8,7 +8,11 @@ import {
   onRequestGet as collectorsGet,
   onRequestPost as collectorsPost,
 } from "../functions/api/collectors.ts";
-import { collectorsEnv, createCollectorsDb } from "./studio-collectors.mjs";
+import {
+  collectorsEnv,
+  createCollectorsDb,
+  siteOriginFor,
+} from "./studio-collectors.mjs";
 
 export const STUDIO_DEV_API_PORT = 4333;
 
