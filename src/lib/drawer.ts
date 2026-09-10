@@ -118,8 +118,7 @@ export function setDrawerOpen(
   // through the closed details, so easing to the bare box height ends
   // short and the footer snaps on arrival. (Leading margins collapse
   // with the previous sibling outside the box — only trailing counts.)
-  const headStyle =
-    head instanceof HTMLElement ? getComputedStyle(head) : null;
+  const headStyle = head instanceof HTMLElement ? getComputedStyle(head) : null;
   const end =
     head instanceof HTMLElement
       ? head.getBoundingClientRect().height +

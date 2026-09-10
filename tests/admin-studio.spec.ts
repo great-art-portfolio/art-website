@@ -955,9 +955,9 @@ test("Advanced drawer lands without a snap", async ({ page }) => {
     const footer = document.querySelector("footer");
     const details = document.querySelector("#sec-info details");
     if (footer === null || details === null) return Promise.resolve([]);
-    details.querySelector("summary")?.dispatchEvent(
-      new MouseEvent("click", { bubbles: true }),
-    );
+    details
+      .querySelector("summary")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     const t0 = performance.now();
     const ys: Array<[number, number]> = [];
     return new Promise<Array<[number, number]>>((resolve) => {

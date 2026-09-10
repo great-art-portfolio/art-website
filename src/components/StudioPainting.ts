@@ -128,10 +128,7 @@ function setPreviewHtml(el: HTMLElement, html: string): void {
 function refreshPreview(): void {
   const title = $("de-title").value.trim();
   const priceRaw = $("de-price").value.trim();
-  setPreviewHtml(
-    $("pv-title"),
-    escHtml(title === "" ? "Untitled" : title),
-  );
+  setPreviewHtml($("pv-title"), escHtml(title === "" ? "Untitled" : title));
   const cents = dollarsToCents(Number(priceRaw));
   setPreviewHtml(
     $("pv-price"),
