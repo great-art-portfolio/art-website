@@ -462,12 +462,13 @@ const currentSection = adminSection(Astro.url.pathname);
                       typeof d.devConfirmUrl === "string" &&
                       d.devConfirmUrl !== ""
                     ) {
-                      // Dev mock list only — no email went out. The words
-                      // tap to copy, so the link travels to the address bar.
+                      // Dev mock list only — the link finishes the loop
+                      // locally. The words tap to copy, so it travels to
+                      // the address bar. (A resend.dev test address also
+                      // rode the true API — check Resend's dashboard.)
                       notifySay(
                         hint,
-                        "Dev list — no email sent. Confirm here: " +
-                          d.devConfirmUrl,
+                        "Dev list — confirm here: " + d.devConfirmUrl,
                       );
                     } else {
                       notifySay(

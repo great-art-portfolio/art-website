@@ -19,6 +19,7 @@ import {
   countSegmentContacts,
   goodbyeEmail,
   isConfirmedContact,
+  isResendTestAddress,
   sendSiteEmail,
   syncContactRemoved,
   syncContactSubscribed,
@@ -84,14 +85,29 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       const sub = await mockSubscribe(context.env, email).catch(() => null);
       if (sub === null) return serverError();
       if (sub.already) return json({ ok: true, already: true, emailed: true });
-      // No mail leaves dev: the confirm link rides home in the response,
-      // addressed to this server (the tester opens it in the same browser).
+      // The confirm link rides home in the response, addressed to this
+      // server (the tester opens it in the same browser) — so the loop
+      // always completes locally. Resend test addresses additionally ride
+      // the true API when a key is present: the send lands in Resend's
+      // dashboard, proving key, sender, and payload without touching any
+      // reputation. Nothing else may leave a dev machine.
       const origin = new URL(context.request.url).origin;
+      let emailed = true;
+      if (
+        isResendTestAddress(email) &&
+        (context.env.RESEND_API_KEY ?? "") !== ""
+      ) {
+        emailed = await sendSiteEmail(context.env, {
+          to: [email],
+          replyTo: artistInbox(context.env),
+          ...confirmEmail(confirmLink(origin, email, sub.token)),
+        }).catch(() => false);
+      }
       return json(
         {
           ok: true,
           already: false,
-          emailed: true,
+          emailed,
           devConfirmUrl: confirmLink(origin, email, sub.token),
         },
         { status: 201 },

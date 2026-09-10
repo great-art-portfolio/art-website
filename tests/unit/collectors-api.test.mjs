@@ -262,3 +262,88 @@ describe("admin count", () => {
     assert.equal(calls.length, 0);
   });
 });
+
+describe("dev mock list", () => {
+  /** Empty local table: nobody subscribed yet. */
+  function stubCollectorsDb() {
+    return {
+      prepare: () => ({
+        bind: () => ({
+          first: async () => null,
+          run: async () => ({}),
+        }),
+      }),
+    };
+  }
+
+  function mockPostContext(body, envOverride = {}) {
+    return {
+      request: new Request("http://127.0.0.1:4331/api/collectors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+      env: {
+        COLLECTORS_MOCK: "true",
+        RESEND_API_KEY: "re_test",
+        ARTIST_INBOX: "studio@example.com",
+        ARTIST_SENDER: "Gallery <studio@example.com>",
+        SITE_URL: "https://barbart.ca",
+        DB: stubCollectorsDb(),
+        ...envOverride,
+      },
+    };
+  }
+
+  it("rides the real API for resend.dev test addresses", async () => {
+    stubFetch(() => okRes());
+    const res = await onRequestPost(
+      mockPostContext({ email: "delivered+join@resend.dev" }),
+    );
+    assert.equal(res.status, 201);
+    // The real confirm went out through Resend…
+    const mail = sentEmails().find((m) =>
+      m.to.includes("delivered+join@resend.dev"),
+    );
+    assert.ok(mail, "no real confirm sent to the test address");
+    // …and the loop still completes locally from the same tap.
+    const data = await res.json();
+    assert.match(
+      data.devConfirmUrl,
+      /^http:\/\/127\.0\.0\.1:4331\/email\/confirmed\?/,
+    );
+  });
+
+  it("sends nothing real for ordinary addresses", async () => {
+    stubFetch(() => okRes());
+    const res = await onRequestPost(
+      mockPostContext({ email: "fan@example.com" }),
+    );
+    assert.equal(res.status, 201);
+    assert.equal(sentEmails().length, 0);
+    const data = await res.json();
+    assert.match(
+      data.devConfirmUrl,
+      /^http:\/\/127\.0\.0\.1:4331\/email\/confirmed\?/,
+    );
+  });
+
+  it("stays fully local without a key", async () => {
+    stubFetch(() => {
+      throw new Error("must not send");
+    });
+    const res = await onRequestPost(
+      mockPostContext(
+        { email: "delivered+join@resend.dev" },
+        { RESEND_API_KEY: "" },
+      ),
+    );
+    // Tokens are keyed by the Resend secret, so the mock mints its own.
+    assert.equal(res.status, 201);
+    const data = await res.json();
+    assert.match(
+      data.devConfirmUrl,
+      /^http:\/\/127\.0\.0\.1:4331\/email\/confirmed\?/,
+    );
+  });
+});

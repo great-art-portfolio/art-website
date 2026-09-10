@@ -92,6 +92,17 @@ API-dependent helpers to `lib/api.ts`).
   Exception: under `pnpm dev:studio` the local content API is the backend,
   so saves write real working-tree files (still uncommitted) — no overlay,
   no token needed.
+- Email testing: localhost + `COLLECTORS_MOCK` keeps the join/confirm/leave
+  loop local (confirm link rides home in the response). With a real
+  `RESEND_API_KEY` in `.dev.vars`, subscribing a `*@resend.dev` test address
+  additionally sends the true confirm — check Resend's dashboard, then finish
+  the loop with the local link. Nothing else may leave a dev machine, and
+  never test with `@example.com` (Resend 422s it outright). Docs:
+  [test emails](https://resend.com/docs/dashboard/emails/send-test-emails),
+  [safe test
+  addresses](https://resend.com/docs/knowledge-base/what-email-addresses-to-use-for-testing),
+  [E2E with
+  Playwright](https://resend.com/docs/knowledge-base/end-to-end-testing-with-playwright).
 
 ## Taste (non-negotiable)
 

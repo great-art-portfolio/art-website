@@ -132,6 +132,15 @@ export function segmentId(env: AppEnv): string {
   return env.RESEND_SEGMENT_ID ?? "";
 }
 
+/** Resend's safe test addresses (delivered@, bounced@, complained@…,
+ * all resend.dev, labels allowed). These run the true API without
+ * touching anyone's reputation — the only addresses that may leave
+ * a dev machine, and only with a key present. Never example.com:
+ * Resend 422s those outright. */
+export function isResendTestAddress(email: string): boolean {
+  return /^[A-Za-z0-9._%+-]+@resend\.dev$/i.test(email.trim());
+}
+
 /** The one Resend call everything funnels through. */
 export async function sendSiteEmail(
   env: AppEnv,

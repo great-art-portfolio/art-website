@@ -19,6 +19,10 @@ CF_ANALYTICS_TOKEN=
 CF_ANALYTICS_SITE=
 
 # Mail + push (optional; blank keeps the buttons quiet).
+# With a real key, subscribing a *@resend.dev test address (e.g.
+# delivered+join@resend.dev) also fires the true Resend confirm — check the
+# dashboard, then finish the loop with the local link. Any other address
+# stays fully local. Never test with @example.com: Resend rejects it.
 RESEND_API_KEY=
 # Resend segment holding the new-painting list ("BarbartSubs" in the
 # dashboard). Plain ID, not a secret — without it the list endpoints 500.
