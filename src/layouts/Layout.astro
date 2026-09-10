@@ -462,12 +462,16 @@ const currentSection = adminSection(Astro.url.pathname);
                       typeof d.devConfirmUrl === "string" &&
                       d.devConfirmUrl !== ""
                     ) {
-                      // Dev mock list only — the link finishes the loop
-                      // locally, so it rides as a real anchor: tap visits
-                      // it. (A resend.dev test address also rode the true
-                      // API — check Resend's dashboard.) Tapping the bare
-                      // words still copies, as everywhere else.
-                      notifySay(hint, "Dev list — confirm here: ");
+                      // Dev mock list only — nothing but the link: tap
+                      // visits it and finishes the loop locally. (A
+                      // resend.dev test address also rode the true API —
+                      // check Resend's dashboard.) notifySay opens the
+                      // wrap and plays the arrival; the words are then
+                      // swapped for the bare link. Sticky: status lines
+                      // fade after five seconds, and the link must still
+                      // be there when the tester reaches for it.
+                      notifySay(hint, "open the confirm page", true);
+                      hint.textContent = "";
                       const go = document.createElement("a");
                       go.href = d.devConfirmUrl;
                       go.textContent = "open the confirm page";
@@ -1028,8 +1032,9 @@ const currentSection = adminSection(Astro.url.pathname);
     cursor: copy;
   }
   /* The dev confirm rides as a link, not words — same ink, underlined,
-     and a real pointer instead of the copy one. */
-  #notify-dialog #notify-status a {
+     and a real pointer instead of the copy one. Whole-selector global:
+     the anchor is script-built and never carries Astro's scope attr. */
+  :global(#notify-dialog #notify-status a) {
     color: inherit;
     text-decoration: underline;
     text-underline-offset: 2px;

@@ -95,6 +95,13 @@ test("dev confirm link visits instead of copying", async ({ page }) => {
   await page.locator("#notify-email-form button[type=submit]").click();
   const link = page.locator("#notify-status a");
   await expect(link).toHaveText("open the confirm page");
+  // Nothing but the link — no leading words.
+  await expect(page.locator("#notify-status")).toHaveText(
+    "open the confirm page",
+  );
+  // Status lines fade after five seconds — the link must outlive that.
+  await page.waitForTimeout(5500);
+  await expect(link).toBeVisible();
   await link.click();
   await expect(page).toHaveURL(/\/email\/confirmed/);
 });
