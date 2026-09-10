@@ -11,19 +11,16 @@ NODE_VERSION = "22.12.0"
 GITHUB_REPO = "great-art-portfolio/art-website"
 GITHUB_BRANCH = "main"
 # RESEND_API_KEY=
-RESEND_SEGMENT_ID = "8a7dfb46-fcb9-4716-bc1d-20d65bd3ca4f" # BarbartSubs: the new-painting list
+RESEND_SEGMENT_ID = "8a7dfb46-fcb9-4716-bc1d-20d65bd3ca4f" # BarbartSubs (what we broadcast to)
 ARTIST_SENDER = "Gallery <hello@barbart.ca>" # What the buyer sees
 # ARTIST_INBOX= what the buyer sends their request to
-# Feature flags. Keep "false" until ready to enable each one.
-ENABLE_STRIPE = "false" # secret STRIPE_SECRET_KEY only when true
-ENABLE_SHIPPO = "false" # secret SHIPPO_API_TOKEN only when true
-ENABLE_SOCIAL_POST = "false" # secret AYRSHARE_API_KEY only when true
 VAPID_PUBLIC_KEY = "BLCBFf14oWxzjSGDFknG-5K8UvhbcUnw7-ewBy-rmVgS6ME9Z9KDkFJBBKW2C9EQAUlGNgy-H8TnMmA6GiDgBzY"
 VAPID_CONTACT = "mailto:hello@barbart.ca"
 # VAPID_PRIVATE_JWK= (`node scripts/gen-vapid.mjs`)
-# /admin "Most viewed". Secret: CF_ANALYTICS_TOKEN (API token, Account Analytics: Read).
+
 CF_ACCOUNT_ID = "ee6937662d7aeda01d2a6f1f49a1168a" # feeds /admin "Most viewed"
 CF_ANALYTICS_SITE = "ddd0b31f86c24e31a4fbabd86185e210" # beacon token doubles as the site tag
+# CF_ANALYTICS_TOKEN =(API token, Account Analytics: Read).
 # /admin password (defense in depth behind Access). Secret: ADMIN_API_TOKEN.
 
 [[d1_databases]]
