@@ -48,7 +48,12 @@ export async function pushState(): Promise<PushState> {
  * a dismissal is never reported as a server problem.
  */
 export type SubscribeResult =
-  "subscribed" | "cancelled" | "blocked" | "failed" | "unavailable";
+  | "subscribed"
+  | "cancelled"
+  | "blocked"
+  | "failed"
+  | "unavailable"
+  | "nopushservice";
 
 export async function subscribePush(): Promise<SubscribeResult> {
   if (!supported()) return "failed";
@@ -84,6 +89,16 @@ export async function subscribePush(): Promise<SubscribeResult> {
     return res.ok ? "subscribed" : "failed";
   } catch (err) {
     console.warn(`push subscribe failed at ${stage}`, err);
+    // The browser itself couldn't reach its push service (never
+    // connected, blocked at the network, switched off) — the site did
+    // nothing wrong, so say exactly that.
+    if (
+      err instanceof DOMException &&
+      err.name === "AbortError" &&
+      /push service/i.test(err.message)
+    ) {
+      return "nopushservice";
+    }
     return "failed";
   }
 }

@@ -666,6 +666,11 @@ const currentSection = adminSection(Astro.url.pathname);
                           hint,
                           "Browser alerts need the live site — this preview can't register this browser.",
                         );
+                      } else if (result === "nopushservice") {
+                        notifySay(
+                          hint,
+                          "This browser couldn't reach the push service — check your connection, or try a different browser.",
+                        );
                       } else {
                         notifySay(
                           hint,
