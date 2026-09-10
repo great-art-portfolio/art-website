@@ -14,8 +14,6 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
     // Site key is public by design (it ships in page HTML).
     turnstileSiteKey: context.env.TURNSTILE_SITE_KEY ?? "",
     email: (context.env.RESEND_API_KEY ?? "") !== "",
-    push:
-      (context.env.NTFY_TOPIC ?? "") !== "" ||
-      (context.env.PUSHOVER_APP_TOKEN ?? "") !== "",
+    push: (context.env.PUSHOVER_APP_TOKEN ?? "") !== "",
   });
 };

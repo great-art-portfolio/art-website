@@ -67,9 +67,8 @@ through Resend's own footer link instead of the Leave button, the
 segment just drops them — rejoining re-adds them, so check the Resend
 dashboard when the /admin count looks off. Collector push is Web Push
 (VAPID) fanned out from `/admin`; the service worker shows a generic
-tickle and the gallery does the talking. ntfy stays as the free phone
-ping for _inquiry_ alerts (optional second channel alongside email),
-Pushover optional.
+tickle and the gallery does the talking. Inquiry alerts reach the
+artist by email, with an optional Pushover ping alongside.
 
 ## Checkout + shipping (disabled until needed)
 

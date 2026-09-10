@@ -26,11 +26,9 @@ export interface AppEnv {
    * verified Resend domain, or mail only reaches the Resend account
    * email. */
   ARTIST_SENDER?: string;
-  /** The artist's inbox: buyer inquiries land here, and broadcast
-   * copies too. Never on the website — but new-painting mail carries
-   * it in the To line, so it must be an inbox buyers may see. */
+  /** The artist's inbox: buyer inquiries land here, broadcast replies
+   * return here. Never on the website. */
   ARTIST_INBOX?: string;
-  NTFY_TOPIC?: string;
   PUSHOVER_APP_TOKEN?: string;
   PUSHOVER_USER_KEY?: string;
   ENABLE_STRIPE?: string;

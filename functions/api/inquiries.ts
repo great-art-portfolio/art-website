@@ -7,9 +7,9 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * Public: a visitor asks about a painting. Nothing is stored — the note is
- * emailed straight to the artist (Resend) plus an ntfy/phone ping, with the
- * buyer's address as reply-to. Paintings live in git, so the page sends its
- * own title + price along; no database lookup involved.
+ * emailed straight to the artist (Resend), plus an optional Pushover ping,
+ * with the buyer's address as reply-to. Paintings live in git, so the page
+ * sends its own title + price along; no database lookup involved.
  */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   let body: Record<string, unknown>;

@@ -6,7 +6,6 @@ interface __BaseEnv_Env {
   ENABLE_STRIPE: "false";
   ENABLE_SHIPPO: "false";
   ENABLE_SOCIAL_POST: "false";
-  NTFY_TOPIC: "art-gallery-inquiries";
   Resend: string;
   VAPID_PRIVATE_JWK: string;
   VAPID_PUBLIC_KEY: string;
@@ -26,7 +25,6 @@ declare namespace Cloudflare {
     ENABLE_STRIPE: "false";
     ENABLE_SHIPPO: "false";
     ENABLE_SOCIAL_POST: "false";
-    NTFY_TOPIC: "art-gallery-inquiries";
     Resend: string;
     VAPID_PRIVATE_JWK: string;
     VAPID_PUBLIC_KEY: string;

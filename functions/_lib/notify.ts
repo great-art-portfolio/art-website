@@ -11,9 +11,8 @@ import type { AppEnv } from "./env";
  * 1,000 contacts, unlimited sends). The alternative is Gmail API + OAuth
  * tokens, which is more fragile.
  *
- * Why ntfy (not Pushover by default): ntfy is free and needs no account —
- * install the ntfy iOS app, subscribe to a private topic, done. Pushover
- * ($5 one-time) is supported as an optional second channel.
+ * Phone ping for inquiry alerts is Pushover-only, and optional: email
+ * already reaches the artist, so nothing breaks with it unset.
  */
 
 export interface InquiryAlert {
@@ -371,15 +370,6 @@ async function sendPush(
   message: string,
 ): Promise<boolean> {
   const jobs: Promise<boolean>[] = [];
-  if (env.NTFY_TOPIC !== undefined && env.NTFY_TOPIC !== "") {
-    jobs.push(
-      fetch(`https://ntfy.sh/${env.NTFY_TOPIC}`, {
-        method: "POST",
-        headers: { Title: title },
-        body: message,
-      }).then((res) => res.ok),
-    );
-  }
   if (
     env.PUSHOVER_APP_TOKEN !== undefined &&
     env.PUSHOVER_APP_TOKEN !== "" &&
