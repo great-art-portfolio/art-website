@@ -2,4 +2,31 @@ User-agent: *
 Allow: /
 Disallow: /admin/
 
+# AI training crawlers: the paintings are the product, not the dataset.
+# Advisory only — Cloudflare's AI Labyrinth (dashboard toggle) is the
+# enforcement for bots that ignore this file.
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: FacebookBot
+Disallow: /
+
 Sitemap: https://barbart.ca/sitemap.xml
