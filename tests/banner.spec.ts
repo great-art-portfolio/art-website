@@ -112,6 +112,27 @@ test("empty update is refused, Remove clears the file", async ({ page }) => {
   expect(body).toBe("");
 });
 
+test("preview wears the wording, fading in and out", async ({ page }) => {
+  await page.route("**/api/commit*", async (route) => {
+    await route.fulfill({ json: { announcement: "" } });
+  });
+  await page.route("**/api/status", async (route) => {
+    await route.fulfill({ json: flags });
+  });
+  await page.goto("/admin/banner");
+  const field = page.locator("#f-announce");
+  const preview = page.locator("#banner-preview");
+  await expect(field).toBeVisible();
+  await expect(preview).toBeHidden();
+  // Typing brings the note up, wearing the words live.
+  await field.fill("Lilac Festival this Sunday!");
+  await expect(preview).toBeVisible();
+  await expect(preview).toHaveText("Lilac Festival this Sunday!");
+  // Clearing fades it out, then it leaves the layout.
+  await field.fill("");
+  await expect(preview).toBeHidden({ timeout: 5000 });
+});
+
 test("active banner shows above the collection", async ({ page }) => {
   const text = "Lilac Festival this Sunday!";
   await page.route("http://127.0.0.1:4331/", async (route) => {

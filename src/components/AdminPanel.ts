@@ -1279,13 +1279,49 @@ function init(): void {
   // removing commit the announcement file (or a dev preview).
   if (onBanner) {
     // The preview wears the wording live — what she types is what
-    // buyers see, before anything is published.
+    // buyers see, before anything is published. Opacity-only, like the
+    // status lines, so every motion setting gets the same gentle fade.
+    let previewGen = 0;
+    let previewFade: Animation | null = null;
     const syncBannerPreview = (): void => {
       const preview = document.getElementById("banner-preview");
       if (preview === null) return;
       const text = $("f-announce").value.trim().slice(0, 280);
+      const gen = ++previewGen;
+      // A fresh keystroke retires any fade still playing, so a stale
+      // fade-out never dims new words (cancelling snaps back to full).
+      if (previewFade !== null) {
+        previewFade.cancel();
+        previewFade = null;
+      }
+      if (text === "") {
+        if (preview.hidden) return;
+        // Words fade out first; layout leaves after arrival. A fresh
+        // keystroke invalidates the hiding below.
+        if (typeof preview.animate === "function") {
+          const out = preview.animate([{ opacity: 1 }, { opacity: 0 }], {
+            duration: 180,
+          });
+          previewFade = out;
+          out.onfinish = () => {
+            if (gen !== previewGen) return;
+            preview.hidden = true;
+            preview.textContent = "";
+          };
+          return;
+        }
+        preview.hidden = true;
+        preview.textContent = "";
+        return;
+      }
+      const showing = preview.hidden;
       preview.textContent = text;
-      preview.hidden = text === "";
+      preview.hidden = false;
+      if (showing && typeof preview.animate === "function") {
+        previewFade = preview.animate([{ opacity: 0 }, { opacity: 1 }], {
+          duration: 220,
+        });
+      }
     };
     $("f-announce").addEventListener("input", () => syncBannerPreview());
     api
