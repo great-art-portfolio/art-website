@@ -1416,12 +1416,21 @@ test("tickle button pings browsers without email", async ({ page }) => {
   if (btnBox !== null && secBox !== null) {
     expect(btnBox.width).toBeLessThan(secBox.width / 2);
   }
-  // Keyless there are no subscribers: the honest empty result, faded in.
+  // Keyless there are no subscribers: the question comes first, then
+  // the honest empty result, faded in.
+  const asked: string[] = [];
+  page.on("dialog", async (dialog) => {
+    asked.push(dialog.message());
+    await dialog.accept();
+  });
   await btn.click();
   const status = page.locator("#tickle-status");
   await expect(status).toContainText("Nobody to ping yet");
   await expect(status).toHaveClass(/fade-in/);
   await expect(btn).toBeEnabled();
+  expect(asked).toEqual([
+    "Nobody to ping yet — no browsers subscribed. Send anyway?",
+  ]);
   // A custom line rides along and is stored for the ping to show.
   await page.locator("#tickle-body").fill("New seascape just listed");
   await btn.click();

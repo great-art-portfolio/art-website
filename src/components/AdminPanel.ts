@@ -1700,15 +1700,17 @@ function wireTickle(): void {
       // next result can never be mistaken for this tap's leftover text.
       status.textContent = "Pinging…";
       fadeIn(status);
-      // Name the reach up front — a ping can't be unsent. Nobody
-      // subscribed (or count failed to load) means no question to ask.
+      // Name the reach up front — a ping can't be unsent. The empty
+      // result always comes after this question, never before it.
       // A cancelled ask leaves the line as it found it.
       void api.pushSubscriberCount().then((total) => {
-        if (
-          total !== null &&
-          total > 0 &&
-          !window.confirm(`This will ping ${total} browsers. Are you sure?`)
-        ) {
+        const ask =
+          total === null
+            ? "Couldn't check the list — send the ping anyway?"
+            : total > 0
+              ? `This will ping ${total} browsers. Are you sure?`
+              : "Nobody to ping yet — no browsers subscribed. Send anyway?";
+        if (!window.confirm(ask)) {
           status.textContent = "";
           return;
         }
