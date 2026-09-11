@@ -137,7 +137,24 @@ describe("studio push mock", () => {
     const res = await mock.handlePushMessage(
       new Request("http://127.0.0.1/api/push-message"),
     );
-    assert.deepEqual(await res.json(), { body: "Hello dev" });
+    assert.deepEqual(await res.json(), { body: "Hello dev", title: "" });
+  });
+
+  it("stores a custom title with the line", async () => {
+    const mock = createStudioPushMock(await cacheDir());
+    await mock.handleNotify(
+      post("/api/notify", {
+        push: { title: "  Fresh today  ", body: "Hello dev" },
+        email: false,
+      }),
+    );
+    const res = await mock.handlePushMessage(
+      new Request("http://127.0.0.1/api/push-message"),
+    );
+    assert.deepEqual(await res.json(), {
+      body: "Hello dev",
+      title: "Fresh today",
+    });
   });
 
   it("skips the fan-out when push is off", async () => {

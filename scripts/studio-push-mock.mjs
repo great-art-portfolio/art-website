@@ -89,6 +89,7 @@ export function createStudioPushMock(cacheDir) {
   let keypair = null;
   const subs = new Map();
   let customLine = "";
+  let customTitle = "";
 
   async function keys() {
     if (keypair === null) keypair = await loadKeypair(cacheDir);
@@ -158,7 +159,7 @@ export function createStudioPushMock(cacheDir) {
     if (req.method !== "GET") {
       return json({ error: "Method not allowed" }, { status: 405 });
     }
-    return json({ body: customLine });
+    return json({ body: customLine, title: customTitle });
   }
 
   async function handleNotify(req) {
@@ -189,6 +190,9 @@ export function createStudioPushMock(cacheDir) {
       customLine = String(pushOpt.body ?? "")
         .trim()
         .slice(0, 180);
+      customTitle = String(pushOpt.title ?? "")
+        .trim()
+        .slice(0, 80);
     }
     const wantPush = body?.push !== false;
     let sent = 0;

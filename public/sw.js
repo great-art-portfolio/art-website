@@ -158,8 +158,10 @@ self.addEventListener("push", (event) => {
       .catch(() => ({}))
       .then((msg) => {
         const line = msg && typeof msg.body === "string" ? msg.body.trim() : "";
+        const heading =
+          msg && typeof msg.title === "string" ? msg.title.trim() : "";
         return self.registration.showNotification(
-          "Something new in the gallery",
+          heading === "" ? "Something new in the gallery" : heading,
           {
             body: line === "" ? "Tap to see it." : line,
             icon: "/favicon.png",

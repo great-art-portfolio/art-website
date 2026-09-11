@@ -136,25 +136,34 @@ export async function removeSubscription(
     .run();
 }
 
-/** Custom ping line the next tickle shows. Tickles carry no payload (no
- * encryption), so the service worker fetches this when one arrives;
- * empty means the standard note. One row, ever. */
+/** Custom ping title + line the next tickle shows. Tickles carry no
+ * payload (no encryption), so the service worker fetches this when one
+ * arrives; empties mean the standard title and note. One row, ever. */
 export async function savePushMessage(
   env: AppEnv,
   body: string,
+  title = "",
 ): Promise<void> {
   await env.DB.prepare(
-    "INSERT INTO push_message (id, body) VALUES (1, ?) ON CONFLICT (id) DO UPDATE SET body = excluded.body",
+    "INSERT INTO push_message (id, body, title) VALUES (1, ?, ?) ON CONFLICT (id) DO UPDATE SET body = excluded.body, title = excluded.title",
   )
-    .bind(body)
+    .bind(body, title)
     .run();
 }
 
-export async function readPushMessage(env: AppEnv): Promise<string> {
-  const row = await env.DB.prepare("SELECT body FROM push_message WHERE id = 1")
+export interface PushCopy {
+  body: string;
+  title: string;
+}
+
+export async function readPushMessage(env: AppEnv): Promise<PushCopy> {
+  const row = await env.DB.prepare(
+    "SELECT body, title FROM push_message WHERE id = 1",
+  )
     .bind()
-    .first<{ body: string }>();
-  return row?.body ?? "";
+    .first<{ body: string; title: string | null }>();
+  // Rows written before the title column existed read back null.
+  return { body: row?.body ?? "", title: row?.title ?? "" };
 }
 
 /** Default gap between browser ping fan-outs, so a repeated tap can't

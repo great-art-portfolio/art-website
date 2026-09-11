@@ -235,9 +235,10 @@ export const api = {
    * { push: false } or { email: false } to send one side only.
    * { push: { body } } stores a custom line the ping shows; { push: {
    * body, cursor } } continues a big list where the last batch stopped.
+   * { push: { title } } sets a custom title — blank keeps the standard one.
    */
   async notifyCollectors(channels?: {
-    push?: boolean | { body?: string; cursor?: number };
+    push?: boolean | { title?: string; body?: string; cursor?: number };
     email?: boolean;
   }): Promise<{
     sent: number;

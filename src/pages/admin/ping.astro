@@ -13,6 +13,16 @@ import "../../components/studio.css";
         real system ping on this browser only — nothing goes to subscribers.
       </p>
       <label
+        >Title (optional)
+        <input
+          type="text"
+          id="tickle-title"
+          maxlength="80"
+          autocomplete="off"
+          placeholder="Blank: Something new in the gallery"
+        />
+      </label>
+      <label
         >Message (optional)
         <input
           type="text"
@@ -31,7 +41,8 @@ import "../../components/studio.css";
       <div id="tickle-preview" aria-label="How the ping will look">
         <img src="/favicon.png" alt="" width="40" height="40" />
         <p>
-          <strong>Something new in the gallery</strong>
+          <strong id="tickle-preview-title">Something new in the gallery</strong
+          >
           <span id="tickle-preview-body">Tap to see it.</span>
         </p>
       </div>

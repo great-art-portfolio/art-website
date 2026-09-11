@@ -62,9 +62,12 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
           const line = String(tickle["body"] ?? "")
             .trim()
             .slice(0, 180);
+          const title = String(tickle["title"] ?? "")
+            .trim()
+            .slice(0, 80);
           // A missing table (DB not yet migrated) must not eat the ping.
-          await savePushMessage(context.env, line).catch((err: unknown) =>
-            console.error("push message store failed", err),
+          await savePushMessage(context.env, line, title).catch(
+            (err: unknown) => console.error("push message store failed", err),
           );
           if (total > 0) {
             const cooldown = pushCooldownMs(context.env);

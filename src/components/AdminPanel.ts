@@ -1593,24 +1593,37 @@ function init(): void {
 // Ping page (and anywhere else the sections land): the browser
 // ping. Runs only where its markup exists, so pages never touch each
 // other's sections.
+/** Ping page fields, trimmed. Blanks mean the standard title/note. */
+function readTickleTitle(): string {
+  const el = document.getElementById("tickle-title");
+  return el instanceof HTMLInputElement ? el.value.trim().slice(0, 80) : "";
+}
+
+function readTickleLine(): string {
+  const el = document.getElementById("tickle-body");
+  return el instanceof HTMLInputElement ? el.value.trim().slice(0, 180) : "";
+}
+
 function wireTickle(): void {
-  // The preview wears the notification shape live — blank shows the
-  // standard note, exactly what buyers get.
+  // The preview wears the notification shape live — blanks show the
+  // standard title and note, exactly what buyers get.
   const syncTicklePreview = (): void => {
+    const title = document.getElementById("tickle-preview-title");
     const body = document.getElementById("tickle-preview-body");
-    if (body === null) return;
-    const lineInput = document.getElementById("tickle-body");
-    const line =
-      lineInput instanceof HTMLInputElement ? lineInput.value.trim() : "";
+    if (title === null || body === null) return;
+    title.textContent = readTickleTitle() || "Something new in the gallery";
+    const line = readTickleLine();
     body.textContent = line === "" ? "Tap to see it." : line;
   };
-  const lineField = document.getElementById("tickle-body");
-  if (
-    lineField instanceof HTMLInputElement &&
-    lineField.dataset.previewWired !== "1"
-  ) {
-    lineField.dataset.previewWired = "1";
-    lineField.addEventListener("input", syncTicklePreview);
+  for (const id of ["tickle-title", "tickle-body"]) {
+    const fieldEl = document.getElementById(id);
+    if (
+      fieldEl instanceof HTMLInputElement &&
+      fieldEl.dataset.previewWired !== "1"
+    ) {
+      fieldEl.dataset.previewWired = "1";
+      fieldEl.addEventListener("input", syncTicklePreview);
+    }
   }
   syncTicklePreview();
   // A device preview is a local notification, not a broadcast: it goes
@@ -1628,17 +1641,19 @@ function wireTickle(): void {
         fadeIn(status);
         return;
       }
-      const lineInput = document.getElementById("tickle-body");
-      const line =
-        lineInput instanceof HTMLInputElement ? lineInput.value.trim() : "";
+      const line = readTickleLine();
+      const heading = readTickleTitle();
       const show = (): void => {
         try {
-          const note = new Notification("Something new in the gallery", {
-            body: line === "" ? "Tap to see it." : line,
-            icon: "/favicon.png",
-            badge: "/favicon.png",
-            tag: "gallery-preview",
-          });
+          const note = new Notification(
+            heading === "" ? "Something new in the gallery" : heading,
+            {
+              body: line === "" ? "Tap to see it." : line,
+              icon: "/favicon.png",
+              badge: "/favicon.png",
+              tag: "gallery-preview",
+            },
+          );
           // Tapping the preview opens the homepage, like a real ping.
           note.onclick = () => {
             window.open("/", "_blank");
@@ -1704,9 +1719,8 @@ function wireTickle(): void {
       const btn = tickleBtn instanceof HTMLButtonElement ? tickleBtn : null;
       const status = document.getElementById("tickle-status");
       if (btn === null || status === null) return;
-      const lineInput = document.getElementById("tickle-body");
-      const line =
-        lineInput instanceof HTMLInputElement ? lineInput.value.trim() : "";
+      const title = readTickleTitle();
+      const line = readTickleLine();
       btn.disabled = true;
       status.textContent = "Pinging…";
       fadeIn(status);
@@ -1716,7 +1730,9 @@ function wireTickle(): void {
       let pinged = 0;
       const pingBatch = (): void => {
         const push =
-          cursor === undefined ? { body: line } : { body: line, cursor };
+          cursor === undefined
+            ? { title, body: line }
+            : { title, body: line, cursor };
         api
           .notifyCollectors({ push, email: false })
           .then((r) => {

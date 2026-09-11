@@ -1430,7 +1430,10 @@ test("tickle button pings browsers without email", async ({ page }) => {
   await expect(status).toContainText("Pinging");
   await expect(status).toContainText("Nobody to ping yet");
   const stored = await page.request.get("/api/push-message");
-  expect(await stored.json()).toEqual({ body: "New seascape just listed" });
+  expect(await stored.json()).toEqual({
+    body: "New seascape just listed",
+    title: "",
+  });
 });
 
 test("ping preview wears the notification shape live", async ({ page }) => {
@@ -1453,6 +1456,15 @@ test("ping preview wears the notification shape live", async ({ page }) => {
   await page.locator("#tickle-body").fill("");
   await expect(preview.locator("#tickle-preview-body")).toHaveText(
     "Tap to see it.",
+  );
+  // The title edits the same way — blank keeps the standard one.
+  await page.locator("#tickle-title").fill("Fresh today");
+  await expect(preview.locator("#tickle-preview-title")).toHaveText(
+    "Fresh today",
+  );
+  await page.locator("#tickle-title").fill("");
+  await expect(preview.locator("#tickle-preview-title")).toHaveText(
+    "Something new in the gallery",
   );
 });
 
@@ -1478,17 +1490,18 @@ test("device preview sends a local ping, never a broadcast", async ({
     (window as unknown as Record<string, unknown>)["__notes"] = seen;
   });
   await page.goto("/admin/ping");
+  await page.locator("#tickle-title").fill("Fresh today");
   await page.locator("#tickle-body").fill("New seascape just listed");
   await page.locator("#tickle-preview-send").click();
   // The page says the ping went out on this browser only.
   await expect(page.locator("#tickle-status")).toContainText("Preview sent");
-  // And it wears the real ping's shape: fixed title, her line, her icon.
+  // And it wears her words: custom title, custom line, her icon.
   const shown = await page.evaluate(
     () => (window as unknown as Record<string, unknown>)["__notes"],
   );
   expect(shown).toEqual([
     {
-      title: "Something new in the gallery",
+      title: "Fresh today",
       opts: {
         body: "New seascape just listed",
         icon: "/favicon.png",
