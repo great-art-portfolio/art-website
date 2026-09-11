@@ -2210,6 +2210,18 @@ test("collection rows link published paintings to their qr card", async ({
   ).toHaveCount(0);
 });
 
+test("the QR mark itself opens its print card", async ({ page }) => {
+  await mockCommitApi(page);
+  await page.goto("/admin");
+  const mark = page
+    .locator('[data-group="available"] .row-card .qr-mini')
+    .first();
+  await expect(mark.locator("svg")).toBeAttached({ timeout: 15000 });
+  // The mark rides inside the link — tapping the icon lands anchored.
+  await mark.click();
+  await expect(page).toHaveURL(/\/admin\/qr-codes\/#.+/);
+});
+
 test("qr cards print one code at a time", async ({ page }) => {
   // The print dialog never opens under test — count the call, then run
   // the afterprint cleanup by hand.

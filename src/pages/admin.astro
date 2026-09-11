@@ -438,14 +438,9 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
   :global(#edit-list .qr-mini svg path) {
     fill: currentColor;
   }
-  /* The chip hugs its link — one unit, not two actions adrift. */
-  :global(#edit-list .qr-pair) {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-  }
   /* Edit and Delete ride side by side, each with its own small icon —
-     wrapping when a third action (Restore) joins them. */
+     wrapping when a third action (Restore) joins them. The QR mark rides
+     inside its link, so the whole unit answers a tap. */
   :global(#edit-list .row-actions) {
     display: flex;
     gap: 0.4rem 0.75rem;
