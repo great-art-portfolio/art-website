@@ -413,23 +413,30 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
   :global(#edit-list .row-qr) {
     font-size: 0.85rem;
   }
-  /* Mini QR chip: white whatever the theme (dark modules need it),
-     fixed size from first paint so filling it never shoves the row.
-     Rows arrive via innerHTML, so whole-selector :global() twins. */
+  /* Mini QR mark: pencil-sized, clay modules, no chip behind it —
+     it reads as an icon beside its link, not a second image. Fixed size
+     from first paint so filling it never shoves the row. Rows arrive
+     via innerHTML, so whole-selector :global() twins. */
   :global(#edit-list .qr-mini) {
-    width: 1.5rem;
-    height: 1.5rem;
-    box-sizing: border-box;
-    padding: 2px;
+    width: 0.8125rem;
+    height: 0.8125rem;
     flex-shrink: 0;
     align-self: center;
-    background: #fff;
-    border-radius: 5px;
+    color: var(--accent);
+    background: none;
   }
   :global(#edit-list .qr-mini svg) {
     width: 100%;
     height: 100%;
     display: block;
+  }
+  /* The generator paints a white plate plus black modules (presentation
+     attributes, so plain CSS wins): drop the plate, ink the modules. */
+  :global(#edit-list .qr-mini svg rect) {
+    fill: none;
+  }
+  :global(#edit-list .qr-mini svg path) {
+    fill: currentColor;
   }
   /* The chip hugs its link — one unit, not two actions adrift. */
   :global(#edit-list .qr-pair) {
@@ -441,7 +448,7 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
      wrapping when a third action (Restore) joins them. */
   :global(#edit-list .row-actions) {
     display: flex;
-    gap: 0.4rem 1.2rem;
+    gap: 0.4rem 0.75rem;
     align-items: center;
     flex-wrap: wrap;
   }

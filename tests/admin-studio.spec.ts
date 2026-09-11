@@ -2194,6 +2194,17 @@ test("collection rows link published paintings to their qr card", async ({
     '[data-group="available"] .row-card .qr-mini svg, [data-group="sold"] .row-card .qr-mini svg',
   );
   expect(await minis.count()).toBeGreaterThan(0);
+  // The mark is pencil-sized, plateless, and clay — an icon, not an image.
+  const mini = page
+    .locator('[data-group="available"] .row-card .qr-mini')
+    .first();
+  await expect(mini).toHaveCSS("width", "13px");
+  await expect(mini).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  const moduleFill = await mini
+    .locator("svg path")
+    .evaluate((el) => window.getComputedStyle(el).fill);
+  expect(moduleFill).not.toBe("rgb(0, 0, 0)");
+  expect(moduleFill).not.toBe("rgb(255, 255, 255)");
   await expect(
     page.locator('[data-group="drafts"] .row-card .qr-mini'),
   ).toHaveCount(0);
