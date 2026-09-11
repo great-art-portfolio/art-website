@@ -76,6 +76,31 @@ test("gallery photos never paint letterbox bars", async ({ page }) => {
   await expect(img).toHaveCSS("object-fit", "contain");
 });
 
+test("the mat hugs every photo shape at zoom", async ({ page }) => {
+  // Short viewport stands in for high zoom: the height cap clamps, and
+  // the box must still match the photo's own aspect — no side margins
+  // on squares, no surprises on portraits.
+  await page.setViewportSize({ width: 1400, height: 500 });
+  await page.goto("/");
+  const imgs = page.locator("#gallery-static .card .mat img");
+  const count = await imgs.count();
+  expect(count).toBeGreaterThan(1);
+  for (let i = 0; i < Math.min(count, 4); i++) {
+    const ratio = await imgs.nth(i).evaluate((el: HTMLImageElement) => {
+      const box = el.getBoundingClientRect();
+      if (box.height === 0) return null;
+      return {
+        box: box.width / box.height,
+        natural: el.naturalWidth / el.naturalHeight,
+      };
+    });
+    expect(ratio).not.toBeNull();
+    if (ratio !== null) {
+      expect(Math.abs(ratio.box - ratio.natural)).toBeLessThan(0.05);
+    }
+  }
+});
+
 test("inquiry fields preview their ring on hover", async ({ page }) => {
   expect(available.length).toBeGreaterThan(0);
   await page.goto(`/paintings/${available[0]?.slug ?? ""}`);

@@ -287,17 +287,18 @@ const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
     }
   }
   .mat img {
-    width: 100%;
+    /* Sized to the art, not the column: with both maxes set the box
+       always matches the photo's own aspect, so there is no letterbox
+       at any zoom — the mat hugs every shape the same. Narrower photos
+       center instead of stretching. */
+    width: auto;
+    max-width: 100%;
     height: auto;
+    max-height: 80vh;
+    margin: 0 auto;
     display: block;
     border-radius: 0.25rem;
-    /* Transparent, never a plate: when the height cap below clamps a
-       tall photo (zoomed pages hit it first), object-fit letterboxes —
-       and the bars must melt into the mat, not paint white beside art. */
     background: transparent;
-    /* Future extreme portraits: cap height instead of letting one tall
-       card stretch its row. object-fit keeps the art undistorted. */
-    max-height: 80vh;
     object-fit: contain;
   }
   .caption {
