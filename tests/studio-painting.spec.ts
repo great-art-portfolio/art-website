@@ -59,20 +59,25 @@ test("draft room looks like the buyer page, empty and editable", async ({
 });
 
 test("a stale autosave never overrides the file", async ({ page }) => {
-  await page.goto("/admin/paintings/prairie-moon");
-  await expect(page.locator("#de-sold")).toBeChecked();
-  // Yesterday's backup says unsold — the file says sold, so the file
-  // wins and the stale entry goes away.
+  // Uses a title, not the sold flag — no painting needs to be sold for
+  // this to prove the file wins.
+  await page.goto("/admin/paintings/first-thaw");
+  await expect(page.locator("#de-title")).toHaveValue("First Thaw");
+  // Yesterday's backup renames it — the file says First Thaw, so the
+  // file wins and the stale entry goes away.
   await page.evaluate(() => {
     const main = document.getElementById("main");
     const key = `studio-autosave-v1|edit|${main?.dataset.slug}|${main?.dataset.mdPath}`;
     window.localStorage.setItem(
       key,
-      JSON.stringify({ sold: false, savedAt: Date.now() - 25 * 3600 * 1000 }),
+      JSON.stringify({
+        title: "Stale Title",
+        savedAt: Date.now() - 25 * 3600 * 1000,
+      }),
     );
   });
   await page.reload();
-  await expect(page.locator("#de-sold")).toBeChecked();
+  await expect(page.locator("#de-title")).toHaveValue("First Thaw");
   const leftover = await page.evaluate(() =>
     Object.keys(window.localStorage).filter((k) =>
       k.startsWith("studio-autosave-v1|"),
