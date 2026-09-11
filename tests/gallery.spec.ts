@@ -66,6 +66,16 @@ test("gallery shows one card per available painting, each linked correctly", asy
   }
 });
 
+test("gallery photos never paint letterbox bars", async ({ page }) => {
+  await page.goto("/");
+  // Zoomed pages clamp tall photos (max-height + contain): the bars must
+  // melt into the mat, so the photo element itself carries no plate.
+  const img = page.locator("#gallery-static .card .mat img").first();
+  await expect(img).toBeVisible();
+  await expect(img).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(img).toHaveCSS("object-fit", "contain");
+});
+
 test("inquiry fields preview their ring on hover", async ({ page }) => {
   expect(available.length).toBeGreaterThan(0);
   await page.goto(`/paintings/${available[0]?.slug ?? ""}`);

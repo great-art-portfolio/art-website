@@ -392,6 +392,18 @@ function readFields(): FieldSet | null {
  * on every save/delete exit. */
 let autosaveTimer = 0;
 
+/** Dimension keystrokes share one rebuild: the timer restarts on every
+ * keypress, so "20" builds once, not twice. Photo and rotation swaps
+ * are discrete acts and still build at once. */
+let arBuildTimer = 0;
+
+function scheduleArBuild(): void {
+  window.clearTimeout(arBuildTimer);
+  arBuildTimer = window.setTimeout(() => {
+    if (preparedBlob !== null) void autoBuildAr();
+  }, 900);
+}
+
 function autosaveKey(mode: string, slug: string, mdPath: string): string {
   return `studio-autosave-v1|${mode}|${slug}|${mdPath}`;
 }
@@ -936,7 +948,7 @@ function initStudio(): void {
     $(id).addEventListener("input", () => {
       refreshPreview();
       scheduleAutosave();
-      if (preparedBlob !== null) void autoBuildAr();
+      scheduleArBuild();
     });
   }
 

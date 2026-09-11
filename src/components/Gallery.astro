@@ -291,7 +291,10 @@ const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
     height: auto;
     display: block;
     border-radius: 0.25rem;
-    background: #eee;
+    /* Transparent, never a plate: when the height cap below clamps a
+       tall photo (zoomed pages hit it first), object-fit letterboxes —
+       and the bars must melt into the mat, not paint white beside art. */
+    background: transparent;
     /* Future extreme portraits: cap height instead of letting one tall
        card stretch its row. object-fit keeps the art undistorted. */
     max-height: 80vh;

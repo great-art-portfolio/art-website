@@ -278,6 +278,32 @@ test("draft photo builds its own wall preview", async ({ page }) => {
   await expect(page.locator("#de-ar-waiting")).toBeHidden();
 });
 
+test("dimension typing shares one rebuild, never one per keystroke", async ({
+  page,
+}) => {
+  await page.goto("/admin/paintings/new");
+  await page
+    .locator("#de-photo")
+    .setInputFiles("src/content/paintings/1943x1967.jpg");
+  const viewer = page.locator("#ar-stage model-viewer");
+  await expect(viewer).toBeAttached({ timeout: 30_000 });
+  // Typing a width must not yank the finished viewer that same instant —
+  // keystrokes share one rebuild after a short idle. Pinned to this exact
+  // node: a locator would re-find its replacement and hide the yank.
+  const node = await viewer.elementHandle();
+  expect(node !== null).toBe(true);
+  const srcBefore = await viewer.getAttribute("src");
+  await page.locator("#de-w").fill("20");
+  expect(await node?.evaluate((el) => el.isConnected)).toBe(true);
+  // …and the shared rebuild still lands once she pauses (fresh model URL).
+  await expect
+    .poll(
+      async () => page.locator("#ar-stage model-viewer").getAttribute("src"),
+      { timeout: 30_000 },
+    )
+    .not.toBe(srcBefore);
+});
+
 test("edit room arrives prefilled with save, visibility, and delete", async ({
   page,
 }) => {
