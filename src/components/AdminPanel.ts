@@ -8,7 +8,6 @@ import {
   type BakedRow,
 } from "../lib/schemas";
 import { studioRowHtml as rowHtml, viewsLabel } from "../lib/studio-rows";
-import qrcode from "qrcode-generator";
 import {
   compareGalleryOrder,
   groupByAvailability,
@@ -262,7 +261,7 @@ let lastRenderedRows: LocalPainting[] = [];
  * a glance. Placeholders ride the row markup (SSR and client render
  * identically, sized by CSS so nothing shoves); this fills the empty
  * ones after every render. Failures keep the plain link. */
-function fillRowQrs(list: Element): void {
+async function fillRowQrs(list: Element): Promise<void> {
   const empty: Element[] = [];
   for (const el of list.querySelectorAll(".qr-mini:empty")) {
     const actions = el.closest(".row-actions");
@@ -274,6 +273,10 @@ function fillRowQrs(list: Element): void {
   }
   if (empty.length === 0) return;
   try {
+    // Loaded late and alone: in the studio dev server this dependency
+    // sometimes fails to pre-bundle, and a top-level import would take
+    // the whole panel down with it (every preview, every row action).
+    const { default: qrcode } = await import("qrcode-generator");
     for (const el of empty) {
       const slug = el.getAttribute("data-slug") ?? "";
       const code = qrcode(0, "M");
@@ -298,7 +301,7 @@ function renderRows(rows: LocalPainting[]): void {
   // Mini QRs fill here — before the identical-rows early return below,
   // which otherwise keeps SSR first paint mini-less forever. Idempotent:
   // filled placeholders are skipped, kept ones persist.
-  fillRowQrs(list);
+  void fillRowQrs(list);
   const key = rowsKey(rows);
   if (key === lastRowsKey) return;
   lastRowsKey = key;
@@ -359,7 +362,7 @@ function renderRows(rows: LocalPainting[]): void {
       `</ul></details>`;
   }
   list.innerHTML = html;
-  fillRowQrs(list);
+  void fillRowQrs(list);
   wireReorder(list);
   // Wire the fresh folds, restoring open state instantly (a re-render
   // never animates).
@@ -1591,6 +1594,25 @@ function init(): void {
 // ping. Runs only where its markup exists, so pages never touch each
 // other's sections.
 function wireTickle(): void {
+  // The preview wears the notification shape live — blank shows the
+  // standard note, exactly what buyers get.
+  const syncTicklePreview = (): void => {
+    const body = document.getElementById("tickle-preview-body");
+    if (body === null) return;
+    const lineInput = document.getElementById("tickle-body");
+    const line =
+      lineInput instanceof HTMLInputElement ? lineInput.value.trim() : "";
+    body.textContent = line === "" ? "Tap to see it." : line;
+  };
+  const lineField = document.getElementById("tickle-body");
+  if (
+    lineField instanceof HTMLInputElement &&
+    lineField.dataset.previewWired !== "1"
+  ) {
+    lineField.dataset.previewWired = "1";
+    lineField.addEventListener("input", syncTicklePreview);
+  }
+  syncTicklePreview();
   // Standalone browser ping (no email). Disabled mid-flight so a double
   // tap can't fan out twice. A custom line rides along — blank means
   // the standard note.

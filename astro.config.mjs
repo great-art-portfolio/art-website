@@ -11,6 +11,12 @@ export default defineConfig({
     service: { entrypoint: "./src/lib/image-service.ts" },
   },
   vite: {
+    optimizeDeps: {
+      // qrcode-generator's ESM build trips the dev pre-bundler (504s),
+      // which used to take the whole admin panel down with it. Serve it
+      // natively instead — the build is unaffected.
+      exclude: ["qrcode-generator"],
+    },
     server: {
       // Studio dev loop only (`pnpm dev:studio`): the local content API
       // answers /api/* from the working tree. Dev-server-only — the

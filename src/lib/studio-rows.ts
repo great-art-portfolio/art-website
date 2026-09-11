@@ -64,8 +64,8 @@ export function studioRowHtml(r: StudioRowInput): string {
   // their print-ready QR card (a studio page, not a buyer preview).
   const qr =
     !r.trash && !r.draft
-      ? `<span class="qr-mini" aria-hidden="true"></span>` +
-        `<a class="row-qr" href="/admin/qr-codes#${esc(r.slug)}">QR code</a>`
+      ? `<span class="qr-pair"><span class="qr-mini" aria-hidden="true"></span>` +
+        `<a class="row-qr" href="/admin/qr-codes#${esc(r.slug)}">QR code</a></span>`
       : "";
   const actions = r.trash
     ? `<a class="row-edit" href="/admin/paintings/${esc(r.slug)}">${pencilIcon}Edit</a>` +

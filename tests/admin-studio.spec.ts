@@ -1433,6 +1433,29 @@ test("tickle button pings browsers without email", async ({ page }) => {
   expect(await stored.json()).toEqual({ body: "New seascape just listed" });
 });
 
+test("ping preview wears the notification shape live", async ({ page }) => {
+  await page.goto("/admin/ping");
+  const preview = page.locator("#tickle-preview");
+  await expect(preview).toBeVisible();
+  // Her icon, the fixed title, the standard note while blank.
+  await expect(preview.locator("img")).toHaveAttribute("src", "/favicon.png");
+  await expect(preview.locator("strong")).toHaveText(
+    "Something new in the gallery",
+  );
+  await expect(preview.locator("#tickle-preview-body")).toHaveText(
+    "Tap to see it.",
+  );
+  // Typing swaps in her line — the exact words buyers get.
+  await page.locator("#tickle-body").fill("New seascape just listed");
+  await expect(preview.locator("#tickle-preview-body")).toHaveText(
+    "New seascape just listed",
+  );
+  await page.locator("#tickle-body").fill("");
+  await expect(preview.locator("#tickle-preview-body")).toHaveText(
+    "Tap to see it.",
+  );
+});
+
 test("tickle button names its reach and asks first", async ({ page }) => {
   await page.goto("/admin/ping");
   // The field names the default note — blank never surprises.

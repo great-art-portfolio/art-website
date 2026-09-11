@@ -24,6 +24,13 @@ import "../../components/studio.css";
       <div class="row">
         <button type="button" id="tickle-send">Ping subscribers</button>
       </div>
+      <div id="tickle-preview" aria-label="How the ping will look">
+        <img src="/favicon.png" alt="" width="40" height="40" />
+        <p>
+          <strong>Something new in the gallery</strong>
+          <span id="tickle-preview-body">Tap to see it.</span>
+        </p>
+      </div>
       <p class="hint" id="tickle-status" role="status"></p>
     </section>
   </main>
@@ -43,5 +50,36 @@ import "../../components/studio.css";
   }
   #tickle-status:empty {
     display: none;
+  }
+  /* The ping preview wears the notification shape: her icon, the
+     fixed title, the line she's typing. Blank shows the standard
+     note, exactly what buyers get. */
+  #tickle-preview {
+    display: flex;
+    gap: 0.8rem;
+    align-items: center;
+    margin-top: 1rem;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 0.8rem 1rem;
+    max-width: 26rem;
+  }
+  #tickle-preview img {
+    flex-shrink: 0;
+    border-radius: 8px;
+  }
+  #tickle-preview p {
+    margin: 0;
+    min-width: 0;
+  }
+  #tickle-preview strong {
+    display: block;
+    font-size: 0.95rem;
+  }
+  #tickle-preview span {
+    display: block;
+    color: var(--muted);
+    font-size: 0.9rem;
+    overflow-wrap: anywhere;
   }
 </style>

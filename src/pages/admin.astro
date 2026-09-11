@@ -431,6 +431,12 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
     height: 100%;
     display: block;
   }
+  /* The chip hugs its link — one unit, not two actions adrift. */
+  :global(#edit-list .qr-pair) {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
   /* Edit and Delete ride side by side, each with its own small icon —
      wrapping when a third action (Restore) joins them. */
   :global(#edit-list .row-actions) {
