@@ -201,6 +201,7 @@ const currentSection = adminSection(Astro.url.pathname);
       alt=""
       fetchpriority="high"
       aria-hidden="true"
+      transition:persist={backdrop}
     />
     <slot />
 
@@ -1388,6 +1389,14 @@ const currentSection = adminSection(Astro.url.pathname);
         --line: #6b6259;
       }
     }
+  }
+  /* One arrival fade only: #main runs its own 220ms opacity fade, so
+     the View Transitions default root crossfade stays off — otherwise
+     the two multiply into a visible dip and drag the settled header
+     and backdrop along with the content. */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
   }
   /* Reduced motion kills movement, not gentle fades: the background
      drift stops and lifts come off, while color and underline

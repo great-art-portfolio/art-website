@@ -84,6 +84,8 @@ export function ensureTurnstile(
           sitekey: key,
           callback: (token) => onToken(token),
           "expired-callback": () => onToken(""),
+          "error-callback": () => onToken(""),
+          "timeout-callback": () => onToken(""),
         });
       } catch {
         mount.dataset.turnstileWired = "";

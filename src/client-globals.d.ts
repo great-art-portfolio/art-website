@@ -31,6 +31,8 @@ interface Window {
         sitekey: string;
         callback: (token: string) => void;
         "expired-callback"?: () => void;
+        "error-callback"?: () => void;
+        "timeout-callback"?: () => void;
       },
     ) => void;
   };
