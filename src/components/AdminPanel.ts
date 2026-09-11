@@ -1856,15 +1856,18 @@ function wireEmailPreview(): void {
   )
     return;
   let timer: number | null = null;
-  const paint = (preview: { subject: string; text: string } | null): void => {
-    if (preview === null) {
+  const paint = (
+    preview: { subject: string; text: string; html: string } | null,
+  ): void => {
+    if (preview === null || !(bodyEl instanceof HTMLIFrameElement)) {
       fallbackEl.hidden = false;
       return;
     }
     subjectEl.textContent = preview.subject;
     // Resend swaps the placeholder for a real link at send time — say
-    // so in plain words instead of showing the raw curly braces.
-    bodyEl.textContent = preview.text.replace(
+    // so in plain words instead of showing the raw curly braces. The
+    // frame is sandboxed, so the styled email can't touch the page.
+    bodyEl.srcdoc = preview.html.replace(
       "{{{RESEND_UNSUBSCRIBE_URL}}}",
       "(unsubscribe link added automatically)",
     );

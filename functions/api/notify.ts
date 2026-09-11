@@ -151,7 +151,7 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
     // The preview carries her draft subject and body as she types, so
     // what she reads is what the send delivers.
     const params = new URL(context.request.url).searchParams;
-    const { subject, text } = segmentBroadcastEmail(
+    const { subject, text, html } = segmentBroadcastEmail(
       site,
       cleanBroadcastSubject(params.get("subject")),
       cleanBroadcastBody(params.get("body")),
@@ -160,6 +160,7 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
       total: (await listSubscriptions(context.env)).length,
       emailSubject: subject,
       emailText: text,
+      emailHtml: html,
     });
   } catch (err) {
     console.error(err);

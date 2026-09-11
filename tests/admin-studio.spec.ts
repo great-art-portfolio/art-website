@@ -1644,6 +1644,7 @@ test("send email button confirms the list before broadcasting", async ({
           total: 0,
           emailSubject: "New painting at Barbara Straka's studio",
           emailText: "A new painting is hung in the gallery — come look:",
+          emailHtml: "<h1>New painting</h1><p>Come look</p>",
         }),
       });
       return;
@@ -1697,6 +1698,7 @@ test("send email asks even when the count didn't load", async ({ page }) => {
           total: 0,
           emailSubject: "Preview subject line",
           emailText: "Preview body words.",
+          emailHtml: "<h1>Preview subject line</h1><p>Preview body words.</p>",
         }),
       });
       return;
@@ -1741,13 +1743,18 @@ test("email page previews the exact email buyers get", async ({ page }) => {
     }
     // Echo her draft fields the way the server composes them.
     const params = new URL(route.request().url()).searchParams;
+    const esc = (s: string): string =>
+      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const subject = params.get("subject") ?? "";
+    const bodyText = params.get("body") ?? "";
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
         total: 1,
-        emailSubject: params.get("subject") ?? "",
-        emailText: params.get("body") ?? "",
+        emailSubject: subject,
+        emailText: bodyText,
+        emailHtml: `<h1>${esc(subject)}</h1><p>${esc(bodyText)}</p>`,
       }),
     });
   });
@@ -1763,11 +1770,15 @@ test("email page previews the exact email buyers get", async ({ page }) => {
   await expect(page.locator("#email-preview-subject")).toHaveText(
     "New painting at Barbara Straka's studio",
   );
-  const previewBody = page.locator("#email-preview-body");
-  await expect(previewBody).toContainText("come look");
+  // The body is the styled email itself, in a sandboxed frame.
+  const frame = page.frameLocator("#email-preview-body");
+  await expect(frame.locator("h1")).toHaveText(
+    "New painting at Barbara Straka's studio",
+  );
+  await expect(frame.locator("body")).toContainText("come look");
   // Her words land in the preview as she types, and ride the send.
   await page.locator("#email-body").fill("Fresh off the easel");
-  await expect(previewBody).toContainText("Fresh off the easel");
+  await expect(frame.locator("body")).toContainText("Fresh off the easel");
   page.on("dialog", async (dialog) => {
     await dialog.accept();
   });

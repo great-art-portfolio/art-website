@@ -114,9 +114,9 @@ function modelSig(): string | null {
 }
 
 /**
- * Swap preview words with a breath, not a snap: opacity-only (every
- * motion setting keeps gentle fades), skipped when nothing changed, and
- * any still-playing swap retires first so fast typing never shimmers.
+ * Swap one preview field at a time, instantly: each field writes only
+ * its own node, unchanged fields are skipped, and there is no fade —
+ * a pulse on every keystroke reads as flashing while she types.
  */
 const previewShown = new WeakMap<HTMLElement, string>();
 
@@ -125,13 +125,6 @@ function setPreviewHtml(el: HTMLElement, html: string): void {
   if (previewShown.get(el) === html) return;
   previewShown.set(el, html);
   el.innerHTML = html;
-  if (typeof el.animate === "function") {
-    for (const a of el.getAnimations()) a.cancel();
-    el.animate([{ opacity: 0.35 }, { opacity: 1 }], {
-      duration: 160,
-      easing: "ease",
-    });
-  }
 }
 
 /** Live buyer preview while she types: title, price, measurements, words. */

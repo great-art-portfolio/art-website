@@ -186,6 +186,7 @@ export const notifyStatusSchema = z.object({
   total: z.number(),
   emailSubject: z.string(),
   emailText: z.string(),
+  emailHtml: z.string(),
 });
 
 export const localBackendSchema = z.object({ local: z.unknown().optional() });

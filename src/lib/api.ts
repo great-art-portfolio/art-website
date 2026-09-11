@@ -302,7 +302,7 @@ export const api = {
   async emailPreview(copy: {
     subject: string;
     body: string;
-  }): Promise<{ subject: string; text: string } | null> {
+  }): Promise<{ subject: string; text: string; html: string } | null> {
     try {
       const query =
         `?subject=${encodeURIComponent(copy.subject)}` +
@@ -310,7 +310,11 @@ export const api = {
       const data = await request(`/api/notify${query}`, notifyStatusSchema, {
         headers: adminHeaders(),
       });
-      return { subject: data.emailSubject, text: data.emailText };
+      return {
+        subject: data.emailSubject,
+        text: data.emailText,
+        html: data.emailHtml,
+      };
     } catch {
       return null;
     }

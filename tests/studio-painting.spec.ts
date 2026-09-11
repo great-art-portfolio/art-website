@@ -501,6 +501,20 @@ test("rooms offer a go-live date, empty unless scheduled", async ({ page }) => {
   await expect(page.locator("#de-publish-on")).toHaveValue("");
 });
 
+test("typing swaps the preview instantly, never flashing", async ({ page }) => {
+  await page.goto("/admin/paintings/new");
+  await page.locator("#de-title").fill("Half-typed thaw");
+  await expect(page.locator("#pv-title")).toHaveText("Half-typed thaw");
+  // No pulse on any preview field — a fade per keystroke reads as
+  // flashing while she types.
+  const pulses = await page.evaluate(() =>
+    ["#pv-title", "#pv-price", "#pv-meta", "#pv-desc"].map(
+      (sel) => document.querySelector(sel)?.getAnimations().length ?? -1,
+    ),
+  );
+  expect(pulses).toEqual([0, 0, 0, 0]);
+});
+
 test("unsaved typing survives a refresh, silently", async ({ page }) => {
   await page.goto("/admin/paintings/new");
   await page.locator("#de-title").fill("Half-typed thaw");

@@ -168,12 +168,17 @@ export function createStudioPushMock(cacheDir) {
     // mock (emailed is always false below).
     if (req.method === "GET") {
       const params = new URL(req.url).searchParams;
-      const { subject, text } = segmentBroadcastEmail(
+      const { subject, text, html } = segmentBroadcastEmail(
         "https://barbart.ca",
         params.get("subject"),
         params.get("body"),
       );
-      return json({ total: subs.size, emailSubject: subject, emailText: text });
+      return json({
+        total: subs.size,
+        emailSubject: subject,
+        emailText: text,
+        emailHtml: html,
+      });
     }
     if (req.method !== "POST") {
       return json({ error: "Method not allowed" }, { status: 405 });
