@@ -271,20 +271,20 @@ export const api = {
     }
   },
   /**
-   * Email the whole list the standard new-painting note, plus a line of
-   * her own when she wrote one. Single shot — the server fans out; the
-   * reply says whether it went and how many it reached.
+   * Email the whole list her subject and body — blank fields send the
+   * standard note. Single shot — the server fans out; the reply says
+   * whether it went and how many it reached.
    */
-  async sendCollectorEmail(message = ""): Promise<{
-    emailed: boolean;
-    emailTotal: number;
-  }> {
+  async sendCollectorEmail(copy: {
+    subject: string;
+    body: string;
+  }): Promise<{ emailed: boolean; emailTotal: number }> {
     const data = await request("/api/notify", notifySchema, {
       method: "POST",
       headers: { ...adminHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({
         push: false,
-        email: message === "" ? true : { message },
+        email: { subject: copy.subject, body: copy.body },
       }),
     });
     return data;
@@ -298,13 +298,14 @@ export const api = {
    * she's typed one. Never throws — null means the preview didn't load,
    * and the send still delivers the standard note.
    */
-  async emailPreview(message = ""): Promise<{
+  async emailPreview(copy: {
     subject: string;
-    text: string;
-  } | null> {
+    body: string;
+  }): Promise<{ subject: string; text: string } | null> {
     try {
       const query =
-        message === "" ? "" : `?message=${encodeURIComponent(message)}`;
+        `?subject=${encodeURIComponent(copy.subject)}` +
+        `&body=${encodeURIComponent(copy.body)}`;
       const data = await request(`/api/notify${query}`, notifyStatusSchema, {
         headers: adminHeaders(),
       });

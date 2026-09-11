@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 import {
   artistInbox,
   artistSender,
+  broadcastDefaults,
   isConfirmedContact,
   listSegmentContacts,
+  resolveBroadcastCopy,
   segmentBroadcastEmail,
   segmentId,
   sendCollectorBroadcast,
@@ -73,6 +75,42 @@ describe("segmentId", () => {
   });
 });
 
+describe("broadcastDefaults", () => {
+  it("is the standard note she edits from", () => {
+    assert.deepEqual(broadcastDefaults("https://barbart.ca"), {
+      subject: "New painting at Barbara Straka's studio",
+      body: "A new painting is hung in the gallery — come look: https://barbart.ca",
+    });
+  });
+});
+
+describe("resolveBroadcastCopy", () => {
+  it("keeps her words, falling back field-by-field", () => {
+    assert.deepEqual(
+      resolveBroadcastCopy("https://barbart.ca", "  Hello  ", "  World  "),
+      { subject: "Hello", body: "World" },
+    );
+    assert.deepEqual(resolveBroadcastCopy("https://barbart.ca", "", ""), {
+      subject: "New painting at Barbara Straka's studio",
+      body: "A new painting is hung in the gallery — come look: https://barbart.ca",
+    });
+    // A blank body keeps her subject — and vice versa.
+    const half = resolveBroadcastCopy("https://barbart.ca", "Hello", "");
+    assert.equal(half.subject, "Hello");
+    assert.match(half.body, /come look/);
+  });
+
+  it("trims and caps each field", () => {
+    const copy = resolveBroadcastCopy(
+      "https://barbart.ca",
+      `  ${"s".repeat(300)}  `,
+      `  ${"x".repeat(2500)}  `,
+    );
+    assert.equal(copy.subject, "s".repeat(200));
+    assert.equal(copy.body, "x".repeat(2000));
+  });
+});
+
 describe("segmentBroadcastEmail", () => {
   it("uses Resend's unsubscribe placeholder, not per-recipient links", () => {
     const { subject, text, html } = segmentBroadcastEmail("https://barbart.ca");
@@ -81,31 +119,35 @@ describe("segmentBroadcastEmail", () => {
     assert.match(text, /— Barbara/);
     assert.ok(text.includes("{{{RESEND_UNSUBSCRIBE_URL}}}"));
     assert.ok(!text.includes("token="));
-    // The styled body dresses the same words: brand line, clay link,
-    // sign-off, and the placeholder exit.
+    // The styled body dresses the same words: eyebrow, her subject as
+    // the headline, sign-off, and the placeholder exit.
     assert.ok(html.includes("Barbara Straka"));
-    assert.ok(html.includes('href="https://barbart.ca"'));
+    assert.ok(html.includes("New painting at Barbara Straka's studio"));
     assert.ok(html.includes("— Barbara"));
     assert.ok(html.includes('href="{{{RESEND_UNSUBSCRIBE_URL}}}"'));
+    // The plain text gives the link breathing room: a blank line between
+    // the invitation and the address.
+    assert.ok(
+      text.includes(
+        "Tired of these? Unsubscribe here:\n\n{{{RESEND_UNSUBSCRIBE_URL}}}",
+      ),
+    );
   });
 
-  it("rides her own line along in text and HTML, escaped", () => {
-    const { text, html } = segmentBroadcastEmail(
+  it("sends her subject and body, escaped, footer fixed", () => {
+    const { subject, text, html } = segmentBroadcastEmail(
       "https://barbart.ca",
-      "  Fresh off the easel <b>today</b>  ",
+      "  Fresh off the easel  ",
+      "Something <b>new</b>\nSecond line",
     );
-    assert.ok(text.includes("Fresh off the easel <b>today</b>"));
-    assert.ok(!html.includes("<b>today</b>"));
-    assert.ok(html.includes("Fresh off the easel &lt;b&gt;today&lt;/b&gt;"));
-  });
-
-  it("trims and caps the custom line", () => {
-    const { text } = segmentBroadcastEmail(
-      "https://barbart.ca",
-      `  ${"x".repeat(600)}  `,
-    );
-    assert.ok(text.includes("x".repeat(500)));
-    assert.ok(!text.includes("x".repeat(501)));
+    assert.equal(subject, "Fresh off the easel");
+    assert.ok(text.includes("Something <b>new</b>\nSecond line"));
+    assert.ok(!html.includes("<b>new</b>"));
+    assert.ok(html.includes("Something &lt;b&gt;new&lt;/b&gt;<br>Second line"));
+    // The sign-off and unsubscribe ride every send, never from input.
+    assert.ok(text.includes("— Barbara"));
+    assert.ok(text.includes("{{{RESEND_UNSUBSCRIBE_URL}}}"));
+    assert.ok(html.includes("— Barbara"));
   });
 });
 
@@ -126,15 +168,21 @@ describe("sendSegmentBroadcast", () => {
     assert.ok(body.text.includes("{{{RESEND_UNSUBSCRIBE_URL}}}"));
   });
 
-  it("sends text plus the styled body, carrying her line", async () => {
+  it("sends text plus the styled body, carrying her words", async () => {
     stubFetch(() => okRes());
     assert.equal(
-      await sendSegmentBroadcast(fullEnv, "https://barbart.ca", "Hello all"),
+      await sendSegmentBroadcast(
+        fullEnv,
+        "https://barbart.ca",
+        "Hello all",
+        "Fresh work",
+      ),
       true,
     );
     const body = JSON.parse(calls[0].init.body);
-    assert.ok(body.text.includes("Hello all"));
-    assert.ok(body.html.includes("Hello all"));
+    assert.equal(body.subject, "Hello all");
+    assert.ok(body.text.includes("Fresh work"));
+    assert.ok(body.html.includes("Fresh work"));
     assert.ok(body.html.includes("<!doctype html>"));
   });
 

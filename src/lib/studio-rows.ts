@@ -60,12 +60,19 @@ export function studioRowHtml(r: StudioRowInput): string {
   // Trashed rows offer Restore + Delete forever; everything else
   // offers Edit + Delete (which moves to trash, restorable 30 days).
   // Drafts preview from the room toolbar (one studio door per card —
-  // the list itself never says "preview").
+  // the list itself never says "preview"). Published rows also link
+  // their print-ready QR card (a studio page, not a buyer preview).
+  const qr =
+    !r.trash && !r.draft
+      ? `<span class="qr-mini" aria-hidden="true"></span>` +
+        `<a class="row-qr" href="/admin/qr-codes#${esc(r.slug)}">QR code</a>`
+      : "";
   const actions = r.trash
     ? `<a class="row-edit" href="/admin/paintings/${esc(r.slug)}">${pencilIcon}Edit</a>` +
       `<button type="button" class="row-restore" data-slug="${esc(r.slug)}" data-title="${esc(r.title)}" data-md="${esc(r.mdPath)}">${undoIcon}Restore</button>` +
       `<button type="button" class="row-del" data-purge="1" data-slug="${esc(r.slug)}" data-title="${esc(r.title)}" data-md="${esc(r.mdPath)}">${trashIcon}Delete forever</button>`
     : `<a class="row-edit" href="/admin/paintings/${esc(r.slug)}">${pencilIcon}Edit</a>` +
+      qr +
       `<button type="button" class="row-del" data-slug="${esc(r.slug)}" data-title="${esc(r.title)}" data-md="${esc(r.mdPath)}">${trashIcon}Delete</button>`;
   // Scheduled drafts say when they go live, in plain words.
   const schedule =

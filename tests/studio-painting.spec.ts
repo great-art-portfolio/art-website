@@ -50,7 +50,35 @@ test("draft room looks like the buyer page, empty and editable", async ({
   // Both exits for a new painting, and the way back.
   await expect(page.locator("#de-save-draft")).toHaveText("Save draft");
   await expect(page.locator("#de-publish")).toHaveText("Publish painting");
+  // Publish asks first, Save draft keeps — the ask comes first.
+  const exits = await page
+    .locator(".studio-toolbar button")
+    .evaluateAll((els) => els.map((el) => el.id));
+  expect(exits).toEqual(["de-publish", "de-save-draft"]);
   await expect(page.locator(".crumbs a")).toHaveAttribute("href", "/admin");
+});
+
+test("a stale autosave never overrides the file", async ({ page }) => {
+  await page.goto("/admin/paintings/prairie-moon");
+  await expect(page.locator("#de-sold")).toBeChecked();
+  // Yesterday's backup says unsold — the file says sold, so the file
+  // wins and the stale entry goes away.
+  await page.evaluate(() => {
+    const main = document.getElementById("main");
+    const key = `studio-autosave-v1|edit|${main?.dataset.slug}|${main?.dataset.mdPath}`;
+    window.localStorage.setItem(
+      key,
+      JSON.stringify({ sold: false, savedAt: Date.now() - 25 * 3600 * 1000 }),
+    );
+  });
+  await page.reload();
+  await expect(page.locator("#de-sold")).toBeChecked();
+  const leftover = await page.evaluate(() =>
+    Object.keys(window.localStorage).filter((k) =>
+      k.startsWith("studio-autosave-v1|"),
+    ),
+  );
+  expect(leftover).toEqual([]);
 });
 
 test("typing in the draft updates the buyer preview live", async ({ page }) => {
@@ -124,6 +152,10 @@ test("publishing a draft fires only the checked channels", async ({
     .locator("#de-photo")
     .setInputFiles("src/content/paintings/1943x1967.jpg");
   await page.locator("#de-notify-push").check();
+  page.on("dialog", async (dialog) => {
+    expect(dialog.message()).toContain('Publish "Channel Check" now?');
+    await dialog.accept();
+  });
   await page.locator("#de-publish").click();
   // Only Browsers was checked — the email list hears nothing.
   await expect
@@ -131,6 +163,37 @@ test("publishing a draft fires only the checked channels", async ({
     .toEqual({ push: true, email: false });
   expect(postedMessage).toBe("Add painting: Channel Check");
   await expect(page).toHaveURL(/\/admin\/?$/, { timeout: 25_000 });
+  await authed.close();
+});
+
+test("dismissing the publish ask keeps the draft", async ({ browser }) => {
+  const authed = await browser.newContext();
+  await authed.addInitScript(() =>
+    sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
+  );
+  const page = await authed.newPage();
+  let commits = 0;
+  await page.route("**/api/commit*", async (route) => {
+    if (route.request().method() === "POST") {
+      commits += 1;
+      await route.fulfill({ json: { ok: true, commit: "test" }, status: 201 });
+    } else {
+      await route.continue();
+    }
+  });
+  await page.goto("/admin/paintings/new");
+  await page.locator("#de-title").fill("Second Thoughts");
+  await page.locator("#de-price").fill("60");
+  await page
+    .locator("#de-photo")
+    .setInputFiles("src/content/paintings/1943x1967.jpg");
+  page.on("dialog", async (dialog) => {
+    await dialog.dismiss();
+  });
+  await page.locator("#de-publish").click();
+  await page.waitForTimeout(1000);
+  expect(commits).toBe(0);
+  await expect(page).toHaveURL(/\/admin\/paintings\/new/);
   await authed.close();
 });
 
@@ -432,7 +495,7 @@ test("rooms offer a go-live date, empty unless scheduled", async ({ page }) => {
   await expect(when).toHaveAttribute("type", "date");
   await expect(when).toHaveValue("");
   await expect(page.locator("#de-publish-on-hint")).toContainText(
-    "you publish by hand",
+    "Leaving no date will publish right now, after your confirmation.",
   );
   await page.goto("/admin/paintings/first-thaw");
   await expect(page.locator("#de-publish-on")).toHaveValue("");

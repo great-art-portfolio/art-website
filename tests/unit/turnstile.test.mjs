@@ -17,9 +17,13 @@ function stubSiteverify(answer) {
       "https://challenges.cloudflare.com/turnstile/v0/siteverify",
     );
     assert.equal(init?.method, "POST");
-    const form = init?.body;
-    assert.ok(form instanceof FormData);
+    assert.equal(
+      init?.headers?.["Content-Type"],
+      "application/x-www-form-urlencoded",
+    );
+    const form = new URLSearchParams(String(init?.body));
     assert.equal(form.get("secret"), "shh");
+    assert.ok((form.get("response") ?? "").length > 0);
     return { json: async () => answer };
   };
 }

@@ -185,15 +185,17 @@ function stubMd(title: string, extra = ""): string {
 test("studio header links home, never to visitor funnels", async ({ page }) => {
   await mockCommitApi(page);
   await page.goto("/admin");
-  // One nav: five sections, ← Leave Admin, Add painting. Leave doubles
+  // One nav: seven sections, ← Leave Admin, Add painting. Leave doubles
   // as logout (clears the token). View counts live inside the
   // collection rows themselves, so the nav carries no metrics link.
-  await expect(page.locator(".site-nav .nav-links a")).toHaveCount(7);
+  await expect(page.locator(".site-nav .nav-links a")).toHaveCount(9);
   for (const label of [
     "Collection",
     "Banner",
-    "Marketing",
+    "Ping",
+    "Email",
     "Metrics",
+    "QR codes",
     "Guide",
   ]) {
     await expect(
@@ -1379,23 +1381,32 @@ test("banner lifetimes are 1/3/7/14 days plus no end date", async ({
     .locator("#f-duration option")
     .evaluateAll((opts) => opts.map((o) => (o as HTMLOptionElement).value));
   expect(values).toEqual(["", "1", "3", "7", "14"]);
-  // Actions side by side, status beside them in the same row.
-  await expect(
-    page.locator("#announce-save + #announce-clear + #announce-meta"),
-  ).toHaveCount(1);
+  // Show-until, Update, and Remove share one desktop row (bottoms
+  // level); the status sits below all three — and fades in instead of
+  // snapping. Remove hides when no banner exists, so only the visible
+  // controls pin the row.
+  const bottoms = await page
+    .locator("#f-duration, #announce-save, #announce-clear:visible")
+    .evaluateAll((els) =>
+      els.map((el) => {
+        const r = el.getBoundingClientRect();
+        return Math.round(r.top + r.height);
+      }),
+    );
+  expect(bottoms.length).toBeGreaterThanOrEqual(2);
+  expect(new Set(bottoms).size).toBe(1);
   await expect(page.locator("#announce-meta")).not.toBeEmpty();
-  // …and fades in instead of snapping.
   await expect(page.locator("#announce-meta")).toHaveClass(/fade-in/);
   const btnBox = await page.locator("#announce-save").boundingBox();
   const metaBox = await page.locator("#announce-meta").boundingBox();
   expect(btnBox !== null && metaBox !== null).toBe(true);
   if (btnBox !== null && metaBox !== null) {
-    expect(metaBox.x).toBeGreaterThanOrEqual(btnBox.x + btnBox.width - 4);
+    expect(metaBox.y).toBeGreaterThanOrEqual(btnBox.y + btnBox.height - 4);
   }
 });
 
 test("tickle button pings browsers without email", async ({ page }) => {
-  await page.goto("/admin/marketing");
+  await page.goto("/admin/ping");
   const btn = page.locator("#tickle-send");
   await expect(btn).toBeVisible();
   // Hugs the left, never the full column.
@@ -1423,7 +1434,7 @@ test("tickle button pings browsers without email", async ({ page }) => {
 });
 
 test("tickle button names its reach and asks first", async ({ page }) => {
-  await page.goto("/admin/marketing");
+  await page.goto("/admin/ping");
   // The field names the default note — blank never surprises.
   await expect(page.locator("#tickle-body")).toHaveAttribute(
     "placeholder",
@@ -1475,7 +1486,7 @@ test("tickle button names its reach and asks first", async ({ page }) => {
 });
 
 test("tickle walks big lists in batches", async ({ page }) => {
-  await page.goto("/admin/marketing");
+  await page.goto("/admin/ping");
   // 65 subscribed browsers: one Worker call can't ping them all.
   await page.route("**/api/notify", async (route) => {
     if (route.request().method() === "GET") {
@@ -1527,7 +1538,7 @@ test("tickle walks big lists in batches", async ({ page }) => {
 test("send email button confirms the list before broadcasting", async ({
   page,
 }) => {
-  await page.goto("/admin/marketing");
+  await page.goto("/admin/email");
   // Three addresses on the list: the button must ask before it sends.
   await page.route("**/api/collectors", async (route) => {
     await route.fulfill({
@@ -1609,7 +1620,7 @@ test("send email asks even when the count didn't load", async ({ page }) => {
       body: JSON.stringify({ sent: 0, total: 0, emailed: true, emailTotal: 0 }),
     });
   });
-  await page.goto("/admin/marketing");
+  await page.goto("/admin/email");
   const asked: string[] = [];
   page.on("dialog", async (dialog) => {
     asked.push(dialog.message());
@@ -1623,7 +1634,7 @@ test("send email asks even when the count didn't load", async ({ page }) => {
   expect(posted).toBe(false);
 });
 
-test("marketing page previews the exact email buyers get", async ({ page }) => {
+test("email page previews the exact email buyers get", async ({ page }) => {
   let posted: unknown = null;
   await page.route("**/api/notify", async (route) => {
     if (route.request().method() === "POST") {
@@ -1640,28 +1651,34 @@ test("marketing page previews the exact email buyers get", async ({ page }) => {
       });
       return;
     }
-    // Echo the draft line the way the server composes it.
-    const line =
-      new URL(route.request().url()).searchParams.get("message") ?? "";
+    // Echo her draft fields the way the server composes them.
+    const params = new URL(route.request().url()).searchParams;
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
         total: 1,
-        emailSubject: "Preview subject line",
-        emailText: `Preview body words.${line === "" ? "" : `\n\n${line}`}`,
+        emailSubject: params.get("subject") ?? "",
+        emailText: params.get("body") ?? "",
       }),
     });
   });
-  await page.goto("/admin/marketing");
+  await page.goto("/admin/email");
+  // Both fields start as the standard note.
+  await expect(page.locator("#email-subject")).toHaveValue(
+    "New painting at Barbara Straka's studio",
+  );
+  await expect(page.locator("#email-body")).toHaveValue(
+    "A new painting is hung in the gallery — come look: https://barbart.ca",
+  );
   await expect(page.locator("#email-preview")).toBeVisible();
   await expect(page.locator("#email-preview-subject")).toHaveText(
-    "Preview subject line",
+    "New painting at Barbara Straka's studio",
   );
   const previewBody = page.locator("#email-preview-body");
-  await expect(previewBody).toContainText("Preview body words.");
-  // Her line lands in the preview as she types, and rides the send.
-  await page.locator("#email-message").fill("Fresh off the easel");
+  await expect(previewBody).toContainText("come look");
+  // Her words land in the preview as she types, and ride the send.
+  await page.locator("#email-body").fill("Fresh off the easel");
   await expect(previewBody).toContainText("Fresh off the easel");
   page.on("dialog", async (dialog) => {
     await dialog.accept();
@@ -1672,7 +1689,10 @@ test("marketing page previews the exact email buyers get", async ({ page }) => {
   );
   expect(posted).toEqual({
     push: false,
-    email: { message: "Fresh off the easel" },
+    email: {
+      subject: "New painting at Barbara Straka's studio",
+      body: "Fresh off the easel",
+    },
   });
 });
 
@@ -2020,4 +2040,94 @@ test("scheduled drafts whose day has come publish themselves", async ({
     "goes live 2999-01-01",
   );
   await authed.close();
+});
+
+test("qr codes page prints one card per published painting", async ({
+  page,
+}) => {
+  await page.goto("/admin/qr-codes");
+  await expect(
+    page.locator(".site-nav").getByRole("link", { name: "QR codes" }),
+  ).toHaveAttribute("aria-current", "page");
+  // Every published painting gets a card whose address is its live buyer
+  // page — drafts have no page, so they get no card.
+  for (const p of paintings) {
+    const card = page.locator(`.qr-card[id="${p.slug}"]`);
+    await expect(card).toBeVisible();
+    await expect(card.locator(".qr-code svg")).toBeAttached();
+    await expect(card.locator(".qr-url")).toHaveText(
+      `https://barbart.ca/paintings/${p.slug}`,
+    );
+  }
+  await expect(page.locator("#qr-print")).toHaveText("Print codes");
+  // Desktop lays the cards three across.
+  const rows = await page
+    .locator(".qr-card")
+    .evaluateAll((els) =>
+      els.slice(0, 3).map((el) => Math.round(el.getBoundingClientRect().top)),
+    );
+  expect(new Set(rows).size).toBe(1);
+});
+
+test("collection rows link published paintings to their qr card", async ({
+  page,
+}) => {
+  await mockCommitApi(page);
+  await page.goto("/admin");
+  // Published rows carry a QR code link to their anchored print card.
+  const qrLinks = page.locator(
+    '[data-group="available"] .row-card .row-qr, [data-group="sold"] .row-card .row-qr',
+  );
+  expect(await qrLinks.count()).toBeGreaterThan(0);
+  for (const p of paintings) {
+    const link = page.locator(
+      `#edit-list .row-qr[href="/admin/qr-codes#${p.slug}"]`,
+    );
+    if ((await link.count()) === 0) continue;
+    await expect(link.first()).toHaveText("QR code");
+  }
+  // Drafts have no buyer page and no code to print.
+  await expect(
+    page.locator('[data-group="drafts"] .row-card .row-qr'),
+  ).toHaveCount(0);
+  // Published rows wear the actual mini code beside the link.
+  const minis = page.locator(
+    '[data-group="available"] .row-card .qr-mini svg, [data-group="sold"] .row-card .qr-mini svg',
+  );
+  expect(await minis.count()).toBeGreaterThan(0);
+  await expect(
+    page.locator('[data-group="drafts"] .row-card .qr-mini'),
+  ).toHaveCount(0);
+});
+
+test("qr cards print one code at a time", async ({ page }) => {
+  // The print dialog never opens under test — count the call, then run
+  // the afterprint cleanup by hand.
+  await page.addInitScript(() => {
+    const w = window as unknown as { __prints?: number };
+    w.__prints = 0;
+    window.print = () => {
+      w.__prints = (w.__prints ?? 0) + 1;
+    };
+  });
+  await page.goto("/admin/qr-codes");
+  const first = page.locator(".qr-card").first();
+  await first.locator(".qr-print-one").click();
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { __prints?: number }).__prints,
+    ),
+  ).toBe(1);
+  await expect(page.locator("#sec-qr")).toHaveClass(/printing-one/);
+  await expect(first).toHaveClass(/print-this/);
+  await expect(page.locator(".qr-card.print-this")).toHaveCount(1);
+  await page.evaluate(() => window.dispatchEvent(new Event("afterprint")));
+  await expect(page.locator("#sec-qr")).not.toHaveClass(/printing-one/);
+  await expect(page.locator(".qr-card.print-this")).toHaveCount(0);
+});
+
+test("the old marketing page is gone", async ({ page }) => {
+  // Ping and email split it in two — the old address reads empty.
+  await page.goto("/admin/marketing");
+  await expect(page.locator("h1")).toHaveText("That wall is empty.");
 });

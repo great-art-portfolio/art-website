@@ -162,14 +162,15 @@ export function createStudioPushMock(cacheDir) {
   }
 
   async function handleNotify(req) {
-    // Preview read for the Marketing page: the same template the live
+    // Preview read for the Email page: the same template the live
     // endpoint composes, so dev shows what buyers would get. Sends stay
     // mock (emailed is always false below).
     if (req.method === "GET") {
-      const draft = new URL(req.url).searchParams.get("message") ?? "";
+      const params = new URL(req.url).searchParams;
       const { subject, text } = segmentBroadcastEmail(
         "https://barbart.ca",
-        draft,
+        params.get("subject"),
+        params.get("body"),
       );
       return json({ total: subs.size, emailSubject: subject, emailText: text });
     }

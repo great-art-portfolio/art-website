@@ -1,7 +1,8 @@
 import type { AppEnv } from "../_lib/env";
 import { json, requireAdmin, serverError } from "../_lib/http";
 import {
-  cleanBroadcastMessage,
+  cleanBroadcastBody,
+  cleanBroadcastSubject,
   segmentBroadcastEmail,
   sendCollectorBroadcast,
 } from "../_lib/notify";
@@ -105,19 +106,18 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     let emailTotal = 0;
     if (wantEmail) {
       const site = context.env.SITE_URL ?? "https://barbart.ca";
-      // Object form is the Marketing send with her own line riding
-      // along; plain booleans send the standard note.
+      // Object form is the Email page send with her subject and body;
+      // plain booleans send the standard note.
       const emailOpt = body["email"];
-      const message =
-        typeof emailOpt === "object" &&
-        emailOpt !== null &&
-        "message" in emailOpt
-          ? cleanBroadcastMessage(emailOpt.message)
-          : "";
+      const emailCopy =
+        typeof emailOpt === "object" && emailOpt !== null
+          ? (emailOpt as Record<string, unknown>)
+          : null;
       const result = await sendCollectorBroadcast(
         context.env,
         site,
-        message,
+        emailCopy === null ? "" : cleanBroadcastSubject(emailCopy["subject"]),
+        emailCopy === null ? "" : cleanBroadcastBody(emailCopy["body"]),
       ).catch(() => ({ sent: 0, total: 0 }));
       emailed = result.sent > 0;
       emailTotal = result.total;
@@ -138,19 +138,20 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
 };
 
 /** Admin: push subscriber count plus the exact email a send would
- * deliver — the Marketing preview reads it, so what she sees is what
+ * deliver — the Email preview reads it, so what she sees is what
  * buyers get. */
 export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
   const denied = requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
   try {
     const site = context.env.SITE_URL ?? "https://barbart.ca";
-    // The preview carries her draft line when she's typed one, so what
-    // she reads is what the send delivers.
+    // The preview carries her draft subject and body as she types, so
+    // what she reads is what the send delivers.
     const params = new URL(context.request.url).searchParams;
     const { subject, text } = segmentBroadcastEmail(
       site,
-      cleanBroadcastMessage(params.get("message")),
+      cleanBroadcastSubject(params.get("subject")),
+      cleanBroadcastBody(params.get("body")),
     );
     return json({
       total: (await listSubscriptions(context.env)).length,

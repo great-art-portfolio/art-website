@@ -2,9 +2,10 @@ import type { AppEnv } from "./env";
 
 /** Turnstile check for public writes. Empty secret = honeypot only ("pass").
  * Canonical shape per server-side validation spec:
- * POST https://challenges.cloudflare.com/turnstile/v0/siteverify with
- * secret + response (+ remoteip), single-use tokens (max 2048 chars, 5
- * minutes), JSON { success, hostname, action, error-codes }.
+ * POST https://challenges.cloudflare.com/turnstile/v0/siteverify as
+ * application/x-www-form-urlencoded with secret + response (+ remoteip),
+ * single-use tokens (max 2048 chars, 5 minutes),
+ * JSON { success, hostname, action, error-codes }.
  * Spec: https://developers.cloudflare.com/turnstile/get-started/server-side-validation/ */
 const SITEVERIFY_URL =
   "https://challenges.cloudflare.com/turnstile/v0/siteverify";
@@ -23,13 +24,14 @@ export async function turnstileOk(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), VERIFY_TIMEOUT_MS);
   try {
-    const form = new FormData();
+    const form = new URLSearchParams();
     form.set("secret", secret);
     form.set("response", token);
     if (ip !== null && ip !== "") form.set("remoteip", ip);
     const res = await fetch(SITEVERIFY_URL, {
       method: "POST",
-      body: form,
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: form.toString(),
       signal: controller.signal,
     });
     const data = (await res.json()) as {

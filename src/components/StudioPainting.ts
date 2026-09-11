@@ -19,6 +19,7 @@ import {
   type ParsedPainting,
 } from "../lib/painting-edit";
 import { loadArTooling, loadModelViewer } from "../lib/vendor-loader";
+import { readBackup } from "../lib/autosave";
 import { $, maybe, maybeButton, studioMode } from "../lib/dom";
 import { errorMessage } from "../lib/errors";
 import {
@@ -55,6 +56,15 @@ function setStatus(msg: string, isError = false): void {
 function isLocalPreview(): boolean {
   const host = window.location.hostname;
   return host === "localhost" || host === "127.0.0.1";
+}
+
+/** Publishing goes live — always ask first (a gallery page can't be
+ * unsent either). Uniform in every room and mode, so the date hint's
+ * "after your confirmation" holds wherever she taps Publish. */
+function confirmPublish(title: string): boolean {
+  return window.confirm(
+    `Publish "${title}" now? It goes live on the site in a few minutes.`,
+  );
 }
 
 /** Practice overlay unless something real persists: a stored token commits,
@@ -448,49 +458,44 @@ function scheduleAutosave(): void {
       const key = roomKey();
       const snap = snapshotInputs();
       if (key === null || snap === null) return;
-      window.localStorage.setItem(key, JSON.stringify(snap));
+      window.localStorage.setItem(
+        key,
+        JSON.stringify({ ...snap, savedAt: Date.now() }),
+      );
     } catch {
       // Full or blocked storage: the room still saves normally.
     }
   }, 800);
 }
 
-/** Restore this room's backup when it differs — silent, then re-preview. */
+/** Restore this room's backup when it differs — silent, then re-preview.
+ * Stale backups (older than a day, or unstamped) never override the
+ * file; their entry is dropped so the file keeps winning. */
 function restoreAutosave(): void {
   let raw: string | null;
+  let key: string | null;
   try {
-    const key = roomKey();
+    key = roomKey();
     raw = key === null ? null : window.localStorage.getItem(key);
   } catch {
     return;
   }
-  if (raw === null) return;
-  let saved: unknown;
-  try {
-    saved = JSON.parse(raw) as unknown;
-  } catch {
+  if (raw === null || key === null) return;
+  const next = readBackup(raw, Date.now());
+  if (next === null) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch {
+      // Blocked storage: nothing to clean.
+    }
     return;
   }
-  if (typeof saved !== "object" || saved === null) return;
   const snap = snapshotInputs();
   if (snap === null) return;
-  const get = (s: unknown): string => (typeof s === "string" ? s : "");
-  const rec = saved as Record<string, unknown>;
-  const next: Record<string, string | boolean> = {
-    title: get(rec["title"]),
-    price: get(rec["price"]),
-    medium: get(rec["medium"]),
-    alt: get(rec["alt"]),
-    desc: get(rec["desc"]),
-    w: get(rec["w"]),
-    h: get(rec["h"]),
-    d: get(rec["d"]),
-    sold: rec["sold"] === true,
-    publishOn: get(rec["publishOn"]),
-  };
   let differs = false;
   for (const k of Object.keys(next)) {
-    if (snap[k] !== next[k]) {
+    if (k === "savedAt") continue;
+    if (snap[k] !== next[k as keyof typeof next]) {
       differs = true;
       break;
     }
@@ -574,6 +579,7 @@ async function saveNew(draft: boolean): Promise<void> {
     return;
   }
   if (await titleClash(fields.title, null)) return;
+  if (!draft && !confirmPublish(fields.title)) return;
   if (await useOverlayMode()) {
     const slug =
       slugifyTitle(fields.title) === ""
@@ -1045,6 +1051,9 @@ function initStudio(): void {
       void basePromise.then(async (base) => {
         const fields = readFields();
         if (fields === null) return;
+        // Publishing (not unpublishing) asks first, like the new-room
+        // Publish button — the date hint promises a confirmation.
+        if (draft && !confirmPublish(fields.title)) return;
         if ((await useOverlayMode()) || base === null) {
           if (base === null && !(await useOverlayMode())) {
             setStatus("Couldn't load this painting's file.", true);

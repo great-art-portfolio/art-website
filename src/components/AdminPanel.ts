@@ -8,9 +8,11 @@ import {
   type BakedRow,
 } from "../lib/schemas";
 import { studioRowHtml as rowHtml, viewsLabel } from "../lib/studio-rows";
+import qrcode from "qrcode-generator";
 import {
   compareGalleryOrder,
   groupByAvailability,
+  SITE_URL,
   slugifyTitle,
 } from "../lib/site";
 import { parsePainting, setOrder } from "../lib/painting-edit";
@@ -256,6 +258,34 @@ let lastRowsKey: string | null = null;
 /** Rows behind the current render, for drag-to-reorder lookups. */
 let lastRenderedRows: LocalPainting[] = [];
 
+/** Mini QR beside each row's QR link — the actual code, scannable at
+ * a glance. Placeholders ride the row markup (SSR and client render
+ * identically, sized by CSS so nothing shoves); this fills the empty
+ * ones after every render. Failures keep the plain link. */
+function fillRowQrs(list: Element): void {
+  const empty: Element[] = [];
+  for (const el of list.querySelectorAll(".qr-mini:empty")) {
+    const actions = el.closest(".row-actions");
+    const link = actions?.querySelector(".row-qr");
+    const slug = (link?.getAttribute("href") ?? "").split("#")[1] ?? "";
+    if (slug === "") continue;
+    empty.push(el);
+    el.setAttribute("data-slug", slug);
+  }
+  if (empty.length === 0) return;
+  try {
+    for (const el of empty) {
+      const slug = el.getAttribute("data-slug") ?? "";
+      const code = qrcode(0, "M");
+      code.addData(`${SITE_URL}/paintings/${slug}`);
+      code.make();
+      el.innerHTML = code.createSvgTag({ cellSize: 2, margin: 0 });
+    }
+  } catch {
+    // A code that won't build leaves the link standing alone.
+  }
+}
+
 function renderRows(rows: LocalPainting[]): void {
   const list = $("edit-list");
   $("collection-refresh").hidden = true;
@@ -265,6 +295,10 @@ function renderRows(rows: LocalPainting[]): void {
   wireReorderHint(list);
   // Folds wire here and again after swaps; wiring is idempotent.
   wireDrawers(list, "details");
+  // Mini QRs fill here — before the identical-rows early return below,
+  // which otherwise keeps SSR first paint mini-less forever. Idempotent:
+  // filled placeholders are skipped, kept ones persist.
+  fillRowQrs(list);
   const key = rowsKey(rows);
   if (key === lastRowsKey) return;
   lastRowsKey = key;
@@ -325,6 +359,7 @@ function renderRows(rows: LocalPainting[]): void {
       `</ul></details>`;
   }
   list.innerHTML = html;
+  fillRowQrs(list);
   wireReorder(list);
   // Wire the fresh folds, restoring open state instantly (a re-render
   // never animates).
@@ -1270,11 +1305,43 @@ function init(): void {
   const onCollection = document.getElementById("edit-list") !== null;
   const onBanner = document.getElementById("f-announce") !== null;
   const onGuide = document.getElementById("admin-token") !== null;
-  const onMarketing = document.getElementById("sec-email") !== null;
-  if (!onCollection && !onBanner && !onGuide && !onMarketing) return;
+  const onEmail = document.getElementById("sec-email") !== null;
+  const onPing = document.getElementById("sec-tickle") !== null;
+  const onQr = document.getElementById("qr-print") !== null;
+  if (!onCollection && !onBanner && !onGuide && !onEmail && !onPing && !onQr)
+    return;
   wireTickle();
   wireBroadcast();
   wireEmailPreview();
+  // QR codes page: the button prints the cut-out cards (paper CSS lives
+  // with the page — here is only the click).
+  if (onQr) {
+    const printBtn = document.getElementById("qr-print");
+    if (printBtn !== null && printBtn.dataset.wired !== "1") {
+      printBtn.dataset.wired = "1";
+      printBtn.addEventListener("click", () => window.print());
+    }
+    // Per-card buttons print just their card (see the page's paper CSS).
+    for (const el of document.querySelectorAll(".qr-print-one")) {
+      if (!(el instanceof HTMLButtonElement) || el.dataset.wired === "1")
+        continue;
+      el.dataset.wired = "1";
+      el.addEventListener("click", () => {
+        const sec = document.getElementById("sec-qr");
+        const card = el.closest(".qr-card");
+        if (sec === null || card === null) return;
+        sec.classList.add("printing-one");
+        card.classList.add("print-this");
+        const done = (): void => {
+          sec.classList.remove("printing-one");
+          card.classList.remove("print-this");
+          window.removeEventListener("afterprint", done);
+        };
+        window.addEventListener("afterprint", done);
+        window.print();
+      });
+    }
+  }
   $("leave-admin").addEventListener("click", () => {
     setApiToken("");
     window.location.href = "/";
@@ -1520,7 +1587,7 @@ function init(): void {
   }
 }
 
-// Marketing page (and anywhere else the sections land): the browser
+// Ping page (and anywhere else the sections land): the browser
 // ping. Runs only where its markup exists, so pages never touch each
 // other's sections.
 function wireTickle(): void {
@@ -1637,7 +1704,7 @@ function wireBroadcast(): void {
       }
       btn.disabled = true;
       api
-        .sendCollectorEmail(readEmailMessage())
+        .sendCollectorEmail(readEmailCopy())
         .then((r) => {
           if (r.emailTotal === 0) {
             status.textContent =
@@ -1660,17 +1727,21 @@ function wireBroadcast(): void {
   });
 }
 
-// Her own line on the Marketing send, trimmed. Blank means the
-// standard note goes as-is.
-function readEmailMessage(): string {
-  const fieldEl = document.getElementById("email-message");
-  const field = fieldEl instanceof HTMLTextAreaElement ? fieldEl : null;
-  return (field?.value ?? "").trim();
+// Her subject and body for the Email send, trimmed. Blanks send the
+// standard note (the server falls back field-by-field); the sign-off
+// and unsubscribe never pass through here.
+function readEmailCopy(): { subject: string; body: string } {
+  const subjectEl = document.getElementById("email-subject");
+  const bodyEl = document.getElementById("email-body");
+  const subject =
+    subjectEl instanceof HTMLInputElement ? subjectEl.value.trim() : "";
+  const body = bodyEl instanceof HTMLTextAreaElement ? bodyEl.value.trim() : "";
+  return { subject, body };
 }
 
-// The Marketing preview shows the exact email a send delivers — the
+// The Email preview shows the exact email a send delivers — the
 // server composes both from one template, so they can't drift. Typing
-// in the line refetches (briefly held, so fast typing sends one read).
+// in either field refetches (briefly held, so fast typing sends one read).
 // Runs only where its markup exists; a missed load leaves the fallback.
 function wireEmailPreview(): void {
   const boxEl = document.getElementById("email-preview");
@@ -1702,17 +1773,24 @@ function wireEmailPreview(): void {
     fadeIn(boxEl);
   };
   const refresh = (): void => {
-    void api.emailPreview(readEmailMessage()).then(paint);
+    void api.emailPreview(readEmailCopy()).then(paint);
   };
   refresh();
-  const fieldEl = document.getElementById("email-message");
-  const field = fieldEl instanceof HTMLTextAreaElement ? fieldEl : null;
-  if (field !== null && field.dataset.previewWired !== "1") {
-    field.dataset.previewWired = "1";
-    field.addEventListener("input", () => {
-      if (timer !== null) window.clearTimeout(timer);
-      timer = window.setTimeout(refresh, 300);
-    });
+  // Either field repaints the preview as she types.
+  for (const id of ["email-subject", "email-body"]) {
+    const fieldEl = document.getElementById(id);
+    const field =
+      fieldEl instanceof HTMLInputElement ||
+      fieldEl instanceof HTMLTextAreaElement
+        ? fieldEl
+        : null;
+    if (field !== null && field.dataset.previewWired !== "1") {
+      field.dataset.previewWired = "1";
+      field.addEventListener("input", () => {
+        if (timer !== null) window.clearTimeout(timer);
+        timer = window.setTimeout(refresh, 300);
+      });
+    }
   }
 }
 

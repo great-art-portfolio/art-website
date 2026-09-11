@@ -29,16 +29,14 @@ import "../../components/studio.css";
             <option value="14">2 weeks</option>
           </select>
         </label>
-        <div class="row banner-actions">
-          <button type="button" id="announce-save" class="primary"
-            >Update banner</button
-          >
-          <button type="button" id="announce-clear" hidden>
-            Remove banner
-          </button>
-          <p class="hint" id="announce-meta"></p>
-        </div>
+        <button type="button" id="announce-save" class="primary"
+          >Update banner</button
+        >
+        <button type="button" id="announce-clear" hidden>
+          Remove banner
+        </button>
       </div>
+      <p class="hint" id="announce-meta"></p>
     </section>
   </main>
 </Layout>
@@ -46,26 +44,23 @@ import "../../components/studio.css";
 <script src="../../components/AdminPanel.ts"></script>
 
 <style>
-  /* Banner status rides beside the buttons, never below them — the row
-     wraps on narrow phones, so it can still fall underneath there. */
-  #announce-meta {
-    margin: 0;
-    align-self: center;
-  }
-  #announce-meta:empty {
-    display: none;
-  }
-  /* Duration, buttons, and status share one line on desktop: the actions
-     sit level with the dropdown, and the row wraps on narrow phones. */
+  /* Desktop: Show-until, Update, and Remove share one row, bottoms
+     level with the dropdown; the status sits below all three. The row
+     wraps on narrow phones. */
   #sec-banner .banner-line {
     margin-top: 1.25rem;
     align-items: end;
   }
+  /* The shared .row grows labels to fill — the dropdown hugs instead,
+     so empty space never answers the pointer. */
   #sec-banner .banner-line > label {
     flex: 0 0 auto;
   }
-  #sec-banner .banner-actions {
-    margin-block: 0;
+  #announce-meta {
+    margin: 0.75rem 0 0;
+  }
+  #announce-meta:empty {
+    display: none;
   }
   /* Three words at most ("No end date") — no reason to span the
      column. The label is a grid, so auto width alone still stretches:
@@ -86,44 +81,20 @@ import "../../components/studio.css";
   #announce-clear[hidden] {
     display: none;
   }
-  /* The live preview wears the homepage note's look — the taped-up card,
-     not a full-width bar — so what she types is what buyers will see.
+  /* The live preview twins the homepage note — clay rule, the
+     site's own sans voice — so what she types is what buyers see.
      Empty means nothing showing, so the note stays out of the way. */
   #banner-preview {
-    position: relative;
-    width: fit-content;
-    max-width: 22rem;
+    max-width: 24rem;
     box-sizing: border-box;
     margin: 1.75rem 0 2rem;
-    transform: rotate(-1.2deg);
-    background: var(--card);
-    border: 1px solid var(--line);
-    border-radius: 0.25rem;
-    box-shadow: var(--shadow);
-    padding: 1.4rem 1.3rem 1.1rem;
-    font-family: Georgia, "Iowan Old Style", Charter, serif;
-    font-size: 1.08rem;
+    border-left: 2px solid var(--primary);
+    padding: 0.1rem 0 0.1rem 1rem;
+    color: var(--ink);
+    font-size: 1.05rem;
+    line-height: 1.6;
   }
   #banner-preview[hidden] {
     display: none;
-  }
-  /* One masking-tape strip holding the note up. */
-  #banner-preview::before {
-    content: "";
-    position: absolute;
-    top: -0.7rem;
-    left: 50%;
-    width: 5.5rem;
-    height: 1.4rem;
-    transform: translateX(-50%) rotate(-4deg);
-    background: color-mix(in srgb, var(--accent) 28%, transparent);
-    opacity: 0.85;
-    box-shadow: 0 1px 2px rgb(0 0 0 / 0.15);
-  }
-  /* Reduced motion keeps the note planted straight. */
-  @media (prefers-reduced-motion: reduce) {
-    #banner-preview {
-      transform: none;
-    }
   }
 </style>

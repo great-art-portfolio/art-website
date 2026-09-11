@@ -310,8 +310,7 @@ const eyebrow =
                 <input id="de-sold" type="checkbox" checked={data.sold} /> Sold
               </label>
               <span class="hint" id="de-publish-on-hint">
-                Empty means you publish by hand — a date means it goes live by
-                itself once that day comes.
+                Leaving no date will publish right now, after your confirmation.
               </span>
               {mode === "draft" || data.draft ? (
                 <span class="de-notify-group">
@@ -326,11 +325,11 @@ const eyebrow =
               ) : null}
               {mode === "draft" ? (
                 <>
-                  <button type="button" id="de-save-draft" class="btn-primary">
-                    Save draft
-                  </button>
                   <button type="button" id="de-publish">
                     Publish painting
+                  </button>
+                  <button type="button" id="de-save-draft" class="btn-primary">
+                    Save draft
                   </button>
                 </>
               ) : (
@@ -1194,6 +1193,22 @@ const eyebrow =
   .btn-primary:hover {
     background: var(--primary-hover);
     color: var(--accent-ink);
+  }
+  /* Light theme only: the full-width "Interested?" teaser reads as a
+     wall of clay — outline it instead. The in-form Send keeps the
+     solid treatment (an open form means intent). Clay on cream clears
+     AA, so the quieter button stays readable. */
+  @media (prefers-color-scheme: light) {
+    #inquiry-reveal {
+      background: transparent;
+      border: 1px solid var(--primary);
+      color: var(--primary);
+    }
+    #inquiry-reveal:hover {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: var(--primary-ink);
+    }
   }
   .btn-primary:disabled {
     opacity: 0.55;

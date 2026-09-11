@@ -129,7 +129,13 @@ export async function buildArModels(
   try {
     usdzBuf = await usdz.parseAsync(scene, anchor);
   } catch {
-    usdzBuf = await usdz.parseAsync(scene, { quickLookCompatible: true });
+    // Anchorless, never floor-anchored: without the wall pin Quick Look
+    // opens the painting upright in object mode; the exporter's default
+    // is a horizontal anchor, which would lay it flat.
+    usdzBuf = await usdz.parseAsync(scene, {
+      includeAnchoringProperties: false,
+      quickLookCompatible: true,
+    });
   }
 
   scene.traverse((obj) => {

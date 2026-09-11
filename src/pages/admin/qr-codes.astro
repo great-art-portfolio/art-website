@@ -1,0 +1,155 @@
+---
+import { getCollection } from "astro:content";
+import Layout from "../../layouts/Layout.astro";
+import "../../components/studio.css";
+import { compareGalleryOrder, isPublished, slugifyTitle } from "../../lib/site";
+import { paintingPageUrl, qrSvg } from "../../lib/qr";
+
+// Print-ready codes for every painting with a buyer page (drafts and
+// trash have none). Available first, sold after — the gallery's order.
+const published = (await getCollection("paintings")).filter((p) =>
+  isPublished(p.data),
+);
+const byOrder = [...published].sort((a, b) =>
+  compareGalleryOrder(
+    { order: a.data.order ?? null, title: a.data.title },
+    { order: b.data.order ?? null, title: b.data.title },
+  ),
+);
+const cards = [...byOrder.filter((p) => !p.data.sold)];
+for (const p of byOrder.filter((p) => p.data.sold)) cards.push(p);
+const codes = await Promise.all(
+  cards.map(async (p) => {
+    const slug = slugifyTitle(p.data.title);
+    const url = paintingPageUrl(slug);
+    return {
+      slug,
+      title: p.data.title,
+      sold: p.data.sold,
+      url,
+      svg: await qrSvg(url),
+    };
+  }),
+);
+---
+
+<Layout title="Admin - QR codes" wordmark="admin" noindex>
+  <main class="admin" id="main">
+    <section id="sec-qr">
+      <h2>QR codes</h2>
+      <p>
+        Print this page and cut out a code to stand beside its painting — a
+        phone camera opens that painting's page on the site.
+      </p>
+      <button type="button" id="qr-print" class="primary"> Print codes </button>
+      <ul class="qr-grid">
+        {
+          codes.map((c) => (
+            <li class="qr-card" id={c.slug}>
+              <div class="qr-code" set:html={c.svg} />
+              <p class="qr-title">
+                {c.title}
+                {c.sold ? " (sold)" : ""}
+              </p>
+              <p class="qr-url">{c.url}</p>
+              <button type="button" class="qr-print-one" data-slug={c.slug}>
+                Print this code
+              </button>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+  </main>
+</Layout>
+
+<script src="../../components/AdminPanel.ts"></script>
+
+<style>
+  /* Cut-out cards: one code, its title, and its address. The lede
+     keeps the 40rem reading measure; the grid takes the full width —
+     three across on desktop, two on tablets, one on phones. Print
+     stays two-up so cut-outs stay big, never split. */
+  #sec-qr > h2,
+  #sec-qr > p {
+    max-width: 40rem;
+  }
+  #sec-qr .qr-grid {
+    list-style: none;
+    margin: 2rem 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+  @media (min-width: 35rem) {
+    #sec-qr .qr-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  @media (min-width: 60rem) {
+    #sec-qr .qr-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  #sec-qr .qr-card {
+    min-width: 0;
+    box-sizing: border-box;
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
+    background: #fff;
+    color: #111;
+    padding: 1.25rem 1.25rem 1rem;
+    text-align: center;
+  }
+  /* The SVG arrives via set:html, so it never carries Astro's scope
+     attribute — a scoped descendant selector can't reach it. Whole-
+     selector :global() twin instead. */
+  :global(#sec-qr .qr-code svg) {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  #sec-qr .qr-title {
+    margin: 0.9rem 0 0.2rem;
+    font-family: Georgia, "Iowan Old Style", Charter, serif;
+    font-size: 1.15rem;
+  }
+  #sec-qr .qr-url {
+    margin: 0;
+    font-size: 0.8rem;
+    overflow-wrap: anywhere;
+  }
+  /* One card's button prints just that card: the section takes a
+     marker class, every other card hides, and the marker lifts on
+     afterprint (cancel included). */
+  #sec-qr .qr-print-one {
+    margin-top: 0.8rem;
+    font-size: 0.85rem;
+  }
+  @media print {
+    /* Paper gets the codes only: no nav, toast, backdrop, lede, or
+       buttons — and ink stays black on white whatever the theme. */
+    :global(.site-nav),
+    :global(#admin-status),
+    :global(#background),
+    #sec-qr > p,
+    #qr-print,
+    #sec-qr .qr-print-one {
+      display: none;
+    }
+    #sec-qr .qr-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+    }
+    #sec-qr .qr-card {
+      break-inside: avoid;
+    }
+    #sec-qr.printing-one .qr-card {
+      display: none;
+    }
+    #sec-qr.printing-one .qr-card.print-this {
+      display: block;
+    }
+  }
+</style>

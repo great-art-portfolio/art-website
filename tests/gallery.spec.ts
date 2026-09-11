@@ -100,6 +100,17 @@ test("inquiry fields preview their ring on hover", async ({ page }) => {
   await expect(name).toHaveCSS("border-color", "rgb(229, 220, 203)");
 });
 
+test("interested teaser whispers on light theme", async ({ page }) => {
+  expect(available.length).toBeGreaterThan(0);
+  await page.goto(`/paintings/${available[0]?.slug ?? ""}`);
+  // The full-width teaser outlines instead of filling — the solid clay
+  // stays for the in-form Send. Headless runs light by default.
+  const reveal = page.locator("#inquiry-reveal");
+  await expect(reveal).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  // Clay in both computed-color serializations (rgb vs P3).
+  await expect(reveal).toHaveCSS("color", /164, 74, 36|0\.622 0\.289 0\.133/);
+});
+
 test("hovering a card prefetches its painting page", async ({ page }) => {
   expect(available.length).toBeGreaterThan(0);
   await page.goto("/");

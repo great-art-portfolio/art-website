@@ -409,8 +409,27 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
-  :global(#edit-list .row-edit) {
+  :global(#edit-list .row-edit),
+  :global(#edit-list .row-qr) {
     font-size: 0.85rem;
+  }
+  /* Mini QR chip: white whatever the theme (dark modules need it),
+     fixed size from first paint so filling it never shoves the row.
+     Rows arrive via innerHTML, so whole-selector :global() twins. */
+  :global(#edit-list .qr-mini) {
+    width: 1.5rem;
+    height: 1.5rem;
+    box-sizing: border-box;
+    padding: 2px;
+    flex-shrink: 0;
+    align-self: center;
+    background: #fff;
+    border-radius: 5px;
+  }
+  :global(#edit-list .qr-mini svg) {
+    width: 100%;
+    height: 100%;
+    display: block;
   }
   /* Edit and Delete ride side by side, each with its own small icon —
      wrapping when a third action (Restore) joins them. */
@@ -421,6 +440,7 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
     flex-wrap: wrap;
   }
   :global(#edit-list .row-edit),
+  :global(#edit-list .row-qr),
   :global(#edit-list .row-del),
   :global(#edit-list .row-restore) {
     display: inline-flex;
