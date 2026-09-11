@@ -182,6 +182,37 @@ function stubMd(title: string, extra = ""): string {
   );
 }
 
+/**
+ * A sold painting via the practice overlay — a clean checkout holds no
+ * sold paintings, so tests that need the Sold fold seed their own
+ * instead of relying on tree inventory.
+ */
+async function seedSoldOverlay(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "studio-practice-v1",
+      JSON.stringify({
+        upserts: {
+          "sold-seed": {
+            slug: "sold-seed",
+            title: "Sold Seed",
+            price: 10,
+            sold: true,
+            alt: "",
+            description: "",
+            widthIn: "",
+            heightIn: "",
+            depthIn: "",
+            medium: "",
+            draft: false,
+          },
+        },
+        deletes: [],
+      }),
+    );
+  });
+}
+
 test("studio header links home, never to visitor funnels", async ({ page }) => {
   await mockCommitApi(page);
   await page.goto("/admin");
@@ -378,6 +409,7 @@ test("collection rows stop well short of the content edge on desktop", async ({
 });
 
 test("sold gets its own foldable row under everything", async ({ page }) => {
+  await seedSoldOverlay(page);
   await page.goto("/admin");
   const fold = page.locator("#edit-list .sold-fold");
   await expect(fold).toBeVisible();
@@ -423,6 +455,13 @@ test("drafts fold away between available and sold", async ({ page }) => {
         upserts: {
           "fold-a": draft("fold-a", "Fold A"),
           "fold-b": draft("fold-b", "Fold B"),
+          // The fold sits above Sold, so seed one: a clean checkout
+          // holds no sold paintings.
+          "sold-seed": {
+            ...draft("sold-seed", "Sold Seed"),
+            sold: true,
+            draft: false,
+          },
         },
         deletes: [],
       }),
@@ -1037,6 +1076,9 @@ test("drawers animate through script on every browser", async ({ page }) => {
       proto.animate = orig;
       return seen;
     }, summarySel);
+  // The collection fold needs a sold painting; a clean checkout holds
+  // none, so seed one (init scripts run on every page in this context).
+  await seedSoldOverlay(page);
   await page.goto("/admin/guide");
   const guideSeen = await animatedProps("#sec-info summary");
   expect(guideSeen).toContain("height");
@@ -1156,6 +1198,21 @@ test("metrics page ranks every painting, most watched first", async ({
       }),
     }),
   );
+  // Metrics rows are baked at build time and a clean checkout holds no
+  // sold painting, so flip one seed row for this visit: fetch the real
+  // document and rewrite its embedded seed.
+  await page.route("**/admin/metrics*", async (route) => {
+    const res = await route.fetch();
+    // The trailing-slash redirect passes through untouched.
+    if (res.status() !== 200) return route.fulfill({ response: res });
+    const html = await res.text();
+    const needle = '"slug":"prairie-moon","title":"Prairie Moon","sold":false';
+    expect(html).toContain(needle);
+    await route.fulfill({
+      response: res,
+      body: html.replace(needle, needle.replace("false", "true")),
+    });
+  });
   await page.goto("/admin/metrics");
   // Most opened tops the ranking, with its count and the headline
   // total above the rows.
@@ -1855,6 +1912,47 @@ test("collection falls back to the baked-in list when the API fails", async ({
 test("practice draft from the new room lands in the dashboard Drafts section", async ({
   page,
 }) => {
+  // The fold label pluralizes ("2 drafts"): seed a companion so the new
+  // practice draft isn't alone — a clean checkout holds no drafts. The
+  // save redirects back here, which re-runs this script, so MERGE the
+  // companion instead of overwriting (or the saved draft is wiped).
+  await page.addInitScript(() => {
+    const key = "studio-practice-v1";
+    let overlay: { upserts: Record<string, unknown>; deletes: string[] } = {
+      upserts: {},
+      deletes: [],
+    };
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (raw !== null) {
+        const parsed = JSON.parse(raw) as typeof overlay;
+        if (
+          typeof parsed === "object" &&
+          parsed !== null &&
+          typeof parsed.upserts === "object" &&
+          parsed.upserts !== null
+        ) {
+          overlay = parsed;
+        }
+      }
+    } catch {
+      // Corrupt seed — start empty.
+    }
+    overlay.upserts["draft-companion"] = {
+      slug: "draft-companion",
+      title: "Draft Companion",
+      price: 10,
+      sold: false,
+      alt: "",
+      description: "",
+      widthIn: "",
+      heightIn: "",
+      depthIn: "",
+      medium: "",
+      draft: true,
+    };
+    window.localStorage.setItem(key, JSON.stringify(overlay));
+  });
   await page.goto("/admin/paintings/new");
   await page.locator("#de-title").fill("Practice Piece");
   await page.locator("#de-price").fill("999.99");
