@@ -65,10 +65,10 @@ test("studio banner form offers lifetimes and saves with an expiry", async ({
   await expect(page.locator("#admin-status")).toContainText("Banner updated");
 
   // The preview is a pinned paper note: warm paper, a tape
-  // strip across the top, the site's own sans voice.
+  // strip across the top, her handwriting.
   const preview = page.locator("#banner-preview");
   await expect(preview).toHaveCSS("background-image", /linear-gradient/);
-  await expect(preview).toHaveCSS("font-family", /system-ui/);
+  await expect(preview).toHaveCSS("font-family", /Caveat/);
   const tape = await preview.evaluate((el) => {
     const style = window.getComputedStyle(el, "::before");
     return { width: style.width, height: style.height };
