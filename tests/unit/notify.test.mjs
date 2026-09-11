@@ -119,10 +119,11 @@ describe("segmentBroadcastEmail", () => {
     assert.match(text, /— Barbara/);
     assert.ok(text.includes("{{{RESEND_UNSUBSCRIBE_URL}}}"));
     assert.ok(!text.includes("token="));
-    // The styled body dresses the same words: eyebrow, her subject as
-    // the headline, sign-off, and the placeholder exit.
-    assert.ok(html.includes("Barbara Straka"));
+    // The styled body dresses the same words: her subject as the
+    // headline, sign-off, and the placeholder exit — but no nameplate
+    // eyebrow; the From line already says who it's from.
     assert.ok(html.includes("New painting at Barbara Straka's studio"));
+    assert.ok(!html.includes(">Barbara Straka</p>"));
     assert.ok(html.includes("— Barbara"));
     assert.ok(html.includes('href="{{{RESEND_UNSUBSCRIBE_URL}}}"'));
     // The plain text gives the link breathing room: a blank line between

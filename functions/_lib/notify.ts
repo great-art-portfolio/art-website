@@ -280,9 +280,10 @@ export function escapeHtml(text: string): string {
 /** One template for the whole segment; the exit is Resend's placeholder.
  * The text stays plain (inboxes still render it); the styled body dresses
  * the same words in the gallery's paper-and-clay for clients that render
- * HTML — eyebrow, her subject as the headline, her line breaks kept, the
- * fixed sign-off, and the unsubscribe. Her subject and body arrive
- * pre-cleaned; the sign-off and unsubscribe never come from input. */
+ * HTML — her subject as the headline, her line breaks kept, the fixed
+ * first-name sign-off, and the unsubscribe. No nameplate: the From line
+ * already says who it's from. Her subject and body arrive pre-cleaned;
+ * the sign-off and unsubscribe never come from input. */
 export function segmentBroadcastEmail(
   site: string,
   subject: unknown = "",
@@ -309,7 +310,6 @@ export function segmentBroadcastEmail(
   const html = [
     '<!doctype html><html><body style="margin:0;padding:0;background-color:#f4eee1;">',
     "<div style=\"max-width:560px;margin:0 auto;padding:32px 20px;font-family:Georgia,'Times New Roman',serif;color:#2b2721;\">",
-    '<p style="font-size:13px;letter-spacing:3px;text-transform:uppercase;color:#a44a24;margin:0 0 8px;">Barbara Straka</p>',
     `<h1 style="font-size:26px;font-weight:normal;margin:0 0 16px;">${escapeHtml(copy.subject)}</h1>`,
     `<p style="font-size:16px;line-height:1.6;margin:0 0 16px;">${paras}</p>`,
     '<p style="font-size:16px;margin:0 0 24px;">— Barbara</p>',
