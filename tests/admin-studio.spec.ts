@@ -1456,6 +1456,49 @@ test("ping preview wears the notification shape live", async ({ page }) => {
   );
 });
 
+test("device preview sends a local ping, never a broadcast", async ({
+  page,
+}) => {
+  // Stand in for the OS renderer: records what would pop up.
+  await page.addInitScript(() => {
+    const seen: Array<{ title: string; opts: unknown }> = [];
+    class FakeNotification {
+      static permission = "granted";
+      static requestPermission(): Promise<string> {
+        return Promise.resolve("granted");
+      }
+      onclick: (() => void) | null = null;
+      constructor(title: string, opts: unknown) {
+        seen.push({ title, opts });
+      }
+      close(): void {}
+    }
+    (window as unknown as Record<string, unknown>)["Notification"] =
+      FakeNotification;
+    (window as unknown as Record<string, unknown>)["__notes"] = seen;
+  });
+  await page.goto("/admin/ping");
+  await page.locator("#tickle-body").fill("New seascape just listed");
+  await page.locator("#tickle-preview-send").click();
+  // The page says the ping went out on this browser only.
+  await expect(page.locator("#tickle-status")).toContainText("Preview sent");
+  // And it wears the real ping's shape: fixed title, her line, her icon.
+  const shown = await page.evaluate(
+    () => (window as unknown as Record<string, unknown>)["__notes"],
+  );
+  expect(shown).toEqual([
+    {
+      title: "Something new in the gallery",
+      opts: {
+        body: "New seascape just listed",
+        icon: "/favicon.png",
+        badge: "/favicon.png",
+        tag: "gallery-preview",
+      },
+    },
+  ]);
+});
+
 test("tickle button names its reach and asks first", async ({ page }) => {
   await page.goto("/admin/ping");
   // The field names the default note — blank never surprises.

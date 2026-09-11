@@ -1613,6 +1613,66 @@ function wireTickle(): void {
     lineField.addEventListener("input", syncTicklePreview);
   }
   syncTicklePreview();
+  // A device preview is a local notification, not a broadcast: it goes
+  // through the same system renderer as a real ping, on this browser
+  // only. Needs the browser's blessing first; a blocked blessing says
+  // so in plain words instead of failing quietly.
+  const previewBtn = document.getElementById("tickle-preview-send");
+  if (previewBtn instanceof HTMLButtonElement) {
+    previewBtn.addEventListener("click", () => {
+      const status = document.getElementById("tickle-status");
+      if (status === null) return;
+      if (!("Notification" in window)) {
+        status.textContent =
+          "This browser can't show ping previews — the card above still shows the words.";
+        fadeIn(status);
+        return;
+      }
+      const lineInput = document.getElementById("tickle-body");
+      const line =
+        lineInput instanceof HTMLInputElement ? lineInput.value.trim() : "";
+      const show = (): void => {
+        try {
+          const note = new Notification("Something new in the gallery", {
+            body: line === "" ? "Tap to see it." : line,
+            icon: "/favicon.png",
+            badge: "/favicon.png",
+            tag: "gallery-preview",
+          });
+          // Tapping the preview opens the homepage, like a real ping.
+          note.onclick = () => {
+            window.open("/", "_blank");
+            note.close();
+          };
+          status.textContent = "Preview sent — look for the ping.";
+          fadeIn(status);
+        } catch {
+          status.textContent =
+            "This browser blocked the preview — the card above still shows the words.";
+          fadeIn(status);
+        }
+      };
+      if (Notification.permission === "granted") {
+        show();
+        return;
+      }
+      if (Notification.permission === "denied") {
+        status.textContent =
+          "Ping previews are blocked — allow notifications for this site in the browser, then try again.";
+        fadeIn(status);
+        return;
+      }
+      void Notification.requestPermission().then((answer) => {
+        if (answer === "granted") {
+          show();
+          return;
+        }
+        status.textContent =
+          "Ping previews need the browser's okay — the card above still shows the words.";
+        fadeIn(status);
+      });
+    });
+  }
   // Standalone browser ping (no email). Disabled mid-flight so a double
   // tap can't fan out twice. A custom line rides along — blank means
   // the standard note.

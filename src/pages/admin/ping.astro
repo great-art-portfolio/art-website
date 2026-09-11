@@ -9,7 +9,8 @@ import "../../components/studio.css";
       <h2>Ping subscribers</h2>
       <p class="hint">
         Sends a browser ping to subscribers (no email). Add a line if you like —
-        otherwise buyers see the standard note.
+        otherwise buyers see the standard note. Preview on this device shows the
+        real system ping on this browser only — nothing goes to subscribers.
       </p>
       <label
         >Message (optional)
@@ -23,6 +24,9 @@ import "../../components/studio.css";
       </label>
       <div class="row">
         <button type="button" id="tickle-send">Ping subscribers</button>
+        <button type="button" id="tickle-preview-send"
+          >Preview on this device</button
+        >
       </div>
       <div id="tickle-preview" aria-label="How the ping will look">
         <img src="/favicon.png" alt="" width="40" height="40" />
