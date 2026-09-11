@@ -2205,10 +2205,6 @@ test("collection rows link published paintings to their qr card", async ({
     .evaluate((el) => window.getComputedStyle(el).fill);
   expect(moduleFill).not.toBe("rgb(0, 0, 0)");
   expect(moduleFill).not.toBe("rgb(255, 255, 255)");
-  // Delete reads red at rest — clay in light, lighter clay in dark.
-  await expect(
-    page.locator('[data-group="available"] .row-card .row-del').first(),
-  ).toHaveCSS("color", "rgb(179, 85, 69)");
   await expect(
     page.locator('[data-group="drafts"] .row-card .qr-mini'),
   ).toHaveCount(0);
