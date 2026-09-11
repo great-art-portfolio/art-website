@@ -163,19 +163,44 @@ const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
       grid-column: 1 / -1;
     }
   }
-  /* A note from the studio: clay rule, the site's own sans voice,
-     no backdrop of its own — it sits on the wash. Twins the studio
-     preview, so what she types is what buyers see. */
+  /* A note pinned to the studio wall: warm paper, a tape strip
+     across the top, the site's own sans voice. Stays paper-cream in
+     every color scheme, like a real note. Twins the studio preview,
+     so what she types is what buyers see. */
   .announce {
-    margin: 0;
+    position: relative;
+    margin: 0.9rem 0 0;
     max-width: 24rem;
     box-sizing: border-box;
     justify-self: center;
-    border-left: 2px solid var(--primary);
-    padding: 0.1rem 0 0.1rem 1rem;
-    color: var(--ink);
+    rotate: -0.8deg;
+    border-radius: 2px;
+    background: linear-gradient(180deg, #fffdf8, #fdf6e9);
+    padding: 1.4rem 1.25rem 1.1rem;
+    color: #23201b;
     font-size: 1.05rem;
     line-height: 1.6;
+    box-shadow:
+      0 1px 2px rgb(35 32 27 / 0.1),
+      0 10px 24px -14px rgb(35 32 27 / 0.35);
+  }
+  /* The tape: translucent, a breath narrower than the note, tipped
+     a little off straight so it reads as stuck on by hand. */
+  .announce::before {
+    content: "";
+    position: absolute;
+    top: -0.75rem;
+    left: 50%;
+    width: 5.5rem;
+    height: 1.5rem;
+    translate: -50% 0;
+    rotate: -2deg;
+    background: linear-gradient(
+      180deg,
+      rgb(233 220 196 / 0.9),
+      rgb(226 210 182 / 0.75)
+    );
+    box-shadow: 0 1px 2px rgb(35 32 27 / 0.14);
   }
   .eyebrow {
     margin: 0 0 1rem;

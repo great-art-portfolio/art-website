@@ -64,16 +64,17 @@ test("studio banner form offers lifetimes and saves with an expiry", async ({
   await page.locator("#announce-save").click();
   await expect(page.locator("#admin-status")).toContainText("Banner updated");
 
-  // The preview is a plain note: clay rule, no kicker, the
-  // site's own sans voice.
+  // The preview is a pinned paper note: warm paper, a tape
+  // strip across the top, the site's own sans voice.
   const preview = page.locator("#banner-preview");
-  await expect(preview).toHaveCSS("border-left-width", "2px");
-  await expect(preview).toHaveCSS("padding-left", "16px");
-  const kicker = await preview.evaluate(
-    (el) => window.getComputedStyle(el, "::before").content,
-  );
-  expect(kicker).toBe("none");
+  await expect(preview).toHaveCSS("background-image", /linear-gradient/);
   await expect(preview).toHaveCSS("font-family", /system-ui/);
+  const tape = await preview.evaluate((el) => {
+    const style = window.getComputedStyle(el, "::before");
+    return { width: style.width, height: style.height };
+  });
+  expect(tape.width).toBe("88px");
+  expect(tape.height).toBe("24px");
 
   expect(sent() !== null).toBe(true);
   expect(sent()?.message).toBe("Update homepage banner");
