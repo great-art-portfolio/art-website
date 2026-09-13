@@ -5,7 +5,7 @@
 import { Image } from "astro:assets";
 import type { ImageMetadata } from "astro";
 import { PHOTO_WIDTHS, photoSizes } from "../lib/responsive-images";
-import { SHOW_PRICES } from "../lib/site";
+import { SHOW_PAGE_SHARE, SHOW_PRICES } from "../lib/site";
 
 export interface PaintingDetailData {
   title: string;
@@ -76,7 +76,51 @@ const eyebrow =
   data-draft={data.draft ? "1" : ""}
   data-image={data.image?.src ?? ""}
 >
-  <p class="crumbs"><a href={backHref}>{backLabel}</a></p>
+  <p class="crumbs">
+    <a href={backHref}>{backLabel}</a>
+    {
+      mode === "buy" && !preview && SHOW_PAGE_SHARE && (
+        <button
+          type="button"
+          id="pg-share"
+          class="crumbs-share"
+          aria-label="Share this painting"
+          hidden
+        >
+          <svg
+            class="when-idle"
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M12 15V3" />
+            <path d="M7 8l5-5 5 5" />
+            <path d="M5 12v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8" />
+          </svg>
+          <svg
+            class="when-copied is-parked"
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
+        </button>
+      )
+    }
+  </p>
   {
     mode === "buy" && (
       <div id="admin-bar" hidden>
@@ -177,6 +221,38 @@ const eyebrow =
               </>
             )}
           </div>
+        )
+      }
+      {
+        mode === "edit" && !data.draft && (
+          <section
+            class="share"
+            id="de-share"
+            aria-labelledby="de-share-title"
+            hidden
+          >
+            <h2 id="de-share-title">Tell social media</h2>
+            <p class="hint" id="de-share-hint" />
+            <textarea
+              id="de-share-text"
+              rows="3"
+              maxlength="2000"
+              autocomplete="off"
+              aria-label="Words for the post"
+            />
+            <div class="share-actions">
+              <button type="button" id="de-share-send" class="btn-primary">
+                Share
+              </button>
+              <button type="button" id="de-share-photo">
+                Save photo
+              </button>
+              <button type="button" id="de-share-copy">
+                Copy
+              </button>
+            </div>
+            <p class="hint" id="de-share-status" role="status" />
+          </section>
         )
       }
     </div>
@@ -286,9 +362,8 @@ const eyebrow =
                 />
               </label>
               <p class="hint" id="de-alt-hint">
-                This box describes the photo for people who can't see it — write
-                what the painting looks like and screen readers read it aloud.
-                It never shows on the page.
+                Alt text describes the photo for people who can't see it —
+                screen readers read it aloud. It never shows on the page.
               </p>
               <label class="de-desc-label">
                 Description
@@ -455,17 +530,6 @@ const eyebrow =
         )
       }
       {
-        ((studio && mode !== "draft") || preview) && !data.sold && (
-          <div class="inquiry-off">
-            <p class="hint">
-              {preview
-                ? "Buyers will see an “Interested?” button here once this is published — there's nothing to press in a preview."
-                : "Buyers see an “Interested?” button on the live page — it's off while you edit, so there's nothing to press here."}
-            </p>
-          </div>
-        )
-      }
-      {
         !studio && !data.sold && data.modelGlb !== "" && (
           <div id="ar-mount">
             <h2>Try it on your wall</h2>
@@ -557,6 +621,9 @@ const eyebrow =
           el.setAttribute("ar-scale", "fixed");
           el.setAttribute("ar-placement", "wall");
           el.setAttribute("camera-controls", "");
+          // Up-down scrolls glide past to the page; sideways drags still
+          // turn the piece (phones kept scrolling the model, not the page).
+          el.setAttribute("touch-action", "pan-y");
           el.setAttribute("alt", alt === "" ? title : alt);
           el.style.width = "100%";
           el.style.height = "20rem";
@@ -614,6 +681,7 @@ const eyebrow =
   function initDetail() {
     initAr();
     initAdmin();
+    initPageShare();
     // No Background Sync on iPhones — flush the outbox on reconnect + load.
     void import("../lib/queue").then(({ armOutboxFlush }) => armOutboxFlush());
     // Inquiries email straight out, nothing stored. Honeypot, then Turnstile.
@@ -666,6 +734,60 @@ const eyebrow =
         reveal.hidden = true;
         const name = form.querySelector('input[name="name"]');
         if (name instanceof HTMLInputElement) name.focus();
+      });
+    }
+
+    // Buyer share: one glyph, no words. The phone's sheet carries the
+    // page link; elsewhere the link rides the clipboard and the glyph
+    // ticks for two seconds. Failures rename the button, so the words
+    // are there exactly when something needs saying.
+    function initPageShare() {
+      const btnEl = document.getElementById("pg-share");
+      const btn = btnEl instanceof HTMLButtonElement ? btnEl : null;
+      if (btn === null || btn.dataset.wired === "1") return;
+      btn.dataset.wired = "1";
+      const nativeShare =
+        typeof navigator.share === "function" &&
+        (typeof navigator.canShare !== "function" ||
+          navigator.canShare({ url: window.location.href }));
+      if (!nativeShare)
+        btn.setAttribute("aria-label", "Copy the link to this painting");
+      btn.hidden = false;
+      btn.addEventListener("click", () => {
+        const live = readPageData();
+        void import("../lib/page-share").then(({ sharePaintingPage }) =>
+          sharePaintingPage({
+            title: live.title,
+            priceCents: live.priceCents,
+            url: window.location.href,
+          }).then((result) => {
+            // The sheet opening is the confirmation; a dismissal is not
+            // news. Only copies and failures say anything.
+            if (result === "copied") {
+              const idle = btn.querySelector(".when-idle");
+              const tick = btn.querySelector(".when-copied");
+              if (idle === null || tick === null) return;
+              idle.classList.add("is-parked");
+              tick.classList.remove("is-parked");
+              const back =
+                btn.getAttribute("aria-label") ?? "Share this painting";
+              btn.setAttribute("aria-label", "Copied.");
+              window.setTimeout(() => {
+                if (!document.contains(btn)) return;
+                idle.classList.remove("is-parked");
+                tick.classList.add("is-parked");
+                btn.setAttribute("aria-label", back);
+              }, 2000);
+            } else if (result === "failed") {
+              btn.setAttribute(
+                "aria-label",
+                nativeShare
+                  ? "Couldn't share — try again."
+                  : "Couldn't copy — hold the address bar to copy it.",
+              );
+            }
+          }),
+        );
       });
     }
 
@@ -739,6 +861,10 @@ const eyebrow =
     padding: 2rem 1.5rem 4rem;
   }
   .crumbs {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
     margin: 0 0 1.5rem;
     font-size: 0.92rem;
   }
@@ -758,6 +884,48 @@ const eyebrow =
     outline: 2px solid var(--accent);
     outline-offset: 2px;
     border-radius: 0.25rem;
+  }
+  /* Buyer share: the same quiet line as the way back, other end of the
+     row. One ring, same as its neighbor. */
+  .crumbs-share {
+    display: inline-flex;
+    align-items: center;
+    font: inherit;
+    /* A glyph alone is a small target: pad the hit area without moving
+       the row (the negative margin pays the padding back). */
+    padding: 0.4rem;
+    margin: -0.4rem;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    color: var(--muted);
+    text-decoration: underline transparent;
+    text-underline-offset: 4px;
+    transition:
+      color 0.2s ease,
+      text-decoration-color 0.12s ease;
+  }
+  .crumbs-share svg {
+    width: 0.95em;
+    height: 0.95em;
+    flex-shrink: 0;
+  }
+  .crumbs-share:hover {
+    color: var(--accent);
+    text-decoration-color: currentColor;
+  }
+  .crumbs-share:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+  /* Author display beats the UA [hidden] rule — re-assert it, so
+     no-JS buyers never see a dead button. */
+  .crumbs-share[hidden] {
+    display: none;
+  }
+  .crumbs-share svg.is-parked {
+    display: none;
   }
   /* Admin-mode toolbar: quiet bar, same link treatment as the header. */
   #admin-bar {
@@ -1368,7 +1536,8 @@ const eyebrow =
       content: none;
     }
   }
-  .studio-toolbar {
+  .studio-toolbar,
+  .share-actions {
     display: flex;
     gap: 0.6rem;
     flex-wrap: wrap;
@@ -1388,7 +1557,8 @@ const eyebrow =
     color: var(--muted);
   }
   .studio-toolbar button:not(.btn-primary),
-  .studio-toolbar a.de-preview {
+  .studio-toolbar a.de-preview,
+  .share-actions button:not(.btn-primary) {
     font: inherit;
     font-size: 0.9rem;
     font-weight: 600;
@@ -1409,11 +1579,13 @@ const eyebrow =
       color 0.25s ease;
   }
   .studio-toolbar button:not(.btn-primary):hover,
-  .studio-toolbar a.de-preview:hover {
+  .studio-toolbar a.de-preview:hover,
+  .share-actions button:not(.btn-primary):hover {
     border-color: var(--ink);
   }
   .studio-toolbar button:focus-visible,
-  .studio-toolbar a.de-preview:focus-visible {
+  .studio-toolbar a.de-preview:focus-visible,
+  .share-actions button:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
@@ -1423,6 +1595,73 @@ const eyebrow =
   }
   #de-status:empty {
     display: none;
+  }
+  /* Tell-social-media: the same section rhythm as the details above it.
+     The actions row reuses the toolbar buttons exactly, and the status
+     line keeps its height so good news never shoves the page. */
+  .share {
+    display: grid;
+    gap: 0.65rem;
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--line);
+  }
+  /* Author display beats the UA [hidden] rule — the section stays hidden
+     until its script wires up, so no-JS rooms never show dead buttons. */
+  .share[hidden] {
+    display: none;
+  }
+  .share h2 {
+    font-size: 1.25rem;
+    font-weight: 500;
+    margin: 0 0 0.25rem;
+  }
+  .share .hint {
+    margin: 0;
+  }
+  /* The fallback hint starts empty — collapse it so it holds no gap
+     until the script has something to say. */
+  #de-share-hint:empty {
+    display: none;
+  }
+  .share-actions {
+    margin-top: 0.35rem;
+  }
+  /* .btn-primary sets display:inline-flex, which beats the UA [hidden]
+     rule — re-assert it for browsers without a share sheet. */
+  #de-share-send[hidden] {
+    display: none;
+  }
+  #de-share-status {
+    margin: 0.25rem 0 0;
+    min-height: 1.2em;
+  }
+  /* The saved-photo confirmation leaves the section and pins to the top
+     like the room's error toast — the file lands in her downloads while
+     she reads on. Same shape, quiet border: this is good news. */
+  #de-share-status[data-tone="toast"] {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    top: max(5rem, env(safe-area-inset-top, 1rem));
+    z-index: 40;
+    width: min(36rem, calc(100% - 2rem));
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0.8rem 1.1rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    background: var(--card);
+    box-shadow: var(--shadow);
+    font-size: 0.95rem;
+    color: var(--ink);
+  }
+  #de-share-status.toast-in {
+    animation: de-toast-in 0.25s ease;
+  }
+  #de-share-status.toast-out {
+    opacity: 0;
+    transition: opacity 0.25s ease;
   }
   /* Room errors leave the toolbar and pin to the top like the admin
      toast — same reason: bad news shouldn't sit where she's scrolled
@@ -1458,14 +1697,7 @@ const eyebrow =
     opacity: 0;
     transition: opacity 0.25s ease;
   }
-  .inquiry-off {
-    margin-top: 1.75rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--line);
-  }
-  .inquiry-off .hint {
-    margin: 0;
-  }
+  /* (inquiry-off retired: the "nothing to press" note was noise.) */
   /* Draft photo tile: the whole square is the picker, labeled inside. */
   .upload-tile {
     position: relative;

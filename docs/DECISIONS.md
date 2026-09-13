@@ -70,17 +70,22 @@ from Calgary.
 
 ## Social
 
-The share kit is gone (the "Tell social media" card was removed in favour
-of publish-time subscriber alerts). Automatic posting needs a business /
-creator IG account + approved Facebook app, so it stays behind
-`ENABLE_SOCIAL_POST` (Ayrshare) until she wants it.
+Manual sharing lives in the painting room ("Tell social media"): the
+words come prefilled from the fields and stay editable, then Share hands
+the photo + words to the phone's share sheet — Save photo / Copy words
+cover browsers without one. No accounts anywhere on this path. A buyer share glyph (the phone's
+sheet with the page link, else a copy tick) is built but parked behind
+`SHOW_PAGE_SHARE` — top-row and meta-line placements both floated too
+far from anything; her caption words never leave the studio either way.
+Automatic posting needs a business / creator IG account + approved
+Facebook app, so it stays behind `ENABLE_SOCIAL_POST` (Ayrshare) until
+she wants it.
 
 ## Toolchain (Sep 2026)
 
-Astro 7 + React 19 + Zod v4 via `astro/zod` (the old `astro:content` `z`
-re-export is deprecated). TypeScript stays on 5.9: the TS 7 native port
-doesn't ship the programmatic API `astro check` needs yet — revisit when
-the Astro language server supports it.
+Astro 7 + Zod v4 via `astro/zod` (the old `astro:content` `z`
+re-export is deprecated). No frontend framework: static markup + small
+client scripts, shared logic in `src/lib/`. TypeScript 6.
 
 ## Analytics & privacy law
 

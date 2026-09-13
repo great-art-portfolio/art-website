@@ -135,7 +135,6 @@ API-dependent helpers to `lib/api.ts`).
 
 ## Crash recovery
 
-TODO.md mirrors the running plan — read it first, keep it current.
 Port 4331, commit along the way, verify in a real browser before claiming
 done: the repo's own suites (`test:unit`, then the touched spec files,
 then full `test:e2e`) plus a look at the page.

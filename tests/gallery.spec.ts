@@ -259,12 +259,24 @@ for (const p of published) {
         await expect(viewer).toBeAttached({ timeout: 15_000 });
         // Poster first, model lazy-loads as the section nears the viewport.
         await expect(viewer).toHaveAttribute("loading", "lazy");
+        // Vertical scrolls glide past to the page; sideways drags orbit.
+        await expect(viewer).toHaveAttribute("touch-action", "pan-y");
         const poster = await viewer.getAttribute("poster");
         expect(poster !== null && poster !== "").toBe(true);
       }
     }
   });
 }
+
+test("page share stays parked behind its flag", async ({ page }) => {
+  // Placement undecided (the glyph floated too far from anything), so
+  // SHOW_PAGE_SHARE is off and no button renders. The share specs live
+  // in git history — restore them with the flag.
+  await page.goto("/paintings/first-thaw");
+  await expect(page.locator("#pg-share")).toHaveCount(0);
+  // The way back stands alone again.
+  await expect(page.locator('.crumbs a[href="/"]')).toBeVisible();
+});
 
 test("inquiry comes before the wall preview, skeleton holds the stage", async ({
   page,

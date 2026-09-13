@@ -22,12 +22,16 @@ test("draft room looks like the buyer page, empty and editable", async ({
   // Wall preview holds its honest wait in words, under the tile.
   await expect(page.locator("#de-ar-waiting")).toContainText("about 5 seconds");
   await expect(page.locator("#de-ar-waiting")).toContainText("view it in AR");
-  // No Interested button here — a draft has no live page yet.
-  await expect(page.locator(".inquiry-off")).toHaveCount(0);
+  // No Interested button here — a draft has no live page yet, and no
+  // note explaining that either.
+  await expect(page.locator("#inquiry-form")).toHaveCount(0);
   // Alt text says who it's for, in plain words — a separate caption
   // under the field, so hovering it never touches the input.
   await expect(page.locator("#de-alt-hint")).toContainText(
     "It never shows on the page.",
+  );
+  await expect(page.locator("#de-alt-hint")).toContainText(
+    "Alt text describes",
   );
   // The wall wait names the 3D model, not just "the 3D".
   await expect(page.locator("#de-ar-waiting")).toContainText("3D model takes");
@@ -280,6 +284,7 @@ test("draft photo builds its own wall preview", async ({ page }) => {
   // The waiting box steps aside for the real viewer, no button to press.
   const viewer = page.locator("#ar-stage model-viewer");
   await expect(viewer).toBeAttached({ timeout: 30_000 });
+  await expect(viewer).toHaveAttribute("touch-action", "pan-y");
   await expect(page.locator("#de-ar-waiting")).toBeHidden();
 });
 
@@ -322,12 +327,9 @@ test("edit room arrives prefilled with save, visibility, and delete", async ({
   await expect(page.locator("#de-sold")).toHaveCSS("appearance", "none");
   await expect(page.locator("#de-sold")).toHaveCSS("cursor", "pointer");
   await expect(page.locator("#de-replace")).toHaveText("Replace photo");
-  // No Interested button anywhere in the studio — just a note saying
-  // buyers still get one on the live page. Drafts hide even that.
-  await expect(page.locator(".inquiry-off button")).toHaveCount(0);
-  await expect(page.locator(".inquiry-off .hint")).toContainText(
-    "off while you edit",
-  );
+  // No Interested button anywhere in the studio, and no note about
+  // it either — the form simply isn't here.
+  await expect(page.locator("#inquiry-form")).toHaveCount(0);
   await expect(page.locator(".crumbs a")).toHaveAttribute("href", "/admin");
   // Live preview follows edits.
   await page.locator("#de-price").fill("175");
@@ -499,11 +501,8 @@ test("preview shows the buyer page with the inquiry switched off", async ({
     "/admin/paintings/first-thaw",
   );
   await expect(page.locator("h1")).toHaveText("First Thaw");
-  // No working inquiry on a preview — just the plain-words note.
+  // No working inquiry on a preview, and no note about it either.
   await expect(page.locator("#inquiry-form")).toHaveCount(0);
-  await expect(page.locator(".inquiry-off .hint")).toContainText(
-    "nothing to press in a preview",
-  );
   // Never indexed.
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
     "content",
@@ -629,4 +628,88 @@ test("draft save carries its publish-on date", async ({ browser }) => {
   expect(md).toMatch(/^draft: true$/m);
   expect(md).toMatch(/^publishOn: "2999-06-01"$/m);
   await authed.close();
+});
+
+test("social words come prefilled and follow edits until she writes her own", async ({
+  page,
+}) => {
+  await page.goto("/admin/paintings/first-thaw");
+  await expect(page.locator("#de-share")).toBeVisible();
+  await expect(page.locator("#de-share-title")).toHaveText("Tell social media");
+  // Prefilled from the fields: title, price, and the page link.
+  const words = page.locator("#de-share-text");
+  await expect(words).toHaveValue(/New in the gallery: “First Thaw”/);
+  await expect(words).toHaveValue(/\$125\.00 CAD/);
+  await expect(words).toHaveValue(/barbart\.ca\/paintings\/first-thaw/);
+  // Typing a new title rewrites the words…
+  await page.locator("#de-title").fill("Thaw Remix");
+  await expect(words).toHaveValue(/“Thaw Remix”/);
+  // …until she types her own, which sticks.
+  await words.fill("My own words");
+  await page.locator("#de-title").fill("Thaw Again");
+  await expect(words).toHaveValue("My own words");
+  // Share first, then the manual way — one primary, two quiet.
+  const ids = await page
+    .locator(".share-actions button")
+    .evaluateAll((els) => els.map((el) => el.id));
+  expect(ids).toEqual(["de-share-send", "de-share-photo", "de-share-copy"]);
+  await expect(page.locator("#de-share-send")).toHaveClass(/btn-primary/);
+});
+
+test("copy words lands on the clipboard with a murmur", async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto("/admin/paintings/first-thaw");
+  await page.locator("#de-share-copy").click();
+  await expect(page.locator("#de-share-status")).toHaveText("Copied.");
+  const pasted = await page.evaluate(() => navigator.clipboard.readText());
+  expect(pasted).toContain("New in the gallery: “First Thaw”");
+});
+
+test("no share sheet means no share button, just the manual way", async ({
+  browser,
+}) => {
+  // Fresh profile without Web Share, whatever the runner browser has.
+  const unshared = await browser.newContext();
+  unshared.addInitScript(() => {
+    // Whatever the runner browser has, this profile shares nothing.
+    const proto = window.Navigator.prototype as unknown as {
+      share?: unknown;
+      canShare?: unknown;
+    };
+    proto.share = undefined;
+    proto.canShare = undefined;
+  });
+  const page = await unshared.newPage();
+  await page.goto("/admin/paintings/first-thaw");
+  await expect(page.locator("#de-share")).toBeVisible();
+  await expect(page.locator("#de-share-send")).toBeHidden();
+  await expect(page.locator("#de-share-hint")).toContainText("save the photo");
+  // The manual way still stands: photo + words.
+  await expect(page.locator("#de-share-photo")).toBeVisible();
+  await expect(page.locator("#de-share-copy")).toBeVisible();
+  await unshared.close();
+});
+
+test("drafts have no social section — no live address yet", async ({
+  page,
+}) => {
+  await page.goto("/admin/paintings/new");
+  await expect(page.locator("#de-share")).toHaveCount(0);
+});
+
+test("saving the photo toasts from the top, never murmurs inline", async ({
+  page,
+}) => {
+  await page.goto("/admin/paintings/first-thaw");
+  await page.locator("#de-share-photo").click();
+  const status = page.locator("#de-share-status");
+  await expect(status).toHaveText(
+    "Photo saved — post it with the words above.",
+  );
+  await expect(status).toHaveAttribute("data-tone", "toast");
+  const position = await status.evaluate((el) => getComputedStyle(el).position);
+  expect(position).toBe("fixed");
 });

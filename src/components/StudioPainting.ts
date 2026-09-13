@@ -7,6 +7,7 @@ import { loadImageFile, prepareImage } from "../lib/image";
 import { dollarsToCents, formatCAD } from "../lib/money";
 import { formatDimensions } from "../lib/dims";
 import { isTitleTaken, slugifyTitle } from "../lib/site";
+import { buildShareCaption } from "../lib/share-caption";
 import {
   appendSlugHistory,
   buildMarkdown,
@@ -165,6 +166,178 @@ function refreshPreview(): void {
     const img = document.querySelector<HTMLImageElement>(sel);
     if (img !== null) img.alt = liveAlt;
   }
+  refreshShareCaption();
+}
+
+/** Tell-social-media words follow the live preview — until she types her
+ * own, which sticks for the visit. Reads the preview nodes (one source
+ * of truth), never the fields twice. */
+let shareDirty = false;
+
+function refreshShareCaption(): void {
+  const box = maybe("de-share-text");
+  if (box === null || shareDirty) return;
+  // The preview price drops the CAD (room shorthand); the words match the
+  // buyer page, so the price is rebuilt from the field, not the preview.
+  const cents = dollarsToCents(Number(maybe("de-price")?.value.trim() ?? ""));
+  box.value = buildShareCaption({
+    title: maybe("pv-title")?.textContent ?? "",
+    priceLabel: cents === null ? null : `${formatCAD(cents)} CAD`,
+    meta: maybe("pv-meta")?.textContent ?? "",
+    slug: document.getElementById("main")?.dataset.slug ?? "",
+  });
+}
+
+/** Share news murmurs inline — unless toast is set, which pins it to
+ * the top like the room's error toast and clears it after four seconds.
+ * Fades are opacity-only, under every motion setting. */
+let shareToastTimer = 0;
+function sayShare(msg: string, toast = false): void {
+  const el = maybe("de-share-status");
+  if (el === null) return;
+  window.clearTimeout(shareToastTimer);
+  el.classList.remove("toast-out");
+  el.textContent = msg;
+  if (toast) el.dataset.tone = "toast";
+  else delete el.dataset.tone;
+  el.classList.remove("toast-in");
+  void el.offsetWidth;
+  el.classList.add("toast-in");
+  if (!toast) return;
+  shareToastTimer = window.setTimeout(() => {
+    const live = document.getElementById("de-share-status");
+    if (live === null) return;
+    live.classList.add("toast-out");
+    shareToastTimer = window.setTimeout(() => {
+      const gone = document.getElementById("de-share-status");
+      if (gone === null) return;
+      gone.textContent = "";
+      delete gone.dataset.tone;
+      gone.classList.remove("toast-in", "toast-out");
+    }, 260);
+  }, 4000);
+}
+
+/** The photo on screen (srcset-aware), or "" with no photo yet. */
+function sharePhotoUrl(): string {
+  const img = document.querySelector("#photo-wrap img");
+  if (!(img instanceof HTMLImageElement)) return "";
+  return img.currentSrc === "" ? img.src : img.currentSrc;
+}
+
+/** The phone takes photo files through its share sheet — probe with an
+ * empty file, so the button never promises what the browser can't do. */
+function canFileShare(): boolean {
+  try {
+    return (
+      typeof navigator.share === "function" &&
+      (typeof navigator.canShare !== "function" ||
+        navigator.canShare({
+          files: [new File([], "probe.jpg", { type: "image/jpeg" })],
+        }))
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** Tell-social-media: prefilled words plus the photo handoff. Absent
+ * outside published edit rooms (drafts have no live address yet). */
+function initShare(): void {
+  const section = maybe("de-share");
+  const box = maybe("de-share-text");
+  const send = maybe("de-share-send");
+  const save = maybe("de-share-photo");
+  const copy = maybe("de-share-copy");
+  if (
+    section === null ||
+    box === null ||
+    send === null ||
+    save === null ||
+    copy === null
+  ) {
+    return;
+  }
+  const slug = document.getElementById("main")?.dataset.slug ?? "";
+  box.addEventListener("input", () => {
+    shareDirty = true;
+  });
+  // No share sheet (or no photo files through it): the button stands
+  // down and the hint names the manual way. Never a dead button.
+  if (!canFileShare()) {
+    send.hidden = true;
+    const hint = maybe("de-share-hint");
+    if (hint !== null) {
+      hint.textContent =
+        "This browser can't share photos directly — save the photo, then post it with the words above.";
+    }
+  }
+  send.addEventListener("click", () => {
+    const url = sharePhotoUrl();
+    if (url === "") {
+      sayShare("No photo to share yet.");
+      return;
+    }
+    sayShare("Opening…");
+    const title = maybe("pv-title")?.textContent ?? "Painting";
+    window
+      .fetch(url)
+      .then((res) => {
+        if (!res.ok) throw new Error(`photo ${res.status}`);
+        return res.blob();
+      })
+      .then((blob) =>
+        navigator.share({
+          files: [
+            new File([blob], `${slug === "" ? "painting" : slug}.jpg`, {
+              type: blob.type === "" ? "image/jpeg" : blob.type,
+            }),
+          ],
+          title,
+          text: box.value,
+        }),
+      )
+      .then(
+        () => sayShare("Shared."),
+        (err: unknown) => {
+          // Dismissing the sheet is not an error — go quiet.
+          if (err instanceof DOMException && err.name === "AbortError") {
+            sayShare("");
+            return;
+          }
+          sayShare("That didn't share — save the photo and post it by hand.");
+        },
+      );
+  });
+  save.addEventListener("click", () => {
+    const url = sharePhotoUrl();
+    if (url === "") {
+      sayShare("No photo to share yet.");
+      return;
+    }
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${slug === "" ? "painting" : slug}.jpg`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    sayShare("Photo saved — post it with the words above.", true);
+  });
+  copy.addEventListener("click", () => {
+    const byHand = () => {
+      box.focus();
+      box.select();
+      sayShare("Couldn't copy — hold the words to copy them by hand.");
+    };
+    if (typeof navigator.clipboard?.writeText !== "function") {
+      byHand();
+      return;
+    }
+    navigator.clipboard
+      .writeText(box.value)
+      .then(() => sayShare("Copied."), byHand);
+  });
+  section.hidden = false;
 }
 
 function blobToFile(blob: Blob, name: string, type: string): File {
@@ -293,6 +466,9 @@ function showArViewer(glbUrl: string, usdzUrl: string): void {
       el.setAttribute("ar-scale", "fixed");
       el.setAttribute("ar-placement", "wall");
       el.setAttribute("camera-controls", "");
+      // Up-down scrolls glide past to the page; sideways drags still turn
+      // the piece (phones kept scrolling the model, not the page).
+      el.setAttribute("touch-action", "pan-y");
       el.setAttribute("alt", alt === "" ? title : alt);
       el.style.width = "100%";
       el.style.height = "20rem";
@@ -927,9 +1103,11 @@ function initStudio(): void {
   if (lastPreviewUrl !== null) URL.revokeObjectURL(lastPreviewUrl);
   lastPreviewUrl = null;
   rotation = 0;
+  shareDirty = false;
 
   refreshPreview();
   restoreAutosave();
+  initShare();
   for (const id of [
     "de-title",
     "de-price",

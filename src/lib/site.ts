@@ -14,6 +14,11 @@ export const TAGLINE = "Nature & abstract originals, painted by hand";
 /** Show prices on cards and painting pages (buyers self-qualify). */
 export const SHOW_PRICES = true;
 
+/** Buyer page share glyph. Parked: the glyph floated too far from
+ * anything in the crumbs row, and the meta line wore it no better.
+ * Placement undecided — flip back on when it has a home. */
+export const SHOW_PAGE_SHARE = false;
+
 export function artistLabel(): string {
   return ARTIST_NAME ?? "The Studio";
 }

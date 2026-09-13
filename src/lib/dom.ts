@@ -68,6 +68,13 @@ export interface ElementMap {
   "de-notify-push": HTMLInputElement;
   "de-notify-email": HTMLInputElement;
   "de-status": HTMLElement;
+  "de-share": HTMLElement;
+  "de-share-hint": HTMLElement;
+  "de-share-text": HTMLTextAreaElement;
+  "de-share-send": HTMLButtonElement;
+  "de-share-photo": HTMLButtonElement;
+  "de-share-copy": HTMLButtonElement;
+  "de-share-status": HTMLElement;
   "de-confirm": HTMLElement;
   "de-confirm-body": HTMLElement;
   "de-confirm-no": HTMLButtonElement;
