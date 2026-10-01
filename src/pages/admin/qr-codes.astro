@@ -5,8 +5,8 @@ import "../../components/studio.css";
 import { compareGalleryOrder, isPublished, slugifyTitle } from "../../lib/site";
 import { paintingPageUrl, qrSvg } from "../../lib/qr";
 
-// Print-ready codes for every painting with a buyer page (drafts and
-// trash have none). Available first, sold after — the gallery's order.
+// Printable codes for every painting with a buyer page, which excludes
+// drafts and trash. Available first, then sold, in gallery order.
 const published = (await getCollection("paintings")).filter((p) =>
   isPublished(p.data),
 );
@@ -66,10 +66,10 @@ const codes = await Promise.all(
 <script src="../../components/AdminPanel.ts"></script>
 
 <style>
-  /* Cut-out cards: one code, its title, and its address. The lede
-     keeps the 40rem reading measure; the grid takes the full width —
-     three across on desktop, two on tablets, one on phones. Print
-     stays two-up so cut-outs stay big, never split. */
+  /* Cards with a code, title, and URL. The intro keeps the 40rem text
+     width and the grid uses the full width: three across on desktop, two
+     on tablets, one on phones. Print uses two across so cards stay large
+     and don't split across pages. */
   #sec-qr > h2,
   #sec-qr > p {
     max-width: 40rem;
@@ -102,9 +102,8 @@ const codes = await Promise.all(
     padding: 1.25rem 1.25rem 1rem;
     text-align: center;
   }
-  /* The SVG arrives via set:html, so it never carries Astro's scope
-     attribute — a scoped descendant selector can't reach it. Whole-
-     selector :global() twin instead. */
+  /* The SVG comes from set:html and lacks Astro's scope attribute, so the
+     selector is global. */
   :global(#sec-qr .qr-code svg) {
     width: 100%;
     height: auto;
@@ -120,16 +119,15 @@ const codes = await Promise.all(
     font-size: 0.8rem;
     overflow-wrap: anywhere;
   }
-  /* One card's button prints just that card: the section takes a
-     marker class, every other card hides, and the marker lifts on
-     afterprint (cancel included). */
+  /* A card's own print button prints only that card. The section gets a
+     marker class that hides the other cards, removed on afterprint, which
+     also fires on cancel. */
   #sec-qr .qr-print-one {
     margin-top: 0.8rem;
     font-size: 0.85rem;
   }
   @media print {
-    /* Paper gets the codes only: no nav, toast, backdrop, lede, or
-       buttons — and ink stays black on white whatever the theme. */
+    /* Print only the codes, in black on white regardless of theme. */
     :global(.site-nav),
     :global(#admin-status),
     :global(#background),

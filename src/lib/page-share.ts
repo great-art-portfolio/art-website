@@ -1,8 +1,7 @@
 import { formatCAD } from "./money";
 
-/** Buyer "Share this painting": the phone's sheet carries the page link;
- * everywhere else the link rides the clipboard. Dismissing the sheet is
- * silence, never an error. */
+/** Buyer page sharing. Uses the share sheet where available and copies the
+ * link otherwise. Dismissing the sheet isn't treated as an error. */
 
 export type PageShareResult = "shared" | "dismissed" | "copied" | "failed";
 
@@ -12,7 +11,7 @@ export interface PageShareInput {
   url: string;
 }
 
-/** "“First Thaw” — $125.00 CAD" (bare name while priceless). */
+/** "“First Thaw” — $125.00 CAD", or just the title without a price. */
 export function shareText(title: string, priceCents: number): string {
   const name = title === "" ? "this painting" : `“${title}”`;
   return priceCents > 0 ? `${name} — ${formatCAD(priceCents)} CAD` : name;

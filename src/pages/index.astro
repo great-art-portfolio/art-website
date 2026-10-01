@@ -9,9 +9,9 @@ import bannerRaw from "../content/announcement.txt?raw";
 // headline stays generic instead of repeating "by …".
 const headlineHtml = "Original paintings, from the studio";
 
-// One studio note at a time, set from /admin (git). Empty = hidden.
-// Expired at build time = not rendered; expiry between deploys is hidden
-// by the script below (data-expires).
+// The studio note, set from /admin. Empty means hidden. Notes expired at
+// build time aren't rendered, and the script below hides notes that expire
+// between deploys.
 const banner = parseAnnouncement(bannerRaw);
 const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
 ---
@@ -77,11 +77,8 @@ const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
 </Layout>
 
 <script>
-  // Time-limited studio notes hide themselves once past their end date,
-  // so a forgotten note doesn't linger until the next site update. Every
-  // expired node goes: baked and preview can share the page in dev.
-  // (Inline scripts are plain JS — annotations don't survive astro check,
-  // so this stays annotation-free on purpose.)
+  // Hide studio notes past their end date so they don't linger until the
+  // next deploy. In dev the baked note and the preview can both be present.
   const notes = document.querySelectorAll(".announce[data-expires]");
   const now = new Date();
   const today =
@@ -94,9 +91,9 @@ const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
     const end = note.getAttribute("data-expires");
     if (end !== null && end !== "" && today > end) note.remove();
   }
-  // Dev-only banner preview: the studio keeps banner wording in this
-  // browser when there is no publishing backend, so it can be tried on
-  // the homepage for real — in the same side card the real note uses.
+  // Dev-only banner preview. Without a publishing backend the studio
+  // stores the banner in this browser, and it renders here in the same
+  // card as the real note.
   try {
     const raw = window.localStorage.getItem("studio-banner-preview-v1");
     if (raw !== null) {
@@ -136,7 +133,7 @@ const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
       }
     }
   } catch {
-    // No preview stored — the baked note (if any) stands.
+    // No stored preview, so the baked note stays.
   }
 </script>
 
@@ -146,8 +143,8 @@ const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
     margin: 0 auto;
     padding: clamp(3.5rem, 8vw, 6.5rem) 1.5rem 3rem;
   }
-  /* With a studio note, the hero splits: words left, the note card
-     right. Without one the hero is exactly as before. */
+  /* With a studio note the hero splits into text on the left and the note
+     on the right. */
   .hero-note {
     display: grid;
     gap: 2rem;
@@ -163,10 +160,8 @@ const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
       grid-column: 1 / -1;
     }
   }
-  /* A note pinned to the studio wall: warm paper, a tape strip
-     across the top, the site's own sans voice. Stays paper-cream in
-     every color scheme, like a real note. Twins the studio preview,
-     so what she types is what buyers see. */
+  /* The studio note, styled as paper with a tape strip. It stays cream in
+     every color scheme. Keep in sync with the studio preview. */
   .announce {
     position: relative;
     margin: 0.9rem 0 0;
@@ -186,8 +181,8 @@ const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
       0 1px 2px rgb(35 32 27 / 0.1),
       0 10px 24px -14px rgb(35 32 27 / 0.35);
   }
-  /* The tape: translucent, a breath narrower than the note, tipped
-     a little off straight so it reads as stuck on by hand. */
+  /* Translucent tape, slightly narrower than the note and slightly
+     rotated. */
   .announce::before {
     content: "";
     position: absolute;
@@ -253,14 +248,15 @@ const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
       color 0.25s ease,
       transform 0.2s ease;
   }
-  /* Lift only where a real hover pointer exists — on touch it would stick after tap. */
+  /* Lift only with a hover-capable pointer. On touch it sticks after a
+     tap. */
   @media (hover: hover) {
     .btn-primary:hover,
     .btn-ghost:hover {
       transform: translateY(-1px);
     }
   }
-  /* Reduced motion kills the button lifts; color fades still transition. */
+  /* Reduced motion removes the button lifts. Color fades still run. */
   @media (prefers-reduced-motion: reduce) {
     .btn-primary:hover,
     .btn-ghost:hover {
@@ -313,8 +309,8 @@ const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
     align-items: baseline;
     margin: 0;
   }
-  /* Narrow: a real two-column grid so every description starts at the same
-     edge instead of trailing its (variably wrapping) term. */
+  /* Narrow screens use a two-column grid so descriptions line up instead
+     of following each wrapped term. */
   @media (max-width: 40rem) {
     .hero-meta {
       display: grid;

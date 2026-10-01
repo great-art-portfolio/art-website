@@ -2,7 +2,7 @@ import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { subscribePush } from "../../src/lib/push.ts";
 
-/** subscribePush maps a dead push service to its own plain-words result. */
+/** subscribePush returns a distinct result when the push service is unavailable. */
 
 const realFetch = globalThis.fetch;
 const realNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
@@ -23,7 +23,7 @@ function stageBrowser(subscribe) {
     getSubscription: async () => null,
     subscribe,
   };
-  // Node's built-in navigator is getter-only — define, don't assign.
+  // Node's built-in navigator is getter-only, so use defineProperty.
   Object.defineProperty(globalThis, "navigator", {
     value: { serviceWorker: { ready: Promise.resolve({ pushManager }) } },
     configurable: true,

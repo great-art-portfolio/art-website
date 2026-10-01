@@ -5,10 +5,12 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { unzipSync, strFromU8 } from "fflate";
 
-/** Committed AR models: every painting's USDZ must carry a vertical
- * (wall) plane anchor. A floor-anchored model opens lying flat in
- * Quick Look — this pins the invariant the exporter options must hold
- * across three.js upgrades (the option shape already drifted once). */
+/**
+ * Every committed USDZ must use a vertical (wall) plane anchor. A
+ * floor-anchored model opens lying flat in Quick Look. This guards the
+ * exporter options across three.js upgrades, whose option shape has changed
+ * before.
+ */
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const dir = join(root, "public", "models");

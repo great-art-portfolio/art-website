@@ -1,4 +1,4 @@
-/** CAD formatting. Prices are integer cents everywhere (API, D1). */
+/** CAD formatting. Prices are integer cents in the API and storage. */
 export function formatCAD(priceCents: number): string {
   return new Intl.NumberFormat("en-CA", {
     style: "currency",

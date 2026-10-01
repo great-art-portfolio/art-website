@@ -1,17 +1,15 @@
-/** Dev-only Web Push loop for `pnpm dev:studio`.
+/** Dev-only Web Push for `pnpm dev:studio`.
  *
- * The studio sidecar has no D1 and no VAPID secrets, so subscribe + ping
- * would 404 there — yet that is exactly where the flow needs clicking
- * through. This module stands in: it mints its own VAPID keypair (cached
- * under node_modules/.cache so browser subscriptions survive sidecar
- * restarts), keeps subscriptions and the custom ping line in memory, and
- * answers the same /api/push, /api/push-message, and /api/notify shapes
- * the Pages Functions serve. Tickles go out over the real push service,
- * so a dev subscription pings a real browser.
+ * The local content API has no D1 or VAPID secrets, so subscribe and ping
+ * would otherwise 404. This module generates its own VAPID keypair, cached
+ * under node_modules/.cache so browser subscriptions survive restarts. It
+ * keeps subscriptions and the custom ping text in memory and serves the
+ * same /api/push, /api/push-message, and /api/notify shapes as the Pages
+ * Functions. Pings go through the real push service to a real browser.
  *
- * Deliberately NOT prod behavior: no cooldown (the user is the only
- * tapper here), no email side (emailed is always false), subscriptions
- * vanish if the cache is cleared. Nothing here runs outside localhost.
+ * Differences from production: no cooldown, no email (emailed is always
+ * false), and subscriptions are lost if the cache is cleared. Runs on
+ * localhost only.
  */
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -39,7 +37,7 @@ async function loadKeypair(cacheDir) {
       return raw;
     }
   } catch {
-    // First run (or a cleared cache) — mint below.
+    // First run or a cleared cache. Generate a keypair below.
   }
   const { publicKey, privateKey } = await crypto.subtle.generateKey(
     { name: "ECDSA", namedCurve: "P-256" },
@@ -48,15 +46,14 @@ async function loadKeypair(cacheDir) {
   );
   const pair = {
     privateJwk: await crypto.subtle.exportKey("jwk", privateKey),
-    // Raw uncompressed point (0x04 || x || y), the VAPID public format.
+    // Raw uncompressed point (0x04 || x || y), the VAPID public key format.
     publicKey: b64url(await crypto.subtle.exportKey("raw", publicKey)),
   };
   try {
     await mkdir(cacheDir, { recursive: true });
     await writeFile(join(cacheDir, CACHE_FILE), JSON.stringify(pair));
   } catch {
-    // Cache is convenience only — an uncached pair still works until
-    // the sidecar restarts.
+    // Caching is optional. An uncached keypair works until restart.
   }
   return pair;
 }
@@ -163,9 +160,8 @@ export function createStudioPushMock(cacheDir) {
   }
 
   async function handleNotify(req) {
-    // Preview read for the Email page: the same template the live
-    // endpoint composes, so dev shows what buyers would get. Sends stay
-    // mock (emailed is always false below).
+    // Email page preview, built from the same template as the live
+    // endpoint. Sends are still mocked.
     if (req.method === "GET") {
       const params = new URL(req.url).searchParams;
       const { subject, text, html } = segmentBroadcastEmail(
@@ -206,7 +202,7 @@ export function createStudioPushMock(cacheDir) {
     let nextCursor = null;
     const total = wantPush ? subs.size : 0;
     if (wantPush) {
-      // Same cursor batches as the live endpoint (40 per call).
+      // Same cursor paging as the live endpoint, 40 per call.
       const all = [...subs.keys()];
       const cursor = isTickle
         ? Math.max(0, Math.floor(Number(pushOpt.cursor ?? 0)) || 0)

@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test";
 
 /**
- * Studio painting rooms: /admin/paintings/new (draft) and
- * /admin/paintings/[slug] (edit) render the shared buyer layout with
- * editing in place — what she sees is what buyers get.
+ * Studio painting rooms. /admin/paintings/new (draft) and
+ * /admin/paintings/[slug] (edit) render the buyer layout with in-place
+ * editing, so the studio matches what buyers see.
  */
 
 test("draft room looks like the buyer page, empty and editable", async ({
@@ -15,27 +15,24 @@ test("draft room looks like the buyer page, empty and editable", async ({
   await expect(page.locator(".eyebrow")).toHaveText(
     "Draft · only you can see this",
   );
-  // Photo tile waits for an upload where the photo goes — the tile
-  // itself says so, photos only.
+  // The photo tile prompts for an upload and has no caption.
   await expect(page.locator("#de-photo-empty")).toHaveText("Upload photo");
   await expect(page.locator("#de-photo-caption")).toHaveCount(0);
-  // Wall preview holds its honest wait in words, under the tile.
+  // The wall preview explains the wait in text below the tile.
   await expect(page.locator("#de-ar-waiting")).toContainText("about 5 seconds");
   await expect(page.locator("#de-ar-waiting")).toContainText("view it in AR");
-  // No Interested button here — a draft has no live page yet, and no
-  // note explaining that either.
+  // A draft has no live page, so there is no inquiry form.
   await expect(page.locator("#inquiry-form")).toHaveCount(0);
-  // Alt text says who it's for, in plain words — a separate caption
-  // under the field, so hovering it never touches the input.
+  // The alt text hint is a separate caption under the field, so hovering
+  // it doesn't affect the input.
   await expect(page.locator("#de-alt-hint")).toContainText(
     "It never shows on the page.",
   );
   await expect(page.locator("#de-alt-hint")).toContainText(
     "Alt text describes",
   );
-  // The wall wait names the 3D model, not just "the 3D".
   await expect(page.locator("#de-ar-waiting")).toContainText("3D model takes");
-  // Narrow centered measure on desktop — it wraps instead of sprawling.
+  // On desktop the wait text is narrower than the mount so it wraps.
   const mountW = (await page.locator("#ar-mount").boundingBox())?.width ?? 0;
   const waitW =
     (await page.locator("#de-ar-waiting").boundingBox())?.width ?? 0;
@@ -45,16 +42,14 @@ test("draft room looks like the buyer page, empty and editable", async ({
     "aria-describedby",
     "de-alt-hint",
   );
-  // Wall preview is plainly named, under the tile.
   await expect(page.locator("#ar-mount h2")).toHaveText("3D Model Preview");
-  // Sold rides beside the save buttons, not above them.
+  // The Sold checkbox sits in the toolbar beside the save buttons.
   await expect(
     page.locator(".studio-toolbar .de-check:has(#de-sold)"),
   ).toContainText("Sold");
-  // Both exits for a new painting, and the way back.
   await expect(page.locator("#de-save-draft")).toHaveText("Save draft");
   await expect(page.locator("#de-publish")).toHaveText("Publish painting");
-  // Publish asks first, Save draft keeps — the ask comes first.
+  // Publish comes before Save draft.
   const exits = await page
     .locator(".studio-toolbar button")
     .evaluateAll((els) => els.map((el) => el.id));
@@ -63,12 +58,11 @@ test("draft room looks like the buyer page, empty and editable", async ({
 });
 
 test("a stale autosave never overrides the file", async ({ page }) => {
-  // Uses a title, not the sold flag — no painting needs to be sold for
-  // this to prove the file wins.
+  // Uses the title rather than the sold flag, so no fixture has to be sold.
   await page.goto("/admin/paintings/first-thaw");
   await expect(page.locator("#de-title")).toHaveValue("First Thaw");
-  // Yesterday's backup renames it — the file says First Thaw, so the
-  // file wins and the stale entry goes away.
+  // Plant an older backup with a different title. The file says First Thaw,
+  // so the file wins and the stale backup is discarded.
   await page.evaluate(() => {
     const main = document.getElementById("main");
     const key = `studio-autosave-v1|edit|${main?.dataset.slug}|${main?.dataset.mdPath}`;
@@ -128,9 +122,8 @@ test("published rooms offer no alerts", async ({ page }) => {
 test("publishing a draft fires only the checked channels", async ({
   browser,
 }) => {
-  // The new-painting room (always built, unlike per-painting rooms that
-  // need their file in the tree) — a clean checkout has no draft
-  // fixtures, so nothing here may name one.
+  // Use the new-painting room, which is always built. Per-painting rooms
+  // need their file in the tree, and a clean checkout has no draft fixtures.
   const authed = await browser.newContext();
   await authed.addInitScript(() =>
     sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
@@ -166,7 +159,7 @@ test("publishing a draft fires only the checked channels", async ({
     await dialog.accept();
   });
   await page.locator("#de-publish").click();
-  // Only Browsers was checked — the email list hears nothing.
+  // Only Browsers was checked, so nothing goes to the email list.
   await expect
     .poll(() => postedNotify, { timeout: 15_000 })
     .toEqual({ push: true, email: false });
@@ -221,8 +214,8 @@ test("draft validates before anything uploads", async ({ page }) => {
 });
 
 test("draft refuses a title another painting owns", async ({ browser }) => {
-  // Stored token means the live path; the listing names one existing
-  // painting, and the commit route records whether anything posted.
+  // A stored token selects the live path. The listing returns one existing
+  // painting, and the commit route records whether anything was posted.
   const authed = await browser.newContext();
   await authed.addInitScript(() =>
     sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
@@ -263,8 +256,8 @@ test("draft refuses a title another painting owns", async ({ browser }) => {
     .setInputFiles("src/content/paintings/1943x1967.jpg");
   await expect(page.locator("#de-photo-preview")).toBeVisible();
   await page.locator("#de-save-draft").click();
-  // Each title owns its page link, so the save stops here in plain
-  // words — and nothing reaches the repo.
+  // Titles determine page links, so a duplicate title stops the save with
+  // an error and nothing is committed.
   await expect(page.locator("#de-status")).toContainText(
     'Another painting is already called "First Thaw"',
     { timeout: 15_000 },
@@ -281,7 +274,7 @@ test("draft photo builds its own wall preview", async ({ page }) => {
   await expect(page.locator("#de-photo-preview")).toBeVisible();
   await expect(page.locator("#de-photo-empty")).toBeHidden();
   await expect(page.locator("#de-photo-tools")).toBeVisible();
-  // The waiting box steps aside for the real viewer, no button to press.
+  // The waiting box is replaced by the viewer automatically.
   const viewer = page.locator("#ar-stage model-viewer");
   await expect(viewer).toBeAttached({ timeout: 30_000 });
   await expect(viewer).toHaveAttribute("touch-action", "pan-y");
@@ -297,15 +290,15 @@ test("dimension typing shares one rebuild, never one per keystroke", async ({
     .setInputFiles("src/content/paintings/1943x1967.jpg");
   const viewer = page.locator("#ar-stage model-viewer");
   await expect(viewer).toBeAttached({ timeout: 30_000 });
-  // Typing a width must not yank the finished viewer that same instant —
-  // keystrokes share one rebuild after a short idle. Pinned to this exact
-  // node: a locator would re-find its replacement and hide the yank.
+  // Typing a width shouldn't replace the viewer immediately; keystrokes are
+  // debounced into one rebuild. Hold this exact node, since a locator would
+  // find the replacement and hide the problem.
   const node = await viewer.elementHandle();
   expect(node !== null).toBe(true);
   const srcBefore = await viewer.getAttribute("src");
   await page.locator("#de-w").fill("20");
   expect(await node?.evaluate((el) => el.isConnected)).toBe(true);
-  // …and the shared rebuild still lands once she pauses (fresh model URL).
+  // The rebuild still happens after typing stops, with a new model URL.
   await expect
     .poll(
       async () => page.locator("#ar-stage model-viewer").getAttribute("src"),
@@ -323,12 +316,11 @@ test("edit room arrives prefilled with save, visibility, and delete", async ({
   await expect(page.locator("#pv-price")).toContainText("$125.00");
   await expect(page.locator("#de-save")).toHaveText("Save changes");
   await expect(page.locator("#de-del")).toHaveText("Delete");
-  // Sold is a custom studio checkbox, not the browser default.
+  // Sold uses the custom studio checkbox, not the browser default.
   await expect(page.locator("#de-sold")).toHaveCSS("appearance", "none");
   await expect(page.locator("#de-sold")).toHaveCSS("cursor", "pointer");
   await expect(page.locator("#de-replace")).toHaveText("Replace photo");
-  // No Interested button anywhere in the studio, and no note about
-  // it either — the form simply isn't here.
+  // The studio has no inquiry form.
   await expect(page.locator("#inquiry-form")).toHaveCount(0);
   await expect(page.locator(".crumbs a")).toHaveAttribute("href", "/admin");
   // Live preview follows edits.
@@ -349,15 +341,15 @@ test("edit room validates before saving", async ({ page }) => {
     "Title and a valid price are required.",
     { timeout: 10_000 },
   );
-  // Toast words fade in, not snap — and room errors pin to the top.
+  // Toast text fades in, and room errors are pinned to the top.
   await expect(page.locator("#de-status")).toHaveClass(/toast-in/);
   const pos = await page.locator("#de-status").evaluate((el) => {
     const s = getComputedStyle(el);
     return { position: s.position, top: s.top, bottom: s.bottom };
   });
   expect(pos.position).toBe("fixed");
-  // Below the sticky header, not behind it. (Chrome reports bottom as a
-  // used pixel value once top pins a fixed box, so top carries the claim.)
+  // The toast sits below the sticky header. Chrome reports bottom as a used
+  // pixel value once top is set on a fixed box, so check top instead.
   const top = Number.parseFloat(pos.top);
   expect(top).toBeGreaterThan(60);
   expect(top).toBeLessThan(200);
@@ -365,14 +357,14 @@ test("edit room validates before saving", async ({ page }) => {
 
 test("preview title and price open their fields", async ({ page }) => {
   await page.goto("/admin/paintings/new");
-  // Same look, doors: no input styling on the preview text.
+  // The preview text has no input styling, only a text cursor.
   await expect(page.locator("#pv-title")).toHaveCSS("cursor", "text");
   await expect(page.locator("#pv-price")).toHaveCSS("cursor", "text");
   await page.locator("#pv-title").click();
   await expect(page.locator("#de-title")).toBeFocused();
   await page.locator("#pv-price").click();
   await expect(page.locator("#de-price")).toBeFocused();
-  // Keyboard too: Enter on the preview lands in the field.
+  // Enter on the preview text also focuses the field.
   await page.locator("#pv-title").press("Enter");
   await expect(page.locator("#de-title")).toBeFocused();
 });
@@ -383,7 +375,7 @@ test("secondary actions fade their hovers", async ({ page }) => {
     .locator("#de-publish")
     .evaluate((el) => getComputedStyle(el).transitionDuration);
   expect(pub).toContain("0.25s");
-  // Hovering the Sold word lights its box — easing in, not snapping.
+  // Hovering the Sold label highlights its box with a transition.
   const soldTransition = await page
     .locator("#de-sold")
     .evaluate((el) => getComputedStyle(el).transition);
@@ -398,9 +390,9 @@ test("secondary actions fade their hovers", async ({ page }) => {
 
 test("label text never warms its field", async ({ page }) => {
   await page.goto("/admin/paintings/new");
-  // Hover the "Title" words themselves, not the box. Text fields carry
-  // no hover tint at all (label hover forwards to the field, so a tint
-  // could never tell the two apart) — the border stays the line color.
+  // Hover the "Title" label, not the box. Text fields have no hover tint,
+  // because label hover is forwarded to the field and the two couldn't be
+  // distinguished. The border keeps the line color.
   await page
     .locator(".studio-fields label")
     .first()
@@ -414,7 +406,7 @@ test("label text never warms its field", async ({ page }) => {
 test("reduced motion still fades field colors", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/admin/paintings/new");
-  // Movement goes instant; color fades keep running.
+  // Movement becomes instant while color fades still run.
   const dur = await page
     .locator("#de-title")
     .evaluate((el) => getComputedStyle(el).transitionDuration);
@@ -434,7 +426,6 @@ test("delete asks in a modal, never on one tap", async ({ page }) => {
     "data-studio-wired",
     /edit/,
   );
-  // The room says what it is, in words.
   await expect(page.locator(".eyebrow")).toHaveText(
     "EDITING · ONLY YOU CAN SEE THIS",
   );
@@ -444,20 +435,20 @@ test("delete asks in a modal, never on one tap", async ({ page }) => {
   await del.click();
   await expect(modal).toBeVisible();
   await expect(page.locator("#de-confirm-body")).toContainText("trash");
-  // MOVE TO TRASH starts disabled with a countdown — one tap fires
-  // nothing, and the room button never changes its meaning.
+  // The confirm button starts disabled with a countdown, so a single tap
+  // does nothing. The room's own button keeps its meaning.
   await expect(yes).toBeDisabled();
   await expect(yes).toHaveText(/Move to trash \(\d\)/);
   await expect(del).toHaveText("Delete");
   await expect(page).toHaveURL(/\/admin\/paintings\/first-thaw/);
-  // "Keep it" backs out; Escape does too.
+  // "Keep it" and Escape both cancel.
   await page.locator("#de-confirm-no").click();
   await expect(modal).toBeHidden();
   await del.click();
   await expect(modal).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(modal).toBeHidden();
-  // After 3.5 seconds of reading time the button arms for real.
+  // The button enables after 3.5 seconds.
   await del.click();
   await expect(yes).toBeEnabled({ timeout: 8000 });
   await expect(yes).toHaveText("Move to trash");
@@ -475,8 +466,8 @@ test("edit room replace swaps the framed photo", async ({ page }) => {
   await page
     .locator("#de-replace-file")
     .setInputFiles("src/content/paintings/2122x2118.jpg");
-  // The frame shows the new upload (blob) — a bare src swap would leave
-  // the old srcset candidate on screen, so both go.
+  // The frame shows the new upload as a blob URL. srcset is cleared too,
+  // since the browser would otherwise keep showing the old candidate.
   await expect(frame).toHaveAttribute("src", /^blob:/);
   await expect(frame).not.toHaveAttribute("srcset", /./);
 });
@@ -501,9 +492,9 @@ test("preview shows the buyer page with the inquiry switched off", async ({
     "/admin/paintings/first-thaw",
   );
   await expect(page.locator("h1")).toHaveText("First Thaw");
-  // No working inquiry on a preview, and no note about it either.
+  // A preview has no inquiry form.
   await expect(page.locator("#inquiry-form")).toHaveCount(0);
-  // Never indexed.
+  // Previews are not indexed.
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
     "content",
     "noindex",
@@ -535,8 +526,8 @@ test("typing swaps the preview instantly, never flashing", async ({ page }) => {
   await page.goto("/admin/paintings/new");
   await page.locator("#de-title").fill("Half-typed thaw");
   await expect(page.locator("#pv-title")).toHaveText("Half-typed thaw");
-  // No pulse on any preview field — a fade per keystroke reads as
-  // flashing while she types.
+  // Preview fields don't animate on update, since a fade per keystroke
+  // flickers while typing.
   const pulses = await page.evaluate(() =>
     ["#pv-title", "#pv-price", "#pv-meta", "#pv-desc"].map(
       (sel) => document.querySelector(sel)?.getAnimations().length ?? -1,
@@ -548,7 +539,7 @@ test("typing swaps the preview instantly, never flashing", async ({ page }) => {
 test("unsaved typing survives a refresh, silently", async ({ page }) => {
   await page.goto("/admin/paintings/new");
   await page.locator("#de-title").fill("Half-typed thaw");
-  // Autosave debounce is under a second; the backup lands with no toast.
+  // Autosave debounces under a second and saves the backup without a toast.
   await expect(page.locator("#de-status")).toBeEmpty();
   await page.waitForTimeout(1200);
   await page.reload();
@@ -564,7 +555,7 @@ test("description box grows with its words, never scrolls", async ({
   const desc = page.locator("#de-desc");
   await expect(desc).toBeVisible();
   const empty = (await desc.boundingBox())?.height ?? 0;
-  // Six lines in: the box grows instead of scrolling.
+  // After six lines the box grows instead of scrolling.
   await desc.fill(
     ["One.", "Two.", "Three.", "Four.", "Five.", "Six."].join("\n"),
   );
@@ -573,24 +564,23 @@ test("description box grows with its words, never scrolls", async ({
       timeout: 5000,
     })
     .toBeGreaterThan(empty + 40);
-  // Growth, not a scrollbar: everything typed stays visible.
+  // No scrollbar, so all the text stays visible.
   expect(
     await desc.evaluate((el) => el.scrollHeight - el.clientHeight),
   ).toBeLessThanOrEqual(2);
 });
 
 test("draft save carries its publish-on date", async ({ browser }) => {
-  // Stored token means the live path; the commit route captures the
-  // file instead of writing the repo, so nothing persists and nothing
-  // needs deleting after.
+  // A stored token selects the live path. The commit route captures the file
+  // instead of writing the repo, so there is nothing to clean up.
   const authed = await browser.newContext();
   await authed.addInitScript(() =>
     sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
   );
   const page = await authed.newPage();
   let posted: Array<{ path: string; contentBase64: string }> | null = null;
-  // Reads go through the closure: assigning the untyped post body
-  // inside the route narrows direct reads to never.
+  // Read through the closure. Assigning the untyped body inside the route
+  // would narrow direct reads to `never`.
   const sent = (): typeof posted => posted;
   await page.route("**/api/commit*", async (route) => {
     if (route.request().method() === "POST") {
@@ -606,7 +596,7 @@ test("draft save carries its publish-on date", async ({ browser }) => {
     }
   });
   await page.goto("/admin/paintings/new");
-  // Sold sits right of the publish-on date, both before the buttons.
+  // Sold sits right of the publish date, and both come before the buttons.
   const order = await page
     .locator(".studio-toolbar .de-check")
     .evaluateAll((els) =>
@@ -636,19 +626,19 @@ test("social words come prefilled and follow edits until she writes her own", as
   await page.goto("/admin/paintings/first-thaw");
   await expect(page.locator("#de-share")).toBeVisible();
   await expect(page.locator("#de-share-title")).toHaveText("Tell social media");
-  // Prefilled from the fields: title, price, and the page link.
+  // Prefilled with the title, price and page link.
   const words = page.locator("#de-share-text");
   await expect(words).toHaveValue(/New in the gallery: “First Thaw”/);
   await expect(words).toHaveValue(/\$125\.00 CAD/);
   await expect(words).toHaveValue(/barbart\.ca\/paintings\/first-thaw/);
-  // Typing a new title rewrites the words…
+  // Changing the title updates the text
   await page.locator("#de-title").fill("Thaw Remix");
   await expect(words).toHaveValue(/“Thaw Remix”/);
-  // …until she types her own, which sticks.
+  // until the text is edited by hand, after which it stays.
   await words.fill("My own words");
   await page.locator("#de-title").fill("Thaw Again");
   await expect(words).toHaveValue("My own words");
-  // Share first, then the manual way — one primary, two quiet.
+  // Share is the primary button, followed by the two manual options.
   const ids = await page
     .locator(".share-actions button")
     .evaluateAll((els) => els.map((el) => el.id));
@@ -671,10 +661,9 @@ test("copy words lands on the clipboard with a murmur", async ({
 test("no share sheet means no share button, just the manual way", async ({
   browser,
 }) => {
-  // Fresh profile without Web Share, whatever the runner browser has.
+  // A fresh profile with Web Share removed, regardless of the runner browser.
   const unshared = await browser.newContext();
   unshared.addInitScript(() => {
-    // Whatever the runner browser has, this profile shares nothing.
     const proto = window.Navigator.prototype as unknown as {
       share?: unknown;
       canShare?: unknown;
@@ -687,7 +676,7 @@ test("no share sheet means no share button, just the manual way", async ({
   await expect(page.locator("#de-share")).toBeVisible();
   await expect(page.locator("#de-share-send")).toBeHidden();
   await expect(page.locator("#de-share-hint")).toContainText("save the photo");
-  // The manual way still stands: photo + words.
+  // The manual photo and copy options are still available.
   await expect(page.locator("#de-share-photo")).toBeVisible();
   await expect(page.locator("#de-share-copy")).toBeVisible();
   await unshared.close();

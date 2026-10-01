@@ -1,13 +1,12 @@
 /**
- * Minimal GitHub contents API client for the admin commit flow.
+ * Minimal GitHub API client for the admin commit flow.
  *
- * Paintings live in git, so /admin publishes by committing .md + image
- * (+ optional AR models) straight to the repo — no database, no rebuild
- * orchestration. Cloudflare Pages rebuilds on push; a sub-second Astro
- * build means the painting is live about a minute after she taps save.
+ * Paintings live in git, so /admin publishes by committing the .md, image,
+ * and optional AR models directly to the repo. Cloudflare Pages rebuilds on
+ * push, so changes are live about a minute later.
  *
- * The token lives here, server-side (GITHUB_TOKEN secret). Her phone only
- * ever talks to our own admin endpoint behind Cloudflare Access.
+ * The GITHUB_TOKEN secret stays server-side. Clients only call the admin
+ * endpoint behind Cloudflare Access.
  */
 
 import { parseGitHubDir, parseGitHubFile } from "./validation";
@@ -20,9 +19,10 @@ export interface GitHubConfig {
 
 interface RepoFile {
   path: string;
-  /** Raw bytes — text or binary (image, .glb, .usdz). Ignored when deleted. */
+  /** File content, text or binary (image, .glb, .usdz). Ignored when
+   * deleted. */
   content: ArrayBuffer | string;
-  /** True removes the file (git tree entry with null sha). */
+  /** Removes the file by writing a tree entry with a null sha. */
   deleted?: boolean;
 }
 
@@ -62,7 +62,7 @@ function toBase64(content: ArrayBuffer | string): string {
   return btoa(bin);
 }
 
-/** Read a text file from the repo (null when missing). */
+/** Reads a text file from the repo. Null when missing. */
 export async function readTextFile(
   config: GitHubConfig,
   path: string,
@@ -80,7 +80,7 @@ export async function readTextFile(
   return new TextDecoder().decode(bytes);
 }
 
-/** Read a repo file as bytes (null when missing). */
+/** Reads a repo file as bytes. Null when missing. */
 export async function readBinaryFile(
   config: GitHubConfig,
   path: string,
@@ -97,7 +97,7 @@ export async function readBinaryFile(
   return Uint8Array.from(bin, (c) => c.charCodeAt(0));
 }
 
-/** List filenames directly inside a repo directory (empty when missing). */
+/** Lists filenames directly inside a repo directory. Empty when missing. */
 export async function listDir(
   config: GitHubConfig,
   path: string,
@@ -112,9 +112,9 @@ export async function listDir(
 }
 
 /**
- * Commit a batch of files (add, overwrite, or delete) in a single commit.
- * Binary-safe: every written file goes up as a base64 blob; deleted files
- * send a null sha so the path disappears from the tree.
+ * Adds, overwrites, or deletes a batch of files in a single commit. Written
+ * files are uploaded as base64 blobs, so binary content is safe. Deleted
+ * files get a null sha.
  */
 export async function commitFiles(
   config: GitHubConfig,

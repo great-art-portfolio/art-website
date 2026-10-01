@@ -1,5 +1,4 @@
-# HSTS (Cloudflare flagged its absence): browsers remember barbart.ca as
-# HTTPS-only for a year, closing downgrade and cookie-hijack gaps. Plain
-# max-age, no includeSubDomains — only this host is asserted.
+# HSTS: browsers treat barbart.ca as HTTPS-only for a year, which closes
+# downgrade attacks. No includeSubDomains, so it applies to this host only.
 /*
   Strict-Transport-Security: max-age=31536000

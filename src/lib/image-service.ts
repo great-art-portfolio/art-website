@@ -4,11 +4,9 @@ import sharpService, {
 } from "astro/assets/services/sharp";
 import type { ImageOutputFormat, LocalImageService } from "astro";
 
-/** Astro's sharp pipeline strips embedded ICC profiles — and five of the
- * seven painting photos are Display P3, so every painting dulled to sRGB
- * on wide-gamut screens. Same pipeline, plus keepIccProfile: profiles
- * ride through untouched, sRGB sources come out as before. URLs,
- * validation, and srcsets stay Astro's; only the pixels change hands.
+/** Astro's sharp image service with embedded ICC profiles kept. Astro strips
+ * them, and most painting photos are Display P3, so they looked dull on
+ * wide-gamut screens. URLs, validation, and srcsets are still Astro's.
  */
 
 const fitMap: Record<string, "fill" | "inside" | "cover" | "outside"> = {
@@ -51,16 +49,16 @@ const service: LocalImageService = {
       );
       return { data: inputBuffer, format: "webp" };
     }
-    // validateOptions already constrains this; the cast only tells
-    // TypeScript what Astro guaranteed.
+    // validateOptions already constrains the format. The cast tells
+    // TypeScript.
     const outputFormat = (transform.format ?? "webp") as ImageOutputFormat;
     const serviceConfig = config.service.config ?? {};
     const pipeline = sharp(inputBuffer, {
       failOn: "none",
       limitInputPixels: serviceConfig.limitInputPixels,
     });
-    // The one line Astro lacks: keep the embedded profile (Display P3
-    // on the painting photos) through resize and encode.
+    // The change from Astro's service: keep the embedded color profile
+    // through resize and encode.
     pipeline.rotate().keepIccProfile();
     const width =
       typeof transform.width === "number"
@@ -107,8 +105,8 @@ const service: LocalImageService = {
     else if (outputFormat === "jpeg" || outputFormat === "jpg")
       pipeline.jpeg(encoderOptions);
     else {
-      // Unreachable for our content (validateOptions allows webp, png,
-      // avif, jpeg, svg) — sharp takes the validated remainder.
+      // Not reached for this site's content, since validateOptions only
+      // allows webp, png, avif, jpeg, and svg.
       pipeline.toFormat(
         outputFormat as "tiff" | "heif" | "jxl" | "raw",
         encoderOptions,

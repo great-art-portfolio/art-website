@@ -13,7 +13,7 @@ import {
 } from "../_lib/shipping";
 
 /**
- * Admin: Shippo rates + label purchase. 501 until enabled.
+ * Admin: Shippo rates and label purchase. Returns 501 until enabled.
  * Body: { action: "rates", to: {...}, weightLb } or { action: "buy", rateId }.
  */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {

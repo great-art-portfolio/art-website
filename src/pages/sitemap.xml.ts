@@ -2,9 +2,9 @@ import type { APIRoute } from "astro";
 import { getCollection } from "astro:content";
 import { isPublished, SITE_URL, slugifyTitle } from "../lib/site";
 
-// Buyer-facing pages only: the gallery, privacy, and every published
-// painting (drafts, trash, and the studio never list). Search engines
-// meet new work here days before plain crawling would find it.
+// Buyer-facing pages only: the gallery, privacy, and published paintings.
+// Drafts, trash, and the studio are excluded. Listing new paintings here
+// gets them indexed sooner than crawling.
 export const GET: APIRoute = async () => {
   const paintings = (await getCollection("paintings")).filter((p) =>
     isPublished(p.data),

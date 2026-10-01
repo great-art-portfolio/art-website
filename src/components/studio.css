@@ -1,23 +1,19 @@
 /**
- * Shared studio stylesheet: form primitives for every /admin page.
- * Imported (unscoped) only by the studio pages — buyer pages never load
- * it, so these element selectors can't leak onto the gallery.
+ * Shared styles for the /admin pages. Only studio pages import it, so the
+ * unscoped element selectors don't affect buyer pages.
  */
 .admin {
   max-width: 64rem;
   margin: 0 auto;
   padding: 2.5rem 1.5rem 4rem;
 }
-/* Studio sections breathe on the page itself — whitespace, not boxes,
-   and whitespace separates, not divider lines. */
+/* Sections are separated by whitespace, without boxes or divider lines. */
 .admin > section {
   margin-block: 1.5rem;
 }
-/* Reading columns stay narrow: prose wants 50–70 characters a line,
-   so text sections hold 40rem while the collection grid keeps the
-   full width for its cards. The narrow column sits centered — left
-   aligned inside a centered container reads as off-center on wide
-   screens, with all the air stacked on the right. */
+/* Text sections are capped at 40rem for 50–70 characters per line, while
+   the collection grid uses the full width. The column is centered, since
+   left-aligned looks off-center on wide screens. */
 .admin > section.prose {
   max-width: 40rem;
   margin-inline: auto;
@@ -34,13 +30,13 @@
   padding-bottom: 0;
   border-bottom: none;
 }
-/* No browser-blue links anywhere in the studio: visited matches unvisited. */
+/* Visited links look the same as unvisited ones. */
 .admin a,
 .admin a:visited {
   color: var(--accent);
 }
-/* Studio links behave exactly like the footer: accent always, only
-   the underline fades in on hover — never a color flash. */
+/* Links match the footer: accent color, with an underline that fades in
+   on hover. */
 .admin a {
   transition: text-decoration-color 0.12s ease;
   text-decoration: underline transparent;
@@ -79,16 +75,15 @@ textarea:hover,
 select:hover {
   border-color: var(--muted);
 }
-/* Browsers forward label hover to the field — hovering a label
-   must not warm its box. Only the field itself earns the hover. */
+/* Browsers forward label hover to the field. Apply the hover style only
+   when the field itself is hovered. */
 label:hover input:not(:hover),
 label:hover textarea:not(:hover),
 label:hover select:not(:hover) {
   border-color: var(--line);
 }
-/* The dropdown is a choice, not typing — it gets the pointer finger.
-   The chevron is drawn, not native, so it always sits clear of the
-   edge with room to breathe (muted in both color schemes). */
+/* Selects get a pointer cursor and a drawn chevron, inset from the edge
+   and muted in both color schemes. */
 select {
   cursor: pointer;
   appearance: none;
@@ -106,8 +101,8 @@ button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-/* One ring only: inputs show this outline on any focus, so it never
-   doubles up with a border change (which is why this rule replaces it). */
+/* Focus shows the outline only. This rule replaces the border change so
+   the two don't double up. */
 input:focus,
 textarea:focus,
 select:focus {
@@ -174,7 +169,7 @@ button.primary:hover {
   font-size: 0.82rem;
   margin-left: auto;
 }
-/* Author display:inline-flex beats the UA [hidden] rule — re-hide. */
+/* display: inline-flex overrides the UA [hidden] rule, so re-hide. */
 .admin h2 button[hidden] {
   display: none;
 }
@@ -182,8 +177,8 @@ button.primary:hover {
   font-size: 0.88rem;
   color: var(--muted);
 }
-/* Collapsed drawers ("Advanced", folds): the summary wears the h2
-   style so the closed section still reads as a section header. */
+/* Drawer summaries use the h2 style so a closed drawer still reads as a
+   section header. */
 .admin summary {
   font-family: Georgia, "Iowan Old Style", Charter, serif;
   font-weight: 500;
@@ -198,7 +193,7 @@ button.primary:hover {
 .admin summary::-webkit-details-marker {
   display: none;
 }
-/* Custom disclosure mark: a chevron that turns down when open. */
+/* Disclosure chevron that rotates down when open. */
 .admin summary::before {
   content: ">";
   color: var(--accent);
@@ -214,8 +209,7 @@ button.primary:hover {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-/* Deferred reveals fade in instead of snapping. Opacity-only, so it
-   stays gentle under reduced motion too. */
+/* Fade-in for deferred reveals. Opacity-only, so reduced motion keeps it. */
 .fade-in {
   animation: fade-in 0.4s ease;
 }
@@ -224,9 +218,8 @@ button.primary:hover {
     opacity: 0;
   }
 }
-/* Reduced motion kills movement, not gentle fades: lifts go instant,
-   while color and opacity transitions still run — snapping colors is
-   itself jarring. */
+/* Reduced motion removes the lifts. Color and opacity transitions still
+   run. */
 @media (prefers-reduced-motion: reduce) {
   button:hover {
     transform: none;

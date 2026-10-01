@@ -1,8 +1,7 @@
 /**
- * `pnpm studio:reset`: undo everything the studio dev loop wrote to the
- * working tree — tracked gallery files go back to HEAD, untracked studio
- * outputs (new photos, models, drafts) are deleted. Scoped to gallery
- * paths only; everything else in the tree is left alone.
+ * `pnpm studio:reset`: reverts what the studio dev loop wrote. Tracked
+ * gallery files are restored to HEAD, and untracked studio outputs (new
+ * photos, models, drafts) are deleted. Only gallery paths are touched.
  */
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -46,7 +45,7 @@ async function main() {
             deleted += 1;
           }
         } catch {
-          // Vanished mid-reset — nothing to do.
+          // Already gone.
         }
       }
     } else if (
@@ -55,8 +54,8 @@ async function main() {
       flag[0] === "M" ||
       flag[0] === "D"
     ) {
-      // Modified or deleted (worktree or staged) — checkout brings back
-      // the HEAD version, which also undeletes.
+      // Modified or deleted, in the worktree or staged. Checking out HEAD
+      // restores it either way.
       restore.push(file);
     }
   }

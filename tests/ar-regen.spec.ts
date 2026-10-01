@@ -4,11 +4,10 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /**
- * Dimension-fix regeneration e2e: editing W/H/D in a painting's studio
- * room rebuilds the AR models from the repo photo inside the same commit.
- * The commit POST is intercepted and its payload asserted — nothing here
- * can publish. Saving lands back on /admin, so assertions run after the
- * redirect.
+ * Editing W/H/D in a painting's studio room rebuilds the AR models from the
+ * repo photo in the same commit. The commit POST is intercepted and its
+ * payload asserted, so nothing is published. Saving redirects to /admin, so
+ * assertions run after the redirect.
  */
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -41,7 +40,7 @@ async function authedPage(browser: Browser): Promise<Page> {
   return context.newPage();
 }
 
-/** Intercept every API call: reads served locally, commits captured. */
+/** Serve API reads locally and capture commits. */
 async function stubApi(page: Page): Promise<{ posted: () => Posted | null }> {
   let posted: Posted | null = null;
   await page.route("**/api/commit*", async (route) => {
@@ -86,7 +85,7 @@ test("studio room dimension fix rebuilds AR in the same commit", async ({
   });
   await page.locator("#de-w").fill("21");
   await page.locator("#de-save").click();
-  // Saving lands back on the dashboard; the payload proves the rebuild.
+  // Saving returns to the dashboard. The payload shows the rebuild happened.
   await expect(page).toHaveURL(/\/admin\/?$/, { timeout: 30_000 });
 
   const posted = api.posted();

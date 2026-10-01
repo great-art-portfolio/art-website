@@ -1,21 +1,19 @@
 /**
- * Shared Cloudflare Turnstile widget loader — one loader for the inquiry
- * form and the collector modal. Cloudflare never injects the widget: each
- * public form fetches the site key from /api/status, loads the CDN once,
- * and renders into its own mount to mint a token the backend verifies.
+ * Cloudflare Turnstile loader shared by the inquiry form and the collector
+ * modal. Each form fetches the site key from /api/status, loads the script
+ * once, and renders into its own mount to get a token the backend verifies.
  *
- * Re-evaluate against:
+ * See:
  * https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/
  * https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/widget-configurations/
  *
- * Lives in its own import-free module so node unit tests can load it
- * directly — src/lib keeps the extensionless style the bundler uses.
+ * The module has no imports so node unit tests can load it directly.
  */
 
 let siteKeyPromise: Promise<string> | null = null;
 let scriptPromise: Promise<void> | null = null;
 
-/** Pick the public site key out of /api/status JSON ("" when missing). */
+/** Extracts the public site key from /api/status JSON, or "" when missing. */
 export function extractSiteKey(data: unknown): string {
   if (data !== null && typeof data === "object" && "turnstileSiteKey" in data) {
     const raw = (data as { turnstileSiteKey?: unknown }).turnstileSiteKey;
@@ -52,7 +50,7 @@ function loadTurnstileScript(): Promise<void> {
     script.async = true;
     script.defer = true;
     script.onload = () => resolve();
-    // Spam check unavailable — the honeypot still guards the form.
+    // Turnstile failed to load. The honeypot still protects the form.
     script.onerror = () => resolve();
     document.head.appendChild(script);
   });
@@ -60,10 +58,10 @@ function loadTurnstileScript(): Promise<void> {
 }
 
 /**
- * Render Turnstile into mountSelector once, reporting tokens via onToken.
- * No-op when the key is missing, the mount is absent, or the mount already
- * rendered. Safe to call on every page load — View Transitions keep the
- * module alive across navigations, so the mount is re-queried live.
+ * Renders Turnstile into mountSelector once and reports tokens via onToken.
+ * Does nothing when the key or mount is missing or the mount has already
+ * rendered. Safe to call on every page load, since it looks up the mount
+ * each time.
  */
 export function ensureTurnstile(
   mountSelector: string,
@@ -94,7 +92,7 @@ export function ensureTurnstile(
   });
 }
 
-/** Clear cached promises (unit tests only). */
+/** Clears cached promises. For unit tests. */
 export function __resetTurnstileCache(): void {
   siteKeyPromise = null;
   scriptPromise = null;

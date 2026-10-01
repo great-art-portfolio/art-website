@@ -1,4 +1,4 @@
-/** Vendor entry: the exact AR functions the admin flows load at runtime. */
+/** Vendor bundle entry: the AR functions the admin flows load at runtime. */
 export {
   buildArModels,
   estimateDims,

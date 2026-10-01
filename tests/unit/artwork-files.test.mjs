@@ -4,11 +4,11 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-/** Artwork filenames stay lowercase: a room baked from a lowercased id
- * writes lowercased model refs, so an uppercase file 404s on
- * case-sensitive servers (and confuses dev on case-insensitive ones).
- * New uploads already land lowercase (slug.jpg); this pins the legacy
- * files too. */
+/**
+ * Artwork filenames must be lowercase. Rooms built from a lowercased id write
+ * lowercased model refs, so an uppercase file 404s on case-sensitive servers.
+ * New uploads are already lowercase; this also covers older files.
+ */
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 

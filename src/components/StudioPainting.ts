@@ -1,6 +1,6 @@
-/** Draft + edit rooms. Both render the shared PaintingDetail layout, so what
- * she edits is what buyers see. Saving commits .md + photo (+ models); dev
- * works against a practice overlay. */
+/** Draft and edit rooms. Both render the shared PaintingDetail layout, so the
+ * editor matches the buyer page. Saving commits the .md, photo, and AR
+ * models. Local dev without a token uses the practice overlay. */
 import { api, existingTitles, getApiToken, uniqueSlug } from "../lib/api";
 import { loadImageFile, prepareImage } from "../lib/image";
 
@@ -29,7 +29,7 @@ import {
   type PracticePainting,
 } from "../lib/practice";
 
-/** Self-clearing toasts; words fade both ways. One timer covers both phases. */
+/** Toast that fades in and dismisses itself. One timer drives both phases. */
 let statusTimer = 0;
 function setStatus(msg: string, isError = false): void {
   const el = maybe("de-status");
@@ -59,17 +59,17 @@ function isLocalPreview(): boolean {
   return host === "localhost" || host === "127.0.0.1";
 }
 
-/** Publishing goes live — always ask first (a gallery page can't be
- * unsent either). Uniform in every room and mode, so the date hint's
- * "after your confirmation" holds wherever she taps Publish. */
+/** Confirms before publishing. Every room and mode asks, which the date
+ * hint's "after your confirmation" wording relies on. */
 function confirmPublish(title: string): boolean {
   return window.confirm(
     `Publish "${title}" now? It goes live on the site in a few minutes.`,
   );
 }
 
-/** Practice overlay unless something real persists: a stored token commits,
- * and under `pnpm dev` the sidecar writes the working tree tokenless. */
+/** True when saves should go to the localStorage practice overlay. A stored
+ * token commits for real, and under `pnpm dev:studio` the local content API
+ * writes the working tree without one. */
 async function useOverlayMode(): Promise<boolean> {
   if (!isLocalPreview() || getApiToken() !== "") return false;
   return !(await api.localBackend());
@@ -86,8 +86,8 @@ const numOrNull = (raw: string): number | null => {
   return Number.isFinite(n) && n > 0 ? Math.round(n * 10) / 10 : null;
 };
 
-// Photo state: the prepared upload blob, its rotation, and preview models
-// built from exactly these pixels (rebuilt whenever anything changes).
+// Photo state: the prepared upload blob, its rotation, and the preview models
+// built from it. The models are rebuilt whenever any of these change.
 let loadedImage: HTMLImageElement | null = null;
 let preparedBlob: Blob | null = null;
 let lastPreviewUrl: string | null = null;
@@ -115,20 +115,20 @@ function modelSig(): string | null {
 }
 
 /**
- * Swap one preview field at a time, instantly: each field writes only
- * its own node, unchanged fields are skipped, and there is no fade —
- * a pulse on every keystroke reads as flashing while she types.
+ * Last HTML written to each preview node, so unchanged fields are skipped.
+ * Updates don't fade because a fade on every keystroke looks like flashing.
  */
 const previewShown = new WeakMap<HTMLElement, string>();
 
 function setPreviewHtml(el: HTMLElement, html: string): void {
-  // innerHTML round-trips quotes differently, so remember exactly.
+  // Compare against the stored string. Reading innerHTML back can change
+  // quoting.
   if (previewShown.get(el) === html) return;
   previewShown.set(el, html);
   el.innerHTML = html;
 }
 
-/** Live buyer preview while she types: title, price, measurements, words. */
+/** Updates the buyer preview from the form fields. */
 function refreshPreview(): void {
   const title = $("de-title").value.trim();
   const priceRaw = $("de-price").value.trim();
@@ -157,8 +157,8 @@ function refreshPreview(): void {
       .map((para) => `<p>${escHtml(para)}</p>`)
       .join(""),
   );
-  // Alt text never shows on the page, but the preview photos wear it live
-  // so what a screen reader announces matches what buyers will hear.
+  // Alt text isn't visible, but the preview photos get it so screen readers
+  // announce what buyers will hear.
   const altText = $("de-alt").value.trim();
   const liveAlt =
     altText === "" ? ($("pv-title").textContent ?? "Painting") : altText;
@@ -169,16 +169,16 @@ function refreshPreview(): void {
   refreshShareCaption();
 }
 
-/** Tell-social-media words follow the live preview — until she types her
- * own, which sticks for the visit. Reads the preview nodes (one source
- * of truth), never the fields twice. */
+/** The share caption follows the preview until it's edited by hand. After
+ * that the custom text is kept for the visit. The caption is built from the
+ * preview nodes rather than re-reading the fields. */
 let shareDirty = false;
 
 function refreshShareCaption(): void {
   const box = maybe("de-share-text");
   if (box === null || shareDirty) return;
-  // The preview price drops the CAD (room shorthand); the words match the
-  // buyer page, so the price is rebuilt from the field, not the preview.
+  // The preview price omits "CAD", but the caption should match the buyer
+  // page, so rebuild the price from the field.
   const cents = dollarsToCents(Number(maybe("de-price")?.value.trim() ?? ""));
   box.value = buildShareCaption({
     title: maybe("pv-title")?.textContent ?? "",
@@ -188,9 +188,8 @@ function refreshShareCaption(): void {
   });
 }
 
-/** Share news murmurs inline — unless toast is set, which pins it to
- * the top like the room's error toast and clears it after four seconds.
- * Fades are opacity-only, under every motion setting. */
+/** Shows share status inline. With toast set, it shows as a top toast like
+ * the room's error toast and clears after four seconds. */
 let shareToastTimer = 0;
 function sayShare(msg: string, toast = false): void {
   const el = maybe("de-share-status");
@@ -218,15 +217,14 @@ function sayShare(msg: string, toast = false): void {
   }, 4000);
 }
 
-/** The photo on screen (srcset-aware), or "" with no photo yet. */
+/** URL of the displayed photo, honoring srcset, or "" when there's none. */
 function sharePhotoUrl(): string {
   const img = document.querySelector("#photo-wrap img");
   if (!(img instanceof HTMLImageElement)) return "";
   return img.currentSrc === "" ? img.src : img.currentSrc;
 }
 
-/** The phone takes photo files through its share sheet — probe with an
- * empty file, so the button never promises what the browser can't do. */
+/** Whether the share sheet accepts image files, probed with an empty file. */
 function canFileShare(): boolean {
   try {
     return (
@@ -241,8 +239,8 @@ function canFileShare(): boolean {
   }
 }
 
-/** Tell-social-media: prefilled words plus the photo handoff. Absent
- * outside published edit rooms (drafts have no live address yet). */
+/** Social share helper: a prefilled caption plus the photo. Only published
+ * edit rooms have it, since drafts have no live URL yet. */
 function initShare(): void {
   const section = maybe("de-share");
   const box = maybe("de-share-text");
@@ -262,8 +260,7 @@ function initShare(): void {
   box.addEventListener("input", () => {
     shareDirty = true;
   });
-  // No share sheet (or no photo files through it): the button stands
-  // down and the hint names the manual way. Never a dead button.
+  // Without file sharing, hide the button and show the manual steps.
   if (!canFileShare()) {
     send.hidden = true;
     const hint = maybe("de-share-hint");
@@ -300,7 +297,7 @@ function initShare(): void {
       .then(
         () => sayShare("Shared."),
         (err: unknown) => {
-          // Dismissing the sheet is not an error — go quiet.
+          // The share sheet was dismissed.
           if (err instanceof DOMException && err.name === "AbortError") {
             sayShare("");
             return;
@@ -344,7 +341,7 @@ function blobToFile(blob: Blob, name: string, type: string): File {
   return new File([blob], name, { type });
 }
 
-/** Show the prepared photo wherever this room displays one. */
+/** Shows the prepared photo everywhere this room displays one. */
 function showPhoto(
   url: string,
   width: number,
@@ -360,8 +357,8 @@ function showPhoto(
   }
   const frameImg = document.querySelector<HTMLImageElement>("#photo-wrap img");
   if (frameImg !== null) {
-    // The room photo is a responsive astro:image: assigning src alone
-    // leaves the old srcset candidate on screen, so drop both first.
+    // The room photo is a responsive astro:image. Setting src alone leaves
+    // the old srcset candidate showing, so clear both first.
     frameImg.removeAttribute("srcset");
     frameImg.removeAttribute("sizes");
     frameImg.src = url;
@@ -406,8 +403,8 @@ function heicHint(file: File): string {
     : "";
 }
 
-/** Rebuild models when photo/rotation/tape change. Stale runs bail; failures
- * never block saving. */
+/** Rebuilds the AR models when the photo, rotation, or dimensions change.
+ * Superseded runs exit early, and failures don't block saving. */
 async function autoBuildAr(): Promise<void> {
   if (preparedBlob === null) return;
   const want = modelSig();
@@ -448,7 +445,7 @@ async function autoBuildAr(): Promise<void> {
   }
 }
 
-/** Inline viewer so she can try the wall preview before buyers do. */
+/** Inline AR viewer for checking the wall preview before publishing. */
 function showArViewer(glbUrl: string, usdzUrl: string): void {
   const stage = maybe("ar-stage");
   if (stage === null) return;
@@ -457,7 +454,7 @@ function showArViewer(glbUrl: string, usdzUrl: string): void {
       if (!document.contains(stage)) return;
       const title = $("de-title").value.trim();
       const alt = $("de-alt").value.trim();
-      // Typed via HTMLElementTagNameMap in client-globals — no cast.
+      // Typed through HTMLElementTagNameMap in client-globals.d.ts.
       const el = document.createElement("model-viewer");
       el.setAttribute("src", glbUrl);
       el.setAttribute("ios-src", usdzUrl);
@@ -466,8 +463,8 @@ function showArViewer(glbUrl: string, usdzUrl: string): void {
       el.setAttribute("ar-scale", "fixed");
       el.setAttribute("ar-placement", "wall");
       el.setAttribute("camera-controls", "");
-      // Up-down scrolls glide past to the page; sideways drags still turn
-      // the piece (phones kept scrolling the model, not the page).
+      // Vertical swipes scroll the page, and horizontal drags rotate the
+      // model. Otherwise phones capture the scroll.
       el.setAttribute("touch-action", "pan-y");
       el.setAttribute("alt", alt === "" ? title : alt);
       el.style.width = "100%";
@@ -489,14 +486,14 @@ function buzz(): void {
   }
 }
 
-/** Hand the dashboard its confirmation, then go there. */
+/** Stores a confirmation toast for the dashboard, then navigates there. */
 function goAdmin(flash: string): void {
   try {
     window.sessionStorage.setItem("studio-flash", flash);
   } catch {
     // ignore
   }
-  // Saved (or deleted): the backup served its purpose.
+  // Saved or deleted, so the autosave backup is no longer needed.
   try {
     const key = roomKey();
     if (key !== null) window.localStorage.removeItem(key);
@@ -506,8 +503,9 @@ function goAdmin(flash: string): void {
   window.location.href = "/admin";
 }
 
-/** Ping checked channels after a publish (never drafts/saves). Failures ride
- * along in the confirmation instead of failing the publish. */
+/** Notifies the checked channels after a publish. Drafts and plain saves
+ * don't notify. Failures are reported in the confirmation text rather than
+ * failing the publish. */
 async function publishAlerts(): Promise<string> {
   const push = maybe("de-notify-push")?.checked ?? false;
   const email = maybe("de-notify-email")?.checked ?? false;
@@ -564,13 +562,12 @@ function readFields(): FieldSet | null {
   };
 }
 
-/** Silent autosave: typing survives refresh/crash (photos excluded). Cleared
- * on every save/delete exit. */
+/** Autosaves form input so it survives a refresh or crash. Photos aren't
+ * included. Cleared on save or delete. */
 let autosaveTimer = 0;
 
-/** Dimension keystrokes share one rebuild: the timer restarts on every
- * keypress, so "20" builds once, not twice. Photo and rotation swaps
- * are discrete acts and still build at once. */
+/** Debounces model rebuilds for dimension typing, so "20" builds once.
+ * Photo and rotation changes rebuild immediately. */
 let arBuildTimer = 0;
 
 function scheduleArBuild(): void {
@@ -592,7 +589,7 @@ function roomKey(): string | null {
   return autosaveKey(mode, main.dataset.slug ?? "", main.dataset.mdPath ?? "");
 }
 
-/** Raw input values (strings, exactly as typed) or null off-room. */
+/** Raw input values as typed, or null outside a painting room. */
 function snapshotInputs(): Record<string, string | boolean> | null {
   const title = maybe("de-title");
   const price = maybe("de-price");
@@ -644,14 +641,14 @@ function scheduleAutosave(): void {
         JSON.stringify({ ...snap, savedAt: Date.now() }),
       );
     } catch {
-      // Full or blocked storage: the room still saves normally.
+      // Storage is full or blocked. Saving still works.
     }
   }, 800);
 }
 
-/** Restore this room's backup when it differs — silent, then re-preview.
- * Stale backups (older than a day, or unstamped) never override the
- * file; their entry is dropped so the file keeps winning. */
+/** Restores this room's autosave when it differs from the file, then
+ * refreshes the preview. Backups older than a day or without a timestamp
+ * are discarded instead. */
 function restoreAutosave(): void {
   let raw: string | null;
   let key: string | null;
@@ -667,7 +664,7 @@ function restoreAutosave(): void {
     try {
       window.localStorage.removeItem(key);
     } catch {
-      // Blocked storage: nothing to clean.
+      // Storage is blocked, so there's nothing to clean up.
     }
     return;
   }
@@ -707,8 +704,8 @@ function restoreAutosave(): void {
   refreshPreview();
 }
 
-/** Model blobs matching the current photo + tape numbers, building fresh
- * only when the preview doesn't already hold them. */
+/** Model blobs for the current photo and dimensions. Builds them only when
+ * the preview doesn't already have matching ones. */
 async function modelBlobs(): Promise<{ glb: Blob; usdz: Blob } | null> {
   const want = modelSig();
   if (want !== null && previewModels !== null && previewModels.sig === want) {
@@ -736,7 +733,7 @@ async function modelBlobs(): Promise<{ glb: Blob; usdz: Blob } | null> {
   }
 }
 
-/** Titles own their page links: block duplicate-title saves with plain words. */
+/** Page URLs come from titles, so duplicate titles are rejected. */
 async function titleClash(
   title: string,
   ownSlug: string | null,
@@ -751,7 +748,7 @@ async function titleClash(
   return false;
 }
 
-/** Commit a brand-new painting (draft or published) and head to /admin. */
+/** Commits a new painting, as a draft or published, and returns to /admin. */
 async function saveNew(draft: boolean): Promise<void> {
   const fields = readFields();
   if (fields === null) return;
@@ -812,8 +809,8 @@ async function saveNew(draft: boolean): Promise<void> {
           depthIn: fields.depthIn,
           medium: fields.medium,
           draft,
-          // "Publish painting" goes live now — a date only ever rides on
-          // a draft, where it becomes the scheduled go-live.
+          // Publishing goes live now. A date only applies to drafts, as
+          // the scheduled publish date.
           publishOn: draft ? fields.publishOn : "",
           modelGlb: models === null ? "" : `/models/${slug}.glb`,
           modelUsdz: models === null ? "" : `/models/${slug}.usdz`,
@@ -847,7 +844,7 @@ async function saveNew(draft: boolean): Promise<void> {
   }
 }
 
-/** A rename retires the old link into slugHistory (bookmarks keep working). */
+/** On rename, adds the old slug to slugHistory so old links still work. */
 function renamedHistory(
   base: ParsedPainting,
   oldSlug: string,
@@ -858,7 +855,7 @@ function renamedHistory(
   return appendSlugHistory(base.slugHistory, oldSlug);
 }
 
-/** Base file for the edit room: live content, or practice values in dev. */
+/** Base file for the edit room: repo content, or practice values in dev. */
 async function loadEditBase(
   mdPath: string,
 ): Promise<{ content: string; parsed: ParsedPainting } | null> {
@@ -901,7 +898,8 @@ function practiceFromInputs(slug: string, draft: boolean): PracticePainting {
   };
 }
 
-/** Save the open painting (photo replaces bytes in place; links keep working). */
+/** Saves the open painting. A new photo replaces the file in place, so
+ * links keep working. */
 async function saveEdit(
   slug: string,
   mdPath: string,
@@ -947,7 +945,7 @@ async function saveEdit(
       slugHistory: renamedHistory(base.parsed, slug, fields.title),
     };
     if (photoReplaced && preparedBlob !== null) {
-      // New photo: build its models now and commit everything together.
+      // New photo: build its models and commit everything together.
       const models = await modelBlobs();
       const glbRef =
         base.parsed.modelGlb !== ""
@@ -976,7 +974,7 @@ async function saveEdit(
         );
       }
     } else {
-      // Same photo: dimension fixes rebuild the models from the repo file.
+      // Same photo: dimension changes rebuild the models from the repo file.
       const { rebuildForDimFix } = await import("../lib/vendor-loader").then(
         (m) => m.loadArTooling(),
       );
@@ -1005,13 +1003,14 @@ async function saveEdit(
   }
 }
 
-/** Delete behind a modal: DELETE stays disabled 3.5s so the words get read. */
+/** Wires delete behind a confirmation modal. The confirm button stays
+ * disabled for 3.5 seconds so the warning gets read. */
 function wireDelete(
   btnId: string,
   getTitle: () => string,
   doDelete: () => Promise<void>,
 ): void {
-  // Dynamic id (a parameter, not a literal) — narrow by tag, never a cast.
+  // The id is a parameter, not a literal, so narrow by element type.
   const btn = maybeButton(btnId);
   const overlay = maybe("de-confirm");
   const body = maybe("de-confirm-body");
@@ -1036,7 +1035,7 @@ function wireDelete(
     }
     overlay.hidden = false;
     yes.disabled = true;
-    // Deadline-based, not tick-counted: a stalled tab still arms ~3.5s in.
+    // Compare against a deadline so a throttled tab still enables on time.
     const end = Date.now() + 3500;
     const tick = () => {
       const left = Math.max(0, end - Date.now());
@@ -1062,7 +1061,7 @@ function wireDelete(
       close();
       return;
     }
-    // Keep tab cycling between the modal's two buttons.
+    // Trap Tab between the modal's two buttons.
     if (e.key === "Tab") {
       e.preventDefault();
       (document.activeElement === no ? yes : no).focus();
@@ -1087,14 +1086,14 @@ function wireDelete(
 function initStudio(): void {
   const main = document.getElementById("main");
   if (main === null) return;
-  // data-mode is "buy" | "edit" | "draft" in markup — the helper narrows
-  // to the studio rooms, so a renamed mode fails here, not downstream.
+  // studioMode narrows data-mode to the studio rooms, so a renamed mode
+  // fails here rather than downstream.
   const mode = studioMode(main);
   if (mode === null) return;
   const key = `${mode}|${main.dataset.slug ?? ""}|${main.dataset.mdPath ?? ""}`;
   if (main.dataset.studioWired === key) return;
   main.dataset.studioWired = key;
-  // Fresh room, fresh photo state (View Transitions can revisit).
+  // Reset photo state, since View Transitions can revisit a room.
   loadedImage = null;
   preparedBlob = null;
   photoGen += 1;
@@ -1143,9 +1142,8 @@ function initStudio(): void {
   });
   for (const deg of [90, 270] as const) {
     maybe(`de-rotate-${deg}`)?.addEventListener("click", () => {
-      // Quarter turns from a quarter turn stay quarter turns — enumerate
-      // instead of casting, so a new rotation step is a compiler error
-      // here rather than a tilted preview.
+      // Enumerate the quarter turns instead of casting, so a new rotation
+      // step fails to compile here.
       const next = (rotation + deg) % 360;
       rotation = next === 0 ? 0 : next === 90 ? 90 : next === 180 ? 180 : 270;
       if (loadedImage === null) return;
@@ -1170,7 +1168,7 @@ function initStudio(): void {
   }
 
   if (mode === "draft") {
-    // The preview title and price open their fields — same look, doors.
+    // Clicking the preview title or price focuses its field.
     for (const [pvId, fieldId, name] of [
       ["pv-title", "de-title", "title"],
       ["pv-price", "de-price", "price"],
@@ -1211,13 +1209,13 @@ function initStudio(): void {
       );
   });
 
-  // Buttons wire up immediately; the file they act on arrives just behind.
-  // If it never arrives (and this isn't dev practice), they stand down.
+  // Wire the buttons now while the file loads. If it fails to load outside
+  // dev practice, the buttons are disabled.
   const basePromise = loadEditBase(mdPath);
   void basePromise.then((base) => {
     if (base === null && !isLocalPreview()) {
       setStatus("Couldn't load this painting's file.", true);
-      // Literals, not strings: maybe() resolves each to HTMLButtonElement.
+      // `as const` lets maybe() resolve each id to HTMLButtonElement.
       for (const id of ["de-save", "de-visibility", "de-del"] as const) {
         const b = maybe(id);
         if (b !== null) b.disabled = true;
@@ -1234,8 +1232,7 @@ function initStudio(): void {
       void basePromise.then(async (base) => {
         const fields = readFields();
         if (fields === null) return;
-        // Publishing (not unpublishing) asks first, like the new-room
-        // Publish button — the date hint promises a confirmation.
+        // Publishing asks first, as in the new room. Unpublishing doesn't.
         if (draft && !confirmPublish(fields.title)) return;
         if ((await useOverlayMode()) || base === null) {
           if (base === null && !(await useOverlayMode())) {
@@ -1294,7 +1291,7 @@ function initStudio(): void {
   );
 }
 
-/** Flip only the draft flag, keeping every other field as typed. */
+/** Toggles the draft flag and saves the other fields as typed. */
 async function patchFlipDraft(
   mdPath: string,
   base: { content: string; parsed: ParsedPainting },
@@ -1313,7 +1310,7 @@ async function patchFlipDraft(
     medium: fields.medium,
     draft,
     sold: fields.sold,
-    // Publishing now drops the schedule; unpublishing keeps the field.
+    // Publishing clears the schedule. Unpublishing keeps it.
     publishOn: draft ? fields.publishOn : "",
     slugHistory: renamedHistory(base.parsed, oldSlug, fields.title),
   };

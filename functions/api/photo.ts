@@ -3,9 +3,9 @@ import type { AppEnv } from "../_lib/env";
 import { badRequest, requireAdmin, serverError } from "../_lib/http";
 
 /**
- * Admin: fetch a painting's repo photo bytes so the browser can rebuild
- * its AR models (e.g. after a dimension fix). The photo is the only
- * source the editors can reach — built pages carry hashed copies.
+ * Admin: returns a painting's original photo from the repo so the browser
+ * can rebuild its AR models, such as after a dimension change. Built pages
+ * only have resized, hashed copies.
  */
 import { PHOTO_FILE } from "../_lib/gallery-paths";
 
@@ -33,7 +33,7 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
     );
     if (bytes === null) return badRequest("Unknown photo");
     const ext = (path.split(".").pop() ?? "jpg").toLowerCase();
-    // Copy into an exact-length ArrayBuffer body — no cast, no shared tail.
+    // Copy into an exact-length ArrayBuffer so no extra bytes are sent.
     return new Response(bytes.slice().buffer, {
       headers: { "Content-Type": IMAGE_TYPE[ext] ?? "image/jpeg" },
     });

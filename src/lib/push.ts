@@ -1,7 +1,6 @@
 /**
- * "Tell me about new paintings" — Web Push subscription helper.
- * Works in Android Chrome + desktop browsers, and in iOS Safari 16.4+ for
- * sites added to the home screen. Unsupported browsers report as such.
+ * Web Push subscription for new-painting alerts. Works in Android Chrome,
+ * desktop browsers, and iOS Safari 16.4+ when added to the home screen.
  */
 
 import { pushConfigSchema } from "./schemas";
@@ -10,9 +9,8 @@ export type PushState =
   "unsupported" | "denied" | "subscribed" | "unsubscribed";
 
 /**
- * Fresh decoded bytes always sit in their own ArrayBuffer (never shared),
- * so the result qualifies as a BufferSource for PushManager — say so in
- * the return type instead of casting at the call site.
+ * Decodes base64url into a Uint8Array backed by its own ArrayBuffer. The
+ * return type says so, which lets PushManager accept it without a cast.
  */
 function b64ToU8(base64url: string): Uint8Array<ArrayBuffer> {
   const bin = atob(base64url.replace(/-/g, "+").replace(/_/g, "/"));
@@ -42,10 +40,9 @@ export async function pushState(): Promise<PushState> {
 }
 
 /**
- * Why a subscribe attempt ended: granted and stored, the visitor dismissed
- * the browser prompt, the visitor (or an earlier choice) blocks alerts, or
- * something genuinely failed. Callers message each case in plain words —
- * a dismissal is never reported as a server problem.
+ * Outcome of a subscribe attempt: subscribed, prompt dismissed, permission
+ * blocked, or a real failure. Callers word each case differently so a
+ * dismissal isn't reported as a server problem.
  */
 export type SubscribeResult =
   | "subscribed"
@@ -57,13 +54,13 @@ export type SubscribeResult =
 
 export async function subscribePush(): Promise<SubscribeResult> {
   if (!supported()) return "failed";
-  // Stage-tagged console breadcrumbs: the page shows plain words, but a
-  // failure like this one needs a trail when it is reported.
+  // Tracks the current step for console logging, since the page only shows
+  // a friendly message.
   let stage = "config";
   try {
     const cfgRes = await fetch("/api/push");
-    // No push endpoint here at all (a dev preview) — different from a
-    // real failure, so callers can say so in plain words.
+    // No push endpoint, as in a dev preview. Reported separately from a
+    // real failure.
     if (!cfgRes.ok) return "unavailable";
     const raw = (await cfgRes.json()) as unknown;
     const parsed = pushConfigSchema.safeParse(raw);
@@ -89,9 +86,8 @@ export async function subscribePush(): Promise<SubscribeResult> {
     return res.ok ? "subscribed" : "failed";
   } catch (err) {
     console.warn(`push subscribe failed at ${stage}`, err);
-    // The browser itself couldn't reach its push service (never
-    // connected, blocked at the network, switched off) — the site did
-    // nothing wrong, so say exactly that.
+    // The browser couldn't reach its push service, for example because
+    // it's blocked on the network or disabled. This isn't a site error.
     if (
       err instanceof DOMException &&
       err.name === "AbortError" &&

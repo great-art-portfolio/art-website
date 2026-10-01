@@ -1,10 +1,10 @@
 import type { AppEnv } from "./env";
 
-/** Turnstile check for public writes. Empty secret = honeypot only ("pass").
- * Canonical shape per server-side validation spec:
- * POST https://challenges.cloudflare.com/turnstile/v0/siteverify as
- * application/x-www-form-urlencoded with secret + response (+ remoteip),
- * single-use tokens (max 2048 chars, 5 minutes),
+/** Turnstile check for public writes. With no secret configured, it passes
+ * and only the honeypot applies. Per the server-side validation spec, this
+ * POSTs form-encoded secret, response, and optional remoteip to
+ * https://challenges.cloudflare.com/turnstile/v0/siteverify. Tokens are
+ * single-use, up to 2048 chars, and valid for 5 minutes. The response is
  * JSON { success, hostname, action, error-codes }.
  * Spec: https://developers.cloudflare.com/turnstile/get-started/server-side-validation/ */
 const SITEVERIFY_URL =
@@ -41,7 +41,7 @@ export async function turnstileOk(
       ["error-codes"]?: unknown;
     };
     if (data.success === true) return true;
-    // Log the reason server-side only — never surface codes to the buyer.
+    // Log the reason server-side only. Buyers don't see error codes.
     console.error("turnstile rejected", data["error-codes"] ?? "unknown");
     return false;
   } catch (err) {

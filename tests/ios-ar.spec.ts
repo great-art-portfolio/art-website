@@ -1,11 +1,10 @@
 import { expect, test } from "@playwright/test";
 
 /**
- * iOS AR handoff e2e: on an iPhone user agent the buyer page must hand
- * Safari/Quick Look a valid USDZ. Headless Chromium cannot render Quick
- * Look itself (that needs a physical iPhone), so this pins everything
- * around it: the data-usdz attribute, the model-viewer ios-src /
- * quick-look / wall-placement attributes, and a 200 for the USDZ file.
+ * On an iPhone user agent the buyer page hands Quick Look a USDZ file.
+ * Headless Chromium can't run Quick Look, so this checks the surrounding
+ * setup: the data-usdz attribute, model-viewer's ios-src, quick-look and
+ * wall-placement attributes, and a 200 for the USDZ file.
  */
 
 test.use({

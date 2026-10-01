@@ -10,10 +10,9 @@ import {
 import { studioRowHtml } from "../lib/studio-rows";
 import "../components/studio.css";
 
-// Astro lowercases content ids (img_5667.md) while the repo path stays
-// case-sensitive (IMG_5667.md). Resolve the true filename at build time
-// so baked rows match the API rows exactly — no re-render flicker — and
-// row deletes point at a file that exists.
+// Astro lowercases content ids (img_5667.md), but repo paths are
+// case-sensitive (IMG_5667.md). Resolve the real filename at build time so
+// baked rows match API rows and deletes target a file that exists.
 const diskNames = new Map(
   readdirSync("src/content/paintings").map((f) => [f.toLowerCase(), f]),
 );
@@ -22,9 +21,9 @@ const mdFile = (id: string): string => {
   return diskNames.get(withExt.toLowerCase()) ?? withExt;
 };
 
-// Baked in at build time so the list and links work everywhere, even with
-// no publishing backend (dev). The full editable fields ride along so the
-// dev list supports practice edits and deletes without any API.
+// Baked in at build time so the list works without a publishing backend.
+// It includes the editable fields so dev practice edits and deletes work
+// without the API.
 const localCollection = (await getCollection("paintings")).map((p) => ({
   slug: slugifyTitle(p.data.title),
   title: p.data.title,
@@ -42,14 +41,13 @@ const localCollection = (await getCollection("paintings")).map((p) => ({
   image: p.data.image.src,
   order: p.data.order ?? null,
   mdPath: `src/content/paintings/${mdFile(p.id)}`,
-  // View counts arrive client-side; zero here matches the hydrated render.
+  // View counts load client-side. Zero matches the initial client render.
   views: 0,
 }));
 const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
 
-// First paint renders these rows as static markup — the script hydrates
-// over identical HTML, so loading never grows the card or shoves the page
-// (no skeleton flash, no cumulative layout shift).
+// Render the rows as static markup. The client script renders identical HTML
+// over them, so loading causes no layout shift.
 const byTitle = (a: { title: string }, b: { title: string }): number =>
   a.title.localeCompare(b.title);
 const live = localCollection.filter((p) => !p.trash);
@@ -57,14 +55,12 @@ const ssrTrash = [...localCollection].filter((p) => p.trash).sort(byTitle);
 const ssrDrafts = [...live].filter((p) => p.draft).sort(byTitle);
 const ssrGroups = groupByAvailability(live.filter((p) => !p.draft));
 const ssrAvailable = [...ssrGroups.available].sort(compareGalleryOrder);
-// Sold drags just like Available, so the static rows already follow the
-// drag order (frontmatter `order:`), not the alphabet.
+// Sold is reorderable like Available, so sort by `order:` rather than title.
 const ssrSold = [...ssrGroups.sold].sort(compareGalleryOrder);
 const ssrDraftCount = ssrDrafts.length;
 const ssrDraftLabel =
   ssrDraftCount === 1 ? "1 draft" : `${ssrDraftCount} drafts`;
-// Row HTML comes from the same renderer the client uses, so hydration
-// swaps identical markup.
+// Uses the client's row renderer so the markup matches exactly.
 const availableHtml =
   ssrAvailable.length === 0
     ? `<li class="list-plain">Nothing available right now.</li>`
@@ -160,12 +156,10 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
 <script src="../components/AdminPanel.ts"></script>
 
 <style>
-  /* Collection page keeps its own list/row/fold styles below. Shared
-     studio primitives (headings, forms, buttons, drawer summaries)
-     live in components/studio.css; the header owns the section nav
-     and the toast. */
-  /* Dev-only suffix rides under the heading as small muted words,
-     never a second headline — and never in production (hidden). */
+  /* Collection list, row, and fold styles. Shared studio styles live in
+     components/studio.css. */
+  /* Dev-only note under the heading, in small muted text. Hidden in
+     production. */
   :global(#collection-dev) {
     flex-basis: 100%;
     font-family:
@@ -177,8 +171,7 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
     font-weight: 400;
     color: var(--muted);
   }
-  /* Row view counts: quiet follow-on to the price, gone entirely
-     until the counts arrive (no flash, no shove). */
+  /* Row view counts after the price. Hidden until the counts load. */
   :global(#edit-list .row-views:empty) {
     display: none;
   }
@@ -186,8 +179,8 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
     color: var(--muted);
     font-size: 0.85rem;
   }
-  /* Reduced motion is honored inside the drawer script: the height
-     opens instantly while the fade still runs. */
+  /* The drawer script handles reduced motion: height changes are instant
+     and the fade still runs. */
   #edit-list {
     list-style: none;
     padding: 0;
@@ -195,9 +188,8 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
     display: grid;
     gap: 0.5rem;
   }
-  /* Group shells vanish on phones so every row flows in one list;
-     on desktop Available becomes the card grid, with the Drafts and
-     Sold folds stacked below it. */
+  /* On phones the group wrappers flatten into one list. On desktop
+     Available becomes a card grid with the folds stacked below. */
   :global(#edit-list .list-group) {
     display: contents;
   }
@@ -207,9 +199,8 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
     padding: 0;
     margin: 0;
   }
-  /* Folds ease through the same script-driven drawer as Advanced
-     Settings — identical on every browser. Endpoints only, no
-     transition: the script animates between them. */
+  /* Folds use the same script-driven drawer as Advanced Settings. These
+     are the end states only. The script animates between them. */
   :global(#edit-list .sold-fold > :not(summary)),
   :global(#edit-list .drafts-fold > :not(summary)),
   :global(#edit-list .trash-fold > :not(summary)) {
@@ -220,8 +211,8 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
   :global(#edit-list .trash-fold[open] > :not(summary)) {
     opacity: 1;
   }
-  /* Rows and fields are built by script after load, so they never carry
-     the scope attribute — whole-selector :global keeps them styled. */
+  /* Rows are built by script and lack Astro's scope attribute, so these
+     selectors are global. */
   :global(#edit-list li.row-card) {
     list-style: none;
     background: var(--paper);
@@ -240,11 +231,11 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
   :global(#edit-list li a:hover) {
     text-decoration-color: currentColor;
   }
-  /* Hovering the photo lights the title too — one piece, one hover. */
+  /* Hovering the photo highlights the title too. */
   :global(#edit-list .row-card:has(.row-photo:hover) .row-title) {
     text-decoration-color: currentColor;
   }
-  /* Plain notes sit in the list unboxed. */
+  /* Plain notes in the list, without a card. */
   :global(#edit-list .list-plain) {
     background: none;
     border: none;
@@ -252,10 +243,8 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
     color: var(--muted);
     font-size: 0.92rem;
   }
-  /* Per-row delete: a quiet text button, never a red box — the
-     confirmation modal carries the warning in words. On hover the word
-     and its trash can warm to a soft clay red (never the brand orange,
-     never alarm red). */
+  /* Per-row delete is a plain text button, since the confirmation modal
+     carries the warning. On hover it turns the soft danger red. */
   :global(#edit-list .row-del) {
     font: inherit;
     font-size: 0.85rem;
@@ -276,7 +265,7 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
     color: var(--danger);
     text-decoration-color: currentColor;
   }
-  /* Restore wears the same quiet link-button shape as Delete. */
+  /* Restore uses the same link-button style as Delete. */
   :global(#edit-list .row-restore) {
     font: inherit;
     font-size: 0.85rem;
@@ -302,7 +291,7 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
     outline-offset: 2px;
     border-radius: 0.25rem;
   }
-  /* Fold toolbars (Empty trash) sit between the count and the rows. */
+  /* Fold toolbars, such as Empty trash, between the count and the rows. */
   :global(#edit-list .fold-tools) {
     margin: 0.75rem 0 0;
   }
@@ -311,9 +300,8 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
     padding: 0.25rem 0.9rem;
     font-size: 0.82rem;
   }
-  /* Row delete confirmation: a plain-words modal in the middle of the
-     screen. It appears instantly under every motion setting — no
-     entrance animation to wait through or disable. */
+  /* Row delete confirmation modal. It appears without an entrance
+     animation. */
   #row-confirm {
     position: fixed;
     inset: 0;
@@ -326,9 +314,9 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
   #row-confirm[hidden] {
     display: none;
   }
-  /* Reorder tooltip (script-built, so a whole-selector twin): the toast's
-     inverted pill, smaller, above the cards but below the modal. Instant
-     show/hide — no motion to reduce — and never interactive. */
+  /* Reorder tooltip, built by script so the selector is global. A smaller
+     version of the toast, layered above the cards and below the modal. It
+     shows and hides instantly and ignores pointer events. */
   :global(#reorder-tip) {
     position: fixed;
     z-index: 50;
@@ -378,8 +366,7 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
     outline-offset: 2px;
     border-radius: 0.25rem;
   }
-  /* Rows carry a thumbnail, so she sees the piece without remembering
-     its name. Practice rows (dev) reuse the same shape. */
+  /* Rows show a thumbnail so paintings are recognizable at a glance. */
   :global(#edit-list li.row-card) {
     display: flex;
     gap: 0.8rem;
@@ -398,7 +385,8 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
     display: grid;
     gap: 0.3rem;
     min-width: 0;
-    /* Links hug their text: empty space beside a title stays dead. */
+    /* Links size to their text, so the space beside a title isn't
+       clickable. */
     justify-items: start;
   }
   :global(#edit-list .row-photo) {
@@ -413,10 +401,9 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
   :global(#edit-list .row-qr) {
     font-size: 0.85rem;
   }
-  /* Mini QR mark: pencil-sized, clay modules, no chip behind it —
-     it reads as an icon beside its link, not a second image. Fixed size
-     from first paint so filling it never shoves the row. Rows arrive
-     via innerHTML, so whole-selector :global() twins. */
+  /* Mini QR code shown as an icon beside its link. It has a fixed size
+     from first paint so filling it doesn't shift the row. Rows come from
+     innerHTML, so the selector is global. */
   :global(#edit-list .qr-mini) {
     width: 0.8125rem;
     height: 0.8125rem;
@@ -430,17 +417,17 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
     height: 100%;
     display: block;
   }
-  /* The generator paints a white plate plus black modules (presentation
-     attributes, so plain CSS wins): drop the plate, ink the modules. */
+  /* The generator draws a white background and black modules with
+     presentation attributes, which CSS overrides. Drop the background and
+     recolor the modules. */
   :global(#edit-list .qr-mini svg rect) {
     fill: none;
   }
   :global(#edit-list .qr-mini svg path) {
     fill: currentColor;
   }
-  /* Edit and Delete ride side by side, each with its own small icon —
-     wrapping when a third action (Restore) joins them. The QR mark rides
-     inside its link, so the whole unit answers a tap. */
+  /* Row actions sit side by side and wrap when Restore is added. The QR
+     icon is inside its link, so tapping either one works. */
   :global(#edit-list .row-actions) {
     display: flex;
     gap: 0.4rem 0.75rem;
@@ -458,8 +445,7 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
   :global(#edit-list .ico) {
     flex-shrink: 0;
   }
-  /* Deferred reveals fade in instead of snapping. Opacity-only, so it
-     stays gentle under reduced motion too. */
+  /* Fade-in for deferred reveals. Opacity-only, so reduced motion keeps it. */
   .fade-in {
     animation: fade-in 0.4s ease;
   }
@@ -474,14 +460,12 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
   #practice-reset[hidden] {
     display: none;
   }
-  /* Collection stacks full-width on every screen: Available on top,
-     then the Drafts and Sold folds below, in that order. */
+  /* The collection stacks full width: Available, then Drafts, then Sold. */
   @media (min-width: 60rem) {
     #edit-list {
       gap: 1.5rem;
     }
-    /* Drafts and Sold each get their own full-width row below, folded
-       open by default — one tap on the count folds it away. */
+    /* Drafts and Sold each get a full-width row, open by default. */
     :global(#edit-list .sold-fold),
     :global(#edit-list .drafts-fold),
     :global(#edit-list .trash-fold) {
@@ -497,8 +481,7 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
       -webkit-user-select: none;
       user-select: none;
       border-radius: 0.25rem;
-      /* Fold counts wear the h2 shape, minus its old hairline:
-         whitespace separates the groups, not lines. */
+      /* Fold counts use the h2 style without its bottom border. */
       padding-bottom: 0;
       border-bottom: none;
       margin-bottom: 1rem;
@@ -512,7 +495,6 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
       user-select: none;
       width: fit-content;
       border-radius: 0.25rem;
-      /* Trash stays a quiet archive header: no hairline. */
       border-bottom: none;
     }
     :global(#edit-list .sold-fold summary:focus-visible),
@@ -526,8 +508,8 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
     :global(#edit-list .trash-fold .group-rows) {
       margin-top: 0.75rem;
     }
-    /* Drag-to-reorder: grabbable cards, one accent edge where the
-       card will land. Script-built classes get whole-selector twins. */
+    /* Drag-to-reorder: grab cursor on cards, and an accent edge where the
+       card will land. Script-built classes need global selectors. */
     :global(#edit-list [draggable="true"]) {
       cursor: grab;
     }
@@ -540,7 +522,8 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
     :global(#edit-list .row-card.drop-after) {
       box-shadow: inset 0 -3px 0 var(--accent);
     }
-    /* Same-row drops split left/right instead of top/bottom. */
+    /* In a grid row, drops mark the left or right edge instead of top or
+       bottom. */
     :global(#edit-list .row-card.drop-left) {
       box-shadow: inset 3px 0 0 var(--accent);
     }
@@ -553,9 +536,8 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
       align-content: start;
       min-width: 0;
     }
-    /* A real grid of paintings, not a 1D list: roomy cards with the
-       photo on top — four across at full width, fewer as the screen
-       narrows. Five squeezed the photos and the drag targets. */
+    /* Card grid with the photo on top, up to four across. Five made the
+       photos and drag targets too small. */
     :global(#edit-list .group-rows) {
       display: grid;
       gap: 0.75rem;
@@ -571,9 +553,8 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
       height: auto;
       aspect-ratio: 4 / 3;
     }
-    /* Trash is a waiting shelf, not the show: compact horizontal rows
-       with small thumbs — never the big photo-on-top cards. Drafts
-       wear the same cards as Available: they are future inventory. */
+    /* Trash uses compact rows with small thumbnails instead of cards.
+       Drafts use the same cards as Available. */
     :global(#edit-list .trash-fold .group-rows) {
       grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
     }

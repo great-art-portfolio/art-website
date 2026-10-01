@@ -1,20 +1,20 @@
 import { SITE_URL } from "./site";
 
-/** "Tell social media" words for a painting room: prefilled, editable,
- * rebuilt live from the fields until she types her own. */
+/** Social share caption for a painting room. It's rebuilt from the fields
+ * until edited by hand. */
 
 export interface ShareCaptionInput {
   /** Preview title ("Untitled" when the field is empty). */
   title: string;
-  /** Preview price line ("$140.00 CAD"), or null while priceless. */
+  /** Preview price line ("$140.00 CAD"), or null without a price. */
   priceLabel: string | null;
-  /** Preview meta line ("Oil on canvas · 24 × 36 in", "" when bare). */
+  /** Preview meta line ("Oil on canvas · 24 × 36 in"), or "" when empty. */
   meta: string;
-  /** Public slug ("" when the page has no live address yet). */
+  /** Public slug, or "" when the page isn't live yet. */
   slug: string;
 }
 
-/** Two lines, plain words: what it is, where to see it. */
+/** Two lines: what the painting is and where to see it. */
 export function buildShareCaption(input: ShareCaptionInput): string {
   const title = input.title === "" ? "Untitled" : input.title;
   const head = [`New in the gallery: “${title}”`];

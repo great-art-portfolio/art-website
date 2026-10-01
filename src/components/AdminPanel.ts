@@ -31,13 +31,13 @@ import {
   todayKey,
 } from "../lib/painting-edit";
 
-/** Studio dashboard: collection index, banner, gallery ordering. Painting
- * rooms live on their own routes. Access-gated in prod; token backup local. */
+/** Studio dashboard: the collection list, banner editor, and gallery ordering.
+ * Painting rooms live on their own routes. */
 
-/** Toasts clear themselves; each new message restarts the clock. */
 let statusTimer = 0;
-/** Toast words fade both ways (opacity-only, every motion setting). One timer
- * covers both phases, so a mid-fade message cancels the goodbye. */
+/** Shows a toast that dismisses itself. The fade is opacity-only so reduced
+ * motion keeps it. One timer drives both phases, so a new message cancels a
+ * fade-out in progress. */
 function setStatus(msg: string, isError = false, durationMs = 6000): void {
   const el = $("admin-status");
   window.clearTimeout(statusTimer);
@@ -60,14 +60,14 @@ function setStatus(msg: string, isError = false, durationMs = 6000): void {
   }, durationMs);
 }
 
-/** A reveal fades instead of snapping (opacity-only, stays gentle). */
+/** Restarts the opacity fade-in animation on an element. */
 function fadeIn(el: HTMLElement): void {
   el.classList.remove("fade-in");
   void el.offsetWidth;
   el.classList.add("fade-in");
 }
 
-/** Unhide with a fade, once — already-visible stays put. */
+/** Unhides an element with a fade. Already-visible elements are left alone. */
 function reveal(el: HTMLElement): void {
   if (el.hidden) {
     el.hidden = false;
@@ -75,8 +75,9 @@ function reveal(el: HTMLElement): void {
   }
 }
 
-/** Practice overlay unless something real persists: a stored token commits,
- * and under `pnpm dev` the sidecar writes the working tree tokenless. */
+/** True when saves should go to the localStorage practice overlay. A stored
+ * token commits for real, and under `pnpm dev:studio` the local content API
+ * writes the working tree without one. */
 async function useOverlayMode(): Promise<boolean> {
   if (!isLocalPreview() || getApiToken() !== "") return false;
   return !(await api.localBackend());
@@ -100,7 +101,7 @@ interface LocalPainting {
   draft: boolean;
   /** Scheduled go-live ("YYYY-MM-DD", "" when none). */
   publishOn: string;
-  /** Trash flag + stamp (trashedAt: "YYYY-MM-DD", "" when never trashed). */
+  /** trashedAt is "YYYY-MM-DD", or "" when never trashed. */
   trash: boolean;
   trashedAt: string;
   image: string;
@@ -112,18 +113,19 @@ interface LocalPainting {
   medium: string;
   /** Repo path for live deletes ("" for unsaved practice rows). */
   mdPath: string;
-  /** Past-30-day views, 0 when unknown — the row hides the count. */
+  /** Views over the past 30 days. 0 when unknown, which hides the count. */
   views: number;
-  /** Gallery position (order:), null when never dragged. */
+  /** Gallery position from `order:` frontmatter. Null until first reordered. */
   order: number | null;
 }
 
-/** Baked-in list, seeded once per visit (dev practice merges over it). */
+/** Collection baked into the page, seeded once per visit. The practice
+ * overlay merges over it. */
 let localRows: LocalPainting[] | null = null;
 /** Built thumbnail URLs by repo file, parsed once from the baked-in list. */
 let thumbByMd: Record<string, string> | null = null;
 
-/** Normalize baked rows for editing: numeric dims become display strings. */
+/** Normalizes baked rows for editing. Numeric dimensions become strings. */
 function seedLocalRows(raw: BakedRow[]): LocalPainting[] {
   const dim = (v: number | null): string =>
     v !== null && Number.isFinite(v) && v > 0 ? String(v) : "";
@@ -144,7 +146,7 @@ function seedLocalRows(raw: BakedRow[]): LocalPainting[] {
       widthIn: dim(r.widthIn),
       heightIn: dim(r.heightIn),
       depthIn: dim(r.depthIn),
-      // Baked rows carry no medium (reads absent, as before).
+      // The baked list doesn't include medium.
       medium: "",
       mdPath: r.mdPath,
       views: 0,
@@ -181,7 +183,8 @@ function mergePractice(
   return kept;
 }
 
-/** Baked-in collection merged with the practice overlay. No API needed. */
+/** Renders the baked collection merged with the practice overlay, without
+ * the API. Returns false when the page has no baked list. */
 function renderLocalCollection(): boolean {
   if (localRows === null) {
     const el = document.getElementById("local-collection");
@@ -189,12 +192,13 @@ function renderLocalCollection(): boolean {
     const baked = parseBakedCollection(el.textContent ?? "");
     if (baked === null) return false;
     localRows = seedLocalRows(baked);
-    // Static markup already shows these rows — record it so the first render
-    // doesn't swap identical HTML (photos would flicker).
+    // The static markup already shows these rows. Recording the key keeps
+    // the first render from swapping in identical HTML, which flickers photos.
     if (lastRowsKey === null) lastRowsKey = rowsKey(localRows);
   }
   const overlay = loadPracticeOverlay();
-  // Practice has no backend: due schedules read as live for this visit.
+  // Practice has no backend to publish to, so due drafts show as live for
+  // this visit only.
   const today = todayKey();
   const merged = mergePractice(localRows, overlay).map((r) =>
     r.draft && !r.trash && isPublishDue(r.publishOn, today)
@@ -202,8 +206,7 @@ function renderLocalCollection(): boolean {
       : r,
   );
   renderRows(merged);
-  // Practice mode: studio-room saves land in this browser, cleared in one tap.
-  // Local preview only, never the live site.
+  // Practice saves stay in this browser. Only local previews reach here.
   reveal($("collection-dev"));
   const reset = $("practice-reset");
   reset.hidden = practiceCount(overlay) === 0;
@@ -218,18 +221,19 @@ function renderLocalCollection(): boolean {
   return true;
 }
 
-/** Seed the rows key from the baked list so an identical API response skips
- * the rebuild (rebuilding every photo flickers). */
+/** Seeds the rows key from the baked list so an identical API response skips
+ * the rebuild, which would flicker every photo. */
 function seedRowsKey(): void {
   if (lastRowsKey !== null) return;
   const el = document.getElementById("local-collection");
   if (el === null) return;
   const baked = parseBakedCollection(el.textContent ?? "");
-  // Unparseable — the API render below rebuilds unconditionally.
+  // If the baked list doesn't parse, the API render rebuilds unconditionally.
   if (baked !== null) lastRowsKey = rowsKey(seedLocalRows(baked));
 }
 
-/** Render signature (sorted rows, rendered fields): skips no-change renders. */
+/** Signature of the rendered fields in display order, used to skip renders
+ * that would change nothing. */
 function rowsKey(rows: LocalPainting[]): string {
   return JSON.stringify(
     [...rows]
@@ -252,15 +256,12 @@ function rowsKey(rows: LocalPainting[]): string {
 /** Key of what the list currently shows (null until the first render). */
 let lastRowsKey: string | null = null;
 
-/** Available on top; Drafts, Sold, Trash fold underneath (one list on phones).
- * Available and Sold drag to re-sort; Drafts and Trash never drag. */
 /** Rows behind the current render, for drag-to-reorder lookups. */
 let lastRenderedRows: LocalPainting[] = [];
 
-/** Mini QR beside each row's QR link — the actual code, scannable at
- * a glance. Placeholders ride the row markup (SSR and client render
- * identically, sized by CSS so nothing shoves); this fills the empty
- * ones after every render. Failures keep the plain link. */
+/** Fills the empty mini-QR placeholders beside each row's QR link. The
+ * placeholders are in the row markup and sized by CSS, so filling them
+ * doesn't shift layout. If a code fails to build, the plain link remains. */
 async function fillRowQrs(list: Element): Promise<void> {
   const empty: Element[] = [];
   for (const el of list.querySelectorAll(".qr-mini:empty")) {
@@ -273,9 +274,8 @@ async function fillRowQrs(list: Element): Promise<void> {
   }
   if (empty.length === 0) return;
   try {
-    // Loaded late and alone: in the studio dev server this dependency
-    // sometimes fails to pre-bundle, and a top-level import would take
-    // the whole panel down with it (every preview, every row action).
+    // Imported lazily because the studio dev server sometimes fails to
+    // pre-bundle it, and a top-level import failure would break the panel.
     const { default: qrcode } = await import("qrcode-generator");
     for (const el of empty) {
       const slug = el.getAttribute("data-slug") ?? "";
@@ -285,22 +285,22 @@ async function fillRowQrs(list: Element): Promise<void> {
       el.innerHTML = code.createSvgTag({ cellSize: 2, margin: 0 });
     }
   } catch {
-    // A code that won't build leaves the link standing alone.
+    // Leave the plain link.
   }
 }
 
+/** Available sits on top, with Drafts, Sold, and Trash in folds below.
+ * Only Available and Sold can be dragged to reorder. */
 function renderRows(rows: LocalPainting[]): void {
   const list = $("edit-list");
   $("collection-refresh").hidden = true;
   lastRenderedRows = rows;
-  // Delegated + idempotent, joining the SSR first paint too.
+  // These are idempotent, so they also cover the server-rendered first paint.
   wireReorder(list);
   wireReorderHint(list);
-  // Folds wire here and again after swaps; wiring is idempotent.
   wireDrawers(list, "details");
-  // Mini QRs fill here — before the identical-rows early return below,
-  // which otherwise keeps SSR first paint mini-less forever. Idempotent:
-  // filled placeholders are skipped, kept ones persist.
+  // Fill QRs before the unchanged-rows early return, or the server-rendered
+  // rows would never get theirs.
   void fillRowQrs(list);
   const key = rowsKey(rows);
   if (key === lastRowsKey) return;
@@ -310,8 +310,8 @@ function renderRows(rows: LocalPainting[]): void {
       '<li class="list-plain">Nothing here yet — tap Add painting above.</li>';
     return;
   }
-  // Carry each fold's effective state across the swap (mid-flight counts
-  // as its target); fresh folds keep their markup default.
+  // Keep each fold's open state across the swap. A fold mid-animation counts
+  // as its target state. New folds use their markup default.
   const foldOpen = new Map<string, boolean>();
   for (const el of list.querySelectorAll("details[data-group]")) {
     if (el instanceof HTMLDetailsElement && el.dataset.group !== undefined) {
@@ -364,8 +364,7 @@ function renderRows(rows: LocalPainting[]): void {
   list.innerHTML = html;
   void fillRowQrs(list);
   wireReorder(list);
-  // Wire the fresh folds, restoring open state instantly (a re-render
-  // never animates).
+  // Restore fold state without animating, since this is a re-render.
   for (const el of list.querySelectorAll("details[data-group]")) {
     if (!(el instanceof HTMLDetailsElement) || el.dataset.group === undefined)
       continue;
@@ -375,8 +374,8 @@ function renderRows(rows: LocalPainting[]): void {
   }
 }
 
-/** Drag-to-reorder within Available/Sold groups. Listeners attach once (event
- * delegation); per-card flags re-apply every render. */
+/** Drag-to-reorder within the Available and Sold groups. Delegated listeners
+ * attach once; per-card flags are reapplied on every render. */
 let reorderWired = false;
 let dragSlug: string | null = null;
 /** Serializes reorder commits (see the drop handler). */
@@ -417,8 +416,8 @@ const dropMarks: readonly DropMark[] = [
   "drop-right",
 ];
 
-/** Insertion point follows the pointer (shared by dragover and drop, so the
- * highlight never lies about the landing). */
+/** Insertion point under the pointer. Dragover and drop share it so the
+ * highlight matches where the card lands. */
 function dropMark(
   card: Element,
   dragged: Element | null,
@@ -467,7 +466,7 @@ function wireReorder(list: HTMLElement): void {
       try {
         e.dataTransfer.setData("text/plain", slug);
       } catch {
-        // Some browsers need the try; the drag still works.
+        // Some browsers throw here. The drag still works.
       }
     }
   });
@@ -477,8 +476,8 @@ function wireReorder(list: HTMLElement): void {
       return;
     }
     e.preventDefault();
-    // The OS owns the mid-drag pointer (CSS can't reach it) — "move"
-    // keeps a meaningful cursor instead of the default arrow.
+    // CSS can't style the cursor mid-drag. "move" shows a move cursor
+    // instead of the default arrow.
     if (e.dataTransfer !== null) e.dataTransfer.dropEffect = "move";
     const { mark } = dropMark(
       card,
@@ -508,7 +507,7 @@ function wireReorder(list: HTMLElement): void {
       return;
     }
     const { after } = dropMark(card, dragged, e.clientX, e.clientY);
-    // Dropping where it already sits changes nothing — stay silent.
+    // Dropped in its current position.
     if (
       (!after && dragged.nextElementSibling === card) ||
       (after && card.nextElementSibling === dragged)
@@ -519,13 +518,12 @@ function wireReorder(list: HTMLElement): void {
     rows?.insertBefore(dragged, after ? card.nextSibling : card);
     const slug = dragSlug;
     dragSlug = null;
-    // One reorder commit at a time: a second drop waits for the first,
-    // then recomputes from the live DOM — overlapping drags used to read
-    // stale rows and lose updates.
+    // Serialize reorder commits. A second drop waits for the first and then
+    // recomputes from the live DOM, so overlapping drags don't lose updates.
     reorderQueue = reorderQueue
       .then(() => persistOrder(rows, slug))
-      // persistOrder reports its own failures; this only keeps a surprise
-      // throw from stalling every later drop, and surfaces it as a toast.
+      // persistOrder reports its own failures. This catch keeps an unexpected
+      // throw from stalling the queue.
       .catch((err: unknown) => setStatus(errorMessage(err), true));
     void reorderQueue;
   });
@@ -535,7 +533,8 @@ function wireReorder(list: HTMLElement): void {
   });
 }
 
-/** Reorder hint tooltip (hover + focus). Pointer-events off, never disturbs drags. */
+/** Reorder hint tooltip on hover and focus. It has pointer-events off so it
+ * doesn't interfere with drags. */
 let hintTimer = 0;
 const HINT_DELAY_MS = 3000;
 const REORDER_HINT =
@@ -569,7 +568,7 @@ function showReorderHint(anchor: Element): void {
   const rect = anchor.getBoundingClientRect();
   tip.hidden = false;
   anchor.setAttribute("aria-describedby", "reorder-tip");
-  // Below the photo when it fits, clamped sideways for narrow phones.
+  // Below the photo when it fits, clamped horizontally for narrow phones.
   const gap = 8;
   const topBelow = rect.bottom + gap;
   const top =
@@ -623,19 +622,19 @@ function wireReorderHint(list: HTMLElement): void {
     hintTimer = window.setTimeout(() => showReorderHint(photo), HINT_DELAY_MS);
   });
   list.addEventListener("focusout", () => hideReorderHint());
-  // Bubbles never follow cards: hide on scroll, drag, or navigation.
+  // The tooltip doesn't track its card, so hide it on scroll, drag, or
+  // navigation.
   list.addEventListener("dragstart", () => hideReorderHint());
   list.addEventListener("click", () => hideReorderHint());
   window.addEventListener("scroll", () => hideReorderHint(), true);
 }
 
-/** Write one group's DOM order back as 0..n `order:` frontmatter. */
+/** Writes one group's DOM order back as 0..n `order:` frontmatter. */
 async function persistOrder(
   rows: Element | null,
   moved: string,
 ): Promise<void> {
   if (rows === null) return;
-  // Whose order just moved, in plain words for the toast.
   const kind =
     rows.closest('[data-group="sold"]') === null ? "Gallery" : "Sold";
   const slugs: string[] = [];
@@ -669,7 +668,6 @@ async function persistOrder(
         });
         changed += 1;
       }
-      // Nothing moved — silence, not a toast.
       if (changed === 0) return;
       renderLocalCollection();
       setStatus(
@@ -690,13 +688,13 @@ async function persistOrder(
       }
       files.push({ path: row.mdPath, blob: setOrder(content, i) });
     }
-    // Screen already matches the repo — nothing to announce.
     if (files.length === 0) return;
     setStatus(
       `Saving the ${kind.toLowerCase()} order… (live in a few minutes)`,
     );
     await api.commitFiles("Reorder gallery", files);
-    // Stamp the pushed indices onto the rows (a re-read can flash stale order).
+    // Update rows locally. Re-reading from the API can briefly return the
+    // old order.
     for (const [i, slug] of slugs.entries()) {
       const row = bySlug.get(slug);
       if (row !== undefined) row.order = i;
@@ -709,8 +707,8 @@ async function persistOrder(
   }
 }
 
-/** Row delete after the confirmation modal (practice rows vanish locally). */
-/** Days since a stamp. Garbled/absent reads as just-now, never expired. */
+/** Days since a trash stamp, or null when the stamp is missing or malformed.
+ * Callers treat null as not expired. */
 function trashAgeDays(trashedAt: string): number | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trashedAt.trim());
   if (m === null) return null;
@@ -719,7 +717,8 @@ function trashAgeDays(trashedAt: string): number | null {
   return Math.floor((Date.now() - t) / 86400000);
 }
 
-/** Delete moves to trash (restorable 30 days); only Empty/Purge destroy. */
+/** Moves a painting to trash, where it can be restored for 30 days. Only
+ * emptying or purging the trash deletes files. */
 async function trashRow(
   slug: string,
   title: string,
@@ -744,7 +743,7 @@ async function trashRow(
   setStatus(`Moved "${parsed.title}" to trash — 30 days to change your mind.`);
 }
 
-/** One tap back out of trash — harmless and reversible, so no modal. */
+/** Restores a painting from trash. It's reversible, so there's no modal. */
 async function restoreRow(btn: HTMLButtonElement): Promise<void> {
   const title =
     btn.dataset.title === ""
@@ -774,7 +773,7 @@ async function restoreRow(btn: HTMLButtonElement): Promise<void> {
   }
 }
 
-/** Delete forever: the file, photo, and models, all in one commit. */
+/** Permanently deletes the file, photo, and models in one commit. */
 async function purgeRow(
   slug: string,
   title: string,
@@ -800,7 +799,7 @@ async function purgeRow(
   setStatus(`Deleted "${parsed.title}" forever.`);
 }
 
-/** Empty trash: every trashed painting destroyed in one commit. */
+/** Permanently deletes every trashed painting in one commit. */
 async function emptyTrash(): Promise<void> {
   const trashed = lastRenderedRows.filter((r) => r.trash);
   if (trashed.length === 0) {
@@ -834,7 +833,8 @@ async function emptyTrash(): Promise<void> {
   );
 }
 
-/** Auto-empty trash older than 30 days (live rows only). Returns survivors. */
+/** Deletes trashed live rows older than 30 days and returns the remaining
+ * rows. */
 async function purgeOldTrash(rows: LocalPainting[]): Promise<LocalPainting[]> {
   const old = rows.filter(
     (r) => r.trash && (trashAgeDays(r.trashedAt) ?? 0) > 30,
@@ -860,11 +860,9 @@ async function purgeOldTrash(rows: LocalPainting[]): Promise<LocalPainting[]> {
 }
 
 /**
- * Scheduled drafts whose day has come go live on this visit, in one
- * commit — the mirror of the trash auto-clear above. Each file is
- * re-read first: a stale row never publishes something already live,
- * trashed, or rescheduled. A commit failure keeps the drafts with an
- * error toast, never a half-flipped list.
+ * Publishes scheduled drafts whose date has arrived, in one commit. Each file
+ * is re-read first so a stale row can't publish something already live,
+ * trashed, or rescheduled. If the commit fails, the drafts stay as they were.
  */
 async function publishDueRows(rows: LocalPainting[]): Promise<LocalPainting[]> {
   const today = todayKey();
@@ -908,12 +906,10 @@ async function publishDueRows(rows: LocalPainting[]): Promise<LocalPainting[]> {
 }
 
 /**
- * Destructive row actions behind one shared confirmation modal — the row
- * button never works double duty. The confirm stays disabled for 3.5
- * seconds so the words get read first; a countdown on the button says
- * why it won't press yet. Restore skips the modal (harmless and
- * reversible). One delegated listener covers every row and fold tool,
- * including re-renders.
+ * Routes destructive row actions through one shared confirmation modal. The
+ * confirm button stays disabled for 3.5 seconds, with a countdown, so the
+ * warning gets read first. One delegated listener covers every row and fold
+ * tool across re-renders.
  */
 function wireRowDelete(): void {
   const list = $("edit-list");
@@ -959,7 +955,7 @@ function wireRowDelete(): void {
     if (body !== null) body.textContent = bodyText;
     overlay.hidden = false;
     yes.disabled = true;
-    // Deadline-based: a stalled tab still arms ~3.5s in.
+    // Compare against a deadline so a throttled tab still enables on time.
     const end = Date.now() + 3500;
     const tick = () => {
       const left = Math.max(0, end - Date.now());
@@ -1040,7 +1036,7 @@ function wireRowDelete(): void {
   no.addEventListener("click", () => {
     const btn = pending?.btn;
     close();
-    // Focus the asking row, unless it re-rendered away.
+    // Return focus to the row that opened the modal, if it still exists.
     if (btn !== undefined && btn.isConnected) btn.focus();
   });
   overlay.addEventListener("keydown", (e) => {
@@ -1051,7 +1047,7 @@ function wireRowDelete(): void {
       if (btn !== undefined && btn.isConnected) btn.focus();
       return;
     }
-    // Tab cycles between the modal's two buttons.
+    // Trap Tab between the modal's two buttons.
     if (e.key === "Tab") {
       e.preventDefault();
       (document.activeElement === no ? yes : no).focus();
@@ -1096,11 +1092,11 @@ async function refreshCollection(): Promise<void> {
       retry.hidden = false;
       return;
     }
-    // No publishing backend here (dev): fall back to the list baked into
-    // the page — rows, links, and practice edits, all local.
+    // No publishing backend in local dev. Fall back to the list baked into
+    // the page plus practice edits.
     if (isLocalPreview() && renderLocalCollection()) return;
     if (await apiReachable()) {
-      // Server problem (bad token is handled above) — offer Retry.
+      // The API is up but the request failed. A bad token was handled above.
       list.innerHTML =
         "<li>Couldn't load the collection — check the connection, then tap Retry.</li>";
       retry.hidden = false;
@@ -1116,12 +1112,11 @@ async function refreshCollection(): Promise<void> {
       '<li class="list-plain">Nothing here yet — tap Add painting above.</li>';
     return;
   }
-  // Thumbnails come from the baked-in list, matched by repo file (renames
-  // keep their photo). Missing ones simply unshown.
+  // Thumbnails come from the baked list, matched by repo file so renamed
+  // paintings keep their photo. Rows without a match show no thumbnail.
   if (thumbByMd === null) {
     thumbByMd = {};
     const el = document.getElementById("local-collection");
-    // No thumbnails — rows still render with links and prices.
     const baked =
       el === null ? null : parseBakedCollection(el.textContent ?? "");
     if (baked !== null) {
@@ -1130,8 +1125,7 @@ async function refreshCollection(): Promise<void> {
       }
     }
   }
-  // One round trip per file, all at once (order preserved) — the old
-  // sequential loop kept the dashboard loading for seconds per visit.
+  // Fetch all files in parallel. Sequential fetches took seconds per visit.
   const contents = await Promise.all(
     files.map(async (f) => ({
       f,
@@ -1166,10 +1160,8 @@ async function refreshCollection(): Promise<void> {
       order: p.order,
     });
   }
-  // Anything trashed over 30 days ago clears itself on this visit — but
-  // a purge failure must never blank the list, so it falls back to the
-  // unpurged rows with an error toast. Scheduled drafts whose day has
-  // come go live the same way, right after.
+  // Purge trash older than 30 days, then publish due drafts. If the purge
+  // fails, show the unpurged rows with an error toast instead of an empty list.
   let live = rows;
   try {
     live = await purgeOldTrash(rows);
@@ -1185,16 +1177,15 @@ async function refreshCollection(): Promise<void> {
 }
 
 /**
- * Past-30-day views by slug. Counts arrive on their own fetch, after the
- * rows — the cache feeds re-renders, and the patch below fills the hooks
- * in place (never a rebuild, so photos never flicker).
+ * Views over the past 30 days by slug. Counts arrive on a separate fetch
+ * after the rows. This cache feeds re-renders, and refreshRowViews patches
+ * the counts in place so photos don't flicker.
  */
 const viewsBySlug: Record<string, number> = {};
 
 /**
- * View counts live inside the collection rows now — no card, no retry,
- * no notes. Anything less than real data (unconfigured, down, dev)
- * simply leaves the rows count-less.
+ * Fills view counts into the collection rows. If analytics is unconfigured
+ * or unreachable, the rows show no counts.
  */
 async function refreshRowViews(): Promise<void> {
   let views: Array<{ slug: string; views: number }>;
@@ -1217,17 +1208,18 @@ async function refreshRowViews(): Promise<void> {
   }
 }
 
-/** Tell her what this browser can do (Safari vs Chrome, online vs offline). */
+/** Shows which offline features this browser supports and whether it's
+ * online. */
 async function refreshCapabilities(): Promise<void> {
   const sw = "serviceWorker" in navigator ? "on" : "unavailable";
   let sync = "unavailable";
   try {
     const reg = await navigator.serviceWorker.ready;
-    // Background Sync rides an undocumented member — probe it with `in`,
-    // never a cast, so a missing API reads "unavailable", not a crash.
+    // `sync` isn't in the DOM typings. Probing with `in` avoids a cast and
+    // reports "unavailable" when it's missing.
     sync = "sync" in reg && reg.sync !== undefined ? "on" : "unavailable";
   } catch {
-    // No service worker — offline mode unavailable.
+    // No service worker, so offline mode is unavailable.
   }
   const net = navigator.onLine ? "online" : "offline";
   $("cap-sw").textContent = sw;
@@ -1248,16 +1240,16 @@ async function refreshFlags(): Promise<void> {
     $("flag-push").textContent = s.push ? "on" : "off";
     $("flag-social").textContent = s.socialPost ? "on (auto)" : "off";
   } catch {
-    // No API here (e.g. astro dev) — say so instead of leaving "…" dots.
+    // No API here, such as under astro dev. Say so instead of leaving "…".
     for (const id of ["flag-email", "flag-push", "flag-social"]) {
       $(id).textContent = "unavailable in this preview";
     }
   }
 }
 
-/** Dev-only banner preview: no publishing backend here, so the studio
- * keeps the banner in this browser and the homepage renders it on top of
- * (or instead of) the baked one. Never leaves the device. */
+/** Dev-only banner preview. Without a publishing backend, the banner is kept
+ * in this browser's storage and the homepage renders it in place of the
+ * baked one. */
 const BANNER_PREVIEW_KEY = "studio-banner-preview-v1";
 
 function loadBannerPreview(): { text: string; expires: string | null } | null {
@@ -1283,7 +1275,8 @@ function storeBannerPreview(text: string, expires: string | null): void {
       JSON.stringify({ text, expires }),
     );
   } catch {
-    // Private mode — the preview only lasts for this page.
+    // Storage is unavailable in private mode, so the preview lasts for this
+    // page only.
   }
 }
 
@@ -1295,16 +1288,14 @@ function clearBannerPreview(): void {
   }
 }
 
-/** Remove only offers itself while a banner exists to remove. */
+/** Shows the Remove button only while a banner exists. */
 function setBannerRemovable(has: boolean): void {
   $("announce-clear").hidden = !has;
 }
 
 function init(): void {
-  // One island serves every studio page — each section below runs only
-  // where its markup exists, so the banner page never touches the
-  // collection list and vice versa. (Indentation inside the blocks is
-  // normalized by Prettier, not by hand.)
+  // This script serves every studio page. Each section below runs only
+  // where its markup exists.
   const onCollection = document.getElementById("edit-list") !== null;
   const onBanner = document.getElementById("f-announce") !== null;
   const onGuide = document.getElementById("admin-token") !== null;
@@ -1316,15 +1307,14 @@ function init(): void {
   wireTickle();
   wireBroadcast();
   wireEmailPreview();
-  // QR codes page: the button prints the cut-out cards (paper CSS lives
-  // with the page — here is only the click).
+  // QR codes page. The print CSS lives with the page.
   if (onQr) {
     const printBtn = document.getElementById("qr-print");
     if (printBtn !== null && printBtn.dataset.wired !== "1") {
       printBtn.dataset.wired = "1";
       printBtn.addEventListener("click", () => window.print());
     }
-    // Per-card buttons print just their card (see the page's paper CSS).
+    // Per-card buttons print just their card.
     for (const el of document.querySelectorAll(".qr-print-one")) {
       if (!(el instanceof HTMLButtonElement) || el.dataset.wired === "1")
         continue;
@@ -1349,12 +1339,11 @@ function init(): void {
     setApiToken("");
     window.location.href = "/";
   });
-  // Banner page: load the published wording into the form; saving and
-  // removing commit the announcement file (or a dev preview).
+  // Banner page. Saving and removing commit the announcement file, or
+  // update the dev preview locally.
   if (onBanner) {
-    // The preview wears the wording live — what she types is what
-    // buyers see, before anything is published. Opacity-only, like the
-    // status lines, so every motion setting gets the same gentle fade.
+    // The preview updates as she types. It fades with opacity only, so
+    // reduced motion keeps it.
     let previewGen = 0;
     let previewFade: Animation | null = null;
     const syncBannerPreview = (): void => {
@@ -1362,16 +1351,15 @@ function init(): void {
       if (preview === null) return;
       const text = $("f-announce").value.trim().slice(0, 280);
       const gen = ++previewGen;
-      // A fresh keystroke retires any fade still playing, so a stale
-      // fade-out never dims new words (cancelling snaps back to full).
+      // Cancel any running fade so a stale fade-out doesn't dim new text.
       if (previewFade !== null) {
         previewFade.cancel();
         previewFade = null;
       }
       if (text === "") {
         if (preview.hidden) return;
-        // Words fade out first; layout leaves after arrival. A fresh
-        // keystroke invalidates the hiding below.
+        // Fade the text out before hiding the element. A new keystroke
+        // cancels the hide below.
         if (typeof preview.animate === "function") {
           const out = preview.animate([{ opacity: 1 }, { opacity: 0 }], {
             duration: 180,
@@ -1404,8 +1392,7 @@ function init(): void {
         void import("../lib/banner").then((bannerMod) => {
           const banner = bannerMod.parseAnnouncement(raw);
           if (banner.text === "") {
-            // No published banner: a dev preview from this browser stands
-            // in, so the wording can be tried on the homepage for real.
+            // No published banner, so load this browser's dev preview.
             const preview =
               isLocalPreview() && getApiToken() === ""
                 ? loadBannerPreview()
@@ -1463,12 +1450,11 @@ function init(): void {
         });
       })
       .catch(() => {
-        // Publishing not configured yet — the editor still works once it is.
+        // Publishing isn't configured yet. The editor works once it is.
       });
 
-    // Removing is saving empty: the same commit clears the file (or the
-    // dev preview), with the same confirmation words. Updating refuses an
-    // empty announcement — clearing is Remove's job, with its own words.
+    // Remove saves an empty announcement through the same commit path.
+    // Update rejects empty text so clearing only happens through Remove.
     $("announce-clear").addEventListener("click", () => {
       $("f-announce").value = "";
       syncBannerPreview();
@@ -1482,7 +1468,7 @@ function init(): void {
     function saveBanner(allowEmpty: boolean): void {
       const text = $("f-announce").value.trim().slice(0, 280);
       if (text === "" && !allowEmpty) {
-        // A nudge, not news: gone quickly.
+        // Short-lived hint.
         setStatus(
           "Write the announcement first — or Remove banner.",
           true,
@@ -1515,10 +1501,8 @@ function init(): void {
             );
           })
           .catch((err: unknown) => {
-            // Dev has no publishing backend: keep the banner in this
-            // browser instead, so the wording can still be tried on the
-            // homepage for real. A stored token means the commit, so this
-            // path only runs while practicing.
+            // Dev has no publishing backend, so keep the banner in this
+            // browser. With a stored token the commit path runs instead.
             if (isLocalPreview() && getApiToken() === "") {
               const parsed = bannerMod.parseAnnouncement(body);
               if (parsed.text === "") clearBannerPreview();
@@ -1543,9 +1527,9 @@ function init(): void {
     }
   }
 
-  // Guide page: API token, backend flags, and what this browser can do.
+  // Guide page: API token, backend status, and browser capabilities.
   if (onGuide) {
-    // The Advanced drawer eases through script on every browser.
+    // Animate the Advanced drawer in script for consistent easing.
     wireDrawers(document, "#sec-info details");
     const tokenInput = $("admin-token");
     tokenInput.value = getApiToken();
@@ -1558,20 +1542,18 @@ function init(): void {
     void refreshCapabilities();
   }
 
-  // Collection page: rows, drag-to-reorder, deletes, practice overlay.
-  // Saves from the painting rooms land back here with a confirmation.
+  // Collection page. Painting rooms redirect here after saving.
   if (onCollection) {
     $("collection-refresh").addEventListener(
       "click",
       () => void refreshCollection(),
     );
     wireRowDelete();
-    // SSR folds animate from the first paint — the collection fetch
-    // hasn't resolved yet, and re-renders re-wire anyway.
+    // Wire the server-rendered folds now, before the collection fetch
+    // resolves. Re-renders wire them again.
     wireDrawers($("edit-list"), "details");
 
-    // Landing here from a painting room: its confirmation toast rides
-    // along in session storage.
+    // A painting room leaves its confirmation toast in session storage.
     try {
       const flash = window.sessionStorage.getItem("studio-flash");
       if (flash !== null) {
@@ -1579,10 +1561,10 @@ function init(): void {
         setStatus(flash);
       }
     } catch {
-      // Browsers without session storage just miss the handoff.
+      // Session storage is unavailable, so skip the toast.
     }
 
-    // A tooltip from the last visit must not linger on the new page.
+    // Clear any tooltip left from the previous page.
     hideReorderHint();
     seedRowsKey();
     void refreshCollection();
@@ -1590,10 +1572,7 @@ function init(): void {
   }
 }
 
-// Ping page (and anywhere else the sections land): the browser
-// ping. Runs only where its markup exists, so pages never touch each
-// other's sections.
-/** Ping page fields, trimmed. Blanks mean the standard title/note. */
+/** Ping page fields, trimmed. Blanks mean the standard title or note. */
 function readTickleTitle(): string {
   const el = document.getElementById("tickle-title");
   return el instanceof HTMLInputElement ? el.value.trim().slice(0, 80) : "";
@@ -1605,8 +1584,8 @@ function readTickleLine(): string {
 }
 
 function wireTickle(): void {
-  // The preview wears the notification shape live — blanks show the
-  // standard title and note, exactly what buyers get.
+  // The preview updates as she types. Blank fields show the standard title
+  // and note that subscribers would get.
   const syncTicklePreview = (): void => {
     const title = document.getElementById("tickle-preview-title");
     const body = document.getElementById("tickle-preview-body");
@@ -1626,10 +1605,9 @@ function wireTickle(): void {
     }
   }
   syncTicklePreview();
-  // A device preview is a local notification, not a broadcast: it goes
-  // through the same system renderer as a real ping, on this browser
-  // only. Needs the browser's blessing first; a blocked blessing says
-  // so in plain words instead of failing quietly.
+  // The device preview is a local notification shown on this browser only,
+  // rendered the same way as a real ping. It needs notification permission,
+  // and a denied permission is reported instead of failing silently.
   const previewBtn = document.getElementById("tickle-preview-send");
   if (previewBtn instanceof HTMLButtonElement) {
     previewBtn.addEventListener("click", () => {
@@ -1688,21 +1666,19 @@ function wireTickle(): void {
       });
     });
   }
-  // Standalone browser ping (no email). Disabled mid-flight so a double
-  // tap can't fan out twice. A custom line rides along — blank means
-  // the standard note.
+  // Browser push ping, without email. The button is disabled while sending
+  // so a double tap can't send twice. A blank note sends the standard one.
   const tickleBtn = document.getElementById("tickle-send");
   if (tickleBtn instanceof HTMLButtonElement) {
     tickleBtn.addEventListener("click", () => {
       const status = document.getElementById("tickle-status");
       if (status === null) return;
-      // Answer every tap at once: the count loads behind this, and the
-      // next result can never be mistaken for this tap's leftover text.
+      // Respond immediately while the count loads, and clear the previous
+      // result so it isn't mistaken for this one.
       status.textContent = "Pinging…";
       fadeIn(status);
-      // Name the reach up front — a ping can't be unsent. The empty
-      // result always comes after this question, never before it.
-      // A cancelled ask leaves the line as it found it.
+      // Confirm with the subscriber count first, since a ping can't be
+      // unsent. Cancelling leaves the status line unchanged.
       void api.pushSubscriberCount().then((total) => {
         const ask =
           total === null
@@ -1726,8 +1702,8 @@ function wireTickle(): void {
       btn.disabled = true;
       status.textContent = "Pinging…";
       fadeIn(status);
-      // Big lists walk cursor by cursor — one Worker call only pings
-      // ~40 browsers. The counts add up; the screen shows one result.
+      // One Worker call only reaches about 40 browsers, so large lists are
+      // paged by cursor. Counts are summed into one result.
       let cursor: number | undefined;
       let pinged = 0;
       const pingBatch = (): void => {
@@ -1751,18 +1727,17 @@ function wireTickle(): void {
                 ? "Nobody to ping yet — no browsers subscribed."
                 : `Pinged ${pinged} of ${r.total} browsers.`;
             fadeIn(status);
-            // The button stays off until the last batch lands, so a
-            // second tap can't start a second loop mid-walk.
+            // Keep the button disabled until the last page is sent.
             btn.disabled = false;
           })
           .catch((err: unknown) => {
-            // Name the common failures; anything else keeps the raw words.
+            // Translate common failures. Others show the raw message.
             if (err instanceof ApiError && err.status === 404) {
               status.textContent =
                 "Ping isn't available in this preview — it works on the live site.";
             } else if (err instanceof ApiError && err.status === 429) {
-              // The server's own words, already plain (seconds in dev,
-              // minutes live) — no "Couldn't ping" prefix needed.
+              // The server's cooldown message is already user-facing, so
+              // show it without a prefix.
               status.textContent = errorMessage(err);
             } else {
               status.textContent = `Couldn't ping: ${errorMessage(err)}`;
@@ -1776,9 +1751,9 @@ function wireTickle(): void {
   }
 }
 
-// Email broadcast to the whole list, one shot — the server fans out.
-// Count first, ask once (an email can't be unsent either); a cancelled
-// ask leaves the line as it found it. Runs only where its markup exists.
+// Email broadcast to the whole list. The server fans out the send. The
+// subscriber count is confirmed first, and cancelling leaves the status
+// line unchanged.
 function wireBroadcast(): void {
   const btnEl = document.getElementById("email-send");
   const btn = btnEl instanceof HTMLButtonElement ? btnEl : null;
@@ -1789,9 +1764,8 @@ function wireBroadcast(): void {
     status.textContent = "Sending…";
     fadeIn(status);
     void api.emailSubscriberCount().then((total) => {
-      // An email can't be unsent: always ask when someone's listening,
-      // and ask anyway when the count didn't load rather than sending
-      // blind. Only an empty list skips the question.
+      // Ask for confirmation unless the list is known to be empty. A failed
+      // count load still asks.
       const question =
         total === null
           ? "Couldn't load the subscriber count — send anyway?"
@@ -1827,9 +1801,8 @@ function wireBroadcast(): void {
   });
 }
 
-// Her subject and body for the Email send, trimmed. Blanks send the
-// standard note (the server falls back field-by-field); the sign-off
-// and unsubscribe never pass through here.
+// Subject and body for the email send, trimmed. The server substitutes the
+// standard text for each blank field and adds the sign-off and unsubscribe.
 function readEmailCopy(): { subject: string; body: string } {
   const subjectEl = document.getElementById("email-subject");
   const bodyEl = document.getElementById("email-body");
@@ -1839,10 +1812,9 @@ function readEmailCopy(): { subject: string; body: string } {
   return { subject, body };
 }
 
-// The Email preview shows the exact email a send delivers — the
-// server composes both from one template, so they can't drift. Typing
-// in either field refetches (briefly held, so fast typing sends one read).
-// Runs only where its markup exists; a missed load leaves the fallback.
+// The email preview is rendered by the server from the same template as the
+// real send. Typing refetches it after a short debounce. A failed load
+// leaves the fallback text.
 function wireEmailPreview(): void {
   const boxEl = document.getElementById("email-preview");
   if (!(boxEl instanceof HTMLElement)) return;
@@ -1864,9 +1836,8 @@ function wireEmailPreview(): void {
       return;
     }
     subjectEl.textContent = preview.subject;
-    // Resend swaps the placeholder for a real link at send time — say
-    // so in plain words instead of showing the raw curly braces. The
-    // frame is sandboxed, so the styled email can't touch the page.
+    // Resend replaces the unsubscribe placeholder at send time, so show a
+    // readable stand-in. The iframe is sandboxed from the page.
     bodyEl.srcdoc = preview.html.replace(
       "{{{RESEND_UNSUBSCRIBE_URL}}}",
       "(unsubscribe link added automatically)",
@@ -1879,7 +1850,6 @@ function wireEmailPreview(): void {
     void api.emailPreview(readEmailCopy()).then(paint);
   };
   refresh();
-  // Either field repaints the preview as she types.
   for (const id of ["email-subject", "email-body"]) {
     const fieldEl = document.getElementById(id);
     const field =
@@ -1897,8 +1867,7 @@ function wireEmailPreview(): void {
   }
 }
 
-// ClientRouter swaps studio pages without a full load — and skips
-// re-running this bundle (same src), so DOMContentLoaded init leaves every
-// later visit dead. astro:page-load fires on first load AND every visit;
-// its document persists, so one listener covers all visits with no guard.
+// ClientRouter swaps pages without re-running this bundle, so init runs on
+// astro:page-load, which fires on the first load and every navigation. The
+// listener persists across swaps, so it needs no guard.
 document.addEventListener("astro:page-load", () => void init());

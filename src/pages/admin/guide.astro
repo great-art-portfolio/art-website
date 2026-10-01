@@ -102,13 +102,10 @@ import "../../components/studio.css";
     display: grid;
     gap: 0.5rem;
   }
-  /* The drawer ease is script-driven (Web Animations), identical on
-     every browser — the interpolate-size slide only runs in Chromium,
-     so elsewhere the same drawer snapped. These are just the opacity
-     endpoints the script fades between: no transition here, or it
-     would fight the script mid-flight. */
-  /* A drawer header is a control, not content: clicking it must
-     never highlight its words. */
+  /* The drawer animates in script, since interpolate-size is
+     Chromium-only. These are the opacity end states only. A CSS
+     transition here would fight the script. */
+  /* Clicking the drawer header shouldn't select its text. */
   #sec-info summary {
     -webkit-user-select: none;
     user-select: none;

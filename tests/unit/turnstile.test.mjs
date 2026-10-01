@@ -2,8 +2,10 @@ import { afterEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { turnstileOk } from "../../functions/_lib/turnstile.ts";
 
-/** Backend siteverify shape: stub fetch, never hits Cloudflare.
- * Extensionless imports resolve via the test-only loader. */
+/**
+ * Backend siteverify requests, with fetch stubbed instead of calling
+ * Cloudflare. Extensionless imports resolve through the test-only loader.
+ */
 
 const realFetch = globalThis.fetch;
 afterEach(() => {

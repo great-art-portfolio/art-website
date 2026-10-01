@@ -44,15 +44,15 @@ import "../../components/studio.css";
 <script src="../../components/AdminPanel.ts"></script>
 
 <style>
-  /* Desktop: Show-until, Update, and Remove share one row, bottoms
-     level with the dropdown; the status sits below all three. The row
-     wraps on narrow phones. */
+  /* Desktop: Show until, Update, and Remove share one row, bottom-aligned
+     with the dropdown, and the status sits below. The row wraps on narrow
+     phones. */
   #sec-banner .banner-line {
     margin-top: 1.25rem;
     align-items: end;
   }
-  /* The shared .row grows labels to fill — the dropdown hugs instead,
-     so empty space never answers the pointer. */
+  /* The shared .row stretches labels. Size this one to the dropdown so
+     empty space isn't clickable. */
   #sec-banner .banner-line > label {
     flex: 0 0 auto;
   }
@@ -62,29 +62,26 @@ import "../../components/studio.css";
   #announce-meta:empty {
     display: none;
   }
-  /* Three words at most ("No end date") — no reason to span the
-     column. The label is a grid, so auto width alone still stretches:
-     park it to the start. */
+  /* The longest option is "No end date", so don't span the column. The
+     label is a grid, so auto width still stretches without
+     justify-self. */
   #f-duration {
     width: auto;
     max-width: 100%;
     justify-self: start;
   }
-  /* The label itself hugs the dropdown too: a full-width label
-     forwards hover to the select from anywhere in the row, so the
-     control answers the pointer from empty space. */
+  /* A full-width label would forward hover to the select from anywhere in
+     the row, so size the label to the dropdown too. */
   #sec-banner label:has(#f-duration) {
     width: fit-content;
   }
-  /* Author display:inline-flex beats the UA [hidden] rule — re-hide the
-     Remove button until a banner exists to remove. */
+  /* display: inline-flex overrides the UA [hidden] rule, so re-hide the
+     Remove button until a banner exists. */
   #announce-clear[hidden] {
     display: none;
   }
-  /* The live preview twins the homepage note — warm paper, tape
-     strip, the site's own sans voice — so what she types is what
-     buyers see. Empty means nothing showing, so the note stays out
-     of the way. */
+  /* Live preview styled like the homepage note. Keep the two in sync.
+     Hidden while empty. */
   #banner-preview {
     position: relative;
     max-width: 24rem;

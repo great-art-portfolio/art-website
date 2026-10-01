@@ -6,10 +6,10 @@ import { turnstileOk } from "../_lib/turnstile";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
- * Public: a visitor asks about a painting. Nothing is stored — the note is
- * emailed straight to the artist (Resend), plus an optional Pushover ping,
- * with the buyer's address as reply-to. Paintings live in git, so the page
- * sends its own title + price along; no database lookup involved.
+ * Public: a visitor asks about a painting. Nothing is stored. The note is
+ * emailed to the artist through Resend with the buyer as reply-to, plus an
+ * optional Pushover alert. Paintings live in git, so the page sends the
+ * title and price itself.
  */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   let body: Record<string, unknown>;
@@ -18,7 +18,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   } catch {
     return badRequest("Invalid JSON");
   }
-  // Honeypot: bots fill it, humans never see it.
+  // Honeypot field. It's hidden from people, so only bots fill it.
   if (typeof body["website"] === "string" && body["website"] !== "") {
     return json({ ok: true });
   }
@@ -53,9 +53,8 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     return badRequest("Name, a valid email, and a painting are required");
   }
   try {
-    // Awaited, not waitUntil: a lost inquiry is the worst outcome here, so
-    // the buyer only hears "thanks" when at least one channel delivered.
-    // (5xx makes the offline outbox hold it for retry instead of lying.)
+    // Awaited rather than waitUntil, so the buyer only sees "thanks" once a
+    // channel delivered. A 5xx makes the offline outbox keep it for retry.
     const result = await sendInquiryNotifications(context.env, {
       paintingTitle,
       priceCents,

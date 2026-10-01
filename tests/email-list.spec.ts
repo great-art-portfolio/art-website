@@ -1,8 +1,10 @@
 import { expect, test } from "@playwright/test";
 
-/** Keyless email-list behavior: validation, setup errors, forged links, page
- * copy. The round trip is unit-covered with stubbed fetch; e2e never touches
- * Resend. */
+/**
+ * Email-list behavior without a Resend key: validation, setup errors, forged
+ * links, and page copy. The Resend round trip is covered by unit tests with a
+ * stubbed fetch.
+ */
 
 test("rejects a bad address before touching Resend", async ({ request }) => {
   const res = await request.post("/api/collectors", {
@@ -15,12 +17,12 @@ test("keyless joins fail loudly, or round-trip the dev mock", async ({
   request,
 }) => {
   const email = `e2e-${Date.now()}@example.com`;
-  // The dev mock (local .dev.vars only) answers joins itself; without it
-  // a keyless server has no list. The admin count tells the modes apart.
+  // The dev mock (enabled only by local .dev.vars) handles joins. Without it a
+  // keyless server has no list. The admin count shows which mode is active.
   const mode = await request.get("/api/collectors");
   if (mode.status() === 200) {
-    // Mock round trip, Resend never involved — counts move relative to
-    // whatever earlier dev-testing rows linger.
+    // Mock round trip. Counts are compared relative to the starting value
+    // because earlier dev rows may still exist.
     const before = (await mode.json()).total;
     const sub = await request.post("/api/collectors", { data: { email } });
     expect(sub.status()).toBe(201);
@@ -74,8 +76,8 @@ test("pages without links explain themselves", async ({ page }) => {
 });
 
 test("dev confirm link visits instead of copying", async ({ page }) => {
-  // The mock answers the join itself; the box must offer the loop as a
-  // link that goes there, not words to copy.
+  // The mock handles the join, so the confirmation step is shown as a
+  // link rather than text to copy.
   await page.route("**/api/collectors", async (route) =>
     route.fulfill({
       status: 201,
@@ -95,11 +97,11 @@ test("dev confirm link visits instead of copying", async ({ page }) => {
   await page.locator("#notify-email-form button[type=submit]").click();
   const link = page.locator("#notify-status a");
   await expect(link).toHaveText("open the confirm page");
-  // Nothing but the link — no leading words.
+  // Only the link, with no text before it.
   await expect(page.locator("#notify-status")).toHaveText(
     "open the confirm page",
   );
-  // Status lines fade after five seconds — the link must outlive that.
+  // Status lines fade after five seconds, but the link has to stay.
   await page.waitForTimeout(5500);
   await expect(link).toBeVisible();
   await link.click();
@@ -109,11 +111,11 @@ test("dev confirm link visits instead of copying", async ({ page }) => {
 test("notify box validates before sending", async ({ page }) => {
   await page.goto("/");
   await page.locator("#notify-nav").click();
-  // The drawer's async push check writes the shared hint once — wait for
-  // it to settle so the validation message below is the final word.
+  // The drawer's async push check writes the shared hint once. Wait for it
+  // so it doesn't overwrite the validation message below.
   await expect(page.locator("#notify-status")).toContainText("blocked");
-  // "missing@tld" clears the browser's own email check but fails the
-  // site's stricter one, so the reply comes from the page script.
+  // "missing@tld" passes the browser's email check but fails the site's
+  // stricter one, so the message comes from the page script.
   await page.locator("#notify-email").fill("missing@tld");
   await page.locator("#notify-email-form button[type=submit]").click();
   await expect(page.locator("#notify-status")).toContainText(

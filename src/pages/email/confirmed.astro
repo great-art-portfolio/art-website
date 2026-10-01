@@ -21,9 +21,8 @@ import Layout from "../../layouts/Layout.astro";
 </style>
 
 <script>
-  // One shot: link landings are full document loads, and this call is
-  // idempotent anyway — but it never re-fires on astro:page-load.
-  // Plain JS on purpose (annotations don't survive astro check).
+  // Runs once per full page load, not on astro:page-load. The call is
+  // idempotent either way.
   const say = document.getElementById("email-token-say");
   const params = new URLSearchParams(window.location.search);
   const email = params.get("email") || "";

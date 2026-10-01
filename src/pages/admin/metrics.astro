@@ -4,10 +4,9 @@ import { getCollection } from "astro:content";
 import { slugifyTitle } from "../../lib/site";
 import "../../components/studio.css";
 
-// Baked in at build time so every painting has a row even with no
-// analytics backend. Counts arrive client-side, after the rows.
-// Drafts never opened for a buyer, so they get no row — trashed
-// paintings are gone too.
+// Baked in at build time so every painting has a row without the analytics
+// backend. Counts load client-side. Drafts and trashed paintings have no
+// buyer page, so they're excluded.
 const seed = (await getCollection("paintings"))
   .filter((p) => p.data.trash !== true && p.data.draft !== true)
   .map((p) => ({
@@ -50,7 +49,7 @@ const seedJson = JSON.stringify(seed).replace(/</g, "\\u003c");
   #stats-note:empty {
     display: none;
   }
-  /* The headline number: big ink, never faint — it is the page. */
+  /* The total is the main figure, so it's large and full ink. */
   .metrics-total {
     margin: 1.5rem 0 2rem;
     display: flex;
@@ -68,9 +67,9 @@ const seedJson = JSON.stringify(seed).replace(/</g, "\\u003c");
     color: var(--muted);
     font-size: 0.95rem;
   }
-  /* Ranked rows: thumb, title, count — the count column holds a fixed
-     measure so every number lands in the same place. A hair of accent
-     under each row shows its share of the most-opened. */
+  /* Ranked rows: thumbnail, title, count. The count column has a fixed
+     width so numbers line up. A thin accent bar under each row shows its
+     share relative to the most viewed. */
   #stats-body {
     list-style: none;
     margin: 0;
@@ -100,9 +99,8 @@ const seedJson = JSON.stringify(seed).replace(/</g, "\\u003c");
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    /* The title is a grid item, so it stretches the whole middle
-       column by default — hover (and clicks!) then answer from empty
-       space. Park it on its words like the dashboard rows. */
+    /* As a grid item the title would stretch across the column, making
+       empty space hoverable and clickable. Size it to its text. */
     justify-self: start;
   }
   :global(#stats-body .metric-sold) {

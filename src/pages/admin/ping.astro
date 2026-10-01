@@ -59,8 +59,8 @@ import "../../components/studio.css";
 <script src="../../components/AdminPanel.ts"></script>
 
 <style>
-  /* The button hugs the left — a flex row that wraps on narrow phones.
-     Its result sits below, hidden until it has something to say. */
+  /* Left-aligned flex row that wraps on narrow phones. The result line
+     below stays hidden until there's a message. */
   #sec-tickle .row {
     margin-top: 1rem;
     justify-content: start;
@@ -71,9 +71,8 @@ import "../../components/studio.css";
   #tickle-status:empty {
     display: none;
   }
-  /* The ping preview wears the notification shape: her icon, the
-     fixed title, the line she's typing. Blank shows the standard
-     note, exactly what buyers get. */
+  /* Ping preview shaped like a notification, with the site icon, title,
+     and text. Blank fields show the standard text. */
   #tickle-preview {
     display: flex;
     gap: 0.8rem;

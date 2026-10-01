@@ -1,5 +1,5 @@
-/** Frontmatter read/patch, shared by both edit flows. Line-based: unknown
- * keys pass through untouched. */
+/** Frontmatter parsing and patching, shared by both edit flows. Edits are
+ * line-based, so unknown keys pass through untouched. */
 
 export interface ParsedPainting {
   title: string;
@@ -12,22 +12,24 @@ export interface ParsedPainting {
   medium: string;
   draft: boolean;
   sold: boolean;
-  /** Scheduled go-live (publishOn: "YYYY-MM-DD", "" when none). */
+  /** Scheduled publish date ("YYYY-MM-DD", "" when none). */
   publishOn: string;
-  /** Old page links, kept working after a rename ("a, b", "" when none). */
+  /** Previous slugs that still resolve after a rename ("a, b", "" when
+   * none). */
   slugHistory: string;
-  /** Trash flag + stamp (trashedAt: "YYYY-MM-DD", "" when never trashed). */
+  /** trashedAt is "YYYY-MM-DD", or "" when never trashed. */
   trash: boolean;
   trashedAt: string;
-  /** Photo filename (image:) and AR model refs, for dimension-fix rebuilds. */
+  /** Photo filename and AR model refs, used when rebuilding models after a
+   * dimension change. */
   image: string;
   modelGlb: string;
   modelUsdz: string;
-  /** Gallery position (order:), null when the painting was never dragged. */
+  /** Gallery position from `order:`. Null until first reordered. */
   order: number | null;
 }
 
-/** Repo paths a full delete removes (.md + photo + AR models). */
+/** Repo paths a permanent delete removes: the .md, photo, and AR models. */
 export function paintingFilePaths(mdPath: string, p: ParsedPainting): string[] {
   const paths = [mdPath];
   if (p.image !== "") paths.push(`src/content/paintings/${p.image}`);
@@ -48,16 +50,16 @@ export interface PaintingEdits {
   medium: string;
   draft: boolean;
   sold: boolean;
-  /** Scheduled go-live: a date sets it, "" clears it, undefined leaves it. */
+  /** A date sets the schedule, "" clears it, and undefined leaves it. */
   publishOn?: string;
-  /** Old page links: a history string sets it, "" clears it. */
+  /** A history string sets the previous slugs, and "" clears them. */
   slugHistory?: string | undefined;
-  /** Set after an AR rebuild; omitted otherwise (existing refs untouched). */
+  /** Set after an AR rebuild. When omitted, existing refs are kept. */
   modelGlb?: string;
   modelUsdz?: string;
 }
 
-/** Quote a one-line YAML string ("..." with escapes). */
+/** Quotes a one-line YAML string with escapes. */
 export function yamlQuote(s: string): string {
   return `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
@@ -102,14 +104,14 @@ export function parsePainting(md: string): ParsedPainting | null {
   };
 }
 
-/** Gallery position: a plain integer, or null when absent/garbled. */
+/** Parses the gallery position. Null when absent or not an integer. */
 function parseOrder(raw: string | undefined): number | null {
   if (raw === undefined) return null;
   const n = Number(raw.trim());
   return Number.isInteger(n) ? n : null;
 }
 
-/** Set (or clear) the gallery `order:` key. No blank lines left behind. */
+/** Sets or clears the gallery `order:` key without leaving a blank line. */
 export function setOrder(md: string, order: number | null): string {
   const re = /^order:.*(\r?\n?)/m;
   if (order === null) return md.replace(re, "");
@@ -118,12 +120,12 @@ export function setOrder(md: string, order: number | null): string {
   return md.replace(/^(title:.*)(\r?\n)/m, `$1$2${line}$2`);
 }
 
-/** Today's stamp for trash and date keys ("YYYY-MM-DD", UTC). */
+/** Today's date as "YYYY-MM-DD" in UTC. */
 export function todayKey(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** Scheduled go-live. Only a real calendar date rides through. */
+/** Normalizes a publish date. Anything but a valid calendar date becomes "". */
 export function normalizePublishOn(raw: string): string {
   const t = raw.trim().replace(/^"|"$/g, "").trim();
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t);
@@ -142,13 +144,14 @@ export function normalizePublishOn(raw: string): string {
   return t;
 }
 
-/** True when a schedule stamp has arrived (lexicographic: YYYY-MM-DD). */
+/** True when the publish date is today or earlier. YYYY-MM-DD strings
+ * compare correctly as text. */
 export function isPublishDue(publishOn: string, today: string): boolean {
   const due = normalizePublishOn(publishOn);
   return due !== "" && due <= today;
 }
 
-/** Old page links after a rename. Capped at ten, newest first. */
+/** Parses previous slugs, newest first, capped at ten. */
 export function parseSlugHistory(raw: string): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -170,18 +173,20 @@ export function formatSlugHistory(slugs: string[]): string {
   return parseSlugHistory(slugs.join(", ")).join(", ");
 }
 
-/** Fold a retired slug into the history (dedupe, newest first, cap ten). */
+/** Adds an old slug to the history, deduped, newest first, capped at ten. */
 export function appendSlugHistory(current: string, oldSlug: string): string {
   return formatSlugHistory([oldSlug, ...parseSlugHistory(current)]);
 }
 
-/** Lazy scheduled publishing: flip a due draft live, drop its date. */
+/** Publishes a due draft and removes its schedule. Runs when the studio
+ * loads rather than on a timer. */
 export function publishDue(md: string): string {
   const next = md.replace(/^draft:.*$/m, "draft: false");
   return next.replace(/^publishOn:.*(\r?\n?)/m, "");
 }
 
-/** Trash flag. Trashing stamps the day; restoring drops both keys. */
+/** Sets the trash flag. Trashing records today's date, and restoring
+ * removes both keys. */
 export function setTrash(
   md: string,
   trash: boolean,
@@ -191,20 +196,21 @@ export function setTrash(
     text.replace(new RegExp(`^${key}:.*(\r?\n?)`, "m"), "");
   if (!trash) return drop(drop(md, "trash"), "trashedAt");
   let next = patchKey(md, "trash", "true");
-  // Quoted: an unquoted date parses as a Date object under Astro's YAML
-  // loader and fails the string schema at build time.
+  // Quoted because Astro's YAML loader parses a bare date as a Date, which
+  // fails the string schema at build time.
   if (date !== null) next = patchKey(next, "trashedAt", yamlQuote(date));
   return next;
 }
 
-/** Rewrite one frontmatter key in place, preserving every other line. */
+/** Rewrites one frontmatter key in place, preserving the other lines. */
 function patchKey(md: string, key: string, value: string): string {
   const re = new RegExp(`^${key}:.*$`, "m");
   if (re.test(md)) return md.replace(re, `${key}: ${value}`);
   return md.replace(/^---\r?\n/, `---\n${key}: ${value}\n`);
 }
 
-/** Apply edits to a .md file. Empty dimension strings leave keys untouched. */
+/** Applies edits to a .md file. Empty dimension strings leave keys
+ * untouched. */
 export function patchPainting(md: string, edits: PaintingEdits): string {
   let next = md;
   next = patchKey(next, "title", yamlQuote(edits.title));
@@ -212,9 +218,8 @@ export function patchPainting(md: string, edits: PaintingEdits): string {
   next = patchKey(next, "alt", yamlQuote(edits.alt));
   next = patchKey(next, "sold", edits.sold ? "true" : "false");
   next = patchKey(next, "draft", edits.draft ? "true" : "false");
-  // Scheduled go-live: undefined callers (older flows) leave the key
-  // alone; a date sets it quoted (bare dates break the content schema,
-  // like trashedAt); "" removes it with no blank line left behind.
+  // Undefined leaves the key alone. A date is quoted, since bare dates
+  // break the content schema. "" removes the line.
   if (edits.publishOn !== undefined) {
     const due = normalizePublishOn(edits.publishOn);
     if (due === "") {
@@ -223,7 +228,7 @@ export function patchPainting(md: string, edits: PaintingEdits): string {
       next = patchKey(next, "publishOn", yamlQuote(due));
     }
   }
-  // Old page links: same set-or-clear shape as the schedule above.
+  // Same set-or-clear handling as publishOn.
   if (edits.slugHistory !== undefined) {
     const history = formatSlugHistory(parseSlugHistory(edits.slugHistory));
     if (history === "") {
@@ -232,14 +237,14 @@ export function patchPainting(md: string, edits: PaintingEdits): string {
       next = patchKey(next, "slugHistory", yamlQuote(history));
     }
   }
-  // Medium is optional: an emptied field removes the key instead of
-  // leaving a blank string buyers would see.
+  // Medium is optional. An empty field removes the key rather than storing
+  // a blank string.
   if (edits.medium.trim() === "") {
     next = next.replace(/^medium:.*\r?$/m, "");
   } else {
     next = patchKey(next, "medium", yamlQuote(edits.medium.trim()));
   }
-  // AR model refs after a dimension-fix rebuild (absent otherwise).
+  // AR model refs, present only after a rebuild.
   if (edits.modelGlb !== undefined && edits.modelGlb !== "") {
     next = patchKey(next, "modelGlb", yamlQuote(edits.modelGlb));
   }
@@ -256,8 +261,8 @@ export function patchPainting(md: string, edits: PaintingEdits): string {
       next = patchKey(next, key, String(Math.round(n * 10) / 10));
     }
   }
-  // A blank line after the fence: prettier-clean, like the committed
-  // files, so every studio save keeps `format:check` green.
+  // Keep a blank line after the closing fence so saved files pass
+  // `format:check`.
   const fenceAt = next.search(/\r?\n---\r?\n?[\s\S]*$/);
   if (fenceAt >= 0) {
     const body =
@@ -269,7 +274,7 @@ export function patchPainting(md: string, edits: PaintingEdits): string {
   return next;
 }
 
-/** Fresh .md for a new painting (draft or published). */
+/** Builds the .md for a new painting, draft or published. */
 export function buildMarkdown(input: {
   title: string;
   price: number;
@@ -281,7 +286,7 @@ export function buildMarkdown(input: {
   depthIn: number | null;
   medium: string;
   draft: boolean;
-  /** Scheduled go-live ("" when none). */
+  /** Scheduled publish date, "" when none. */
   publishOn: string;
   modelGlb: string;
   modelUsdz: string;

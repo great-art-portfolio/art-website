@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createStudioPushMock } from "../../scripts/studio-push-mock.mjs";
 
-/** Dev push mock: keypair, subscribe loop, tickle fan-out (no socket). */
+/** Dev push mock: keypair, subscribe flow, and fan-out, with no socket. */
 
 const realFetch = globalThis.fetch;
 afterEach(() => {

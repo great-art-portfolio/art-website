@@ -1,15 +1,14 @@
 #!/usr/bin/env node
 /**
- * One-time (and repeatable) AR backfill: builds GLB+USDZ for every painting
- * that has dimensions but no models, using the same buildArModels her
- * devices run — executed here in headless Chromium, since model building
- * needs a browser canvas.
+ * AR backfill. Builds GLB and USDZ models for every painting that has
+ * dimensions but no models, using the same buildArModels as the studio.
+ * It runs in headless Chromium because model building needs a canvas.
  *
  *   pnpm ar:backfill
  *
- * Writes public/models/<stem>.glb/.usdz and adds modelGlb/modelUsdz to
- * each painting's frontmatter (stem = .md filename). Never commits —
- * review the diff, then commit/push as usual.
+ * Writes public/models/<stem>.glb and .usdz, where stem is the .md
+ * filename, and adds modelGlb/modelUsdz to the frontmatter. It doesn't
+ * commit, so review the diff and commit as usual.
  */
 import { createServer } from "node:http";
 import {
@@ -102,7 +101,7 @@ for (const j of jobs) {
   }
 }
 
-// Bundle the production builder (three.js included) for the harness page.
+// Bundle the production builder, including three.js, for the harness page.
 execFileSync(
   join(root, "node_modules", ".bin", "esbuild"),
   [
@@ -148,7 +147,7 @@ try {
       `  photo ${out.imgW}×${out.imgH}px → glb ${(glb.length / 1024).toFixed(0)}KB, usdz ${(usdz.length / 1024).toFixed(0)}KB`,
     );
 
-    // Wire the frontmatter (insert after depthIn, keep the GUESSED comment).
+    // Insert the model refs after depthIn, keeping any GUESSED comment.
     const mdPath = join(root, "src", "content", "paintings", j.file);
     const raw = readFileSync(mdPath, "utf8");
     if (!raw.includes(`modelGlb: "/models/${j.stem}.glb"`)) {

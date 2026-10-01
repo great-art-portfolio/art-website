@@ -1,8 +1,8 @@
-/** Runtime schemas for every JSON boundary. Nothing here throws: bad input
- * reads as null / skipped rows, and `z.infer` keeps type and check together. */
+/** Runtime schemas for JSON boundaries. Parsers return null or skip bad rows
+ * instead of throwing. Types come from `z.infer` so they match the checks. */
 import { z } from "zod";
 
-/** Parse JSON text and validate it; null when unparseable or invalid. */
+/** Parses and validates JSON text. Null when unparseable or invalid. */
 export function parseJsonWith<T>(text: string, schema: z.ZodType<T>): T | null {
   let raw: unknown;
   try {
@@ -15,8 +15,8 @@ export function parseJsonWith<T>(text: string, schema: z.ZodType<T>): T | null {
 }
 
 /**
- * One `#local-collection` row, exactly as admin.astro bakes it: dims ride
- * as numbers (or null), not the display strings the dashboard edits with.
+ * One `#local-collection` row as admin.astro bakes it. Dimensions are numbers
+ * or null, not the display strings the dashboard edits.
  */
 const bakedRowSchema = z.object({
   slug: z.string().min(1),
@@ -29,7 +29,7 @@ const bakedRowSchema = z.object({
   heightIn: z.number().nullable(),
   depthIn: z.number().nullable(),
   draft: z.boolean(),
-  /** Scheduled go-live ("YYYY-MM-DD", "" when none). */
+  /** Scheduled publish date ("YYYY-MM-DD", "" when none). */
   publishOn: z.string(),
   trash: z.boolean(),
   trashedAt: z.string(),
@@ -42,10 +42,9 @@ const bakedRowSchema = z.object({
 export type BakedRow = z.infer<typeof bakedRowSchema>;
 
 /**
- * Row-list payloads (baked collection, stats seed): invalid rows are
- * dropped, not fatal — one bad painting never blanks the page. Null
- * only when the payload isn't a list at all, so callers keep their
- * fall through to the error branches.
+ * Parses a row list such as the baked collection or stats seed. Invalid rows
+ * are dropped so one bad painting doesn't blank the page. Returns null only
+ * when the payload isn't a list, so callers reach their error branches.
  */
 function parseRowList<T>(text: string, rowSchema: z.ZodType<T>): T[] | null {
   let raw: unknown;
@@ -63,32 +62,32 @@ function parseRowList<T>(text: string, rowSchema: z.ZodType<T>): T[] | null {
   return rows;
 }
 
-/** The baked collection, exactly as admin.astro bakes it. */
+/** Parses the collection baked by admin.astro. */
 export function parseBakedCollection(text: string): BakedRow[] | null {
   return parseRowList(text, bakedRowSchema);
 }
 
 /**
- * One `#stats-seed` row, as views.astro bakes it: identity plus status
- * only — counts arrive client-side from the analytics API.
+ * One `#stats-seed` row as views.astro bakes it. Counts load client-side from
+ * the analytics API.
  */
 const statsSeedSchema = z.object({
   slug: z.string().min(1),
   title: z.string().min(1),
   sold: z.boolean(),
   draft: z.boolean(),
-  /** Painting photo, so Metrics reads visually instead of as a ledger. */
+  /** Painting photo shown beside its stats. */
   image: z.string(),
 });
 
 export type StatsSeedRow = z.infer<typeof statsSeedSchema>;
 
-/** The stats seed, exactly as views.astro bakes it. */
+/** Parses the stats seed baked by views.astro. */
 export function parseStatsSeed(text: string): StatsSeedRow[] | null {
   return parseRowList(text, statsSeedSchema);
 }
 
-/** A practiced painting in the dev overlay (dims as display strings). */
+/** A painting in the dev practice overlay. Dimensions are display strings. */
 const practicePaintingSchema = z.object({
   slug: z.string().min(1),
   title: z.string(),
@@ -101,7 +100,8 @@ const practicePaintingSchema = z.object({
   depthIn: z.string(),
   medium: z.string(),
   draft: z.boolean(),
-  /** Scheduled go-live; absent (older overlays) means none. */
+  /** Scheduled publish date. Overlays saved before this field existed omit
+   * it. */
   publishOn: z.string().optional().default(""),
   order: z
     .number()
@@ -120,7 +120,7 @@ const practiceOverlaySchema = z.object({
 
 export type PracticeOverlay = z.infer<typeof practiceOverlaySchema>;
 
-/** Validate a loaded practice overlay; garbage resets to empty. */
+/** Validates a loaded practice overlay. Invalid data returns null. */
 export function parsePracticeOverlay(raw: unknown): PracticeOverlay | null {
   const result = practiceOverlaySchema.safeParse(raw);
   return result.success ? result.data : null;
@@ -134,7 +134,7 @@ const bannerPreviewSchema = z.object({
 
 export type BannerPreview = z.infer<typeof bannerPreviewSchema>;
 
-/** Validate a stored banner preview; garbage reads as absent. */
+/** Validates a stored banner preview. Invalid data returns null. */
 export function parseBannerPreview(raw: unknown): BannerPreview | null {
   const result = bannerPreviewSchema.safeParse(raw);
   if (!result.success) return null;
@@ -144,8 +144,8 @@ export function parseBannerPreview(raw: unknown): BannerPreview | null {
   };
 }
 
-// API responses: one schema per endpoint, so a Functions-side field rename
-// breaks the client build instead of arriving as `undefined`.
+// API responses, one schema per endpoint, so a field renamed in Functions
+// fails validation instead of arriving as `undefined`.
 
 export const announcementSchema = z.object({ announcement: z.string() });
 
@@ -172,7 +172,7 @@ export const notifySchema = z.object({
   total: z.number(),
   gone: z.number().optional(),
   failed: z.number().optional(),
-  // Big lists walk cursor by cursor — null (or missing) means done.
+  // Large lists are paged by cursor. Null or missing means done.
   nextCursor: z.number().nullable().optional(),
   emailed: z.boolean(),
   emailTotal: z.number(),
@@ -181,7 +181,7 @@ export const notifySchema = z.object({
 /** Admin: how many browsers would a ping reach. */
 export const pushCountSchema = z.object({ total: z.number() });
 
-/** Admin: ping reach plus the exact email a send would deliver. */
+/** Admin: ping reach plus the email a send would deliver. */
 export const notifyStatusSchema = z.object({
   total: z.number(),
   emailSubject: z.string(),
@@ -193,7 +193,7 @@ export const localBackendSchema = z.object({ local: z.unknown().optional() });
 
 export const pushConfigSchema = z.object({ publicKey: z.string() });
 
-/** Commit POST answer, identical on Pages and the studio sidecar. */
+/** Commit POST response, the same from Pages and the local content API. */
 export const commitSchema = z.object({
   ok: z.literal(true),
   commit: z.string(),

@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { paintingPageUrl, qrSvg } from "../../src/lib/qr.ts";
 
-/** Build-time QR shapes: absolute buyer URLs, embeddable SVG output. */
+/** Build-time QR codes use absolute buyer URLs and output embeddable SVG. */
 
 describe("paintingPageUrl", () => {
   it("points at the live buyer page, never localhost", async () => {

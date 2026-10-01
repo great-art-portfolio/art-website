@@ -6,8 +6,8 @@ import {
   listSubscriptions,
 } from "../../functions/_lib/push.ts";
 
-/** Batched ping pages through the whole subscription list (one Worker
- * call only carries ~50 subrequests, so big lists go out in batches). */
+/** Pings page through the whole subscription list in batches, since one
+ * Worker invocation allows only about 50 subrequests. */
 
 function stubDb(subs) {
   const slice = (limit, offset) => {

@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
 
 /**
- * Old dimension-named painting URLs (renamed Sep 2026) redirect to the
- * title slugs — bookmarks and shared links keep working.
+ * Old dimension-based painting URLs redirect to the title slugs, so existing
+ * bookmarks and shared links still work.
  */
 const redirects: Array<[string, string]> = [
   ["/paintings/1943x1967", "/paintings/first-thaw"],

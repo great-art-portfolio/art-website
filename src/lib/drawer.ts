@@ -1,13 +1,13 @@
-/** Animated disclosure, same ease on every browser (Web Animations API —
- * CSS interpolate-size only runs in Chromium). Reduced motion opens height
- * instantly; the fade still runs. */
+/** Animated <details> drawers using the Web Animations API, since CSS
+ * interpolate-size is Chromium-only. Under reduced motion the height
+ * changes instantly and the fade still runs. */
 
 const wired = new WeakSet<HTMLDetailsElement>();
 const inFlight = new WeakMap<HTMLDetailsElement, Animation[]>();
-/** Flight target while animating — the effective openness mid-flight. */
+/** Target open state for drawers that are mid-animation. */
 const drawerTarget = new WeakMap<HTMLDetailsElement, boolean>();
 
-/** Effective openness: the flight's target while animating, else live. */
+/** Whether the drawer is open, using the animation target while animating. */
 export function drawerOpen(details: HTMLDetailsElement): boolean {
   return drawerTarget.get(details) ?? details.open;
 }
@@ -21,7 +21,7 @@ function stopAnims(details: HTMLDetailsElement): void {
   }
 }
 
-/** Instant native toggle: no script animation and old browsers. */
+/** Toggles without animation, for reduced motion and older browsers. */
 function snap(details: HTMLDetailsElement, open: boolean): void {
   stopAnims(details);
   details.style.overflow = "";
@@ -41,11 +41,10 @@ function reducedMotion(): boolean {
 }
 
 /**
- * Ease a drawer open or shut, re-toggle safe: a new toggle cancels the
- * running flight and measures the live height as its start, so frantic
- * clicking reverses mid-flight instead of snapping. The page CSS holds
- * only the opacity endpoints — no transition there, or it would fight
- * the script mid-flight.
+ * Animates a drawer open or closed. A new toggle cancels the running
+ * animation and starts from the current height, so rapid clicks reverse
+ * smoothly. Page CSS should set only the opacity end states with no
+ * transition, or it will fight the script.
  */
 export function setDrawerOpen(
   details: HTMLDetailsElement,
@@ -55,8 +54,7 @@ export function setDrawerOpen(
     snap(details, open);
     return;
   }
-  // A flight already headed there keeps flying — re-measuring
-  // mid-flight is what used to snap frantic re-toggles.
+  // Already animating toward this state. Restarting would snap.
   if (drawerTarget.get(details) === open) return;
   stopAnims(details);
   if (details.open === open) return;
@@ -67,14 +65,13 @@ export function setDrawerOpen(
     kids.map((kid) =>
       kid.animate([{ opacity: from }, { opacity: to }], {
         duration: calm ? 150 : 250,
-        // A beat behind the unfold, both directions — the words arrive
-        // once their room exists, and linger while it starts shutting.
+        // Offset the fade from the height change in both directions.
         delay: calm ? 0 : 80,
         easing: "ease",
         fill: "backwards",
       }),
     );
-  /** Park the flight; the last finish clears the scaffolding. */
+  /** Tracks running animations. The last one to finish cleans up. */
   const track = (anims: Animation[], done: () => void): void => {
     const main = anims[0];
     if (main === undefined) {
@@ -114,10 +111,9 @@ export function setDrawerOpen(
     return;
   }
   const head = details.firstElementChild;
-  // Land on the full closed box: the summary's bottom margin collapses
-  // through the closed details, so easing to the bare box height ends
-  // short and the footer snaps on arrival. (Leading margins collapse
-  // with the previous sibling outside the box — only trailing counts.)
+  // Include the summary's bottom margin in the closed height. It collapses
+  // through the closed details, so animating to the bare box height ends
+  // short and the content below jumps.
   const headStyle = head instanceof HTMLElement ? getComputedStyle(head) : null;
   const end =
     head instanceof HTMLElement
@@ -147,8 +143,8 @@ export function setDrawerOpen(
 }
 
 /**
- * One summary click drives the animation; idempotent, so collection
- * re-renders (which replace the nodes) can re-wire freely.
+ * Animates the drawer on summary click. Idempotent, so re-renders can wire
+ * it again safely.
  */
 export function wireDrawer(details: HTMLDetailsElement): void {
   if (wired.has(details)) return;
@@ -161,7 +157,7 @@ export function wireDrawer(details: HTMLDetailsElement): void {
   });
 }
 
-/** Wire every drawer under root. */
+/** Wires every drawer under root. */
 export function wireDrawers(root: Element | Document, selector: string): void {
   for (const el of root.querySelectorAll(selector)) {
     if (el instanceof HTMLDetailsElement) wireDrawer(el);

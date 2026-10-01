@@ -16,9 +16,11 @@ import {
   mockUnsubscribe,
 } from "../../functions/_lib/collectors-mock.ts";
 
-/** Sidecar collectors adapter: .dev.vars parsing, the file-backed mock
- * table, and the handler env. The table runs the real mock helpers —
- * the sidecar answers with the real endpoint, not a copy of it. */
+/**
+ * Sidecar collectors adapter: .dev.vars parsing, the file-backed mock table,
+ * and the handler env. The table uses the real mock helpers so the sidecar
+ * serves the real endpoint rather than a copy.
+ */
 
 function tmpRoot(vars) {
   const root = mkdtempSync(join(tmpdir(), "studio-collectors-"));
@@ -80,7 +82,7 @@ describe("collectorsDb", () => {
       "fan@example.com",
     );
     assert.ok(sub !== null && !sub.already && sub.token !== "");
-    // A fresh instance over the same cache still knows the row.
+    // A new instance over the same cache still sees the row.
     const db2 = createCollectorsDb(cache);
     const env2 = {
       COLLECTORS_MOCK: "true",

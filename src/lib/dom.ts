@@ -1,6 +1,6 @@
-/** Typed DOM lookup: known ids come back concrete, so `.value` typechecks
- * with no call-site cast. Dynamic ids fall through to `HTMLElement` —
- * narrow those with `instanceof`, never a cast. */
+/** Element types for known ids, so lookups return the concrete type and
+ * `.value` typechecks without a cast. Narrow dynamic ids with
+ * `instanceof`. */
 export interface ElementMap {
   // Studio collection, banner, and guide pages.
   "admin-status": HTMLElement;
@@ -31,9 +31,8 @@ export interface ElementMap {
   "cap-sw": HTMLElement;
   "cap-sync": HTMLElement;
   "cap-net": HTMLElement;
-  // Studio rooms (PaintingDetail.astro). Id prefixes: `de-` = the
-  // draft/edit editor form shared by both studio modes, `pv-` = its live
-  // preview column.
+  // Studio rooms (PaintingDetail.astro). `de-` ids are the editor form and
+  // `pv-` ids are the live preview.
   main: HTMLElement;
   "ar-stage": HTMLElement;
   "de-photo": HTMLInputElement;
@@ -97,19 +96,19 @@ export function maybe(id: string): HTMLElement | null {
   return document.getElementById(id);
 }
 
-/** Nullable lookup narrowed by tag — `instanceof`, never a cast. */
+/** Nullable button lookup, narrowed with `instanceof`. */
 export function maybeButton(id: string): HTMLButtonElement | null {
   const el = document.getElementById(id);
   return el instanceof HTMLButtonElement ? el : null;
 }
 
-/** Local preview, where publishing + analytics never live. Not a bug. */
+/** True on localhost, where publishing and analytics aren't available. */
 export function isLocalPreview(): boolean {
   const host = window.location.hostname;
   return host === "localhost" || host === "127.0.0.1";
 }
 
-/** Studio room mode from `#main data-mode`; null outside the rooms. */
+/** Studio room mode from `#main data-mode`. Null outside the rooms. */
 export type StudioMode = "edit" | "draft";
 
 export function studioMode(main: HTMLElement): StudioMode | null {

@@ -1,7 +1,7 @@
 /**
- * Confirm / goodbye link landings post their token to /api/collectors.
- * Page scripts call this once (never on astro:page-load — the
- * unsubscribe call sends an email, so it must not re-fire).
+ * Posts the token from a confirm or goodbye link to /api/collectors. Call
+ * it once per page load, not on astro:page-load, because unsubscribing
+ * sends an email.
  */
 export async function settleToken(
   action: "confirm" | "unsubscribe",

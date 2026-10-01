@@ -1,7 +1,7 @@
 /** Shared Cloudflare Pages bindings for the gallery API. */
 
 export interface AppEnv {
-  /** One tiny table: push_subscriptions. Everything else lives in git. */
+  /** D1 holds push state and the dev mock email list. Paintings live in git. */
   DB: D1Database;
   /** Canonical site URL for links in collector emails. */
   SITE_URL?: string;
@@ -12,11 +12,11 @@ export interface AppEnv {
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_JWK?: string;
   VAPID_CONTACT?: string;
-  /** Dev mock email list (local D1, confirm links instead of mail).
-   * Localhost-only by construction; never set outside local .dev.vars. */
+  /** Enables the dev mock email list, which returns confirm links instead
+   * of sending mail. Only honored on localhost. Set it in .dev.vars. */
   COLLECTORS_MOCK?: string;
-  /** Ping cooldown in seconds. Unset means the five-minute default;
-   * local .dev.vars sets 20 so dev never waits. */
+  /** Ping cooldown in seconds. Defaults to five minutes. .dev.vars sets 20
+   * to keep dev fast. */
   PUSH_COOLDOWN_S?: string;
   TURNSTILE_SITE_KEY?: string;
   TURNSTILE_SECRET_KEY?: string;
@@ -24,16 +24,15 @@ export interface AppEnv {
   CF_ANALYTICS_TOKEN?: string;
   CF_ANALYTICS_SITE?: string;
   RESEND_API_KEY?: string;
-  /** Resend segment holding the confirmed new-painting list. Broadcasts
-   * go to the segment (marketing quota: unlimited sends); one-to-one
-   * mail (confirmations, goodbyes, inquiries) stays transactional. */
+  /** Resend segment holding the confirmed new-painting list. Broadcasts go
+   * to the segment under the marketing quota. One-to-one mail
+   * (confirmations, goodbyes, inquiries) is sent as transactional email. */
   RESEND_SEGMENT_ID?: string;
-  /** The address mail goes out from, as the artist. Must be on the
-   * verified Resend domain, or mail only reaches the Resend account
-   * email. */
+  /** The artist's sending address. It has to be on the verified Resend
+   * domain, or mail only reaches the Resend account email. */
   ARTIST_SENDER?: string;
-  /** The artist's inbox: buyer inquiries land here, broadcast replies
-   * return here. Never on the website. */
+  /** The artist's inbox for inquiries and broadcast replies. Not shown on
+   * the website. */
   ARTIST_INBOX?: string;
   PUSHOVER_APP_TOKEN?: string;
   PUSHOVER_USER_KEY?: string;

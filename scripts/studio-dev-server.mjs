@@ -1,5 +1,5 @@
-/** Local content API for `pnpm dev:studio` (:4333, working-tree backed).
- * Localhost-only, never deployed. */
+/** Local content API for `pnpm dev:studio` on :4333, backed by the working
+ * tree. Dev only. */
 import { createServer } from "node:http";
 import { join } from "node:path";
 import { createStudioDevApi } from "./studio-dev-api.mjs";
@@ -17,15 +17,14 @@ import {
 export const STUDIO_DEV_API_PORT = 4333;
 
 const api = createStudioDevApi(process.cwd());
-// Dev-only push loop (own VAPID keypair, in-memory subscribers): the same
-// /api/push + /api/push-message + /api/notify shapes the Pages Functions
-// serve, so subscribe and Ping click through in studio dev.
+// Dev push mock with its own VAPID keypair and in-memory subscribers. It
+// serves the same /api/push, /api/push-message, and /api/notify shapes as
+// the Pages Functions.
 const pushMock = createStudioPushMock(
   join(process.cwd(), "node_modules", ".cache"),
 );
-// Email list: the REAL collectors handler, adapted to the sidecar (mock
-// forced on, mail settings from .dev.vars, file-backed mock table). Same
-// function Pages serves — no second implementation to drift.
+// Email list requests go to the real collectors handler, with the mock
+// forced on, mail settings from .dev.vars, and a file-backed mock table.
 const collectorsDb = createCollectorsDb(
   join(process.cwd(), "node_modules", ".cache"),
 );
@@ -49,8 +48,8 @@ async function toRequest(req, chunks, host) {
   return new Request(url, init);
 }
 
-/** Collectors requests keep the browser-facing origin, so the dev confirm
- * link points at the site (:4332) instead of this sidecar. */
+/** Builds the collectors context with the browser-facing origin, so the dev
+ * confirm link points at the site (:4332) instead of this server. */
 async function toCollectorsContext(req, chunks) {
   const origin = siteOriginFor(req.headers.host);
   return {

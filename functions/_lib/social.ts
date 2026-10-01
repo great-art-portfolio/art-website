@@ -1,7 +1,7 @@
 import { flag, type AppEnv } from "./env";
 
-/** One-click social posting, disabled. The share kit (caption + iOS share
- * sheet) needs no accounts. Enable later with ENABLE_SOCIAL_POST +
+/** One-click social posting, disabled by default. The share helper (caption
+ * plus share sheet) needs no accounts. Enable with ENABLE_SOCIAL_POST and
  * AYRSHARE_API_KEY. */
 
 export interface SocialPost {

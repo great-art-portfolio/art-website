@@ -1,7 +1,7 @@
 ---
-/** One painting, three rooms (buyer / edit / draft) sharing one layout, so
- * what she edits is what buyers see. Data arrives as plain values; the
- * inline script no-ops where its elements are absent. */
+/** One painting in buy, edit, or draft mode. All three share one layout so
+ * the editor matches the buyer page. The inline script skips any part whose
+ * elements are absent. */
 import { Image } from "astro:assets";
 import type { ImageMetadata } from "astro";
 import { PHOTO_WIDTHS, photoSizes } from "../lib/responsive-images";
@@ -14,15 +14,15 @@ export interface PaintingDetailData {
   /** Scheduled go-live ("YYYY-MM-DD", "" when none). */
   publishOn: string;
   medium: string;
-  /** Precomputed "Oil · 24 × 36 in" line (empty when unmeasured). */
+  /** Precomputed "Oil · 24 × 36 in" line, empty when unmeasured. */
   meta: string;
   alt: string;
   description: string;
-  /** Tape numbers as display strings ("" when unmeasured). */
+  /** Dimensions as display strings, "" when unmeasured. */
   widthIn: string;
   heightIn: string;
   depthIn: string;
-  /** Absent in draft mode — the upload tile takes the photo's place. */
+  /** Absent in draft mode, where the upload tile replaces the photo. */
   image?: ImageMetadata;
   modelGlb: string;
   modelUsdz: string;
@@ -36,9 +36,9 @@ interface Props {
   data: PaintingDetailData;
   backHref: string;
   backLabel: string;
-  /** Buyer pages only: door to this painting's studio room. */
+  /** Buyer pages only: link to this painting's studio room. */
   editHref?: string;
-  /** Preview route: buyer layout with the inquiry form switched off. */
+  /** Preview route: the buyer layout with the inquiry form disabled. */
   preview?: boolean;
 }
 
@@ -54,8 +54,7 @@ const studio = mode !== "buy";
 const priceLabel = `$${data.price.toFixed(2)} CAD`;
 const eyebrow =
   mode === "edit"
-    ? // A live painting keeps its buyer page, but this room — with its
-      // Save and Delete buttons — sits behind /admin, for her eyes only.
+    ? // The edit room is under /admin, separate from the public buyer page.
       "EDITING · ONLY YOU CAN SEE THIS"
     : data.draft
       ? "Draft · only you can see this"
@@ -548,9 +547,9 @@ const eyebrow =
 </main>
 
 <script>
-  // No define:vars (emits raw; dynamic imports 404). Data comes from #main
-  // data-* attributes. View Transitions keep this module alive across pages,
-  // so read dataset live on every use — eval-time consts go stale.
+  // Page data comes from #main data-* attributes. define:vars isn't used
+  // because it skips bundling and breaks dynamic imports. View Transitions
+  // keep this script alive across pages, so read dataset on each use.
   function readPageData() {
     const pageData = document.getElementById("main")?.dataset;
     return {
@@ -564,7 +563,7 @@ const eyebrow =
   }
   let turnstileToken = "";
 
-  /** Spam check, shared with the collector modal via lib/turnstile-widget. */
+  /** Turnstile spam check, shared with the collector modal. */
   function loadTurnstile() {
     void import("../lib/turnstile-widget").then(({ ensureTurnstile }) =>
       ensureTurnstile("#turnstile-mount", (t) => {
@@ -573,7 +572,7 @@ const eyebrow =
     );
   }
 
-  /** "View on your wall" AR viewer (only rendered when models exist). */
+  /** "View on your wall" AR viewer, rendered only when models exist. */
   function initAr() {
     const mount = document.getElementById("ar-mount");
     if (mount === null) return;
@@ -582,8 +581,8 @@ const eyebrow =
     mount.dataset.wiredSrc = glb;
     const stage = document.getElementById("ar-stage");
     if (stage === null) return;
-    // Static preview is free (photo already on screen); the ~1.5MB viewer +
-    // model download only on scroll-into-view.
+    // Load the ~1.5MB viewer and models only once the stage scrolls into
+    // view. Until then the photo stands in.
     const photo = document.querySelector("#photo-wrap img");
     const poster =
       photo instanceof HTMLImageElement
@@ -604,7 +603,8 @@ const eyebrow =
       stage.replaceChildren(img);
     }
     const build = () => {
-      // Script tag, not import(): Vite dev won't serve /public as modules.
+      // Loaded with a script tag because Vite dev won't serve /public files
+      // as modules.
       void import("../lib/vendor-loader")
         .then(({ loadModelViewer }) => loadModelViewer())
         .then(() => {
@@ -621,8 +621,8 @@ const eyebrow =
           el.setAttribute("ar-scale", "fixed");
           el.setAttribute("ar-placement", "wall");
           el.setAttribute("camera-controls", "");
-          // Up-down scrolls glide past to the page; sideways drags still
-          // turn the piece (phones kept scrolling the model, not the page).
+          // Vertical swipes scroll the page, and horizontal drags rotate
+          // the model. Otherwise phones capture the scroll.
           el.setAttribute("touch-action", "pan-y");
           el.setAttribute("alt", alt === "" ? title : alt);
           el.style.width = "100%";
@@ -647,16 +647,16 @@ const eyebrow =
     }
   }
 
-  // View Transitions never re-run page scripts: wire in initDetail(), called
-  // immediately AND on astro:page-load, guarded against double-fire.
-  /** Admin mode: token set in /admin Settings reveals the studio door —
-      editing itself happens in the painting's studio room. */
+  // View Transitions don't re-run page scripts, so initDetail() runs
+  // immediately and on astro:page-load, guarded against wiring twice.
+
+  /** Shows the studio link when this browser has an admin token. */
   function initAdmin() {
     const bar = document.getElementById("admin-bar");
     if (bar === null || bar.dataset.wired === "1") return;
     let token;
     try {
-      // Per-browser token (mirrors getApiToken in src/lib/api.ts).
+      // Same lookup as getApiToken in src/lib/api.ts.
       token =
         localStorage.getItem("ADMIN_API_TOKEN") ??
         sessionStorage.getItem("ADMIN_API_TOKEN") ??
@@ -669,8 +669,8 @@ const eyebrow =
     bar.hidden = false;
   }
 
-  // Status words fade in (every motion setting). Inline scripts stay
-  // annotation-free: defaults carry the types.
+  // Shows a status message with a fade-in. Default parameter values supply
+  // the types, since inline scripts can't use annotations.
   function say(el = document.body, msg = "") {
     el.textContent = msg;
     if (typeof el.animate === "function") {
@@ -682,9 +682,10 @@ const eyebrow =
     initAr();
     initAdmin();
     initPageShare();
-    // No Background Sync on iPhones — flush the outbox on reconnect + load.
+    // iOS has no Background Sync, so flush the outbox on load and reconnect.
     void import("../lib/queue").then(({ armOutboxFlush }) => armOutboxFlush());
-    // Inquiries email straight out, nothing stored. Honeypot, then Turnstile.
+    // Inquiries are emailed and not stored. Spam checks are a honeypot field,
+    // then Turnstile.
     const formEl = document.getElementById("inquiry-form");
     const form = formEl instanceof HTMLFormElement ? formEl : null;
     if (form !== null && form.dataset.wired !== "1") {
@@ -722,7 +723,7 @@ const eyebrow =
       });
     }
 
-    // "Interested?" reveals the form (open without JS).
+    // "Interested?" reveals the form. Without JS the form is already open.
     const reveal = document.getElementById("inquiry-reveal");
     if (reveal !== null && form !== null && reveal.dataset.wired !== "1") {
       reveal.dataset.wired = "1";
@@ -737,10 +738,9 @@ const eyebrow =
       });
     }
 
-    // Buyer share: one glyph, no words. The phone's sheet carries the
-    // page link; elsewhere the link rides the clipboard and the glyph
-    // ticks for two seconds. Failures rename the button, so the words
-    // are there exactly when something needs saying.
+    // Buyer share button. Uses the share sheet where available, otherwise
+    // copies the link and shows a check for two seconds. On failure the
+    // button gets a text label.
     function initPageShare() {
       const btnEl = document.getElementById("pg-share");
       const btn = btnEl instanceof HTMLButtonElement ? btnEl : null;
@@ -761,8 +761,8 @@ const eyebrow =
             priceCents: live.priceCents,
             url: window.location.href,
           }).then((result) => {
-            // The sheet opening is the confirmation; a dismissal is not
-            // news. Only copies and failures say anything.
+            // The share sheet is its own confirmation, so only copies and
+            // failures show feedback.
             if (result === "copied") {
               const idle = btn.querySelector(".when-idle");
               const tick = btn.querySelector(".when-copied");
@@ -791,8 +791,8 @@ const eyebrow =
       });
     }
 
-    // Tap photo → fullscreen. Document listeners register once per session;
-    // targets re-query live.
+    // Tapping the photo opens it fullscreen. Document listeners register
+    // once per session and look up targets on each event.
     if (window.__detailDocWired !== true) {
       window.__detailDocWired = true;
       const close = () => {
@@ -885,14 +885,14 @@ const eyebrow =
     outline-offset: 2px;
     border-radius: 0.25rem;
   }
-  /* Buyer share: the same quiet line as the way back, other end of the
-     row. One ring, same as its neighbor. */
+  /* Buyer share link, styled like the back link at the other end of the
+     row. */
   .crumbs-share {
     display: inline-flex;
     align-items: center;
     font: inherit;
-    /* A glyph alone is a small target: pad the hit area without moving
-       the row (the negative margin pays the padding back). */
+    /* Enlarge the hit area. The negative margin offsets the padding so the
+       row doesn't move. */
     padding: 0.4rem;
     margin: -0.4rem;
     border: 0;
@@ -919,15 +919,15 @@ const eyebrow =
     outline-offset: 2px;
     border-radius: 0.25rem;
   }
-  /* Author display beats the UA [hidden] rule — re-assert it, so
-     no-JS buyers never see a dead button. */
+  /* The author display rule overrides the UA [hidden] rule, so re-hide.
+     Otherwise no-JS visitors would see a button that does nothing. */
   .crumbs-share[hidden] {
     display: none;
   }
   .crumbs-share svg.is-parked {
     display: none;
   }
-  /* Admin-mode toolbar: quiet bar, same link treatment as the header. */
+  /* Admin toolbar, with the same link styling as the header. */
   #admin-bar {
     display: flex;
     gap: 1rem;
@@ -954,8 +954,7 @@ const eyebrow =
     gap: 2.5rem;
     align-items: start;
   }
-  /* Photo column stacks its pieces (tile, wall preview) with room to
-     breathe, so the left side holds content while she scrolls the form. */
+  /* The photo column stacks the photo tile and wall preview. */
   .media-col {
     display: grid;
     gap: 1.5rem;
@@ -1017,9 +1016,7 @@ const eyebrow =
   #lightbox[hidden] {
     display: none;
   }
-  /* Delete confirmation: a plain-words modal in the middle of the
-     screen. It appears instantly under every motion setting — no
-     entrance animation to wait through or disable. */
+  /* Delete confirmation modal. It appears without an entrance animation. */
   #de-confirm {
     position: fixed;
     inset: 0;
@@ -1077,8 +1074,8 @@ const eyebrow =
     text-transform: uppercase;
     color: var(--accent);
   }
-  /* Draft rooms: the preview title and price are their fields' doors.
-     Same look exactly — only the text cursor gives them away. */
+  /* In draft rooms, clicking the preview title or price focuses its field.
+     Only the text cursor marks them as clickable. */
   [data-mode="draft"] #pv-title,
   [data-mode="draft"] #pv-price {
     cursor: text;
@@ -1132,8 +1129,8 @@ const eyebrow =
   }
   .desc :global(p) {
     margin: 0 0 0.75rem;
-    /* No widowed last words in her statements. Unsupported browsers
-       keep normal wrapping — nothing breaks, it just wraps. */
+    /* Avoid a single word on the last line. Unsupported browsers wrap
+       normally. */
     text-wrap: pretty;
   }
   #pv-desc:empty {
@@ -1152,8 +1149,8 @@ const eyebrow =
   #ar-mount .hint {
     margin: 0 0 0.75rem;
   }
-  /* Loading skeleton: holds the exact viewer box so the swap never flashes
-     or shifts layout. Cleared by replaceChildren on render. */
+  /* Loading skeleton sized to the viewer box so the swap doesn't shift
+     layout. replaceChildren removes it on render. */
   .ar-skeleton {
     width: 100%;
     height: 20rem;
@@ -1171,8 +1168,8 @@ const eyebrow =
       opacity: 1;
     }
   }
-  /* Draft AR slot: the same box, holding the wait in words. Narrow
-     measure, centered, so the lines wrap instead of sprawling. */
+  /* Draft AR slot: the same box, with a waiting message in a narrow
+     centered column. */
   .ar-waiting {
     width: 100%;
     max-width: 26rem;
@@ -1193,13 +1190,12 @@ const eyebrow =
   #ar-stage[hidden] {
     display: none;
   }
-  /* Author display beats the UA [hidden] rule — re-hide the waiting box. */
+  /* The author display rule overrides the UA [hidden] rule, so re-hide. */
   .ar-waiting[hidden] {
     display: none;
   }
-  /* Reduced motion kills movement (skeleton, reveal slide);
-     the lightbox fade still transitions. Button lifts are handled below,
-     next to the hover rule that creates them. */
+  /* Reduced motion stops the skeleton and reveal slide. The lightbox fade
+     still runs. Button lifts are handled next to their hover rule below. */
   @media (prefers-reduced-motion: reduce) {
     .ar-skeleton {
       animation: none;
@@ -1208,8 +1204,8 @@ const eyebrow =
       animation: none;
     }
   }
-  /* The viewer is focusable (keyboard orbit) — keep an accent ring for
-     keyboard users, not the browser's default blue after a mouse tap. */
+  /* The viewer is focusable for keyboard orbit. Show the accent ring for
+     keyboard focus only. */
   #ar-stage model-viewer:focus {
     outline: none;
   }
@@ -1225,8 +1221,8 @@ const eyebrow =
     margin-top: 1.75rem;
     width: 100%;
   }
-  /* .btn-primary sets display:inline-flex, which beats the UA [hidden] rule —
-     so hidden must be re-asserted or the button shows alongside the form. */
+  /* .btn-primary sets display: inline-flex, which overrides the UA [hidden]
+     rule, so re-hide or the button shows alongside the form. */
   #inquiry-reveal[hidden] {
     display: none;
   }
@@ -1240,7 +1236,7 @@ const eyebrow =
   form[hidden] {
     display: none;
   }
-  /* Gentle arrival when "Interested?" reveals the form (class added once). */
+  /* Fade in when "Interested?" reveals the form. */
   #inquiry-form.revealed {
     animation: form-in 0.3s ease;
   }
@@ -1282,11 +1278,9 @@ const eyebrow =
       border-color 0.2s ease,
       box-shadow 0.2s ease;
   }
-  /* Long text grows with its words; rows= stays the fallback where
-     field-sizing isn't supported. The lh floor keeps the empty box at
-     its rows height (an empty content-sized box would collapse to one
-     line); lh support predates field-sizing, so the pair is safe.
-     Text inputs keep their fixed height. */
+  /* Textareas grow with their content where field-sizing is supported,
+     with rows= as the fallback. The lh-based min-height keeps an empty box
+     at its rows height instead of collapsing to one line. */
   textarea {
     field-sizing: content;
     min-height: calc(3lh + 1.2rem);
@@ -1294,16 +1288,11 @@ const eyebrow =
   #de-desc {
     min-height: calc(4lh + 1.2rem);
   }
-  /* No hover warming on text fields: browsers forward label hover to
-     the wrapped field, so "hovering the box" can't be told apart from
-     "hovering its Title" — any :hover tint would fire on both. Fields
-     answer focus instead (below), which is unambiguous. (The Sold
-     checkbox keeps its own hover: there the label is one target.)
-     Exception: the buyer inquiry form previews a soft ring on hover —
-     buyers expect the box to answer the pointer, and the studio "label
-     text never warms its field" test only guards the editor. */
-  /* One ring only: inputs show the outline on any focus, never doubling
-     with a border change. */
+  /* Studio text fields have no hover style. Browsers forward label hover
+     to the wrapped field, so a :hover tint would also fire when hovering
+     the label text. Fields respond to focus instead. The buyer inquiry
+     form is the exception and gets a soft hover ring below. */
+  /* Focus shows the outline only, with no border change. */
   input:focus,
   textarea:focus,
   input:focus-visible,
@@ -1311,10 +1300,8 @@ const eyebrow =
     outline: 2px solid var(--accent);
     outline-offset: 1px;
   }
-  /* Buyer form only: the ring fades in softly on hover so the box
-     answers the pointer. Still one ring — focus takes it to full
-     accent, and the border never changes. Scoped to #inquiry-form so
-     the studio editor keeps its no-hover rule. */
+  /* Buyer form only: a faint ring fades in on hover, and focus takes it to
+     full accent. Scoped to #inquiry-form so studio fields stay unaffected. */
   #inquiry-form input,
   #inquiry-form textarea {
     outline: 2px solid transparent;
@@ -1326,8 +1313,8 @@ const eyebrow =
   }
   #inquiry-form input:hover,
   #inquiry-form textarea:hover {
-    /* --accent at 55%: plain rgb (not color-mix) so the computed value
-       serializes deterministically for the hover test. */
+    /* --accent at 55%. Plain rgb rather than color-mix so the computed
+       value serializes predictably for the hover test. */
     outline-color: rgb(164 74 36 / 0.55);
   }
   #inquiry-form input:focus,
@@ -1362,10 +1349,9 @@ const eyebrow =
     background: var(--primary-hover);
     color: var(--accent-ink);
   }
-  /* Light theme only: the full-width "Interested?" teaser reads as a
-     wall of clay — outline it instead. The in-form Send keeps the
-     solid treatment (an open form means intent). Clay on cream clears
-     AA, so the quieter button stays readable. */
+  /* Light theme: a solid full-width "Interested?" button is too heavy, so
+     outline it. The Send button inside the form stays solid. Clay on cream
+     passes AA contrast. */
   @media (prefers-color-scheme: light) {
     #inquiry-reveal {
       background: transparent;
@@ -1392,8 +1378,8 @@ const eyebrow =
       transform: translateY(-1px);
     }
   }
-  /* Reduced motion keeps the button planted: this sits after the lift so
-     it wins when both queries match. Color fades still run. */
+  /* Reduced motion removes the hover lift. This comes after the lift rule
+     so it wins when both match. Color fades still run. */
   @media (hover: hover) and (prefers-reduced-motion: reduce) {
     .btn-primary:hover {
       transform: none;
@@ -1412,8 +1398,8 @@ const eyebrow =
     margin: 0.25rem 0 0;
     min-height: 1.2em;
   }
-  /* Studio rooms: the details read as a second section under the live
-     preview, and the toolbar pins the save actions beside a status line. */
+  /* Studio rooms: the fields form a second section under the preview, and
+     the toolbar holds the save actions and a status line. */
   .studio-fields {
     display: grid;
     gap: 0.65rem;
@@ -1434,15 +1420,14 @@ const eyebrow =
   .de-row label {
     flex: 1 1 8rem;
   }
-  /* The write-up stands apart from the short fields above it. */
+  /* Separates the description from the short fields above. */
   .de-desc-label {
     margin-top: 0.35rem;
     padding-top: 1rem;
     border-top: 1px solid var(--line);
   }
-  /* Sold rides beside the save buttons: a custom checkbox with a
-     pointer cursor, tall enough to tap. No browser-default box anywhere
-     in the studio. */
+  /* Custom checkbox beside the save buttons, sized for touch. The studio
+     doesn't use browser-default checkboxes. */
   .de-check {
     display: inline-flex;
     gap: 0.6rem;
@@ -1452,8 +1437,8 @@ const eyebrow =
     cursor: pointer;
     white-space: nowrap;
   }
-  /* Checkbox-only: the date field below must never inherit the
-     custom box (it rendered as a clipped "m–"). */
+  /* Checkboxes only. The date field rendered as a clipped "m–" when it
+     inherited the custom box. */
   .de-check input[type="checkbox"] {
     appearance: none;
     -webkit-appearance: none;
@@ -1475,7 +1460,7 @@ const eyebrow =
   .de-check input[type="checkbox"]:hover {
     border-color: var(--accent);
   }
-  /* Hovering the word lights the box too — the label is one target. */
+  /* Hovering the label text highlights the box too. */
   .de-check:hover input[type="checkbox"] {
     border-color: var(--accent);
   }
@@ -1495,12 +1480,12 @@ const eyebrow =
     outline-offset: 2px;
   }
 
-  /* Mouse taps leave no ring; keyboard tabs keep it. */
+  /* Show the focus ring for keyboard focus only. */
   .de-check input[type="checkbox"]:focus:not(:focus-visible) {
     outline: none;
   }
-  /* The go-live date keeps its native field (and picker) — wide
-     enough that its placeholder never clips. */
+  /* The publish date keeps the native field and picker, wide enough that
+     the placeholder doesn't clip. */
   .de-check input[type="date"] {
     font: inherit;
     color: var(--ink);
@@ -1511,9 +1496,8 @@ const eyebrow =
     min-height: 3rem;
     min-width: 9rem;
     box-sizing: border-box;
-    /* The studio checkboxes are hand-drawn (appearance: none), so
-       accent-color would be dead on them — it only tints this native
-       picker's glyph. */
+    /* Tints the native picker icon. The custom checkboxes use
+       appearance: none, so accent-color doesn't affect them. */
     accent-color: var(--accent);
   }
   .de-check input[type="date"]:hover {
@@ -1523,7 +1507,7 @@ const eyebrow =
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
-  /* High-contrast mode draws its own boxes better than CSS can. */
+  /* In forced-colors mode, use the system checkbox. */
   @media (forced-colors: active) {
     .de-check input[type="checkbox"] {
       appearance: auto;
@@ -1544,8 +1528,8 @@ const eyebrow =
     align-items: center;
     margin-top: 1rem;
   }
-  /* Publish alerts: unchecked boxes that only matter on publish. The
-     group reads as one sentence with the two channels. */
+  /* Publish notification checkboxes, laid out to read as one sentence. They
+     only take effect on publish. */
   .de-notify-group {
     display: inline-flex;
     flex-wrap: wrap;
@@ -1596,9 +1580,8 @@ const eyebrow =
   #de-status:empty {
     display: none;
   }
-  /* Tell-social-media: the same section rhythm as the details above it.
-     The actions row reuses the toolbar buttons exactly, and the status
-     line keeps its height so good news never shoves the page. */
+  /* Social share section. It reuses the toolbar button styles, and the
+     status line reserves its height so messages don't shift the page. */
   .share {
     display: grid;
     gap: 0.65rem;
@@ -1606,8 +1589,8 @@ const eyebrow =
     padding-top: 1.25rem;
     border-top: 1px solid var(--line);
   }
-  /* Author display beats the UA [hidden] rule — the section stays hidden
-     until its script wires up, so no-JS rooms never show dead buttons. */
+  /* The author display rule overrides the UA [hidden] rule, so re-hide.
+     The section stays hidden until its script runs. */
   .share[hidden] {
     display: none;
   }
@@ -1619,16 +1602,15 @@ const eyebrow =
   .share .hint {
     margin: 0;
   }
-  /* The fallback hint starts empty — collapse it so it holds no gap
-     until the script has something to say. */
+  /* Collapse the fallback hint while it's empty so it leaves no gap. */
   #de-share-hint:empty {
     display: none;
   }
   .share-actions {
     margin-top: 0.35rem;
   }
-  /* .btn-primary sets display:inline-flex, which beats the UA [hidden]
-     rule — re-assert it for browsers without a share sheet. */
+  /* .btn-primary sets display: inline-flex, which overrides the UA [hidden]
+     rule. Re-hide for browsers without a share sheet. */
   #de-share-send[hidden] {
     display: none;
   }
@@ -1636,9 +1618,8 @@ const eyebrow =
     margin: 0.25rem 0 0;
     min-height: 1.2em;
   }
-  /* The saved-photo confirmation leaves the section and pins to the top
-     like the room's error toast — the file lands in her downloads while
-     she reads on. Same shape, quiet border: this is good news. */
+  /* The saved-photo confirmation shows as a top toast like the room's
+     error toast, with a softer border. */
   #de-share-status[data-tone="toast"] {
     position: fixed;
     left: 50%;
@@ -1663,9 +1644,8 @@ const eyebrow =
     opacity: 0;
     transition: opacity 0.25s ease;
   }
-  /* Room errors leave the toolbar and pin to the top like the admin
-     toast — same reason: bad news shouldn't sit where she's scrolled
-     past. Everything else stays an inline murmur. */
+  /* Errors show as a top toast like the admin toast, so they're visible
+     at any scroll position. Other messages stay inline. */
   #de-status[data-tone="error"] {
     position: fixed;
     left: 50%;
@@ -1683,8 +1663,8 @@ const eyebrow =
     font-size: 0.95rem;
     color: inherit;
   }
-  /* Studio toast words fade in and out, opacity-only, under every
-     motion setting. */
+  /* Toast text fades in and out with opacity only, so reduced motion keeps
+     it. */
   #de-status.toast-in {
     animation: de-toast-in 0.25s ease;
   }
@@ -1697,8 +1677,7 @@ const eyebrow =
     opacity: 0;
     transition: opacity 0.25s ease;
   }
-  /* (inquiry-off retired: the "nothing to press" note was noise.) */
-  /* Draft photo tile: the whole square is the picker, labeled inside. */
+  /* Draft photo tile. The whole square is the file picker. */
   .upload-tile {
     position: relative;
     aspect-ratio: 1;

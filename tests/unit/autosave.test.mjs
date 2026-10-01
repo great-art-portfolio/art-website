@@ -2,8 +2,10 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { AUTOSAVE_MAX_AGE_MS, readBackup } from "../../src/lib/autosave.ts";
 
-/** Room autosave |-shape and staleness: fresh backups restore, anything
- * older than a day (or unstamped) lets the file win. */
+/**
+ * Room autosave format and staleness. Recent backups are restored; backups
+ * older than a day or without a timestamp lose to the file.
+ */
 
 const NOW = 1_700_000_000_000;
 

@@ -4,9 +4,8 @@ import "../../components/studio.css";
 import { SITE_URL } from "../../lib/site";
 import { broadcastDefaults } from "../../../functions/_lib/notify";
 
-// Subject and body start as the standard note — what she sees is what
-// buyers get. The sign-off and unsubscribe aren't inputs: the template
-// appends them to every send, so she never has to think about them.
+// Subject and body start with the standard text. The sign-off and
+// unsubscribe aren't editable. The template appends them to every send.
 const defaults = broadcastDefaults(SITE_URL);
 ---
 
@@ -61,8 +60,8 @@ const defaults = broadcastDefaults(SITE_URL);
 <script src="../../components/AdminPanel.ts"></script>
 
 <style>
-  /* The button hugs the left — a flex row that wraps on narrow phones.
-     Its result sits below, hidden until it has something to say. */
+  /* Left-aligned flex row that wraps on narrow phones. The result line
+     below stays hidden until there's a message. */
   #sec-email .row {
     margin-top: 1rem;
     justify-content: start;
@@ -73,9 +72,8 @@ const defaults = broadcastDefaults(SITE_URL);
   #email-status:empty {
     display: none;
   }
-  /* The email preview wears a card so the shape reads "this is the
-     message", not page copy. The body is the real styled email in a
-     sandboxed frame — what she sees is what buyers get. */
+  /* The preview is a card so it reads as the message rather than page
+     text. The body is the real styled email in a sandboxed iframe. */
   #email-preview {
     margin-top: 1rem;
     border: 1px solid var(--line);

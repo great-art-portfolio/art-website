@@ -8,7 +8,7 @@ import type { AppEnv } from "../_lib/env";
 import { badRequest, json, requireAdmin, serverError } from "../_lib/http";
 import { parseCommitBody } from "../_lib/validation";
 
-/** Repo path of the homepage banner (empty file = hidden). */
+/** Repo path of the homepage banner. An empty file hides it. */
 export const BANNER_PATH = "src/content/announcement.txt";
 
 function gitConfig(env: AppEnv): GitHubConfig | null {
@@ -20,7 +20,7 @@ function gitConfig(env: AppEnv): GitHubConfig | null {
 
 import { GALLERY_PATH, PAINTING_FILE } from "../_lib/gallery-paths";
 
-/** Admin: read the banner text, or one painting file (?path=…). Lives in git. */
+/** Admin: reads the banner text, or one painting file with ?path=. */
 export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
   const denied = requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
@@ -45,10 +45,11 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
 };
 
 /**
- * Admin: commit a batch of files (painting .md + photo, banner text,
- * AR models) and/or delete gallery files. Body:
+ * Admin: commits a batch of files (painting .md and photo, banner text, AR
+ * models) and deletes gallery files. Body:
  * { message, files: [{ path, contentBase64 }], delete: [path] }.
- * Cloudflare Pages rebuilds on push — the change is live ~a minute later.
+ * Cloudflare Pages rebuilds on push, so changes are live about a minute
+ * later.
  */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   const denied = requireAdmin(context.request, context.env);
@@ -118,7 +119,8 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   }
 };
 
-/** Admin: filenames in the paintings folder, for slug-collision checks. */
+/** Admin: lists filenames in the paintings folder for slug collision
+ * checks. */
 export const onRequestPut: PagesFunction<AppEnv> = async (context) => {
   const denied = requireAdmin(context.request, context.env);
   if (denied !== null) return denied;

@@ -1,12 +1,10 @@
 /**
- * Build-time model refs for buyer pages. The "Try it on your wall"
- * section renders whenever modelGlb is non-empty, so a dangling ref
- * (deleted or never-built model) would show an empty viewer — resolve
- * refs against public/ and pass "" when the file isn't there.
+ * Build-time model refs for buyer pages. The AR section renders whenever
+ * modelGlb is non-empty, so a ref to a missing file would show an empty
+ * viewer. These helpers check public/ and return "" when the file is absent.
  *
- * BUILD-TIME ONLY: imports node:fs, so .astro frontmatter may use it
- * but client islands must never import this module (Vite cannot bundle
- * fs for browsers and the build breaks).
+ * Build time only. This imports node:fs, so client scripts can't import
+ * it. Vite can't bundle fs for the browser.
  */
 import { existsSync } from "node:fs";
 

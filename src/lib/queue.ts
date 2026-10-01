@@ -1,9 +1,8 @@
 /**
- * Offline POST outbox: tries the network first, falls back to IndexedDB +
- * Background Sync (replayed by the service worker), plus a flush on
- * `online` / page load for browsers without SyncManager. Used for view
- * counts and buyer inquiries — the gallery keeps working on the
- * Calgary–Edmonton drive.
+ * Offline POST outbox for view counts and buyer inquiries. Tries the
+ * network first, then falls back to IndexedDB plus Background Sync, which
+ * the service worker replays. Browsers without SyncManager flush on
+ * `online` and on page load.
  */
 
 const DB_NAME = "gallery-outbox";
@@ -43,7 +42,7 @@ async function enqueue(path: string, body: string): Promise<void> {
     tx.onerror = () => reject(tx.error);
   });
   db.close();
-  // Nudge the service worker to replay ASAP (no-op where unsupported).
+  // Ask the service worker to replay soon.
   try {
     const reg = (await navigator.serviceWorker
       .ready) as ServiceWorkerRegistration & {
@@ -51,14 +50,14 @@ async function enqueue(path: string, body: string): Promise<void> {
     };
     await reg.sync?.register(SYNC_TAG);
   } catch {
-    // Background Sync unsupported — flushOutbox on `online` covers it.
+    // Background Sync is unsupported. flushOutbox on `online` covers it.
   }
 }
 
 let flushing = false;
 
 export async function flushOutbox(): Promise<void> {
-  // One replay at a time: concurrent flushes would send the same post twice.
+  // Concurrent flushes would send the same post twice.
   if (flushing) return;
   flushing = true;
   let db: IDBDatabase;
@@ -91,13 +90,14 @@ export async function flushOutbox(): Promise<void> {
           body: post.body,
         });
         if (res.status >= 400 && res.status < 500) {
-          // Server rejected it (bad input, expired spam check) — retrying can't help.
+          // Rejected by the server, such as bad input or an expired spam
+          // check. Retrying won't help.
           await drop(post.id);
           continue;
         }
-        if (!res.ok) continue; // Server trouble — keep it for a later retry.
+        if (!res.ok) continue; // Server error. Keep it for a later retry.
       } catch {
-        break; // Still offline — stop, try again next time.
+        break; // Still offline. Try again next time.
       }
       await drop(post.id);
     }
@@ -107,7 +107,7 @@ export async function flushOutbox(): Promise<void> {
   }
 }
 
-/** POST JSON, queuing offline instead of failing. Never throws. */
+/** POSTs JSON, queuing it when offline. Doesn't throw. */
 export async function queuePost(
   path: string,
   payload: unknown,
@@ -120,7 +120,8 @@ export async function queuePost(
       body,
     });
     if (res.ok) return "sent";
-    // 4xx = server rejected it (bad input, sold painting); queuing is wrong.
+    // A 4xx means the server rejected it, such as bad input or a sold
+    // painting, so don't queue it.
     if (res.status >= 400 && res.status < 500) return "rejected";
     await enqueue(path, body);
     return "queued";
@@ -128,7 +129,7 @@ export async function queuePost(
     try {
       await enqueue(path, body);
     } catch {
-      // IndexedDB unavailable (private mode) — nothing more we can do.
+      // IndexedDB is unavailable, as in private mode.
     }
     return "queued";
   }
@@ -137,7 +138,7 @@ export async function queuePost(
 let armed = false;
 
 export function armOutboxFlush(): void {
-  // Client-side hops re-run page init — arm once per browser session.
+  // Client-side navigation re-runs page init, so arm once per session.
   if (armed) return;
   armed = true;
   window.addEventListener("online", () => void flushOutbox());

@@ -22,8 +22,9 @@ export function notEnabled(feature: string, hint: string): Response {
   );
 }
 
-/** Admin check. Access is the prod gate; the token is defense in depth +
- * local dev. Unset token = allow. */
+/** Admin check. Cloudflare Access protects production, and the token is
+ * a second layer and the local dev gate. If no token is configured, the
+ * request is allowed. */
 export function requireAdmin(request: Request, env: AppEnv): Response | null {
   const expected = env.ADMIN_API_TOKEN;
   if (expected === undefined || expected === "") return null;

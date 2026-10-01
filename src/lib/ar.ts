@@ -1,14 +1,14 @@
-/** AR models from a painting photo: the photo becomes the face of a
- * true-scale framed box (GLB + USDZ). Built on her phone at upload. */
+/** Builds AR models from a painting photo. The photo becomes the face of a
+ * true-scale framed box, exported as GLB and USDZ. Runs in the browser at
+ * upload. */
 import * as THREE from "three";
 import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
 import { USDZExporter } from "three/addons/exporters/USDZExporter.js";
 import type { PaintingEdits, ParsedPainting } from "./painting-edit";
 
 const IN_TO_M = 0.0254;
-// 1024px is plenty: the preview is a flat painting viewed from feet away
-// (a 20rem inline box, or a wall across the room), and anything finer
-// never resolves on screen — it only inflates every painting page.
+// The preview is viewed from a distance, so detail beyond 1024px doesn't
+// show and only makes painting pages heavier.
 const MAX_TEX_SIDE = 1024;
 
 export interface ArModels {
@@ -30,8 +30,8 @@ function textureCanvas(source: HTMLImageElement): HTMLCanvasElement {
   return canvas;
 }
 
-/** Pure dims geometry (testable without a browser). Missing tape falls back
- * to the photo's aspect at 24 in wide. */
+/** Pure dimension math, testable without a browser. Missing measurements
+ * fall back to the photo's aspect ratio at 24 in wide. */
 export function resolveDims(
   imgW: number,
   imgH: number,
@@ -44,7 +44,7 @@ export function resolveDims(
   return { w, h, d: depthIn ?? 1.5 };
 }
 
-/** Missing tape measurements fall back to the photo's aspect at 24 in wide. */
+/** Missing measurements fall back to the photo's aspect ratio at 24 in wide. */
 export function estimateDims(
   img: HTMLImageElement,
   widthIn: number | null,
@@ -60,7 +60,7 @@ export function estimateDims(
   );
 }
 
-/** Decode repo photo bytes (from the photo endpoint) into an <img>. */
+/** Decodes photo bytes from the photo endpoint into an <img>. */
 export function loadImageBlob(blob: Blob): Promise<HTMLImageElement> {
   const url = URL.createObjectURL(blob);
   return new Promise((resolve, reject) => {
@@ -89,9 +89,8 @@ export async function buildArModels(
 
   const texture = new THREE.CanvasTexture(textureCanvas(img));
   texture.colorSpace = THREE.SRGBColorSpace;
-  // JPEG in both exporters — measured ~7x smaller than the default PNG
-  // for these photos (first-thaw: 267KB JPEG vs 1.9MB PNG at 1012x1024).
-  // PNG would make every painting page download megabytes of model.
+  // JPEG textures measured about 7x smaller than the default PNG for these
+  // photos (267KB vs 1.9MB at 1012x1024).
   texture.userData.mimeType = "image/jpeg";
 
   const art = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.9 });
@@ -100,7 +99,8 @@ export async function buildArModels(
     roughness: 0.6,
   });
   const scene = new THREE.Scene();
-  // Frame box + art plane a hair in front (multi-material boxes trip USDZ).
+  // Frame box plus an art plane just in front of it. Multi-material boxes
+  // break the USDZ export.
   scene.add(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), frame));
   const face = new THREE.Mesh(new THREE.PlaneGeometry(w, h), art);
   face.position.z = d / 2 + 0.001;
@@ -110,8 +110,8 @@ export async function buildArModels(
   const glbResult = await gltf.parseAsync(scene, {
     binary: true,
   });
-  // Binary export resolves an ArrayBuffer; anything else is a failed
-  // export, not a model — narrow instead of casting.
+  // Binary export resolves to an ArrayBuffer. Anything else means the
+  // export failed.
   if (!(glbResult instanceof ArrayBuffer)) {
     throw new Error("The 3D preview didn't build.");
   }
@@ -129,9 +129,9 @@ export async function buildArModels(
   try {
     usdzBuf = await usdz.parseAsync(scene, anchor);
   } catch {
-    // Anchorless, never floor-anchored: without the wall pin Quick Look
-    // opens the painting upright in object mode; the exporter's default
-    // is a horizontal anchor, which would lay it flat.
+    // Omit anchoring. The exporter defaults to a horizontal anchor, which
+    // lays the painting flat. Without an anchor, Quick Look opens it
+    // upright in object mode.
     usdzBuf = await usdz.parseAsync(scene, {
       includeAnchoringProperties: false,
       quickLookCompatible: true,
@@ -151,7 +151,8 @@ export async function buildArModels(
 
   return {
     glb: new Blob([glbBuf], { type: "model/gltf-binary" }),
-    // Exact-length copy: the exporter's view may sit in a larger buffer.
+    // Copy to an exact-length buffer, since the exporter's view may sit in
+    // a larger one.
     usdz: new Blob([usdzBuf.slice()], { type: "model/vnd.usdz" }),
   };
 }
@@ -173,17 +174,17 @@ function numOrNull(raw: string): number | null {
 }
 
 export interface DimFixResult {
-  /** Edits with fresh model refs when rebuilt (untouched otherwise). */
+  /** Edits with new model refs when rebuilt, otherwise unchanged. */
   edits: PaintingEdits;
-  /** Model files to add to the commit (empty when no rebuild). */
+  /** Model files to add to the commit. Empty when nothing was rebuilt. */
   files: Array<{ path: string; blob: Blob }>;
   rebuilt: boolean;
-  /** Why the rebuild was skipped over, for the status line. Null when fine. */
+  /** Why the rebuild was skipped, for the status line. Null on success. */
   note: string | null;
 }
 
-/** Rebuild AR models when dims changed or none exist. Never throws:
- * failures degrade to a models-free save + note. */
+/** Rebuilds AR models when dimensions changed or none exist. Doesn't throw.
+ * On failure it returns no model files and a note. */
 export async function rebuildForDimFix(
   getPhoto: (path: string) => Promise<Blob | null>,
   mdPath: string,
@@ -196,7 +197,7 @@ export async function rebuildForDimFix(
     h: numOrNull(before.heightIn),
     d: numOrNull(before.depthIn),
   };
-  // Blank edit fields keep the old value (same rule as patchPainting).
+  // Blank fields keep the old value, as in patchPainting.
   const next = {
     w: numOrNull(edits.widthIn) ?? prev.w,
     h: numOrNull(edits.heightIn) ?? prev.h,
@@ -236,8 +237,8 @@ export async function rebuildForDimFix(
   }
 }
 
-/** Rebuild AR models from the repo photo. Throws on failure; callers then
- * degrade to a models-free save with a status note. */
+/** Rebuilds AR models from the repo photo. Throws on failure, and callers
+ * then save without models and show a note. */
 export async function rebuildArFiles(
   getPhoto: (path: string) => Promise<Blob | null>,
   stem: string,

@@ -9,8 +9,8 @@ import {
   stampPushAt,
 } from "../../functions/_lib/push.ts";
 
-/** Custom ping line + cooldown stamp round-trip through the one-row
- * table (no live D1). */
+/** The custom ping text and cooldown timestamp round-trip through the
+ * single-row table, using a fake D1. */
 
 function stubDb() {
   const row = { body: null, title: null, pushed_at: "" };

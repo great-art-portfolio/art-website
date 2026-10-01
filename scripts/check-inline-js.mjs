@@ -1,9 +1,8 @@
 /**
- * Fails the build if a classic (non-module, non-JSON) inline <script> in
- * dist/ contains `import` statements or TypeScript syntax. Astro emits
- * component page scripts as classic scripts, so either one silently kills
- * the whole handler at runtime (button+form both visible, dead buttons).
- * Dynamic import() is fine and ignored by this check.
+ * Fails if a classic (non-module, non-JSON) inline <script> in dist/
+ * contains `import` statements or TypeScript syntax. Astro emits page
+ * scripts as classic scripts, where either one stops the whole script at
+ * runtime. Dynamic import() is allowed.
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -18,8 +17,8 @@ function htmlFiles(dir) {
   try {
     names = readdirSync(dir);
   } catch (err) {
-    // A clean checkout has no dist/ until `astro build` runs — say so
-    // plainly instead of dying in node:fs.
+    // A clean checkout has no dist/ until `astro build` runs. Report that
+    // instead of a raw fs error.
     if (err instanceof Error && "code" in err && err.code === "ENOENT") {
       console.error("No dist/ found — run `pnpm build` first, then retry.");
       process.exit(2);

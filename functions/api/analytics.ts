@@ -2,13 +2,13 @@ import type { AppEnv } from "../_lib/env";
 import { json, requireAdmin, serverError } from "../_lib/http";
 
 /**
- * Admin: most-viewed painting pages (past 30 days) from Cloudflare Web
- * Analytics, so mom sees it in /admin instead of the Cloudflare dashboard.
+ * Admin: most-viewed painting pages over the past 30 days, from Cloudflare
+ * Web Analytics, so they can be shown in /admin.
  *
  * Needs three vars (see wrangler.toml): CF_ACCOUNT_ID, CF_ANALYTICS_TOKEN
- * (API token with Account Analytics: Read), CF_ANALYTICS_SITE (the beacon
- * token — it doubles as the site tag). Missing any of them returns
- * { unconfigured: true } and the admin UI shows the setup hint.
+ * (an API token with Account Analytics: Read), and CF_ANALYTICS_SITE (the
+ * beacon token, which is also the site tag). If any is missing it returns
+ * { unconfigured: true } and the admin UI shows a setup hint.
  */
 
 interface RumRow {

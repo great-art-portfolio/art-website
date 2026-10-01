@@ -1,5 +1,5 @@
-/* Gallery service worker: offline shell + cached artwork + outbox replay.
- * Version the cache name on every behaviour change.
+/* Gallery service worker: offline shell, cached artwork, and outbox replay.
+ * Bump the cache version whenever behavior changes.
  */
 const VERSION = "gallery-v1";
 const STATIC_CACHE = `${VERSION}-static`;
@@ -46,8 +46,7 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  // The studio and the API are never cached: admin must always reflect
-  // the live site, and API responses must never be served stale.
+  // Don't cache the studio or the API. Both need fresh responses.
   if (
     url.pathname === "/admin" ||
     url.pathname.startsWith("/admin/") ||
@@ -55,8 +54,8 @@ self.addEventListener("fetch", (event) => {
   )
     return;
 
-  // Artwork images (built _astro/ assets): cache-first, so the gallery
-  // works with spotty signal.
+  // Built _astro/ assets such as artwork are cache-first, so the gallery
+  // works with a weak signal.
   if (url.pathname.startsWith("/_astro/")) {
     event.respondWith(
       caches.match(request).then(
@@ -77,7 +76,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Pages: network-first, offline fallback.
+  // Pages are network-first with an offline fallback.
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
@@ -95,7 +94,7 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
-// Background Sync: replay queued POSTs (views, inquiries) from IndexedDB.
+// Background Sync replays queued POSTs (views, inquiries) from IndexedDB.
 function openOutbox() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open("gallery-outbox", 1);
@@ -127,7 +126,7 @@ async function replayOutbox() {
         body: post.body,
       });
       if (!res.ok && res.status >= 400 && res.status < 500) {
-        // Server rejected it — drop so it doesn't retry forever.
+        // Rejected by the server. Drop it so it isn't retried.
       } else if (!res.ok) {
         break;
       }
@@ -148,9 +147,8 @@ self.addEventListener("sync", (event) => {
   if (event.tag === "gallery-outbox") event.waitUntil(replayOutbox());
 });
 
-// Web Push "tickle": the server sends no body (no payload encryption),
-// so the custom line is fetched — blank means the standard note. The
-// tap opens the site's homepage, whatever origin that is in production.
+// Pushes arrive without a body, so fetch the custom text. Blank means the
+// standard note. Tapping the notification opens the site's homepage.
 self.addEventListener("push", (event) => {
   event.waitUntil(
     fetch("/api/push-message")

@@ -2,13 +2,13 @@ import type { AppEnv } from "../_lib/env";
 import { badRequest, json, serverError } from "../_lib/http";
 import { parsePushSubscribe, parsePushUnsubscribe } from "../_lib/validation";
 
-/** Public: VAPID public key so browsers can subscribe (safe to expose). */
+/** Public: the VAPID public key browsers need to subscribe. */
 export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
   return json({ publicKey: context.env.VAPID_PUBLIC_KEY ?? "" });
 };
 
 /**
- * Public: subscribe / unsubscribe a browser for "new painting" alerts.
+ * Public: subscribes or unsubscribes a browser for new-painting alerts.
  * Body: { action: "subscribe", subscription: { endpoint, keys } }
  *    or { action: "unsubscribe", endpoint }.
  */

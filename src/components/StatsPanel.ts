@@ -4,11 +4,10 @@ import { parseStatsSeed, type StatsSeedRow } from "../lib/schemas";
 import { viewsLabel } from "../lib/views";
 
 /**
- * Metrics island (client-only): past-30-day views per painting, most
- * viewed first. Ties favor what's still for sale — sold works settle
- * below. Paintings ride baked into the page; counts arrive from
- * the analytics API. Anything less than real data leaves the rows
- * count-less with plain words about why — never a blank page.
+ * Metrics page script: views over the past 30 days per painting, most
+ * viewed first, with unsold paintings ahead of sold ones on ties. The
+ * painting list is baked into the page and counts come from the analytics
+ * API. Without counts, the rows still render with a note explaining why.
  */
 
 function render(
@@ -57,7 +56,7 @@ function init(): void {
       "Couldn't read the painting list — reload the page and try again.";
     return;
   }
-  // Count-less immediately: rows must not wait for the counts.
+  // Render the rows right away without waiting for counts.
   render(seed, new Map());
   api
     .paintingViews()
@@ -76,8 +75,8 @@ function init(): void {
         total === 0 ? "No views in the past 30 days — yet." : "";
     })
     .catch((err: unknown) => {
-      // A missing token names itself and points at the fix; anything
-      // else is already covered by the unconfigured branch above.
+      // Explain a missing token. Other errors are covered by the
+      // unconfigured branch above.
       if (err instanceof ApiError && err.status === 401) {
         const note = $("stats-note");
         note.innerHTML =
@@ -87,8 +86,7 @@ function init(): void {
     });
 }
 
-// ClientRouter swaps studio pages without a full load — and skips
-// re-running this bundle (same src), so DOMContentLoaded init leaves every
-// later visit dead. astro:page-load fires on first load AND every visit;
-// its document persists, so one listener covers all visits with no guard.
+// ClientRouter swaps pages without re-running this bundle, so init runs on
+// astro:page-load, which fires on the first load and every navigation. The
+// listener persists across swaps, so it needs no guard.
 document.addEventListener("astro:page-load", () => init());

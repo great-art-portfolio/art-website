@@ -104,7 +104,8 @@ describe("patchPainting model refs", () => {
     const next = patchPainting(SAMPLE, edits);
     assert.match(next, /modelGlb: "\/models\/2122x2118\.glb"/);
     assert.match(next, /modelUsdz: "\/models\/2122x2118\.usdz"/);
-    // Patched files keep the blank line after the fence (format:check).
+    // Patched files keep the blank line after the frontmatter fence so
+    // format:check passes.
     assert.match(next, /---\n\nRain over dark water\.\n$/);
   });
 
@@ -187,7 +188,7 @@ describe("buildMarkdown", () => {
     assert.match(md, /^draft: true$/m);
     assert.match(md, /^medium: "Oil on canvas"$/m);
     assert.match(md, /^price: 125\.00$/m);
-    // Blank line after the fence: prettier-clean, like the committed files.
+    // A blank line after the fence matches prettier and the committed files.
     assert.match(md, /---\n\nLate snow\.\n$/);
     const round = parsePainting(md);
     assert.equal(round.title, "First Thaw");
@@ -382,7 +383,7 @@ describe("scheduled publishing", () => {
       sold: false,
       publishOn: "2026-09-10",
     });
-    // Quoted: a bare date parses as a Date object and fails the build.
+    // Quoted, because an unquoted date parses as a Date and fails the build.
     assert.match(dated, /^publishOn: "2026-09-10"$/m);
     assert.equal(parsePainting(dated).publishOn, "2026-09-10");
     const cleared = patchPainting(dated, {
@@ -399,7 +400,7 @@ describe("scheduled publishing", () => {
       publishOn: "",
     });
     assert.doesNotMatch(cleared, /^publishOn:/m);
-    // Undefined callers (older flows) leave the key alone.
+    // Passing undefined leaves the key unchanged.
     const kept = patchPainting(dated, {
       title: "Night Reeds",
       price: "140.00",
@@ -469,7 +470,7 @@ describe("rename history", () => {
     const next = patchPainting(SAMPLE, edits);
     assert.match(next, /^slugHistory: "night-reads"$/m);
     assert.equal(parsePainting(next).slugHistory, "night-reads");
-    // Undefined leaves the key alone; "" removes it cleanly.
+    // undefined leaves the key unchanged; "" removes it.
     assert.match(
       patchPainting(next, { ...edits, slugHistory: undefined }),
       /^slugHistory: "night-reads"$/m,

@@ -1,7 +1,8 @@
 import { flag, type AppEnv } from "./env";
 
-/** Shippo, disabled. Enable with ENABLE_SHIPPO + SHIPPO_API_TOKEN. Until then
- * the portal links out to Chit Chats / Pirate Ship. */
+/** Shippo integration, disabled by default. Enable with ENABLE_SHIPPO and
+ * SHIPPO_API_TOKEN. Until then the portal links to Chit Chats and Pirate
+ * Ship. */
 
 export interface ShippoAddress {
   name: string;

@@ -8,10 +8,9 @@ import { formatDimensions } from "../../../lib/dims";
 import { modelGlbOrEmpty } from "../../../lib/model-files";
 import { slugifyTitle } from "../../../lib/site";
 
-// Every painting — published or draft — gets a buyer-view preview behind
-// /admin (Access covers it in production). Drafts never get public buyer
-// pages (see paintings/[id]); this is how she checks one before it goes
-// live. Never indexed.
+// Every painting, published or draft, gets a buyer-view preview under
+// /admin, which Access protects in production. Drafts have no public buyer
+// page, so this is how to check one before publishing. Not indexed.
 export async function getStaticPaths() {
   const paintings = await getCollection("paintings");
   return paintings.map((painting) => ({

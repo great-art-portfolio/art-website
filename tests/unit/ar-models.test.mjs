@@ -48,8 +48,8 @@ describe("AR models match the tape measurements", () => {
       assert.ok(existsSync(glbPath), `${fm.modelGlb} exists in public/`);
       const glb = readFileSync(glbPath);
       assert.ok(glb.length > 10_000, "model is not a stub");
-      // 1024px JPEG textures keep each model a few hundred KB — flag
-      // regressions before buyers pay the download.
+      // 1024px JPEG textures keep each model to a few hundred KB. Catch size
+      // regressions before buyers have to download them.
       assert.ok(
         glb.length < 512 * 1024,
         `model is bloated: ${glb.length} bytes`,

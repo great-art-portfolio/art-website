@@ -1,8 +1,6 @@
 /**
- * Browser-side photo prep — plain TypeScript + Canvas, no Rust/WASM needed.
- * Phone photos get downscaled to a web-friendly size, rotated/straightened,
- * and exported as JPEG. Heavy lifting (thumbnails at build time) stays with
- * sharp; no ffmpeg — there is no video or audio in this pipeline.
+ * Browser-side photo preparation with Canvas. Phone photos are downscaled,
+ * rotated, and exported as JPEG. Build-time thumbnails are handled by sharp.
  */
 
 export interface PreparedImage {
@@ -27,14 +25,14 @@ export async function loadImageFile(file: File): Promise<HTMLImageElement> {
     });
     return img;
   } finally {
-    // Revoked after load; the element keeps its decoded pixels.
+    // Safe to revoke after load. The element keeps its decoded pixels.
     URL.revokeObjectURL(url);
   }
 }
 
 /**
- * Pure output-size math behind drawPrepared — numbers in, numbers out,
- * so rotation + downscale is unit-testable without a browser/DOM.
+ * Output-size math for drawPrepared, kept pure so rotation and downscaling
+ * can be unit-tested without a DOM.
  */
 export function scaleFor(
   naturalWidth: number,

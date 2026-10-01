@@ -1,15 +1,14 @@
-/** Studio room autosave backups: typed fields that survive a refresh or
- * crash. Pure node-safe module — the island owns storage, this owns
- * shape and staleness.
+/** Studio room autosave backups, so typed fields survive a refresh or
+ * crash. This module handles shape and staleness. The caller handles
+ * storage.
  *
- * A backup only ever overrides the file for a day. Anything older (or
- * unstamped, which predates expiry) is likelier stale than precious —
- * an old backup silently unchecking Sold is worse than retyping a line.
- * The file wins, and the stale entry goes away.
+ * A backup overrides the file only within a day. Older or unstamped
+ * backups are more likely stale than useful, and an old backup could
+ * silently uncheck Sold. In that case the file wins and the backup is
+ * dropped.
  */
 
-/** A backup older than this never overrides the room (refresh/crash
- * recovery happens within hours, not weeks). */
+/** Backups older than this don't override the file. */
 export const AUTOSAVE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 export interface RoomBackup {
@@ -26,8 +25,8 @@ export interface RoomBackup {
   savedAt: number;
 }
 
-/** Parse a stored backup; null means no backup, garbled, or too old to
- * trust against the file. Callers drop the entry on null. */
+/** Parses a stored backup. Returns null when missing, malformed, or too
+ * old, and callers then drop the entry. */
 export function readBackup(raw: string | null, now: number): RoomBackup | null {
   if (raw === null) return null;
   let saved: unknown;

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-/** Search engines meet published work here — never drafts or the studio. */
+/** The sitemap and robots.txt expose published paintings, not drafts or the studio. */
 
 test("sitemap lists published paintings with the live domain", async ({
   request,
@@ -12,7 +12,7 @@ test("sitemap lists published paintings with the live domain", async ({
   expect(xml).toContain("https://barbart.ca/");
   expect(xml).not.toContain("localhost");
   expect(xml).not.toContain("/admin");
-  // Drafts stay out (the tree holds unpublished ones locally).
+  // The local content tree includes drafts, which must be excluded.
   expect(xml).not.toContain("1-copy");
 });
 

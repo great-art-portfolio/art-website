@@ -12,10 +12,9 @@ export async function getStaticPaths() {
   const paintings = (await getCollection("paintings")).filter((p) =>
     isPublished(p.data),
   );
-  // Old links keep working after a rename: one alias path per history
-  // entry, reading under the title's page. Current slugs always win —
-  // an alias colliding with a live title is skipped, never duplicated
-  // (duplicates break the build).
+  // Old links keep working after a rename, with one alias page per history
+  // entry. An alias that collides with a current slug is skipped, since
+  // duplicate paths break the build.
   const claimed = new Set(paintings.map((p) => slugifyTitle(p.data.title)));
   const paths = paintings.map((painting) => ({
     params: { id: slugifyTitle(painting.data.title) },
@@ -37,8 +36,8 @@ export async function getStaticPaths() {
 
 const { painting } = Astro.props;
 const { Content } = await render(painting);
-// Missing model file, no wall preview: the section stays off rather than
-// showing an empty viewer.
+// Without a model file, omit the wall preview instead of showing an empty
+// viewer.
 const modelGlb = modelGlbOrEmpty(painting.data.modelGlb);
 const meta = [
   painting.data.medium,

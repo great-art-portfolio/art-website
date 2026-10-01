@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 import { onRequestGet, onRequestPost } from "../../functions/api/collectors.ts";
 import { issueLinkToken } from "../../functions/_lib/collectors.ts";
 
-/** Endpoint wiring through mock contexts and stubbed fetch (no live Resend).
- * Extensionless imports resolve via the test-only loader. */
+/**
+ * Endpoint wiring tested with mock contexts and a stubbed fetch instead of
+ * live Resend. Extensionless imports resolve through the test-only loader.
+ */
 
 const realFetch = globalThis.fetch;
 let calls = [];
@@ -54,7 +56,7 @@ function emptyList() {
   return okJson({ object: "list", data: [] });
 }
 
-/** Resend stub: empty list, every write succeeds, delete misses. */
+/** Resend stub with an empty list where writes succeed and deletes miss. */
 function stubEmptyList() {
   stubFetch((url, init) => {
     if (url.includes("/segments/")) return emptyList();
@@ -264,7 +266,7 @@ describe("admin count", () => {
 });
 
 describe("dev mock list", () => {
-  /** Empty local table: nobody subscribed yet. */
+  /** Empty local table with no subscribers. */
   function stubCollectorsDb() {
     return {
       prepare: () => ({
@@ -301,12 +303,12 @@ describe("dev mock list", () => {
       mockPostContext({ email: "delivered+join@resend.dev" }),
     );
     assert.equal(res.status, 201);
-    // The real confirm went out through Resend…
+    // The confirmation email went out through Resend,
     const mail = sentEmails().find((m) =>
       m.to.includes("delivered+join@resend.dev"),
     );
     assert.ok(mail, "no real confirm sent to the test address");
-    // …and the loop still completes locally from the same tap.
+    // and the local confirm flow still completes from the same click.
     const data = await res.json();
     assert.match(
       data.devConfirmUrl,

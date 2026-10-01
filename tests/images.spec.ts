@@ -7,10 +7,9 @@ import {
 } from "../src/lib/responsive-images";
 
 /**
- * Image optimization contract: every painting photo serves multiple
- * webp widths (phones never download desktop bytes), the lead gallery
- * image is eager/high-priority (LCP) while the rest lazy-load, and the
- * manifest carries install-ready icons (192 + 512 + maskable).
+ * Each painting photo serves several webp widths so phones get smaller
+ * files. The first gallery image loads eagerly at high priority for LCP and
+ * the rest lazy-load. The manifest includes 192, 512 and maskable icons.
  */
 
 function widths(srcset: string | null): number[] {

@@ -1,5 +1,5 @@
-/** Dev practice overlay: local studio saves land in localStorage, not git.
- * The dashboard merges it over the baked list until cleared. */
+/** Dev practice overlay. Local studio saves go to localStorage instead of
+ * git, and the dashboard merges them over the baked list until cleared. */
 
 import { parsePracticeOverlay } from "./schemas";
 import type { PracticeOverlay, PracticePainting } from "./schemas";
@@ -26,7 +26,7 @@ function store(overlay: PracticeOverlay): void {
   try {
     window.localStorage.setItem(KEY, JSON.stringify(overlay));
   } catch {
-    // Private mode or full storage — practicing still works for this page.
+    // Private mode or full storage. Practice still works on this page.
   }
 }
 

@@ -4,9 +4,9 @@ import tseslint from "typescript-eslint";
 import astro from "eslint-plugin-astro";
 
 /**
- * Lint, scoped for speed: plain recommended sets, no type-aware rules
- * (slow and noisy on .astro — tsc already covers types). Covers src,
- * functions, scripts, and tests; vendored browser bundles stay out.
+ * Recommended rule sets without type-aware rules, which are slow and noisy
+ * on .astro files and duplicate tsc. Covers src, functions, scripts, and
+ * tests, and skips vendored browser bundles.
  */
 export default tseslint.config(
   {
@@ -35,7 +35,7 @@ export default tseslint.config(
     languageOptions: { globals: globals.serviceworker },
   },
   {
-    // Playwright driver scripts: node file, browser callbacks inside.
+    // Playwright scripts run in node but contain browser callbacks.
     files: ["tests/*.spec.ts", "scripts/ar-backfill/run.mjs"],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
@@ -48,7 +48,6 @@ export default tseslint.config(
   },
   {
     rules: {
-      // AI's favorite droppings, caught at the gate instead of in review.
       "no-unused-vars": "off",
       "@typescript-eslint/no-unused-vars": [
         "error",

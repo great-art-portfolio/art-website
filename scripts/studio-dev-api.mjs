@@ -1,24 +1,24 @@
 /**
- * Local studio backend for `pnpm dev:studio`: the same /api/commit +
- * /api/photo contract the Pages Functions serve in production, but backed
- * by the working tree instead of GitHub. Writes land as uncommitted files
- * (review with git, reset with `pnpm studio:reset`) — nothing here ever
- * ships or runs outside localhost dev.
+ * Local studio backend for `pnpm dev:studio`. It serves the same
+ * /api/commit and /api/photo contract as the Pages Functions, backed by the
+ * working tree instead of GitHub. Writes become uncommitted files, which
+ * `pnpm studio:reset` reverts. Dev only.
  *
- * Pure Request/Response handlers over a repo root, so unit tests can drive
- * them with a tmp dir and no socket.
+ * Handlers are plain Request/Response functions over a repo root, so unit
+ * tests can drive them with a temp dir and no socket.
  */
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, resolve, sep } from "node:path";
 
-/** Repo path of the homepage banner (empty file = hidden). */
+/** Repo path of the homepage banner. An empty file hides it. */
 export const BANNER_PATH = "src/content/announcement.txt";
 const PAINTINGS_DIR = "src/content/paintings";
 
 const PAINTING_FILE =
   /^src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9_.-]*\.md$/;
 
-/** Repo paths the studio may write or delete — mirrors functions/api/commit. */
+/** Repo paths the studio may write or delete. Keep in sync with
+ * functions/api/commit. */
 const GALLERY_PATH =
   /^(src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9_.-]*|src\/content\/announcement\.txt|public\/models\/[A-Za-z0-9][A-Za-z0-9_.-]*)$/;
 
@@ -42,7 +42,7 @@ function json(data, init) {
   });
 }
 
-/** Belt and suspenders behind the regex allowlists: never escape root. */
+/** Extra check behind the regex allowlists that a path stays inside root. */
 function withinRoot(root, rel) {
   const resolved = resolve(root, rel);
   return resolved === root || resolved.startsWith(root + sep) ? resolved : null;
@@ -206,10 +206,9 @@ export function createStudioDevApi(root) {
   }
 
   /**
-   * Presence probe: the studio islands call this before deciding practice
-   * (localStorage overlay) vs live (persist through the backend). Only the
-   * sidecar answers `{ local: true }` — production has no such route, so a
-   * missing/negative answer always means practice mode there.
+   * Presence probe. The studio calls this to choose between the practice
+   * overlay and saving through this backend. Production has no such route,
+   * so only this server answers `{ local: true }`.
    */
   async function handleProbe() {
     return json({ local: true });

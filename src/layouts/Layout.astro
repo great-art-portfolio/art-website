@@ -1,7 +1,7 @@
 ---
 import ClientRouter from "astro/components/ClientRouter.astro";
-// Handwritten voice for the pinned studio note (homepage + studio
-// preview). Self-hosted, so it works offline with no tracking.
+// Handwritten font for the pinned studio note. Self-hosted so it works
+// offline and makes no third-party requests.
 import "@fontsource/caveat/600.css";
 import Analytics from "../components/Analytics.astro";
 import Signature from "../components/Signature.astro";
@@ -19,11 +19,11 @@ interface Props {
   image?: string;
   /** "signature" on public pages, "admin" on studio pages. */
   wordmark?: "signature" | "admin";
-  /** Studio previews are for her eyes only — never indexed. */
+  /** Set on studio previews so search engines don't index them. */
   noindex?: boolean;
-  /** Alias pages (old slugs) read under the current slug's path. */
+  /** Canonical path for alias pages served under old slugs. */
   canonical?: string;
-  /** Per-page studio wash — the default warm pool everywhere else. */
+  /** Background wash for studio pages. Other pages use "warm". */
   backdrop?: "warm" | "collection" | "banner" | "metrics" | "guide";
 }
 
@@ -31,14 +31,14 @@ const {
   title = siteTitle(),
   description = "Original nature and abstract paintings, direct from the artist's studio.",
   image = "/apple-touch-icon.png",
-  // "signature" on public pages, "admin" on studio pages.
   wordmark = "signature",
   noindex = false,
   canonical: canonicalOverride,
   backdrop = "warm",
 } = Astro.props;
 
-// One quiet wash per studio page, same layer and opacity as the default.
+// Each studio page gets its own wash, drawn with the same layer and opacity
+// as the default.
 const backdropSrc = (
   {
     warm: background,
@@ -49,15 +49,15 @@ const backdropSrc = (
   } as const
 )[backdrop].src;
 
-// Relative paths: the static build bakes pages with a placeholder origin,
-// so only the path survives the build correctly on every host.
+// Use the path only. The static build renders with a placeholder origin,
+// so a full URL would be wrong on every real host.
 const selfPath =
   Astro.url.pathname.length > 1 ? Astro.url.pathname.replace(/\/$/, "") : "/";
 const canonical = canonicalOverride ?? selfPath;
 const year = new Date().getFullYear();
 const artistLabel = ARTIST_NAME ?? "The Studio";
-// Studio sections live in the header nav now (one nav, not two).
-// Rooms match nothing — they keep every door but mark none current.
+// Maps a studio path to its header nav section. Painting rooms return null,
+// so no section is marked current.
 function adminSection(path: string): string | null {
   const clean = path.length > 1 ? path.replace(/\/$/, "") : path;
   if (clean === "/admin") return "collection";
@@ -109,12 +109,10 @@ const currentSection = adminSection(Astro.url.pathname);
   </head>
   <body>
     <script>
-      // Every page fades in on arrival — View Transitions swaps included.
-      // Opacity only, never movement: the browser snaps swaps entirely
-      // under reduced motion, so this author-run fade is what keeps them
-      // smooth there. (Web Animations aren't covered by the transition
-      // spec's reduced-motion kill the way pseudo-element keyframes are.)
-      // Inline scripts re-run on every swap — wire once.
+      // Fade #main in on every page load and View Transitions swap. Under
+      // reduced motion the browser skips view transitions entirely, and
+      // this Web Animations fade still runs, so swaps stay smooth. Inline
+      // scripts re-run on every swap, so wire this once.
       if (window.__pageFadeWired !== true) {
         window.__pageFadeWired = true;
         document.addEventListener("astro:after-swap", () => {
@@ -194,9 +192,8 @@ const currentSection = adminSection(Astro.url.pathname);
       </nav>
     </header>
     {
-      /* Studio toast: news finds her wherever she is scrolled. Empty
-         means gone entirely (see :empty below); buyer pages never fill
-         it. Moved up from the old second nav so one nav is enough. */
+      /* Studio toast, fixed under the header. It's hidden while empty;
+         only studio pages fill it. */
       wordmark === "admin" && (
         <p id="admin-status" role="status" data-tone="ok" />
       )
@@ -302,17 +299,17 @@ const currentSection = adminSection(Astro.url.pathname);
     }
 
     <script>
-      // Offline support: cached gallery shell + artwork, queued posts.
+      // Service worker: caches the gallery shell and artwork, and queues
+      // posts made offline.
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
           navigator.serviceWorker.register("/sw.js").catch(() => {
-            // Offline mode unavailable — the site still works online.
+            // Offline mode is unavailable. The site still works online.
           });
         });
       }
-      // Optional install: never prompts on its own. Only when the browser
-      // offers installation does a quiet footer button appear — one tap
-      // there shows the browser's own install dialog.
+      // Install is opt-in. When the browser offers installation, a footer
+      // button appears that opens the browser's install dialog.
       window.addEventListener("beforeinstallprompt", (e) => {
         e.preventDefault();
         window.__deferredInstall = e;
@@ -340,16 +337,12 @@ const currentSection = adminSection(Astro.url.pathname);
     </script>
 
     <script>
-      // Collector signup lives in a modal, not a page section: the nav
-      // "Notify me" and hero buttons open it wherever they appear. No
-      // static imports — inline page scripts ship as classic scripts, so
-      // `import` kills the whole block; dynamic import() is bundled fine.
-      // View Transitions keep this module alive across navigations (it
-      // runs once per document), so elements are read live on every use
-      // and wiring runs immediately AND on astro:page-load, guarded so a
-      // double-fire on the same DOM wires nothing twice.
-      // (Inline scripts are plain JS — annotations don't survive astro
-      // check, so this stays annotation-free on purpose.)
+      // Collector signup modal, opened by the nav "Notify me" and hero
+      // buttons. Use dynamic import() only: this block ships as a classic
+      // script, where a static `import` breaks it.
+      // View Transitions keep this script alive across navigations, so
+      // elements are looked up on each use. Wiring runs immediately and on
+      // astro:page-load, guarded against wiring the same DOM twice.
       function notifyPush() {
         return import("../lib/push");
       }
@@ -365,9 +358,10 @@ const currentSection = adminSection(Astro.url.pathname);
         );
       }
 
-      // Status words fade in and out on their own (opacity-only, every motion
-      // setting). A counter drops a late fade-out when a newer message lands;
-      // sticky messages stay until replaced.
+      // Shows a status message that fades in and later out. The fade is
+      // opacity-only so reduced motion keeps it. A counter skips a stale
+      // fade-out when a newer message arrives. Sticky messages stay until
+      // replaced.
       function notifySay(el = document.body, msg = "", sticky = false) {
         const n = Number(el.dataset.say ?? "0") + 1;
         el.dataset.say = String(n);
@@ -376,7 +370,7 @@ const currentSection = adminSection(Astro.url.pathname);
           el instanceof HTMLElement ? el.closest(".status-wrap") : null;
         if (wrap !== null) wrap.classList.toggle("open", msg !== "");
         if (typeof el.animate === "function" && msg !== "") {
-          // A beat behind the unfold, so words arrive once their room exists.
+          // Delayed until the wrapper has unfolded.
           el.animate([{ opacity: 0 }, { opacity: 1 }], {
             duration: 200,
             delay: 100,
@@ -414,19 +408,19 @@ const currentSection = adminSection(Astro.url.pathname);
           if (typeof dlg.showModal === "function") dlg.showModal();
           else dlg.setAttribute("open", "");
         }
-        // Every opening starts fresh: last visit's dead service gets its
-        // button back, and the attempt decides again.
+        // Reset on each open so a push failure from earlier gets retried.
         pushDeadThisVisit = false;
         void paintNotify();
-        // Render the spam check on open (hidden modals mismeasure). No-op twice.
+        // Render Turnstile on open, since it mismeasures inside a hidden
+        // modal. Repeat calls do nothing.
         loadNotifyTurnstile();
         const closeEl = document.getElementById("notify-close");
         const closeBtn = closeEl instanceof HTMLButtonElement ? closeEl : null;
         if (closeBtn !== null) closeBtn.focus();
       }
 
-      // Email capture needs no browser features — wire it once, always on.
-      // Spam: Cloudflare Turnstile when configured, shared with buy form.
+      // Email signup works in every browser. It uses Cloudflare Turnstile
+      // when configured, shared with the inquiry form.
       function wireNotifyEmail() {
         const formEl = document.getElementById("notify-email-form");
         const form = formEl instanceof HTMLFormElement ? formEl : null;
@@ -472,14 +466,10 @@ const currentSection = adminSection(Astro.url.pathname);
                       typeof d.devConfirmUrl === "string" &&
                       d.devConfirmUrl !== ""
                     ) {
-                      // Dev mock list only — nothing but the link: tap
-                      // visits it and finishes the loop locally. (A
-                      // resend.dev test address also rode the true API —
-                      // check Resend's dashboard.) notifySay opens the
-                      // wrap and plays the arrival; the words are then
-                      // swapped for the bare link. Sticky: status lines
-                      // fade after five seconds, and the link must still
-                      // be there when the tester reaches for it.
+                      // Dev mock list only. Show the confirm link so the
+                      // loop can be finished locally. notifySay animates
+                      // the wrapper in, then the text is replaced with the
+                      // link. It's sticky so it doesn't fade before use.
                       notifySay(hint, "open the confirm page", true);
                       hint.textContent = "";
                       const go = document.createElement("a");
@@ -513,7 +503,7 @@ const currentSection = adminSection(Astro.url.pathname);
               notifySay(hint, "That didn't work — try again in a bit.");
             });
         });
-        // Leaving needs no spam check, and always reads done.
+        // Leaving skips the spam check and always reports success.
         const leaveEl = document.getElementById("notify-email-leave");
         const leave = leaveEl instanceof HTMLButtonElement ? leaveEl : null;
         if (leave !== null) {
@@ -545,10 +535,9 @@ const currentSection = adminSection(Astro.url.pathname);
         }
       }
 
-      // Drawer opens repaint while the load-time paint may still await push
-      // state — only the latest run writes. A dead service stands its
-      // button down for this visit only; reopening starts fresh, so no
-      // remembered state and no extra button are needed.
+      // Opening the modal repaints while an earlier paint may still be
+      // waiting on push state, so only the latest run writes. A failed push
+      // service hides the button until the modal is reopened.
       let paintSeq = 0;
       let pushDeadThisVisit = false;
       async function paintNotify() {
@@ -560,7 +549,7 @@ const currentSection = adminSection(Astro.url.pathname);
         const note = noteEl instanceof HTMLElement ? noteEl : null;
         if (btn === null || hint === null) return;
         wireNotifyEmail();
-        // Email works everywhere; the push button only where push can.
+        // Show the push button only where push is supported.
         const run = ++paintSeq;
         const s = await notifyPush().then((api) => api.pushState());
         if (run !== paintSeq) return;
@@ -569,8 +558,8 @@ const currentSection = adminSection(Astro.url.pathname);
           if (blurb !== null) blurb.hidden = true;
           return;
         }
-        // Known dead this visit: the button stands down, the note says
-        // what to check, email carries on.
+        // Push failed earlier in this visit. Hide the button and show the
+        // note on what to check.
         if (pushDeadThisVisit) {
           btn.hidden = true;
           if (blurb !== null) blurb.hidden = true;
@@ -599,9 +588,8 @@ const currentSection = adminSection(Astro.url.pathname);
         }
       }
 
-      // One quiet toast for the signup card (copy confirmations live
-      // here, not in the status line they'd overwrite). Opacity-only, so
-      // every motion setting keeps it.
+      // Toast for the signup card, used for copy confirmations so they
+      // don't overwrite the status line.
       let notifyToastTimer = 0;
       function notifyToast(msg = "") {
         const toastEl = document.getElementById("notify-toast");
@@ -615,9 +603,8 @@ const currentSection = adminSection(Astro.url.pathname);
           toast.textContent = "";
         }, 2500);
       }
-      // Tap the status line to copy it; a toast says it landed. Every
-      // real deployment is a secure context, so the Clipboard API is
-      // always there — otherwise selecting the words by hand still works.
+      // Copies the status line and confirms with a toast. The Clipboard API
+      // needs a secure context. Without it, the text can still be selected.
       function copyNotifyStatus(hint = document.body) {
         const text = (hint.textContent ?? "").trim();
         if (text === "") return;
@@ -655,18 +642,16 @@ const currentSection = adminSection(Astro.url.pathname);
         const dlg = dlgEl instanceof HTMLDialogElement ? dlgEl : null;
         if (dlg !== null && dlg.dataset.wired !== "1") {
           dlg.dataset.wired = "1";
-          // Tapping the backdrop dismisses, like the × button — but a
-          // drag-select that spills past the card edge must not. That
-          // drag fires a click on the dialog itself, so skip it while
-          // any text stands selected.
+          // A backdrop tap closes the modal. A text selection dragged past
+          // the card edge also fires a click on the dialog, so ignore clicks
+          // while text is selected.
           dlg.addEventListener("click", (e) => {
             if (e.target !== dlg) return;
             const sel = window.getSelection();
             if (sel !== null && sel.toString() !== "") return;
             dlg.close();
           });
-          // Tapping the status line copies it — selecting it by hand is
-          // fiddly in a card, so a tap plus a toast does the job.
+          // Selecting text by hand is fiddly in the card, so a tap copies it.
           const hintEl = document.getElementById("notify-status");
           const hint = hintEl instanceof HTMLElement ? hintEl : null;
           if (hint !== null && hint.dataset.copyWired !== "1") {
@@ -686,17 +671,14 @@ const currentSection = adminSection(Astro.url.pathname);
                   if (state === "subscribed") {
                     void api.unsubscribePush().then(() => void paintNotify());
                   } else {
-                    // Sticky: the browser's permission popup can sit open
-                    // past the normal fade, and the verdict below replaces
-                    // this either way.
+                    // Sticky because the permission prompt can stay open
+                    // past the normal fade. The result replaces it.
                     if (hint !== null)
                       notifySay(hint, "Waiting for your browser…", true);
-                    // Repaint first, then report: painting clears the
-                    // "Waiting…" line, and the verdict below survives
-                    // because nothing runs after it.
+                    // Repaint before reporting. The repaint clears the
+                    // "Waiting…" line, and the result is written last.
                     void api.subscribePush().then(async (result) => {
-                      // A dead service stands down for this visit — the
-                      // paint shows the note, so no verdict is needed.
+                      // The repaint shows the push-service note instead.
                       if (result === "nopushservice") {
                         pushDeadThisVisit = true;
                         await paintNotify();
@@ -712,7 +694,7 @@ const currentSection = adminSection(Astro.url.pathname);
                       } else if (result === "cancelled") {
                         notifySay(hint, "Request cancelled.");
                       } else if (result === "blocked") {
-                        // paintNotify already said it, in plain words.
+                        // paintNotify already shows the message.
                       } else if (result === "unavailable") {
                         notifySay(
                           hint,
@@ -751,19 +733,18 @@ const currentSection = adminSection(Astro.url.pathname);
     --muted: #756a5c;
     --line: #e5dccb;
     --accent: #a44a24;
-    /* Wide-gamut screens get the same clay with more chroma — computed
-       same-hue in Oklch, verified against the system color engine.
+    /* Same hue with more chroma on wide-gamut screens, computed in Oklch.
        Older browsers keep the hex above. */
     --accent: color(display-p3 0.622 0.289 0.133);
     --accent-ink: #ffffff;
-    /* Primary buttons: clay on light (an ink slab reads pitch black
-       against cream), light-on-dark ink everywhere else. */
+    /* Primary buttons use clay in the light theme, since an ink fill looks
+       pitch black against cream. */
     --primary: #a44a24;
     --primary: color(display-p3 0.622 0.289 0.133);
     --primary-ink: #ffffff;
     --primary-hover: color-mix(in srgb, #a44a24 80%, black);
-    /* Delete hover only: a soft clay red, clearly not the brand
-       orange and nowhere near alarm red. */
+    /* Delete hover only. Distinct from the accent without reading as an
+       alarm. */
     --danger: #b35545;
     --card: #fffdf8;
     --wash: radial-gradient(120% 60% at 50% -10%, #f1e7d4 0%, transparent 60%);
@@ -773,9 +754,8 @@ const currentSection = adminSection(Astro.url.pathname);
   html {
     scroll-behavior: smooth;
   }
-  /* Reserve the scrollbar gutter on every page: the gallery scrolls (gutter
-     present) while a short painting page may not (gutter absent), and that
-     appear/disappear is what nudges the centered header + footer sideways. */
+  /* Reserve the scrollbar gutter so the centered header and footer don't
+     shift between pages that scroll and pages that don't. */
   html {
     scrollbar-gutter: stable;
   }
@@ -843,15 +823,15 @@ const currentSection = adminSection(Astro.url.pathname);
     justify-content: space-between;
     gap: 1rem;
   }
-  /* Optical left-align: the script's hairline lead-in sits ~5px inboard of
-     the SVG edge at rendered size, so the heavy stroke starts right of the
-     content edge. This pulls the visual weight back onto it. */
+  /* Optical alignment. The signature's thin lead-in starts about 5px inside
+     the SVG edge, so shift it left to line the heavy stroke up with the
+     content edge. */
   #signature {
     display: inline-flex;
     color: var(--ink);
     margin-left: -0.25rem;
   }
-  /* Logo sizing lives in Signature.astro (scoped CSS here can't reach it). */
+  /* Logo sizing is in Signature.astro, since scoped CSS here can't reach it. */
   .nav-links {
     display: flex;
     align-items: center;
@@ -907,9 +887,8 @@ const currentSection = adminSection(Astro.url.pathname);
     white-space: nowrap;
     flex-shrink: 0;
   }
-  /* The studio "Notify me" is a button wearing the link style — it
-     opens the signup modal instead of scrolling anywhere. Same
-     transitions as the links, or its hover snaps instead of fading. */
+  /* "Notify me" is a button styled as a link because it opens the signup
+     modal. It needs the links' transitions so its hover fades too. */
   .nav-links button.nav-cta {
     font: inherit;
     background: transparent;
@@ -928,19 +907,17 @@ const currentSection = adminSection(Astro.url.pathname);
     outline-offset: 3px;
     border-radius: 0.35rem;
   }
-  /* The open studio section reads current: full strength with its
-     underline on, no pill, no color flash. */
+  /* Current studio section: full strength with the underline shown. */
   .nav-links a[aria-current="page"] {
     opacity: 1;
     text-decoration-color: currentColor;
   }
-  /* Way home shrinks to its arrow on phones; the word returns on
-     wider screens. */
+  /* The home link shows only its arrow on phones. */
   #leave-admin .leave-short {
     display: none;
   }
-  /* Studio toast, fixed under the sticky header: news finds her
-     wherever she is scrolled. Empty (no message) means gone entirely. */
+  /* Studio toast, fixed under the sticky header so it's visible at any
+     scroll position. Hidden while empty. */
   #admin-status {
     position: fixed;
     left: 50%;
@@ -952,16 +929,14 @@ const currentSection = adminSection(Astro.url.pathname);
     padding: 0.8rem 1.1rem;
     border-radius: var(--radius);
     border: 1px solid var(--line);
-    /* Inverted and fully solid: it floats over busy page content, so a
-       card-colored pill lets the page bleed through behind the words. */
+    /* Inverted and opaque so page content doesn't show through. */
     background: var(--ink);
     color: var(--paper);
     font-size: 0.95rem;
     box-shadow: var(--shadow);
   }
-  /* Opacity-only, both directions: a fade-in on every new message
-     (re-triggered from the panel) and a fade-out on its way away.
-     No travel — so it runs under every motion setting. */
+  /* Opacity-only fades in and out, so they run under reduced motion. The
+     panel re-triggers the fade-in for each new message. */
   #admin-status.toast-in {
     animation: toast-in 0.25s ease;
   }
@@ -981,7 +956,7 @@ const currentSection = adminSection(Astro.url.pathname);
     display: none;
   }
 
-  /* Collector signup modal: one small card, dimmed page behind. */
+  /* Collector signup modal. */
   #notify-dialog {
     border: 1px solid var(--line);
     border-radius: 1rem;
@@ -1005,12 +980,10 @@ const currentSection = adminSection(Astro.url.pathname);
     color: var(--muted);
     font-size: 0.95rem;
   }
-  /* One shared status line for both signup paths, in the theme's
-     accent so it reads as a response, not more body copy. No space is
-     reserved: the wrapper unfolds with a grid-rows animation and the
-     words fade in on a beat behind it, so text only appears once its
-     room exists. Reduced motion skips the unfold; the opacity fade
-     still runs. */
+  /* Shared status line for email and push signup, in the accent color so
+     it reads as a response. The wrapper unfolds with a grid-rows animation
+     and the text fades in after it. Reduced motion skips the unfold but
+     keeps the fade. */
   #notify-dialog .status-wrap {
     display: grid;
     grid-template-rows: 0fr;
@@ -1036,24 +1009,21 @@ const currentSection = adminSection(Astro.url.pathname);
       transition: none;
     }
   }
-  /* The dead-service note speaks in the status line's accent voice and,
-     unlike status words, never fades — acting on it means leaving for
-     the browser's settings and coming back. */
+  /* The push-service note uses the accent color and doesn't fade, since
+     acting on it means visiting the browser's settings and coming back. */
   #notify-dialog #notify-push-note {
     margin: 0.6rem 0 0;
     font-size: 0.9rem;
     line-height: 1.5;
     color: var(--accent);
   }
-  /* The status line taps to copy, so it wears the copy pointer. The
-     toast floats over the card's foot — opacity-only, in every motion
-     setting — and takes no clicks. */
+  /* Tapping the status line copies it, so it gets the copy cursor. The
+     toast overlays the bottom of the card and ignores clicks. */
   #notify-dialog #notify-status {
     cursor: copy;
   }
-  /* The dev confirm rides as a link, not words — same ink, underlined,
-     and a real pointer instead of the copy one. Whole-selector global:
-     the anchor is script-built and never carries Astro's scope attr. */
+  /* The dev confirm link. It's built by script and lacks Astro's scope
+     attribute, so the whole selector is global. */
   :global(#notify-dialog #notify-status a) {
     color: inherit;
     text-decoration: underline;
@@ -1080,10 +1050,9 @@ const currentSection = adminSection(Astro.url.pathname);
   #notify-dialog .toast.show {
     opacity: 1;
   }
-  /* The × floats in the top-right corner instead of owning a full
-     row, so the title starts at the card's own padding. The heading
-     keeps a matching gutter on the right so long titles never slide
-     under the button. */
+  /* The close button sits in the top-right corner instead of its own row.
+     The heading keeps a matching right gutter so long titles don't run
+     under it. */
   #notify-dialog {
     position: relative;
   }
@@ -1160,7 +1129,7 @@ const currentSection = adminSection(Astro.url.pathname);
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
-  /* Author display beats the UA [hidden] rule — re-hide. */
+  /* The author display rule overrides the UA [hidden] rule, so re-hide. */
   #notify-dialog #notify-btn[hidden],
   #notify-dialog #notify-push-blurb[hidden] {
     display: none;
@@ -1170,23 +1139,19 @@ const currentSection = adminSection(Astro.url.pathname);
     padding-top: 1.25rem;
     border-top: 1px solid var(--line);
   }
-  /* Email field takes the full row; Join and Leave share the row below
-     it as equal halves (Join first — the primary action reads first in
-     LTR). Halves wrap stacked on widths where side-by-side would
-     squeeze the words. */
+  /* The email field takes a full row. Join and Leave split the row below
+     it, and stack when there isn't room for both. */
   #notify-dialog .email-capture form {
     display: flex;
     flex-wrap: wrap;
-    /* Roomier above the buttons than between them — the pair should
-       breathe below the field, not crowd it. */
+    /* More space above the buttons than between them. */
     column-gap: 0.5rem;
     row-gap: 1rem;
     align-items: end;
   }
-  /* The spam-check mount shares the button row: empty (no keys in dev)
-     it still eats one gap's worth of space to the pair's left, so hide
-     it until the widget moves in. With a widget, it takes its own full
-     row so the buttons always share theirs. */
+  /* The Turnstile mount is in the button row. Empty, it would still take
+     a gap's worth of space, so hide it until the widget loads. Once
+     loaded, it takes a full row of its own. */
   #notify-dialog #notify-turnstile-mount {
     flex: 1 1 100%;
     min-width: 0;
@@ -1204,11 +1169,11 @@ const currentSection = adminSection(Astro.url.pathname);
   }
   #notify-dialog .email-capture .btn-ghost {
     flex: 1 1 9rem;
-    /* Fixed (not min) height: the emoji fattens the line box past 3rem,
-       so min-height alone leaves this button 4px taller than the field. */
+    /* Fixed height, not min-height. The emoji makes the line box taller
+       than 3rem, which would leave the button 4px taller than the field. */
     height: 3rem;
-    /* Narrower than the modal default, with a real gap so the emoji
-       never rides against the words. */
+    /* Narrower padding than the modal default, with a gap between the
+       emoji and the text. */
     padding-left: 1rem;
     padding-right: 1rem;
     gap: 0.4rem;
@@ -1223,7 +1188,7 @@ const currentSection = adminSection(Astro.url.pathname);
     color: var(--ink);
     width: 100%;
     box-sizing: border-box;
-    /* Same 3rem height as the button beside it: equal boxes, one row. */
+    /* Matches the 3rem height of the button beside it. */
     min-height: 3rem;
     transition: border-color 0.2s ease;
   }
@@ -1236,15 +1201,15 @@ const currentSection = adminSection(Astro.url.pathname);
     outline-offset: 1px;
   }
   @media (max-width: 38rem) {
-    /* The studio keeps its way home: .keep links stay visible. */
+    /* .keep links, such as the studio home link, stay visible. */
     .nav-links a:not(.nav-cta):not(.keep) {
       display: none;
     }
     .site-nav {
       padding: 0.7rem 0.75rem;
       gap: 0.4rem;
-      /* Wide fallback fonts (CI's DejaVu overflows a 390px row by ~13px)
-         wrap the links below the wordmark instead of scrolling sideways. */
+      /* Wrap instead of scrolling sideways. Wide fallback fonts such as
+         DejaVu in CI overflow a 390px row by about 13px. */
       flex-wrap: wrap;
     }
     #signature {
@@ -1252,15 +1217,13 @@ const currentSection = adminSection(Astro.url.pathname);
     }
     .nav-links {
       gap: 0.5rem;
-      /* Five sections plus the CTA no longer fit one 390px row — wrap
-         instead of scrolling sideways. */
+      /* Five sections plus the CTA don't fit a 390px row, so wrap. */
       flex-wrap: wrap;
       row-gap: 0.35rem;
     }
-    /* Studio sections sit their own row below the wordmark: smaller
-       words, arrow-only way home, CTA at the end. One row proved
-       font-fragile (CI's DejaVu overflowed 390px by 13px), so the row
-       wraps instead of scrolling sideways. */
+    /* Studio sections get their own row below the wordmark, with smaller
+       text and the CTA at the end. The row wraps because wide fallback
+       fonts overflow 390px. */
     .nav-links a.sec {
       font-size: 0.8rem;
     }
@@ -1285,8 +1248,8 @@ const currentSection = adminSection(Astro.url.pathname);
     object-fit: cover;
     opacity: 0.35;
     pointer-events: none;
-    /* Slow ambient drift — transform-only, so it never triggers repaints.
-       prefers-reduced-motion switches it off (see below). */
+    /* Slow ambient drift. Transform-only to avoid repaints. Reduced motion
+       turns it off below. */
     animation: blob-drift 42s ease-in-out infinite alternate;
     will-change: transform;
   }
@@ -1329,8 +1292,8 @@ const currentSection = adminSection(Astro.url.pathname);
     outline-offset: 2px;
     border-radius: 0.25rem;
   }
-  /* Quiet install option: reads as footer text until tapped. The "· "
-     lives outside the underline span so the hover line starts at the I. */
+  /* Install option styled as footer text. The "· " sits outside the
+     underline span so the hover underline starts at the I. */
   #install-app {
     font: inherit;
     color: var(--accent);
@@ -1383,9 +1346,8 @@ const currentSection = adminSection(Astro.url.pathname);
       opacity: 0.22;
     }
   }
-  /* Older eyes asked for this one: secondary text goes full ink and
-     hairlines darken past decoration into structure. Unsupported
-     browsers ignore the query and keep the softer theme. */
+  /* Higher contrast on request: secondary text uses full ink and hairlines
+     darken. */
   @media (prefers-contrast: more) {
     :root {
       --muted: var(--ink);
@@ -1397,17 +1359,15 @@ const currentSection = adminSection(Astro.url.pathname);
       }
     }
   }
-  /* One arrival fade only: #main runs its own 220ms opacity fade, so
-     the View Transitions default root crossfade stays off — otherwise
-     the two multiply into a visible dip and drag the settled header
-     and backdrop along with the content. */
+  /* Disable the default root crossfade. #main runs its own 220ms fade,
+     and the two together cause a visible dip that also fades the header
+     and backdrop. */
   ::view-transition-old(root),
   ::view-transition-new(root) {
     animation: none;
   }
-  /* Reduced motion kills movement, not gentle fades: the background
-     drift stops and lifts come off, while color and underline
-     transitions still run. */
+  /* Reduced motion stops the background drift and hover lifts. Color and
+     underline transitions still run. */
   @media (prefers-reduced-motion: reduce) {
     html {
       scroll-behavior: auto;

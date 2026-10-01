@@ -1,8 +1,8 @@
 import type { AppEnv } from "./env";
 import { parseJwk } from "./validation";
 
-/** Payload-free Web Push ("tickle"): the server pings, the service worker
- * fetches the latest painting and shows it. No payload encryption needed. */
+/** Payload-free Web Push. The server sends an empty push and the service
+ * worker fetches what to show, so no payload encryption is needed. */
 
 export interface StoredSubscription {
   endpoint: string;
@@ -86,7 +86,7 @@ export async function sendTickle(
     console.error("push fetch failed", err);
     return "retry";
   }
-  if (res.status === 404 || res.status === 410) return "gone"; // Expired — delete it.
+  if (res.status === 404 || res.status === 410) return "gone"; // Expired subscription.
   if (!res.ok)
     console.error("push service error", res.status, await res.text());
   return res.ok ? "sent" : "retry";
@@ -111,8 +111,8 @@ export async function listSubscriptions(
   return res.results ?? [];
 }
 
-/** How many browsers a ping reaches. The count rides along so the Ping
- * button can ask first — and the fan-out below goes out in batches. */
+/** How many browsers a ping reaches. The Ping button shows it when asking
+ * for confirmation. */
 export async function countSubscriptions(env: AppEnv): Promise<number> {
   const row = await env.DB.prepare(
     "SELECT COUNT(*) AS total FROM push_subscriptions",
@@ -122,9 +122,9 @@ export async function countSubscriptions(env: AppEnv): Promise<number> {
   return row?.total ?? 0;
 }
 
-/** Browsers pinged per Worker call. One call only carries about 50
- * subrequests on the free allowance, and each ping is one — 40 leaves
- * room to spare. Big lists walk cursor by cursor. */
+/** Browsers pinged per Worker call. The free plan allows about 50
+ * subrequests per call and each ping uses one, so 40 leaves headroom.
+ * Larger lists are paged by cursor. */
 export const TICKLE_BATCH = 40;
 
 export async function removeSubscription(
@@ -136,9 +136,9 @@ export async function removeSubscription(
     .run();
 }
 
-/** Custom ping title + line the next tickle shows. Tickles carry no
- * payload (no encryption), so the service worker fetches this when one
- * arrives; empties mean the standard title and note. One row, ever. */
+/** Stores the custom title and text for the next ping. Pings carry no
+ * payload, so the service worker fetches this when one arrives. Blank
+ * values mean the standard title and note. The table holds one row. */
 export async function savePushMessage(
   env: AppEnv,
   body: string,
@@ -166,9 +166,9 @@ export async function readPushMessage(env: AppEnv): Promise<PushCopy> {
   return { body: row?.body ?? "", title: row?.title ?? "" };
 }
 
-/** Default gap between browser ping fan-outs, so a repeated tap can't
- * spam subscribers. Overridable per environment via PUSH_COOLDOWN_S
- * (seconds); empty pings (nobody subscribed) never count. */
+/** Default minimum gap between pings, so repeated taps can't spam
+ * subscribers. Override with PUSH_COOLDOWN_S in seconds. Pings with no
+ * subscribers don't start the cooldown. */
 export const DEFAULT_PUSH_COOLDOWN_MS = 5 * 60 * 1000;
 
 export function pushCooldownMs(env: AppEnv): number {

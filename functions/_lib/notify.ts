@@ -1,11 +1,12 @@
 import type { AppEnv } from "./env";
 
 /**
- * Buyer-inquiry notifications.
+ * Email and inquiry notifications.
  *
- * One-to-one mail (inquiries, confirmations, goodbyes) goes transactional;
- * new-painting broadcasts go to a Resend segment via the Broadcasts API.
- * Inquiry phone pings are Pushover-only and optional.
+ * One-to-one mail (inquiries, confirmations, goodbyes) is sent as
+ * transactional email. New-painting broadcasts go to a Resend segment
+ * through the Broadcasts API. Inquiry phone alerts use Pushover and are
+ * optional.
  */
 
 export interface InquiryAlert {
@@ -21,24 +22,22 @@ export interface NotifyResult {
   pushed: boolean;
 }
 
-/** Buyer inquiries land here; broadcast replies return here. */
+/** Inbox for buyer inquiries and broadcast replies. */
 export function artistInbox(env: AppEnv): string {
   return env.ARTIST_INBOX ?? "";
 }
 
 /**
- * The address mail goes out from, as the artist. Falls back to the
- * Resend onboarding identity (which only reaches the Resend account
- * email).
+ * The artist's sending address. Falls back to the Resend onboarding
+ * identity, which can only deliver to the Resend account email.
  */
 export function artistSender(env: AppEnv): string {
   return env.ARTIST_SENDER ?? "Gallery <onboarding@resend.dev>";
 }
 
 /**
- * Every email the site sends, composed here as plain text next to its
- * sending — copy changes never touch delivery, and unit tests pin the
- * words (including the sign-off and the unsubscribe link).
+ * Composes the inquiry email as plain text. Email copy lives in this module,
+ * separate from delivery, and unit tests pin the wording.
  */
 export function inquiryEmail(alert: InquiryAlert): {
   subject: string;
@@ -95,7 +94,7 @@ export async function sendInquiryNotifications(
   const [emailed, pushed] = await Promise.all([
     sendSiteEmail(env, {
       to: [artistInbox(env)],
-      // Hitting reply answers the buyer directly.
+      // Replies go straight to the buyer.
       replyTo: alert.buyerEmail,
       subject,
       text,
@@ -126,22 +125,21 @@ export function resendHeaders(env: AppEnv): Record<string, string> {
   };
 }
 
-/**
-/** The Resend segment holding the new-painting list. Empty = list off. */
+/** The Resend segment holding the new-painting list. Empty disables the
+ * list. */
 export function segmentId(env: AppEnv): string {
   return env.RESEND_SEGMENT_ID ?? "";
 }
 
-/** Resend's safe test addresses (delivered@, bounced@, complained@…,
- * all resend.dev, labels allowed). These run the true API without
- * touching anyone's reputation — the only addresses that may leave
- * a dev machine, and only with a key present. Never example.com:
- * Resend 422s those outright. */
+/** Resend's test addresses at resend.dev (delivered@, bounced@, and so on,
+ * with +labels allowed). They exercise the real API without affecting
+ * sender reputation, so dev may send to them when a key is present.
+ * Resend rejects example.com addresses with a 422. */
 export function isResendTestAddress(email: string): boolean {
   return /^[A-Za-z0-9._%+-]+@resend\.dev$/i.test(email.trim());
 }
 
-/** The one Resend call everything funnels through. */
+/** Sends one email through Resend. All site email goes through here. */
 export async function sendSiteEmail(
   env: AppEnv,
   mail: SiteEmail,
@@ -171,7 +169,7 @@ interface SegmentContact {
   unsubscribed: boolean;
 }
 
-/** Every contact on the segment. Empty when unconfigured or on failure. */
+/** All contacts on the segment. Empty when unconfigured or on failure. */
 export async function listSegmentContacts(
   env: AppEnv,
 ): Promise<SegmentContact[]> {
@@ -210,7 +208,8 @@ export async function countSegmentContacts(env: AppEnv): Promise<number> {
   return (await listSegmentContacts(env)).length;
 }
 
-/** True when the address is already subscribed (rejoining sends nothing). */
+/** True when the address is already subscribed, so rejoining sends
+ * nothing. */
 export async function isConfirmedContact(
   env: AppEnv,
   email: string,
@@ -220,10 +219,8 @@ export async function isConfirmedContact(
   );
 }
 
-/** Her words, trimmed and capped — an email can't be unsent, so
- * overlong input shrinks instead of failing. Blank fields fall back to
- * the standard note field-by-field (a subjectless send helps no one).
- */
+/** Broadcast subject and body are trimmed and truncated to these limits
+ * rather than rejected. Blank fields fall back to the standard text. */
 export const MAX_BROADCAST_SUBJECT = 200;
 export const MAX_BROADCAST_BODY = 2000;
 
@@ -239,9 +236,9 @@ export function cleanBroadcastBody(value: unknown): string {
     : "";
 }
 
-/** The standard note she edits from. The sign-off and the unsubscribe
- * live in the composer below, never in an input — she asked never to
- * touch them, so every send carries them whatever she writes. */
+/** The standard broadcast text. The sign-off and unsubscribe link are added
+ * by the composer below rather than being editable, so every send has
+ * them. */
 export function broadcastDefaults(site: string): {
   subject: string;
   body: string;
@@ -252,7 +249,7 @@ export function broadcastDefaults(site: string): {
   };
 }
 
-/** Her draft, resolved against the standard note. */
+/** Fills blank draft fields from the standard text. */
 export function resolveBroadcastCopy(
   site: string,
   subject: unknown,
@@ -267,8 +264,7 @@ export function resolveBroadcastCopy(
   };
 }
 
-/** The custom line inside the styled body — buyer-invisible escaping,
- * so her words can't break the markup (or smuggle any in). */
+/** Escapes text for the HTML body so it can't break or inject markup. */
 export function escapeHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
@@ -277,13 +273,11 @@ export function escapeHtml(text: string): string {
     .replace(/"/g, "&quot;");
 }
 
-/** One template for the whole segment; the exit is Resend's placeholder.
- * The text stays plain (inboxes still render it); the styled body dresses
- * the same words in the gallery's paper-and-clay for clients that render
- * HTML — her subject as the headline, her line breaks kept, the fixed
- * first-name sign-off, and the unsubscribe. No nameplate: the From line
- * already says who it's from. Her subject and body arrive pre-cleaned;
- * the sign-off and unsubscribe never come from input. */
+/** Builds the broadcast email for the whole segment, with Resend's
+ * unsubscribe placeholder. The text part is plain. The HTML part uses the
+ * gallery's colors, shows the subject as a headline, and keeps line
+ * breaks. Subject and body must already be cleaned. The sign-off and
+ * unsubscribe are fixed, not taken from input. */
 export function segmentBroadcastEmail(
   site: string,
   subject: unknown = "",
@@ -320,9 +314,8 @@ export function segmentBroadcastEmail(
   return { subject: copy.subject, text, html };
 }
 
-/** Broadcast to the whole segment in one call. False when unconfigured.
- * Her subject and body ride along; blanks fall back to the standard
- * note field-by-field. */
+/** Broadcasts to the whole segment in one call. Returns false when
+ * unconfigured. Blank fields fall back to the standard text. */
 export async function sendSegmentBroadcast(
   env: AppEnv,
   site: string,
@@ -363,7 +356,7 @@ export async function sendSegmentBroadcast(
   }
 }
 
-/** Confirming creates the contact in the segment (or re-adds it). */
+/** Adds the confirmed contact to the segment, or re-adds it. */
 export async function syncContactSubscribed(
   env: AppEnv,
   email: string,

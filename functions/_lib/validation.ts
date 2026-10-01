@@ -1,8 +1,8 @@
-/** Runtime schemas for the Functions boundaries. Validate once at the edge;
- * handlers work with inferred types instead of casts. */
+/** Runtime schemas for the Functions boundaries. Input is validated once at
+ * the edge, and handlers use the inferred types instead of casts. */
 import { z } from "zod";
 
-/** GitHub `contents` answer for a single file. */
+/** GitHub `contents` response for a single file. */
 const githubFileSchema = z.object({
   content: z.string().optional(),
   encoding: z.string().optional(),
@@ -15,7 +15,7 @@ export function parseGitHubFile(raw: unknown): GitHubFile | null {
   return result.success ? result.data : null;
 }
 
-/** GitHub `contents` answer for a directory listing. */
+/** GitHub `contents` response for a directory listing. */
 const githubDirEntrySchema = z.object({ name: z.string().optional() });
 
 export function parseGitHubDir(
@@ -30,8 +30,9 @@ export function parseGitHubDir(
   return entries;
 }
 
-/** Admin commit POST body (the sidecar mirrors this contract). Wrong-typed
- * fields fall back to empty; only a non-object body is invalid JSON. */
+/** Admin commit POST body. The local content API accepts the same shape.
+ * Fields of the wrong type fall back to empty. Only a non-object body is
+ * rejected. */
 const commitBodySchema = z.object({
   message: z.string().catch(""),
   files: z
@@ -56,7 +57,7 @@ export function parseCommitBody(raw: unknown): CommitBody | null {
   };
 }
 
-/** VAPID private key for push signing — all five EC fields required. */
+/** VAPID private key for push signing. All five EC fields are required. */
 const jwkSchema = z.object({
   kty: z.string(),
   crv: z.string(),
@@ -68,14 +69,14 @@ const jwkSchema = z.object({
 export function parseJwk(raw: unknown): JsonWebKey | null {
   const result = jwkSchema.safeParse(raw);
   if (!result.success) return null;
-  // Exactly the five EC strings crypto.subtle.importKey("jwk") needs —
-  // structurally a JsonWebKey, no cast.
+  // The five EC fields crypto.subtle.importKey("jwk") needs. The type is
+  // structurally a JsonWebKey, so no cast is needed.
   return result.data;
 }
 
-/** Push subscribe / unsubscribe POST bodies. Endpoints must be https
- * (and parseable — the VAPID audience reads the origin); keys ride
- * along as strings when the browser sends them. */
+/** Push subscribe and unsubscribe POST bodies. Endpoints must be valid
+ * https URLs because the VAPID audience uses their origin. Keys are
+ * strings when the browser sends them. */
 const pushSubscribeSchema = z.object({
   subscription: z.object({
     endpoint: z.string().refine(

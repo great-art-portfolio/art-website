@@ -19,11 +19,11 @@ import {
   type StoredSubscription,
 } from "../_lib/push";
 
-/** Admin: ping collectors. { push: false } / { email: false } send one side
- * only; both default on. { push: { body } } stores a custom line the
- * ping shows instead of the standard note. Repeat Ping taps within the
- * cooldown answer 429; empty pings and publish alerts never count.
- * Missing channels skip quietly. */
+/** Admin: notifies collectors. Both channels default on, and
+ * { push: false } or { email: false } sends only one. { push: { body } }
+ * replaces the standard ping text. Repeat pings within the cooldown get a
+ * 429. Publish alerts and pings that reach no one don't start the
+ * cooldown. Unconfigured channels are skipped. */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   const denied = requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
@@ -43,15 +43,14 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     let nextCursor: number | null = null;
     if (wantPush) {
       const pushOpt = body["push"];
-      // Object form is the standalone Ping button; plain booleans are
-      // publish alerts, which always go through (email especially).
+      // An object comes from the Ping button. A boolean is a publish alert,
+      // which skips the cooldown.
       const isTickle = typeof pushOpt === "object" && pushOpt !== null;
       let subs: StoredSubscription[];
       if (isTickle) {
-        // One Worker call only carries ~50 subrequests, so big lists walk
-        // cursor by cursor — the button loops until nextCursor comes back
-        // null. Only the first batch stores the line and stamps the
-        // cooldown; continuations (cursor > 0) are the same ping.
+        // A Worker call allows about 50 subrequests, so large lists are
+        // paged by cursor until nextCursor is null. Only the first batch
+        // stores the text and starts the cooldown.
         const tickle = pushOpt as Record<string, unknown>;
         const cursor = Math.max(
           0,
@@ -65,7 +64,8 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
           const title = String(tickle["title"] ?? "")
             .trim()
             .slice(0, 80);
-          // A missing table (DB not yet migrated) must not eat the ping.
+          // If the table is missing because the DB isn't migrated, still
+          // send the ping.
           await savePushMessage(context.env, line, title).catch(
             (err: unknown) => console.error("push message store failed", err),
           );
@@ -82,7 +82,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
                 { status: 429 },
               );
             }
-            // Stamp before fanning out so a double tap can't slip through.
+            // Stamp before sending so a double tap can't send twice.
             await stampPushAt(context.env);
           }
         }
@@ -100,7 +100,8 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
             gone += 1;
             await removeSubscription(context.env, sub.endpoint);
           } else if (result === "retry") failed += 1;
-          // "unconfigured" shouldn't happen (button hidden) — count as failed.
+          // "unconfigured" is unexpected here since the button is hidden.
+          // Count it as failed.
           else failed += 1;
         }),
       );
@@ -109,8 +110,8 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     let emailTotal = 0;
     if (wantEmail) {
       const site = context.env.SITE_URL ?? "https://barbart.ca";
-      // Object form is the Email page send with her subject and body;
-      // plain booleans send the standard note.
+      // An object comes from the Email page with a custom subject and body.
+      // A boolean sends the standard text.
       const emailOpt = body["email"];
       const emailCopy =
         typeof emailOpt === "object" && emailOpt !== null
@@ -140,16 +141,14 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   }
 };
 
-/** Admin: push subscriber count plus the exact email a send would
- * deliver — the Email preview reads it, so what she sees is what
- * buyers get. */
+/** Admin: push subscriber count plus the email a send would deliver, for
+ * the Email page preview. */
 export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
   const denied = requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
   try {
     const site = context.env.SITE_URL ?? "https://barbart.ca";
-    // The preview carries her draft subject and body as she types, so
-    // what she reads is what the send delivers.
+    // The preview request includes the draft subject and body.
     const params = new URL(context.request.url).searchParams;
     const { subject, text, html } = segmentBroadcastEmail(
       site,

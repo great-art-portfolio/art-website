@@ -1,9 +1,8 @@
 import { expect, test } from "@playwright/test";
 
 /**
- * Banner lifecycle e2e — her actual workflow, minus the GitHub push:
- * the commit POST is intercepted and its payload asserted, so no test
- * can ever publish a real banner.
+ * Banner lifecycle e2e. The commit POST is intercepted and its payload
+ * asserted, so these tests don't publish a real banner.
  */
 
 const flags = {
@@ -14,7 +13,7 @@ const flags = {
   push: false,
 };
 
-/** Local YYYY-MM-DD, same clock the site uses. */
+/** Local YYYY-MM-DD, matching the site's clock. */
 function localToday(offsetDays = 0): string {
   const d = new Date(Date.now() + offsetDays * 24 * 60 * 60 * 1000);
   const pad = (n: number): string => (n < 10 ? "0" : "") + n;
@@ -28,8 +27,8 @@ test("studio banner form offers lifetimes and saves with an expiry", async ({
     message: string;
     files: Array<{ path: string; contentBase64: string }>;
   } | null = null;
-  // Reads go through the closure: assigning the untyped post body
-  // inside the route narrows direct reads to never.
+  // Read through the closure. Assigning the untyped body inside the route
+  // would narrow direct reads to `never`.
   const sent = (): typeof posted => posted;
   await page.route("**/api/commit*", async (route) => {
     if (route.request().method() === "POST") {
@@ -48,7 +47,7 @@ test("studio banner form offers lifetimes and saves with an expiry", async ({
   await expect(page.locator("#announce-meta")).toContainText("No banner", {
     timeout: 15_000,
   });
-  // Nothing to remove: the button stays out of the way.
+  // With no banner, there is nothing to remove.
   await expect(page.locator("#announce-clear")).toBeHidden();
 
   const values = await page
@@ -56,7 +55,7 @@ test("studio banner form offers lifetimes and saves with an expiry", async ({
     .evaluateAll((opts) => opts.map((o) => (o as HTMLOptionElement).value));
   expect(values).toEqual(["", "1", "3", "7", "14"]);
   await expect(page.locator("#f-duration")).toHaveValue("7");
-  // A choice, not typing — the pointer finger shows on hover.
+  // The select is a choice, so it shows a pointer cursor.
   await expect(page.locator("#f-duration")).toHaveCSS("cursor", "pointer");
 
   await page.locator("#f-announce").fill("Lilac Festival this Sunday!");
@@ -64,8 +63,8 @@ test("studio banner form offers lifetimes and saves with an expiry", async ({
   await page.locator("#announce-save").click();
   await expect(page.locator("#admin-status")).toContainText("Banner updated");
 
-  // The preview is a pinned paper note: warm paper, a tape
-  // strip across the top, her handwriting.
+  // The preview is styled as a paper note with a tape strip and the
+  // handwriting font.
   const preview = page.locator("#banner-preview");
   await expect(preview).toHaveCSS("background-image", /linear-gradient/);
   await expect(preview).toHaveCSS("font-family", /Caveat/);
@@ -90,8 +89,8 @@ test("studio banner form offers lifetimes and saves with an expiry", async ({
 test("empty update is refused, Remove clears the file", async ({ page }) => {
   let posted: { files: Array<{ path: string; contentBase64: string }> } | null =
     null;
-  // Reads go through the closure: assigning the untyped post body
-  // inside the route narrows direct reads to never.
+  // Read through the closure. Assigning the untyped body inside the route
+  // would narrow direct reads to `never`.
   const sent = (): typeof posted => posted;
   await page.route("**/api/commit*", async (route) => {
     if (route.request().method() === "POST") {
@@ -112,15 +111,15 @@ test("empty update is refused, Remove clears the file", async ({ page }) => {
     timeout: 15_000,
   });
   await page.locator("#f-announce").fill("");
-  // Updating empty is refused — and nothing is committed behind it.
+  // An empty update is refused and nothing is committed.
   await page.locator("#announce-save").click();
   await expect(page.locator("#admin-status")).toContainText(
     "Write the announcement first",
   );
   expect(sent()).toBe(null);
-  // A nudge, not news: gone again within a few seconds.
+  // The hint fades after a few seconds.
   await expect(page.locator("#admin-status")).toBeEmpty({ timeout: 8000 });
-  // Clearing is Remove's job: same empty commit, its own words.
+  // Remove sends the same empty commit with its own status text.
   await page.locator("#announce-clear").click();
   await expect(page.locator("#admin-status")).toContainText("Banner cleared.");
   const body = Buffer.from(
@@ -142,11 +141,11 @@ test("preview wears the wording, fading in and out", async ({ page }) => {
   const preview = page.locator("#banner-preview");
   await expect(field).toBeVisible();
   await expect(preview).toBeHidden();
-  // Typing brings the note up, wearing the words live.
+  // Typing shows the note with the text updating live.
   await field.fill("Lilac Festival this Sunday!");
   await expect(preview).toBeVisible();
   await expect(preview).toHaveText("Lilac Festival this Sunday!");
-  // Clearing fades it out, then it leaves the layout.
+  // Clearing fades the note out, then removes it from the layout.
   await field.fill("");
   await expect(preview).toBeHidden({ timeout: 5000 });
 });
@@ -163,7 +162,8 @@ test("active banner shows above the collection", async ({ page }) => {
     await route.fulfill({ response: res, body: html });
   });
   await page.goto("/");
-  // Scoped to the injected node: a real baked banner may share the page.
+  // Scoped to the injected node, since a built-in banner may also be on
+  // the page.
   const banner = page.locator('.announce[data-e2e="banner"]');
   await expect(banner).toBeVisible();
   await expect(banner).toHaveText(text);
@@ -196,8 +196,8 @@ test("dev without a backend keeps a banner preview for this browser", async ({
   });
   await page.locator("#f-announce").fill("Preview market Saturday!");
   await page.locator("#announce-save").click();
-  // No backend here, so the wording stays in this browser — and the
-  // homepage shows it above the collection, like the real banner.
+  // With no backend the text is stored in this browser, and the homepage
+  // shows it above the collection like the real banner.
   await expect(page.locator("#admin-status")).toContainText("preview kept");
   await page.goto("/");
   await expect(page.locator(".announce")).toHaveText(
@@ -212,8 +212,8 @@ test("dev without a backend keeps a banner preview for this browser", async ({
 test("remove banner clears it without typing", async ({ page }) => {
   let posted: { files: Array<{ path: string; contentBase64: string }> } | null =
     null;
-  // Reads go through the closure: assigning the untyped post body
-  // inside the route narrows direct reads to never.
+  // Read through the closure. Assigning the untyped body inside the route
+  // would narrow direct reads to `never`.
   const sent = (): typeof posted => posted;
   await page.route("**/api/commit*", async (route) => {
     if (route.request().method() === "POST") {
@@ -234,7 +234,7 @@ test("remove banner clears it without typing", async ({ page }) => {
     timeout: 15_000,
   });
   await expect(page.locator("#f-announce")).not.toHaveValue("");
-  // Remove only offers itself while a banner exists to remove.
+  // Remove only appears while a banner exists.
   await expect(page.locator("#announce-clear")).toBeVisible();
   await page.locator("#announce-clear").click();
   await expect(page.locator("#announce-clear")).toBeHidden();
@@ -259,7 +259,7 @@ test("forgotten banner hides itself past its end date", async ({ page }) => {
   });
   await page.goto("/");
   await expect(page.locator('.announce[data-e2e="banner"]')).toHaveCount(0);
-  // The gallery is unaffected — still the full collection.
+  // The gallery still shows the full collection.
   await expect(page.locator("#gallery-static .card").first()).toBeVisible();
 });
 
@@ -267,14 +267,14 @@ test("show-until dropdown answers only its own box", async ({ page }) => {
   await page.goto("/admin/banner");
   const select = page.locator("#f-duration");
   await expect(select).toBeVisible();
-  // Way right of the dropdown, level with it: the label hugs its
-  // control, so no hover reaches the select from empty space.
+  // Hover well to the right of the dropdown. The label is only as wide as
+  // its control, so empty space doesn't count as hovering the select.
   const box =
     (await select.boundingBox()) ??
     ({ x: 0, y: 0, width: 0, height: 0 } as const);
   await page.mouse.move(box.x + box.width + 120, box.y + box.height / 2);
   expect(await select.evaluate((el) => el.matches(":hover"))).toBe(false);
-  // On the box itself, hover answers as before.
+  // Hovering the box itself still highlights it.
   await select.hover();
   expect(await select.evaluate((el) => el.matches(":hover"))).toBe(true);
 });

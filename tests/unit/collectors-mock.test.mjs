@@ -9,7 +9,7 @@ import {
 } from "../../functions/_lib/collectors-mock.ts";
 import { onRequestGet, onRequestPost } from "../../functions/api/collectors.ts";
 
-/** Dev mock list: localhost-only, D1-backed, no Resend involved. */
+/** Dev mock list: localhost only, backed by D1, without Resend. */
 
 const FLAG = { COLLECTORS_MOCK: "true" };
 

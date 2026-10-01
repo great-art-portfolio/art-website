@@ -1,7 +1,7 @@
 /**
- * Backfill entry: exposes the production buildArModels to the harness
- * page so scripts/ar-backfill/run.mjs can generate models outside the
- * upload flow (same code her devices run — no parallel implementation).
+ * Backfill entry. Exposes the production buildArModels to the harness page
+ * so scripts/ar-backfill/run.mjs can generate models with the same code as
+ * the upload flow.
  */
 import { buildArModels } from "../../src/lib/ar";
 

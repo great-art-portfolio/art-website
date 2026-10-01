@@ -4,12 +4,13 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isExpired, localToday, parseAnnouncement } from "../src/lib/banner";
 
-/** Smoke suite: past silent regressions plus secretless API validation.
- * Live-secret delivery stays a manual checklist.
+/**
+ * Smoke tests for past regressions and API validation that needs no secrets.
+ * Delivery with live secrets is checked manually.
  *
- * WARNING: wrangler pages dev auto-loads .env, so local runs may hold
- * REAL secrets. Never add a test that delivers anything (commits,
- * emails, push fan-out) — validation shapes and read-only paths only.
+ * wrangler pages dev loads .env automatically, so a local run may have real
+ * secrets. Don't add tests that deliver anything (commits, emails, push);
+ * stick to validation and read-only paths.
  */
 
 test("painting page shows the Interested button, not the form", async ({
@@ -22,7 +23,7 @@ test("painting page shows the Interested button, not the form", async ({
 
 test("reduced motion keeps the nav button planted", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  // Both nav variants: Notify me at home, Add painting in the studio.
+  // The nav shows "Notify me" on the site and "Add painting" in the studio.
   for (const url of ["/", "/admin"]) {
     await page.goto(url);
     const cta = page.locator(".nav-cta");
@@ -77,12 +78,12 @@ test("homepage keeps signup in a modal and shows the baked banner as-is", async 
   page,
 }) => {
   await page.goto("/");
-  // The signup lives in a closed modal, not a page section.
+  // The signup is in a closed modal, not a page section.
   await expect(page.locator("#notify-dialog")).toBeAttached();
   await expect(page.locator("#notify-dialog")).toBeHidden();
   await expect(page.locator("#notify-card")).toHaveCount(0);
-  // Whatever the working tree baked: an empty (or expired) banner hides,
-  // a live one shows with its wording — dev may hold a real banner.
+  // Depends on the built content. An empty or expired banner is hidden and a
+  // current one is shown, since dev may have a real banner.
   const raw = readFileSync(
     join(
       dirname(fileURLToPath(import.meta.url)),
@@ -105,9 +106,9 @@ test("homepage keeps signup in a modal and shows the baked banner as-is", async 
 test("pages fade in on swap, even under reduced motion", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
-  // Firing the swap event must start an author-run fade on #main —
-  // Web Animations aren't covered by the transition spec's
-  // reduced-motion kill the way pseudo-element keyframes are.
+  // The swap event starts a scripted fade on #main. Web Animations aren't
+  // disabled by the reduced-motion rule that covers pseudo-element keyframes,
+  // so this checks them separately.
   const running = await page.evaluate(() => {
     document.dispatchEvent(new Event("astro:after-swap"));
     const main = document.getElementById("main");
@@ -118,19 +119,18 @@ test("pages fade in on swap, even under reduced motion", async ({ page }) => {
 
 test("notify buttons open the signup modal", async ({ page }) => {
   await page.goto("/");
-  // Nav and hero open a modal — the page never scrolls anywhere.
+  // The nav and hero buttons open a modal without scrolling the page.
   for (const opener of ["#notify-nav", "#notify-hero"]) {
     await page.locator(opener).click();
     await expect(page.locator("#notify-dialog")).toBeVisible();
-    // The signup itself answers (headless denies notification
-    // permission, so the button wears its blocked state here).
+    // The signup responds. Headless denies notification permission, so the
+    // button shows its blocked state.
     await expect(page.locator("#notify-btn")).toBeAttached();
     await expect(page).not.toHaveURL(/#notify-card/);
     await page.locator("#notify-close").click();
     await expect(page.locator("#notify-dialog")).toBeHidden();
   }
-  // The same modal answers from a painting page — the nav owns it
-  // everywhere, not just at home.
+  // The same modal opens from a painting page, since it belongs to the nav.
   await page.goto("/paintings/night-reeds");
   await page.locator("#notify-nav").click();
   await expect(page.locator("#notify-dialog")).toBeVisible();
@@ -141,19 +141,18 @@ test("email capture form answers in accent", async ({ page }) => {
   await page.goto("/");
   await page.locator("#notify-nav").click();
   await expect(page.locator("#notify-dialog")).toBeVisible();
-  // The email channel shows in every browser — no push needed.
+  // The email option shows in every browser, with or without push support.
   await expect(page.locator("#notify-email-form")).toBeVisible();
-  // A bad address fails client-side, so this holds with the real list,
-  // the dev mock, or no backend at all. Headless denies notification
-  // permission, so wait for that paint to settle first — otherwise it
-  // lands after and buries the validation words.
+  // A bad address fails client-side, so this works with the real list, the
+  // dev mock, or no backend. Headless denies notification permission; wait
+  // for that update first so it doesn't overwrite the validation message.
   await expect(page.locator("#notify-status")).toContainText("blocked");
   await page.locator("#notify-email").fill("missing@tld");
   await page.locator("#notify-email-form button[type=submit]").click();
   await expect(page.locator("#notify-status")).toContainText(
     "doesn't look right",
   );
-  // Status answers in the theme's accent, not body-copy muted.
+  // The status text uses the theme accent color, not the muted body color.
   await expect(page.locator("#notify-status")).toHaveCSS(
     "color",
     /164, 74, 36|0\.622 0\.289 0\.133/,
@@ -165,8 +164,8 @@ test("email field spans full width, join and leave share the row below", async (
 }) => {
   await page.goto("/");
   await page.locator("#notify-nav").click();
-  // One frame for both boxes: sequential reads can straddle a font swap
-  // under load and report a gap that was never on screen together.
+  // Measure both boxes in one frame. Separate reads can land on either side
+  // of a font swap and report a gap that never existed.
   const { field, btn } = await page.evaluate(() => {
     const box = (sel: string): DOMRect =>
       (document.querySelector(sel) as HTMLElement).getBoundingClientRect();
@@ -175,13 +174,12 @@ test("email field spans full width, join and leave share the row below", async (
       btn: box("#notify-email-form button[type=submit]").toJSON(),
     };
   });
-  // The field claims the full row: nearly the dialog's content width.
+  // The field spans nearly the full content width of the dialog.
   const dialog = await page
     .locator("#notify-dialog")
     .evaluate((el) => el.getBoundingClientRect().width);
   expect(field.width).toBeGreaterThan(dialog * 0.7);
-  // Both buttons sit below the field, level with each other, Leave
-  // right of Join.
+  // Both buttons sit below the field on one line, with Leave right of Join.
   expect(btn.y).toBeGreaterThanOrEqual(field.y + field.height);
   const leave = await page
     .locator("#notify-email-leave")
@@ -196,7 +194,7 @@ test("email field spans full width, join and leave share the row below", async (
 test("modal status fades away on its own", async ({ page }) => {
   await page.goto("/");
   await page.locator("#notify-nav").click();
-  // Settle the push paint first (see above), then validate off-backend.
+  // Wait for the push status update first (see above), then validate.
   await expect(page.locator("#notify-status")).toContainText("blocked");
   await page.locator("#notify-email").fill("missing@tld");
   await page.locator("#notify-email-form button[type=submit]").click();
@@ -214,13 +212,13 @@ test("modal status unfolds the card, then folds away", async ({ page }) => {
   await page.locator("#notify-email").fill("missing@tld");
   await page.locator("#notify-email-form button[type=submit]").click();
   const hint = page.locator("#notify-status");
-  // The error text still unfolds the card, backend or not.
+  // The error text expands the card with or without a backend.
   await expect(hint).toContainText("doesn't look right");
-  // Unfolded: the row holds real height and the card grew for it.
+  // When expanded, the row has height and the card grows to fit.
   await expect(wrap).toHaveCSS("grid-template-rows", /[1-9]/);
   const mid = await dialog.evaluate((el) => el.getBoundingClientRect().height);
-  // The fade clears the words and the wrapper folds flat — nothing
-  // reserved, nothing left behind.
+  // After the fade, the text is cleared and the wrapper collapses to zero
+  // height.
   await expect(hint).toBeEmpty({ timeout: 10_000 });
   await expect(wrap).toHaveCSS("grid-template-rows", "0px");
   const end = await dialog.evaluate((el) => el.getBoundingClientRect().height);
@@ -228,36 +226,37 @@ test("modal status unfolds the card, then folds away", async ({ page }) => {
 });
 
 test("blocked push state stays put, not faded", async ({ page }) => {
-  // Headless denies notification permission, so the modal opens
-  // already wearing its blocked state.
+  // Headless denies notification permission, so the modal opens in its
+  // blocked state.
   await page.goto("/");
   await page.locator("#notify-nav").click();
   const hint = page.locator("#notify-status");
   await expect(hint).toContainText("blocked");
-  // Past the fade delay: a state she must act on never clears itself.
+  // After the fade delay, a state that needs action is still shown.
   await page.waitForTimeout(6000);
   await expect(hint).toContainText("blocked");
 });
 
 test("selecting status text never closes the modal", async ({ page }) => {
   await page.goto("/");
-  // The dev mock answers joins itself; without it the same submit fails
-  // loudly — either way the words below are the test's handle.
+  // The dev mock handles joins. Without it the submit shows an error. Either
+  // way the test keys off the status text below.
   const mock = (await page.request.get("/api/collectors")).status() === 200;
   await page.locator("#notify-nav").click();
   const dialog = page.locator("#notify-dialog");
   await expect(dialog).toBeVisible();
-  // Settle the push paint before submitting, so nothing lands after.
+  // Wait for the push status update before submitting so it can't overwrite
+  // the result.
   const hint = page.locator("#notify-status");
   await expect(hint).toContainText("blocked");
   await page.locator("#notify-email").fill(`e2e-${Date.now()}@example.com`);
   await page.locator("#notify-email-form button[type=submit]").click();
-  // The dev mock answers with a bare confirm link, not words.
+  // The dev mock replies with only a confirm link.
   await expect(hint).toContainText(
     mock ? "open the confirm page" : "That didn't work",
   );
-  // Drag-select from the words out past the card edge: the click that
-  // lands on the dialog itself must not dismiss it.
+  // Drag-select from the text out past the card edge. The click that ends on
+  // the dialog itself should not dismiss it.
   const box = await hint.boundingBox();
   expect(box).not.toBe(null);
   if (box !== null) {
@@ -267,7 +266,7 @@ test("selecting status text never closes the modal", async ({ page }) => {
     await page.mouse.up();
   }
   await expect(dialog).toBeVisible();
-  // A clean backdrop tap still dismisses, like the × button.
+  // A plain backdrop click still dismisses it, like the × button.
   await page.evaluate(() => window.getSelection()?.removeAllRanges());
   await page.mouse.click(6, 6);
   await expect(dialog).toBeHidden();
@@ -285,11 +284,11 @@ test("tapping status text copies it with a toast", async ({
   await expect(hint).toContainText("blocked");
   await page.locator("#notify-email").fill(`e2e-${Date.now()}@example.com`);
   await page.locator("#notify-email-form button[type=submit]").click();
-  // The dev mock answers with a bare confirm link, not words.
+  // The dev mock replies with only a confirm link.
   const words = mock ? "open the confirm page" : "That didn't work";
   await expect(hint).toContainText(words);
-  // Click the status line itself, not the link inside it: a hit-tested
-  // tap lands on the anchor and follows it instead of copying.
+  // Click the status line, not the link inside it. Clicking the link would
+  // follow it instead of copying.
   await hint.evaluate((el) => (el as HTMLElement).click());
   await expect(page.locator("#notify-toast")).toContainText("Copied.");
   const pasted = await page.evaluate(() => navigator.clipboard.readText());
@@ -299,9 +298,9 @@ test("tapping status text copies it with a toast", async ({
 test("dead push service stands its button down with a settings note", async ({
   page,
 }) => {
-  // Headless denies notification permission no matter the grant, so
-  // force it: permission reads granted, the prompt answers granted, and
-  // registration then fails the way a browser with no push service does.
+  // Headless denies notification permission even when granted, so stub it.
+  // Permission reads as granted, the prompt returns granted, and registration
+  // fails as it would in a browser with no push service.
   await page.addInitScript(() => {
     Object.defineProperty(window.Notification, "permission", {
       value: "granted",
@@ -329,7 +328,7 @@ test("dead push service stands its button down with a settings note", async ({
   await expect(note).toBeVisible();
   await expect(note).toContainText("push notifications aren't enabled");
   await expect(page.locator("#notify-btn")).toBeHidden();
-  // Email stands; reopening starts fresh with the button back.
+  // The email stays subscribed, and reopening shows the button again.
   await expect(page.locator("#notify-email-form")).toBeVisible();
   await page.locator("#notify-close").click();
   await expect(page.locator("#notify-dialog")).toBeHidden();
@@ -341,8 +340,8 @@ test("dead push service stands its button down with a settings note", async ({
 test("buyer signup validates, and needs the list set up", async ({
   request,
 }) => {
-  // Keyless with no backend, a good address fails loudly instead of
-  // pretending to join — unless the dev mock stands in (201 + link).
+  // With no key and no backend, a valid address gets an error rather than a
+  // fake success. The dev mock returns 201 with a link instead.
   const mode = await request.get("/api/collectors");
   const ok = await request.post("/api/collectors", {
     data: { email: "api-fan@example.com" },
@@ -395,8 +394,8 @@ test("analytics returns a views array (unconfigured shape without secrets)", asy
   const res = await request.get("/api/analytics");
   expect(res.ok()).toBeTruthy();
   const body = await res.json();
-  // Without secrets: { unconfigured: true, views: [] }. With a real token
-  // (local .env): live rows. Either way the contract is an array.
+  // Without secrets this returns { unconfigured: true, views: [] }. With a real
+  // token in local .env it returns live rows. Either way views is an array.
   expect(Array.isArray(body.views)).toBe(true);
 });
 
@@ -404,15 +403,14 @@ test("admin explains itself gracefully without a publishing backend", async ({
   page,
 }) => {
   await page.goto("/admin");
-  // No GitHub behind the dev API: the baked-in index renders with practice
-  // merges — thumbnails, buyer links, and studio doors work, real
-  // publishing stays live-only.
+  // The dev API has no GitHub, so the built index renders with practice
+  // edits merged in. Thumbnails and links work; publishing only works live.
   const rows = page.locator('#edit-list a.row-title[href^="/paintings/"]');
   await expect(rows.first()).toBeVisible({ timeout: 15_000 });
   expect(await rows.count()).toBeGreaterThan(0);
   await expect(page.locator("#collection-title")).toHaveText("Available");
   await expect(page.locator("#edit-list img.thumb").first()).toBeVisible();
-  // One studio door per card — drafts link their titles to the room.
+  // Each card has one studio link. Draft titles link to their room.
   await expect(page.locator("#edit-list .row-edit")).toHaveCount(
     await page.locator("#edit-list .row-card").count(),
   );
@@ -420,17 +418,17 @@ test("admin explains itself gracefully without a publishing backend", async ({
   await expect(page.locator("#collection-dev")).toContainText(
     "Development only",
   );
-  // Nothing to toast about on a quiet load.
+  // A normal load shows no toast.
   await expect(page.locator("#admin-status")).toBeHidden();
-  // No Most-viewed card anywhere, in any environment — counts live in
-  // the rows, and an empty answer leaves them count-less with no note.
+  // There is no Most-viewed card. View counts appear in the rows, and with no
+  // data the rows show no counts and no message.
   await expect(page.locator("#sec-views")).toHaveCount(0);
   await expect(page.locator("#edit-list")).not.toContainText("preview");
 });
 
 test("asked-for contrast inks the quiet text", async ({ browser }) => {
-  // Older eyes: with more contrast requested, secondary painting text
-  // renders at full ink instead of the softer muted tone.
+  // With prefers-contrast: more, secondary painting text uses full ink
+  // instead of the muted tone.
   const context = await browser.newContext({ contrast: "more" });
   const page = await context.newPage();
   await page.goto("/paintings/first-thaw");

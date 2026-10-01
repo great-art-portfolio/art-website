@@ -94,7 +94,7 @@ describe("parsePracticeOverlay", () => {
       deletes: ["b"],
     });
     assert.deepEqual(overlay?.deletes, ["b"]);
-    // Older overlays carry no schedule — it reads as none, not garbage.
+    // An overlay without a schedule field parses as having no schedule.
     assert.equal(overlay?.upserts["a"]?.publishOn, "");
   });
 

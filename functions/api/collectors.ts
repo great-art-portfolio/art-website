@@ -40,10 +40,10 @@ function hasList(env: AppEnv): boolean {
 }
 
 /**
- * Email list. Nothing stored: confirmed addresses live in Resend, the
- * pending proof travels in the links as HMAC tokens. Gmail's one-click
- * POST arrives form-encoded, token + email in the query string.
- * GET (the /admin count) needs the admin token.
+ * Email list. Nothing is stored here. Confirmed addresses live in Resend,
+ * and pending confirmations are HMAC tokens in the links. Gmail's one-click
+ * unsubscribe POST is form-encoded with the token and email in the query
+ * string. GET returns the /admin count and needs the admin token.
  */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   let body: Record<string, string>;
@@ -85,12 +85,10 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       const sub = await mockSubscribe(context.env, email).catch(() => null);
       if (sub === null) return serverError();
       if (sub.already) return json({ ok: true, already: true, emailed: true });
-      // The confirm link rides home in the response, addressed to this
-      // server (the tester opens it in the same browser) — so the loop
-      // always completes locally. Resend test addresses additionally ride
-      // the true API when a key is present: the send lands in Resend's
-      // dashboard, proving key, sender, and payload without touching any
-      // reputation. Nothing else may leave a dev machine.
+      // Return the confirm link in the response, pointing at this server,
+      // so the loop can finish locally. With a key present, Resend test
+      // addresses also go through the real API so the send shows in
+      // Resend's dashboard. No other address is sent to from dev.
       const origin = new URL(context.request.url).origin;
       let emailed = true;
       if (
@@ -167,8 +165,8 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
           "The email list isn't set up yet — try again later.",
         );
       }
-      // Delete-then-create so a rejoin after a Resend-side unsubscribe
-      // comes back subscribed, not silently muted.
+      // Delete then create, so rejoining after unsubscribing in Resend
+      // actually resubscribes.
       await syncContactRemoved(context.env, email).catch(() => false);
       await syncContactSubscribed(context.env, email).catch(() => false);
       return json({ ok: true });
@@ -182,8 +180,8 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       body["email"] ?? params.get("email") ?? "",
     );
     const token = body["token"] ?? params.get("token") ?? "";
-    // The mock skips the spam check like the modal's Leave request,
-    // which carries no token to check — local only, nothing to abuse.
+    // The mock skips the spam check, as the modal's Leave request carries
+    // no token. It only runs locally.
     if (mockList(context.env, context.request)) {
       if (email === null) return badRequest("Invalid request");
       await mockUnsubscribe(context.env, email).catch(() => undefined);
@@ -229,7 +227,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   return badRequest("Invalid request");
 };
 
-/** Admin: list size — the mock table's confirmed rows in mock mode. */
+/** Admin: list size. In mock mode, the mock table's confirmed rows. */
 export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
   const denied = requireAdmin(context.request, context.env);
   if (denied !== null) return denied;

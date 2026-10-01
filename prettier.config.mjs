@@ -1,5 +1,5 @@
-/** Prettier: the formatter. Astro files go through prettier-plugin-astro;
- * everything else uses Prettier's defaults (2-space, double quotes). */
+/** Astro files go through prettier-plugin-astro. Everything else uses
+ * Prettier's defaults. */
 export default {
   plugins: ["prettier-plugin-astro"],
   overrides: [

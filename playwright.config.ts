@@ -1,15 +1,15 @@
 import { defineConfig } from "@playwright/test";
 
-// Serves the built site through the real Pages runtime (static pages +
-// Functions, no secrets), exactly as production serves them.
+// Serves the built site through the Pages runtime, static pages and
+// Functions, without secrets.
 export default defineConfig({
   testDir: "./tests",
   timeout: 30_000,
-  // One retry: wrangler pages dev occasionally severs the very first
-  // navigation while the worker finishes cold-booting.
+  // wrangler pages dev sometimes drops the first navigation while the
+  // worker is still starting.
   retries: 1,
-  // Pinned off 4321: another project on this machine owns that port, and
-  // reuseExistingServer would silently run our suite against its server.
+  // Not 4321: another project uses that port, and reuseExistingServer would
+  // run the suite against it.
   use: { baseURL: "http://127.0.0.1:4331" },
   webServer: {
     command: "pnpm wrangler pages dev dist --port 4331 --ip 127.0.0.1",

@@ -4,8 +4,10 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SHOW_PRICES, slugifyTitle } from "../src/lib/site";
 
-/** Gallery contract, derived from the paintings collection itself — adding a
- * painting extends coverage automatically. Read-only paths only. */
+/**
+ * Gallery checks generated from the paintings collection, so a new painting is
+ * covered automatically. Only read-only paths are exercised.
+ */
 
 interface Painting {
   slug: string;
@@ -41,8 +43,8 @@ function loadPaintings(): Painting[] {
 }
 
 const paintings = loadPaintings();
-// Drafts are studio-only: no gallery card, no buyer page, no static path.
-// Every buyer-facing assertion below runs over published pieces only.
+// Drafts only exist in the studio, with no gallery card, buyer page, or static
+// path. The buyer-facing assertions below cover published paintings only.
 const published = paintings.filter((p) => !p.draft);
 const drafts = paintings.filter((p) => p.draft);
 const available = published.filter((p) => !p.sold);
@@ -68,8 +70,9 @@ test("gallery shows one card per available painting, each linked correctly", asy
 
 test("gallery photos never paint letterbox bars", async ({ page }) => {
   await page.goto("/");
-  // Zoomed pages clamp tall photos (max-height + contain): the bars must
-  // melt into the mat, so the photo element itself carries no plate.
+  // At high zoom, tall photos are capped with max-height and object-fit:
+  // contain. The photo element has no background so the bars blend into the
+  // mat.
   const img = page.locator("#gallery-static .card .mat img").first();
   await expect(img).toBeVisible();
   await expect(img).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
@@ -77,9 +80,8 @@ test("gallery photos never paint letterbox bars", async ({ page }) => {
 });
 
 test("the mat hugs every photo shape at zoom", async ({ page }) => {
-  // Short viewport stands in for high zoom: the height cap clamps, and
-  // the box must still match the photo's own aspect — no side margins
-  // on squares, no surprises on portraits.
+  // A short viewport simulates high zoom. With the height capped, the box
+  // should still match the photo's aspect ratio for squares and portraits.
   await page.setViewportSize({ width: 1400, height: 500 });
   await page.goto("/");
   const imgs = page.locator("#gallery-static .card .mat img");
@@ -104,16 +106,14 @@ test("the mat hugs every photo shape at zoom", async ({ page }) => {
 test("inquiry fields preview their ring on hover", async ({ page }) => {
   expect(available.length).toBeGreaterThan(0);
   await page.goto(`/paintings/${available[0]?.slug ?? ""}`);
-  // The form hides behind "Interested?" once scripts run. Revealing
-  // focuses the name box, so step off it first — this test is about
-  // hover, not focus.
+  // Scripts hide the form behind "Interested?". Revealing it focuses the name
+  // box, so move focus away first since this test is about hover.
   await page.locator("#inquiry-reveal").click();
   await page.locator("#inquiry-form h2").click();
   const name = page.locator('#inquiry-form input[name="name"]');
   await expect(name).toBeVisible();
-  // Re-park and re-hover inside the polls: a late image can shift the
-  // input under a parked pointer (hover stuck on) or out from under
-  // it (hover dropped) mid-fade — same pattern as the clay hover test.
+  // Hover again inside each poll. A late-loading image can shift the input
+  // under or away from the pointer during the fade, as in the clay hover test.
   await expect(async () => {
     await page.mouse.move(5, 5);
     expect(await name.evaluate((el) => getComputedStyle(el).outlineColor)).toBe(
@@ -126,23 +126,23 @@ test("inquiry fields preview their ring on hover", async ({ page }) => {
       "rgba(164, 74, 36, 0.55)",
     );
   }).toPass();
-  // The ring fades in — it never snaps. This guards the transition
-  // itself, not just the end state.
+  // The ring fades in rather than appearing instantly. This checks the
+  // transition, not just the end state.
   const preview = await name.evaluate((el) => getComputedStyle(el).transition);
   expect(preview).toContain("outline-color");
   expect(preview).toContain("0.2s");
-  // The border never joins in: one ring only.
+  // The border stays unchanged, so only the ring shows.
   await expect(name).toHaveCSS("border-color", "rgb(229, 220, 203)");
 });
 
 test("interested teaser whispers on light theme", async ({ page }) => {
   expect(available.length).toBeGreaterThan(0);
   await page.goto(`/paintings/${available[0]?.slug ?? ""}`);
-  // The full-width teaser outlines instead of filling — the solid clay
-  // stays for the in-form Send. Headless runs light by default.
+  // The full-width teaser button is outlined. Solid clay is reserved for the
+  // Send button in the form. Headless runs in light mode by default.
   const reveal = page.locator("#inquiry-reveal");
   await expect(reveal).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
-  // Clay in both computed-color serializations (rgb vs P3).
+  // Clay as either an rgb or a P3 computed color.
   await expect(reveal).toHaveCSS("color", /164, 74, 36|0\.622 0\.289 0\.133/);
 });
 
@@ -152,7 +152,7 @@ test("hovering a card prefetches its painting page", async ({ page }) => {
   const href = `/paintings/${available[0]?.slug ?? ""}`;
   const card = page.locator(`#gallery-static .card[href="${href}"]`);
   await expect(card).toHaveAttribute("data-astro-prefetch", "hover");
-  // Hover must fetch the page without navigating — the next tap is instant.
+  // Hover prefetches the page without navigating, so the tap loads instantly.
   const [req] = await Promise.all([
     page.waitForRequest((r) => r.url().endsWith(href), { timeout: 10_000 }),
     card.hover(),
@@ -204,7 +204,7 @@ for (const p of published) {
   }) => {
     await page.goto(`/paintings/${p.slug}`);
     await expect(page.locator(".info h1")).toHaveText(p.title);
-    // Breadcrumb back to the collection.
+    // Link back to the collection.
     await expect(page.locator('.crumbs a[href="/"]')).toHaveCount(1);
     // Structured data for search/sharing.
     const jsonLd = await page
@@ -212,7 +212,7 @@ for (const p of published) {
       .textContent();
     expect(jsonLd).toContain('"@type":"Product"');
     expect(jsonLd).toContain(p.title);
-    // The artist's address never appears in public markup.
+    // The artist's address must not appear in public markup.
     await expect(page.locator('a[href^="mailto:"]')).toHaveCount(0);
 
     if (p.sold) {
@@ -227,7 +227,7 @@ for (const p of published) {
           Number(p.price).toFixed(2),
         );
       }
-      // Inquiry form: name + email required, honeypot present.
+      // The inquiry form requires name and email and has a honeypot field.
       await expect(
         page.locator('#inquiry-form input[name="name"]'),
       ).toHaveAttribute("required", "");
@@ -237,7 +237,7 @@ for (const p of published) {
       await expect(
         page.locator('#inquiry-form input[name="website"]'),
       ).toHaveCount(1);
-      // AR appears exactly when models are wired in frontmatter.
+      // The AR section appears only when the frontmatter lists models.
       if (p.modelGlb === "") {
         await expect(page.locator("#ar-mount")).toHaveCount(0);
         const glb = await page.locator("main.detail").getAttribute("data-glb");
@@ -248,18 +248,18 @@ for (const p of published) {
           "data-glb",
           p.modelGlb,
         );
-        // The stage holds something meaningful immediately (instant poster,
-        // or the viewer itself when the observer fires during load)…
+        // The stage shows content right away: the poster, or the viewer if the
+        // observer fires during load.
         await expect(
           page.locator("#ar-stage img, #ar-stage model-viewer"),
         ).toBeVisible();
-        // …and the viewer library is certainly there once scrolled to.
+        // The viewer library is loaded once the section is scrolled into view.
         await page.locator("#ar-mount").scrollIntoViewIfNeeded();
         const viewer = page.locator("#ar-stage model-viewer");
         await expect(viewer).toBeAttached({ timeout: 15_000 });
-        // Poster first, model lazy-loads as the section nears the viewport.
+        // The poster shows first and the model lazy-loads near the viewport.
         await expect(viewer).toHaveAttribute("loading", "lazy");
-        // Vertical scrolls glide past to the page; sideways drags orbit.
+        // Vertical scrolls pass through to the page; horizontal drags orbit.
         await expect(viewer).toHaveAttribute("touch-action", "pan-y");
         const poster = await viewer.getAttribute("poster");
         expect(poster !== null && poster !== "").toBe(true);
@@ -269,12 +269,12 @@ for (const p of published) {
 }
 
 test("page share stays parked behind its flag", async ({ page }) => {
-  // Placement undecided (the glyph floated too far from anything), so
-  // SHOW_PAGE_SHARE is off and no button renders. The share specs live
-  // in git history — restore them with the flag.
+  // SHOW_PAGE_SHARE is off until the button placement is decided, so no
+  // share button renders. Restore the share specs from git history when the
+  // flag is turned on.
   await page.goto("/paintings/first-thaw");
   await expect(page.locator("#pg-share")).toHaveCount(0);
-  // The way back stands alone again.
+  // The back link is the only control in its row.
   await expect(page.locator('.crumbs a[href="/"]')).toBeVisible();
 });
 
@@ -282,14 +282,14 @@ test("inquiry comes before the wall preview, skeleton holds the stage", async ({
   page,
 }) => {
   const [target] = available.filter((p) => p.modelGlb !== "") as [Painting];
-  // Skeleton ships in the HTML (the poster swaps it out on load, so assert
-  // the source, not the live DOM).
+  // The skeleton is in the served HTML. The poster replaces it on load, so
+  // check the source rather than the live DOM.
   const html = await (
     await page.request.get(`/paintings/${target.slug}`)
   ).text();
   expect(html).toContain("ar-skeleton");
   await page.goto(`/paintings/${target.slug}`);
-  // The form opens with the painting still on screen: inquiry precedes AR.
+  // The inquiry form comes before AR, so it opens with the painting visible.
   const order = await page.evaluate(() => {
     const info = document.querySelector(".info");
     const form = document.getElementById("inquiry-form");
@@ -305,8 +305,8 @@ test("inquiry comes before the wall preview, skeleton holds the stage", async ({
 test("viewing one painting after another shows each painting's own 3D model", async ({
   page,
 }) => {
-  // View Transitions keep the page script alive across navigations — the
-  // viewer must follow the painting, not stick to the first one visited.
+  // View Transitions keep the page script alive across navigations, so the
+  // viewer has to update to the current painting.
   const withModels = available.filter((p) => p.modelGlb !== "");
   expect(withModels.length).toBeGreaterThan(1);
   const [first, second] = withModels as [Painting, Painting];
@@ -332,7 +332,7 @@ test("viewing one painting after another shows each painting's own 3D model", as
 });
 
 test("3D model waits for the visitor to scroll to it", async ({ browser }) => {
-  // Small-phone viewport: the AR section starts below the fold.
+  // On a small phone viewport the AR section starts below the fold.
   const context = await browser.newContext({
     viewport: { width: 360, height: 640 },
   });
@@ -351,8 +351,8 @@ test("3D model waits for the visitor to scroll to it", async ({ browser }) => {
   });
   await page.goto(`/paintings/${withModels[0]?.slug ?? ""}`);
   await expect(page.locator("#ar-mount")).toBeVisible();
-  // Premise check: the section must actually start out of view, or the
-  // zero-request assertions below prove nothing.
+  // Confirm the section starts out of view. Otherwise the zero-request
+  // assertions below would pass trivially.
   const mountTop = await page
     .locator("#ar-mount")
     .evaluate((el) => el.getBoundingClientRect().top);
@@ -418,7 +418,7 @@ test("unknown painting slug is a real 404 with a way back", async ({
 });
 
 test("drafts stay out of the gallery and buyer pages", async ({ page }) => {
-  // Vacuous on a clean tree; real the moment anyone drafts in dev.
+  // Passes trivially with no drafts. It matters once a draft exists in dev.
   await page.goto("/");
   for (const d of drafts) {
     await expect(
@@ -432,8 +432,8 @@ test("drafts stay out of the gallery and buyer pages", async ({ page }) => {
 test("studio pages render their section and new-painting door", async ({
   page,
 }) => {
-  // One section per page, reached through the header nav — no second
-  // nav, no anchor strip. Collection hangs its list straight on main.
+  // Each page has one section reached from the header nav, with no second nav
+  // or anchor links. The collection list sits directly in main.
   const pages: Array<[string, string | null, string]> = [
     ["/admin", null, "Collection"],
     ["/admin/banner", "#sec-banner", "Banner"],
@@ -443,7 +443,7 @@ test("studio pages render their section and new-painting door", async ({
   for (const [url, id, current] of pages) {
     await page.goto(url);
     if (id !== null) await expect(page.locator(id)).toBeAttached();
-    // The header names all four pages, marking the open one.
+    // The header lists all four pages and marks the current one.
     for (const label of ["Collection", "Banner", "Metrics", "Guide"]) {
       await expect(
         page.locator(".site-nav").getByRole("link", { name: label }),
@@ -455,7 +455,7 @@ test("studio pages render their section and new-painting door", async ({
     await expect(page.locator(".admin-tabs")).toHaveCount(0);
   }
   await expect(page.locator(".subnav")).toHaveCount(0);
-  // New paintings start in their own room through the header button.
+  // The header button opens a new painting's room.
   await page.goto("/admin");
   await expect(
     page.locator('nav a.nav-cta[href="/admin/paintings/new"]'),
@@ -468,17 +468,16 @@ test("studio pages render their section and new-painting door", async ({
 
 test("guide drawer fades open and shut, every time", async ({ page }) => {
   await page.goto("/admin/guide");
-  // One evaluate samples the whole curve — no round-trip gaps for the
-  // fade to slip through. A snap would show at most two distinct
-  // values; a fade shows the climb (open) and the fall (shut).
+  // Sample the whole fade in one evaluate so no frames are missed between
+  // round trips. An instant change gives at most two distinct values; a fade
+  // gives a rising series on open and a falling one on close.
   const curve = () =>
     page.evaluate(() => {
       const vals: number[] = [];
       const el = document.querySelector("#sec-info details > :not(summary)");
       if (el === null) return vals;
       const take = async () => {
-        // 400ms past the click: beyond the 80ms delay plus the
-        // 250ms fade, so both ends have settled.
+        // 400ms covers the 80ms delay plus the 250ms fade.
         for (let i = 0; i < 10; i++) {
           await new Promise((r) => setTimeout(r, 40));
           vals.push(Number(getComputedStyle(el).opacity));
@@ -511,7 +510,7 @@ test("admin mode keeps painting-to-painting navigation in reach", async ({
   );
   const adminPage = await authed.newPage();
   await adminPage.goto(`/paintings/${available[0]?.slug ?? ""}`);
-  // Back to the collection (all paintings) and across to the studio.
+  // Links back to the collection and over to the studio.
   await expect(adminPage.locator('.crumbs a[href="/"]')).toBeVisible();
   await expect(adminPage.locator('#admin-bar a[href="/admin"]')).toBeVisible();
   await authed.close();
@@ -544,12 +543,13 @@ test("studio room toolbar wears the studio styling", async ({ browser }) => {
   );
   const adminPage = await authed.newPage();
   await adminPage.goto(`/admin/paintings/${available[0]?.slug ?? ""}`);
-  // Primary Save and plain Delete both styled, not browser defaults.
+  // Save and Delete use site styles, not browser defaults.
   await expect(adminPage.locator("#de-save")).toHaveCSS(
     "border-radius",
     "12px",
   );
-  // Light-theme primary is clay (--primary #a44a24, P3 where kept); dark stays ink.
+  // The light-theme primary is clay (--primary #a44a24, or its P3 value).
+  // The dark theme uses ink.
   await expect(adminPage.locator("#de-save")).toHaveCSS(
     "background-color",
     /164, 74, 36|0\.622 0\.289 0\.133/,
@@ -575,7 +575,7 @@ test("service worker serves the worker script but never caches admin", async ({
       return false;
     });
 
-  // Positive control: a public page IS cached after repeat visits…
+  // Control case: a public page is cached after repeat visits.
   await page.goto("/");
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.goto("/");
@@ -589,7 +589,7 @@ test("service worker serves the worker script but never caches admin", async ({
   });
   expect(homeCached).toBe(true);
 
-  // …while the studio never is — dashboard or painting rooms.
+  // Studio pages, both dashboard and painting rooms, are not cached.
   await page.goto("/admin");
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.goto("/admin");
@@ -608,7 +608,7 @@ test("offline inquiry queues on the phone and sends on reconnect", async ({
   let attempts = 0;
   await page.route("**/api/inquiries", async (route) => {
     attempts += 1;
-    // First send fails (the Calgary–Edmonton drive); the retry succeeds.
+    // The first send fails as if offline, and the retry succeeds.
     if (attempts === 1) return route.abort("failed");
     return route.fulfill({
       status: 200,
@@ -617,8 +617,8 @@ test("offline inquiry queues on the phone and sends on reconnect", async ({
     });
   });
   await page.goto(`/paintings/${available[0]?.slug ?? ""}`);
-  // iPhones have no Background Sync — take the worker replay out, so this
-  // exercises the reconnect flush instead of the service worker path.
+  // iPhones lack Background Sync. Disable the service worker replay so this
+  // tests the flush on reconnect instead.
   await page.evaluate(async () => {
     const reg = await navigator.serviceWorker.ready;
     Object.defineProperty(reg, "sync", {
@@ -639,7 +639,7 @@ test("offline inquiry queues on the phone and sends on reconnect", async ({
     "Saved — it will send",
   );
   expect(attempts).toBe(1);
-  // Back online: the armed outbox replays without another tap.
+  // Once back online the queued outbox sends without another tap.
   await page.evaluate(() => window.dispatchEvent(new Event("online")));
   await expect.poll(() => attempts, { timeout: 10_000 }).toBe(2);
 });

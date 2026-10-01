@@ -1,14 +1,12 @@
 import type { AppEnv } from "./env";
 import { CONFIRM_TTL_MS, issueLinkToken, verifyLinkToken } from "./collectors";
 
-/** Dev-only email list. The real list lives in Resend and dev must never
- * touch it — with COLLECTORS_MOCK=true (local .dev.vars only) the
- * collectors endpoint stores pending + confirmed addresses in the local
- * D1 email_collectors table instead, and answers joins with a confirm
- * link instead of an email. The localhost rail means the mock can never
- * switch on outside local dev, even if the flag ever leaked elsewhere:
- * mock links carry localhost URLs and a dev-only HMAC key, so they are
- * worthless anywhere else. */
+/** Dev-only email list, so dev doesn't touch the real list in Resend. With
+ * COLLECTORS_MOCK=true, the collectors endpoint stores pending and
+ * confirmed addresses in the local D1 email_collectors table and returns a
+ * confirm link instead of sending email. The mock only activates on
+ * localhost, so a leaked flag has no effect elsewhere. Mock links use
+ * localhost URLs and a dev-only HMAC key. */
 
 const MOCK_KEY = "dev-collectors-mock";
 

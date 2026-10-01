@@ -1,10 +1,9 @@
-/** `pnpm seed:gallery`: preview the grid with a full room.
+/** `pnpm seed:gallery`: fills the gallery with placeholder paintings.
  *
- * Generates tasteful placeholder paintings (soft abstract gradients in the
- * gallery palette — clearly stand-ins, never her work) across varied
- * aspects, prices, and sold states, so the collection grid can be judged
- * with fourteen pieces instead of five. Everything lands untracked under
- * src/content/paintings/, so `pnpm studio:reset` wipes it clean.
+ * Generates abstract gradient placeholders with varied aspect ratios,
+ * prices, and sold states, so the grid can be checked with fourteen
+ * pieces. Files are written untracked under src/content/paintings/, and
+ * `pnpm studio:reset` removes them.
  */
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";

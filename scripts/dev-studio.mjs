@@ -1,9 +1,8 @@
 /**
- * `pnpm dev:studio`: the studio dev loop — astro dev (live source, real
- * file writes) on :4332 plus the local content API on :4333, which the
- * astro dev proxy answers /api/* from. One process to stop (Ctrl-C kills
- * both). 4331 stays the built review stand; 4321 stays out (owned by
- * another project on this machine).
+ * `pnpm dev:studio`: runs astro dev on :4332 and the local content API on
+ * :4333, which the astro dev proxy forwards /api/* to. Ctrl-C stops both.
+ * Port 4331 serves the built site, and 4321 is avoided because another
+ * project uses it.
  */
 import { spawn } from "node:child_process";
 
@@ -11,9 +10,9 @@ export const STUDIO_DEV_PORT = 4332;
 const STUDIO_DEV_API = "http://127.0.0.1:4333";
 
 /**
- * Anything already serving here — mine, a leftover, the user's own — is
- * reused. Rebinding would just crash with EADDRINUSE and take the other
- * half of the loop down with it.
+ * Whether something is already serving the content API port. If so it's
+ * reused, since binding again would fail with EADDRINUSE and stop the dev
+ * server too.
  */
 async function contentApiAlive() {
   try {
@@ -72,8 +71,8 @@ async function main() {
   if (await contentApiAlive()) {
     console.log("  content API already running — reusing it.");
   } else {
-    // The extension hook lets the sidecar import the real Functions
-    // handlers (TypeScript, extensionless) instead of reimplementing them.
+    // The loader hook lets the content API import the real Functions
+    // handlers, which are extensionless TypeScript.
     run(
       process.execPath,
       [

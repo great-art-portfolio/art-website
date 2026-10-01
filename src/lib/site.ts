@@ -1,6 +1,7 @@
-/** Site-wide display settings — one place to change how the gallery presents itself. */
+/** Site-wide display settings. */
 
-/** Live domain. Never derived from the request URL (static build). */
+/** Production domain. The build is static, so it can't come from the
+ * request URL. */
 export const SITE_URL = "https://barbart.ca";
 
 /** The artist's name. Set to null to fall back to generic wording. */
@@ -11,12 +12,11 @@ export const ARTIST_LOCATION = "Calgary, Alberta";
 /** One-line description used in the hero and metadata. */
 export const TAGLINE = "Nature & abstract originals, painted by hand";
 
-/** Show prices on cards and painting pages (buyers self-qualify). */
+/** Show prices on cards and painting pages. */
 export const SHOW_PRICES = true;
 
-/** Buyer page share glyph. Parked: the glyph floated too far from
- * anything in the crumbs row, and the meta line wore it no better.
- * Placement undecided — flip back on when it has a home. */
+/** Buyer page share button. Off until it has a placement that works in
+ * the crumbs row or meta line. */
 export const SHOW_PAGE_SHARE = false;
 
 export function artistLabel(): string {
@@ -39,7 +39,8 @@ export function slugifyTitle(title: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-/** True when another painting claims this title's link. ownSlug exempts self. */
+/** True when another painting already uses this title's slug. ownSlug
+ * excludes the painting being edited. */
 export function isTitleTaken(
   taken: Iterable<string>,
   title: string,
@@ -53,12 +54,12 @@ export function isTitleTaken(
   return false;
 }
 
-/** "5 works" / "1 work" helper for section headings. */
+/** "5 works" or "1 work", for section headings. */
 export function workCount(n: number): string {
   return `${n} ${n === 1 ? "work" : "works"}`;
 }
 
-/** Drafts and trash never reach buyers. */
+/** False for drafts and trashed paintings, which buyers don't see. */
 export function isPublished(data: {
   draft?: boolean | undefined;
   trash?: boolean | undefined;
@@ -66,7 +67,7 @@ export function isPublished(data: {
   return data.draft !== true && data.trash !== true;
 }
 
-/** Studio collection groups: available first, then sold. Order kept. */
+/** Splits rows into available and sold, preserving order. */
 export function groupByAvailability<T extends { sold: boolean }>(
   rows: T[],
 ): { available: T[]; sold: T[] } {
@@ -76,7 +77,8 @@ export function groupByAvailability<T extends { sold: boolean }>(
   return { available, sold };
 }
 
-/** Gallery order: numbered works first, unordered trail alphabetically. */
+/** Gallery sort: paintings with an order first, then the rest
+ * alphabetically. */
 export function compareGalleryOrder(
   a: { order?: number | null; title: string },
   b: { order?: number | null; title: string },

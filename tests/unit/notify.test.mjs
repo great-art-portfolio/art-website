@@ -94,7 +94,7 @@ describe("resolveBroadcastCopy", () => {
       subject: "New painting at Barbara Straka's studio",
       body: "A new painting is hung in the gallery — come look: https://barbart.ca",
     });
-    // A blank body keeps her subject — and vice versa.
+    // A blank body keeps the custom subject, and the reverse.
     const half = resolveBroadcastCopy("https://barbart.ca", "Hello", "");
     assert.equal(half.subject, "Hello");
     assert.match(half.body, /come look/);
@@ -119,15 +119,15 @@ describe("segmentBroadcastEmail", () => {
     assert.match(text, /— Barbara/);
     assert.ok(text.includes("{{{RESEND_UNSUBSCRIBE_URL}}}"));
     assert.ok(!text.includes("token="));
-    // The styled body dresses the same words: her subject as the
-    // headline, sign-off, and the placeholder exit — but no nameplate
-    // eyebrow; the From line already says who it's from.
+    // The HTML body uses the subject as the headline and includes the
+    // sign-off and unsubscribe placeholder. It has no name eyebrow because
+    // the From line already shows the sender.
     assert.ok(html.includes("New painting at Barbara Straka's studio"));
     assert.ok(!html.includes(">Barbara Straka</p>"));
     assert.ok(html.includes("— Barbara"));
     assert.ok(html.includes('href="{{{RESEND_UNSUBSCRIBE_URL}}}"'));
-    // The plain text gives the link breathing room: a blank line between
-    // the invitation and the address.
+    // The plain-text version puts a blank line between the message and the
+    // link.
     assert.ok(
       text.includes(
         "Tired of these? Unsubscribe here:\n\n{{{RESEND_UNSUBSCRIBE_URL}}}",
@@ -145,7 +145,8 @@ describe("segmentBroadcastEmail", () => {
     assert.ok(text.includes("Something <b>new</b>\nSecond line"));
     assert.ok(!html.includes("<b>new</b>"));
     assert.ok(html.includes("Something &lt;b&gt;new&lt;/b&gt;<br>Second line"));
-    // The sign-off and unsubscribe ride every send, never from input.
+    // Every send includes the sign-off and unsubscribe, which can't come
+    // from user input.
     assert.ok(text.includes("— Barbara"));
     assert.ok(text.includes("{{{RESEND_UNSUBSCRIBE_URL}}}"));
     assert.ok(html.includes("— Barbara"));

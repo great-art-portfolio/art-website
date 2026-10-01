@@ -3,9 +3,9 @@
  *
  *   node scripts/gen-vapid.mjs
  *
- * Put VAPID_PUBLIC_KEY + VAPID_CONTACT in Cloudflare as plain vars,
- * VAPID_PRIVATE_JWK in as a secret. The contact should be a real address
- * (push services use it to reach the sender about abuse).
+ * Set VAPID_PUBLIC_KEY and VAPID_CONTACT in Cloudflare as plain vars and
+ * VAPID_PRIVATE_JWK as a secret. The contact should be a real address,
+ * since push services use it to report abuse.
  */
 import { generateKeyPairSync } from "node:crypto";
 

@@ -4,9 +4,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { slugifyTitle } from "../src/lib/site";
 
-/** Admin studio journey from /admin — no URLs to remember, zero admin chrome
- * signed out. Live delete only reaches the confirm arm; dev-list deletes run
- * fully against an in-memory copy. */
+/** Admin studio flows starting from /admin. Live deletes are only tested up
+ * to the confirm step. Dev-list deletes run fully against an in-memory
+ * copy. */
 
 function loadPaintings(): Array<{ slug: string; title: string }> {
   const dir = join(
@@ -25,7 +25,7 @@ function loadPaintings(): Array<{ slug: string; title: string }> {
         const draft = /^draft:\s*true/m.test(raw);
         return { slug: slugifyTitle(title), title, draft };
       })
-      // Buyer links below: drafts link to the studio room instead.
+      // Drafts link to the studio room, not a buyer page.
       .filter((p) => p.title !== "" && !p.draft)
   );
 }
@@ -42,8 +42,8 @@ const paintingsDir = join(
 
 /**
  * The e2e server has no publishing backend (dummy GitHub token), so the
- * admin API would 403. Serve the local collection instead: file list +
- * file reads, exactly the shapes /api/commit returns live.
+ * admin API would 403. Serve the local collection instead, using the same
+ * file list and file read shapes as /api/commit.
  */
 async function mockCommitApi(page: Page): Promise<void> {
   await page.route("**/api/commit*", async (route) => {
@@ -87,9 +87,9 @@ async function mockCommitApi(page: Page): Promise<void> {
 }
 
 /**
- * File-backed commit stub with live state: commits rewrite files, deletes
- * remove them — so trash, restore, empty, and auto-clear all re-read the
- * world they just wrote, exactly like the real backend.
+ * Stateful commit stub. Commits rewrite files and deletes remove them, so
+ * trash, restore, empty, and auto-clear read back their own writes like the
+ * real backend.
  */
 async function stubPaintingFiles(
   page: Page,
@@ -174,7 +174,7 @@ async function stubPaintingFiles(
   return { commits: () => commits, destroys: () => destroys };
 }
 
-/** Minimal stub frontmatter; extra lines (trash flags) ride along. */
+/** Minimal stub frontmatter. `extra` appends lines such as trash flags. */
 function stubMd(title: string, extra = ""): string {
   return (
     `---\ntitle: "${title}"\nprice: 100\nsold: false\n` +
@@ -183,9 +183,8 @@ function stubMd(title: string, extra = ""): string {
 }
 
 /**
- * A sold painting via the practice overlay — a clean checkout holds no
- * sold paintings, so tests that need the Sold fold seed their own
- * instead of relying on tree inventory.
+ * Seeds a sold painting through the practice overlay. A clean checkout has
+ * no sold paintings, so tests that need the Sold fold use this.
  */
 async function seedSoldOverlay(page: Page): Promise<void> {
   await page.addInitScript(() => {
@@ -216,9 +215,8 @@ async function seedSoldOverlay(page: Page): Promise<void> {
 test("studio header links home, never to visitor funnels", async ({ page }) => {
   await mockCommitApi(page);
   await page.goto("/admin");
-  // One nav: seven sections, ← Leave Admin, Add painting. Leave doubles
-  // as logout (clears the token). View counts live inside the
-  // collection rows themselves, so the nav carries no metrics link.
+  // Seven sections, Leave Admin, and Add painting. Leave Admin also clears
+  // the token.
   await expect(page.locator(".site-nav .nav-links a")).toHaveCount(9);
   for (const label of [
     "Collection",
@@ -239,17 +237,17 @@ test("studio header links home, never to visitor funnels", async ({ page }) => {
   ).toHaveText("Add painting");
   await expect(page.locator('nav a[href="/#notify"]')).toHaveCount(0);
   await expect(page.locator(".card .step")).toHaveCount(0);
-  // The collection Retry stays hidden while the section loads on its own.
+  // Retry stays hidden while the collection loads.
   await expect(page.locator("#collection-refresh")).toBeHidden();
-  // Plain-words copy, no operator jargon.
+  // No technical jargon in the copy.
   const body = (await page.locator("#main").textContent()) ?? "";
   expect(body).not.toContain("Publishing needs the live site");
   expect(body).not.toContain("Analytics isn't wired up");
 });
 
 test("draft rows link photo and title to the studio room", async ({ page }) => {
-  // Drafts have no buyer page: their links must open the room, never a
-  // 404. Stubbed file so the test needs no real draft in the tree.
+  // Drafts have no buyer page, so their links open the room instead of a
+  // 404. The file is stubbed so no real draft is needed.
   await page.route("**/api/commit*", async (route) => {
     if (route.request().method() === "PUT") {
       await route.fulfill({
@@ -266,8 +264,8 @@ test("draft rows link photo and title to the studio room", async ({ page }) => {
     }
   });
   await page.goto("/admin");
-  // Scoped to the stubbed row: the baked static rows paint first and the
-  // client render swaps them moments later.
+  // Scoped to the stubbed row, since the static rows render first and the
+  // client render replaces them shortly after.
   const row = page.locator(".row-card", { hasText: "Drafty" });
   await expect(row.locator(".row-title")).toHaveAttribute(
     "href",
@@ -281,17 +279,18 @@ test("collection rows link to their painting pages", async ({ page }) => {
   await mockCommitApi(page);
   await page.goto("/admin");
   for (const p of paintings) {
-    // One title link per painting — plus its photo link when it has one.
+    // One title link per painting, plus a photo link when it has a photo.
     await expect(
       page.locator(`#edit-list a.row-title[href="/paintings/${p.slug}"]`),
     ).toHaveCount(1);
   }
-  // The title link hugs its text: empty space beside it stays dead.
+  // The title link is sized to its text, so the space beside it isn't
+  // clickable.
   const title = page.locator(
     `#edit-list a.row-title[href="/paintings/${paintings[0]?.slug ?? ""}"]`,
   );
-  // Retried: hydration can swap the rows mid-measure, briefly detaching
-  // the handle (zero box) before the identical markup lands again.
+  // Retried because the client render can replace the rows mid-measure,
+  // briefly detaching the element.
   await expect(async () => {
     const widths = await title.evaluate((el) => {
       const li = el.closest(".row-card");
@@ -311,20 +310,19 @@ test("collection rows link to their painting pages", async ({ page }) => {
 
 test("admin links wear the accent, never browser blue", async ({ page }) => {
   await page.goto("/admin");
-  // The dev suffix proves the script ran — the row links it carries must
-  // still wear the accent (they have no scope attribute).
+  // The dev note shows the script ran. Its script-built links lack the
+  // scope attribute but still get the accent color.
   await expect(page.locator("#collection-dev")).toContainText(
     "Development only",
   );
-  // Deferred reveals fade in instead of snapping — but the heading
-  // itself is never touched.
+  // The deferred reveal fades in, and the heading isn't affected.
   await expect(page.locator("#collection-dev")).toHaveClass(/fade-in/);
   await expect(page.locator("#collection-title")).not.toHaveClass(/fade-in/);
   const color = await page
     .locator("#edit-list .row-title")
     .first()
     .evaluate((el) => getComputedStyle(el).color);
-  // Same clay in both computed-color serializations (rgb vs P3).
+  // Accent color in either serialization (rgb or P3).
   expect(color).toMatch(/164, 74, 36|0\.622 0\.289 0\.133/);
 });
 
@@ -333,14 +331,14 @@ test("studio hovers match the footer: underline only, no color flash", async ({
 }) => {
   await page.emulateMedia({ colorScheme: "dark" });
   await page.goto("/admin");
-  // Dark clay in both computed-color serializations (rgb vs P3).
+  // Dark-theme accent in either serialization (rgb or P3).
   const accent = /208, 129, 89|0\.795 0\.506 0\.342/;
   for (const sel of ["#edit-list .row-title", "#edit-list .row-edit"]) {
     const link = page.locator(sel).first();
     await expect(link).toHaveCSS("color", accent);
     await expect(link).toHaveCSS("transition-duration", "0.12s");
     await link.hover();
-    // Underline fades in; the text itself never leaves the accent.
+    // The underline fades in and the text stays the accent color.
     await expect(link).toHaveCSS("color", accent);
     await expect(link).not.toHaveCSS(
       "text-decoration-color",
@@ -353,12 +351,12 @@ test("reduced motion kills movement, keeps gentle fades", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await mockCommitApi(page);
   await page.goto("/admin");
-  // … while color and underline fades still transition.
+  // Color and underline transitions still run.
   await expect(page.locator("#edit-list .row-title").first()).toHaveCSS(
     "transition-duration",
     "0.12s",
   );
-  // Buttons never lift.
+  // Buttons don't lift.
   await page.locator('nav a.nav-cta[href="/admin/paintings/new"]').hover();
   await expect(
     page.locator('nav a.nav-cta[href="/admin/paintings/new"]'),
@@ -375,11 +373,11 @@ test("collection rows stop well short of the content edge on desktop", async ({
   await page.goto("/admin");
   const list = page.locator("#edit-list");
   await expect(list).toBeVisible();
-  // Rows arrive as static markup — no skeleton flash, no layout shift.
+  // Rows are in the static markup, so there's no skeleton or layout shift.
   await expect(page.locator("#edit-list .row-card").first()).toBeVisible();
   await expect(page.locator("#edit-list .skel")).toHaveCount(0);
-  // Available fills the whole content width — no empty half. The Drafts
-  // and Sold folds stack below it as full-width rows, not side columns.
+  // Available fills the content width, and the Drafts and Sold folds stack
+  // below as full-width rows.
   const main = (await page.locator("main.admin").boundingBox())?.width ?? 0;
   const groups = page.locator("#edit-list .list-group");
   await expect(
@@ -391,7 +389,7 @@ test("collection rows stop well short of the content edge on desktop", async ({
   }
   expect(total).toBeGreaterThan(0);
   expect(total).toBeGreaterThan(main * 0.85);
-  // A grid of paintings, not a 1D list: cards sit side by side.
+  // Cards sit side by side in a grid.
   const cards = page.locator(
     '#edit-list .list-group[data-group="available"] .row-card',
   );
@@ -401,7 +399,7 @@ test("collection rows stop well short of the content edge on desktop", async ({
     const secondX = (await cards.nth(1).boundingBox())?.x ?? 0;
     expect(secondX).toBeGreaterThan(firstX);
   }).toPass();
-  // Edit (pencil) and Delete (trash) ride side by side with icons.
+  // Edit and Delete sit side by side with icons.
   await expect(cards.first().locator(".row-edit")).toContainText("Edit");
   await expect(cards.first().locator(".row-edit svg")).toBeAttached();
   await expect(cards.first().locator(".row-del")).toContainText("Delete");
@@ -414,7 +412,7 @@ test("sold gets its own foldable row under everything", async ({ page }) => {
   const fold = page.locator("#edit-list .sold-fold");
   await expect(fold).toBeVisible();
   await expect(fold.locator("summary")).toContainText(/sold$/);
-  // Full width under the groups, not a third column.
+  // Full width below the groups, not a third column.
   const listW = (await page.locator("#edit-list").boundingBox())?.width ?? 0;
   const foldW = (await fold.boundingBox())?.width ?? 0;
   const availY =
@@ -434,7 +432,7 @@ test("sold gets its own foldable row under everything", async ({ page }) => {
 });
 
 test("drafts fold away between available and sold", async ({ page }) => {
-  // Seeded drafts, not tree files — a clean checkout has no drafts.
+  // Seed drafts, since a clean checkout has none.
   await page.addInitScript(() => {
     const draft = (slug: string, title: string): Record<string, unknown> => ({
       slug,
@@ -455,8 +453,7 @@ test("drafts fold away between available and sold", async ({ page }) => {
         upserts: {
           "fold-a": draft("fold-a", "Fold A"),
           "fold-b": draft("fold-b", "Fold B"),
-          // The fold sits above Sold, so seed one: a clean checkout
-          // holds no sold paintings.
+          // The fold sits above Sold, so seed a sold painting too.
           "sold-seed": {
             ...draft("sold-seed", "Sold Seed"),
             sold: true,
@@ -471,7 +468,7 @@ test("drafts fold away between available and sold", async ({ page }) => {
   const fold = page.locator("#edit-list .drafts-fold");
   await expect(fold).toBeVisible();
   await expect(fold.locator("summary")).toContainText(/drafts$/);
-  // Full-width row below Available and above Sold — never a side column.
+  // Full-width row below Available and above Sold.
   const listW = (await page.locator("#edit-list").boundingBox())?.width ?? 0;
   const foldW = (await fold.boundingBox())?.width ?? 0;
   expect(foldW).toBeGreaterThan(listW * 0.9);
@@ -499,8 +496,8 @@ async function dragFirstOntoLast(page: Page): Promise<{
   before: string[];
 }> {
   const cards = page.locator('[data-group="available"] .row-card');
-  // The dashboard wires dragging after its first collection pass — a
-  // native drag before that is just a link drag, so wait for the flag.
+  // Dragging is wired after the first collection render. Before that a
+  // drag is just a link drag, so wait for the attribute.
   await expect(cards.first()).toHaveAttribute("draggable", "true", {
     timeout: 15_000,
   });
@@ -510,9 +507,9 @@ async function dragFirstOntoLast(page: Page): Promise<{
   const first = cards.nth(0);
   const last = cards.nth(n - 1);
   const firstMd = await first.locator(".row-del").getAttribute("data-md");
-  // Drop onto the last card's center: the dragged card lands before it.
-  // (dragTo drives a real native drag; manual mouse steps never
-  // dispatch drop in this Chromium.)
+  // Dropping on the last card's center places the dragged card before it.
+  // dragTo performs a native drag. Manual mouse steps don't dispatch drop
+  // in this Chromium.
   await first.dragTo(last);
   return { n, firstMd, before };
 }
@@ -530,12 +527,12 @@ test("dragging Available rows commits the new gallery order", async ({
     message: string;
     files: Array<{ path: string; contentBase64: string }>;
   } | null = null;
-  // Reads go through the closure: assigning the untyped post body
-  // inside the route narrows direct reads to never.
+  // Read through a closure. TypeScript narrows direct reads to never,
+  // since the assignment happens inside the route callback.
   const sent = (): typeof posted => posted;
   await mockCommitApi(page);
-  // Registered after the mock so POST lands here first; everything else
-  // falls back through to it.
+  // Registered after the mock so it handles POST first. Other requests
+  // fall back to the mock.
   await page.route("**/api/commit*", async (route) => {
     if (route.request().method() === "POST") {
       posted = route.request().postDataJSON() as typeof posted;
@@ -549,8 +546,8 @@ test("dragging Available rows commits the new gallery order", async ({
   await expect
     .poll(() => sent()?.message ?? null, { timeout: 15_000 })
     .toBe("Reorder gallery");
-  // Only rows that actually moved rewrite: the last card never budges,
-  // so n-1 files commit (unchanged rows are skipped, not rewritten).
+  // Only rows whose position changed are rewritten. The last card stays
+  // put, so n-1 files are committed.
   expect(sent()?.files.length).toBe(n - 1);
   // The moved painting now sits just before the last card.
   const moved = sent()?.files.find((f) => f.path === firstMd);
@@ -562,7 +559,7 @@ test("dragging Available rows commits the new gallery order", async ({
   await expect(page.locator("#admin-status")).toContainText(
     "Gallery order saved",
   );
-  // The dashboard mirrors the drop: first card now sits just before last.
+  // The dashboard shows the first card just before the last.
   await expect
     .poll(
       () =>
@@ -582,8 +579,8 @@ test("dragging Sold rows commits the new sold order", async ({ browser }) => {
     sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
   );
   const page = await authed.newPage();
-  // Three sold paintings through the commit API — the tree only holds one,
-  // and dragging needs a group to reorder within.
+  // Three sold paintings through the commit stub, since reordering needs
+  // more than one.
   const soldFiles: Record<string, { title: string; order: number }> = {
     "sold-a.md": { title: "Sold A", order: 0 },
     "sold-b.md": { title: "Sold B", order: 1 },
@@ -617,11 +614,11 @@ test("dragging Sold rows commits the new sold order", async ({ browser }) => {
     message: string;
     files: Array<{ path: string; contentBase64: string }>;
   } | null = null;
-  // Reads go through the closure: assigning the untyped post body
-  // inside the route narrows direct reads to never.
+  // Read through a closure. TypeScript narrows direct reads to never,
+  // since the assignment happens inside the route callback.
   const sent = (): typeof posted => posted;
-  // Registered after the stub so POST lands here first; everything else
-  // falls back through to it.
+  // Registered after the stub so it handles POST first. Other requests
+  // fall back to the stub.
   await page.route("**/api/commit*", async (route) => {
     if (route.request().method() === "POST") {
       posted = route.request().postDataJSON() as typeof posted;
@@ -646,7 +643,7 @@ test("dragging Sold rows commits the new sold order", async ({ browser }) => {
   await expect
     .poll(() => sent()?.message ?? null, { timeout: 15_000 })
     .toBe("Reorder gallery");
-  // The moved painting's file carries its new index…
+  // The moved painting's file has its new index,
   const moved = sent()?.files.find((f) => f.path === firstMd);
   expect(moved).not.toBe(undefined);
   const body = Buffer.from(moved?.contentBase64 ?? "", "base64").toString(
@@ -655,7 +652,7 @@ test("dragging Sold rows commits the new sold order", async ({ browser }) => {
   const at = Number(body.match(/^order: (\d+)$/m)?.[1] ?? "-1");
   expect(at).toBeGreaterThanOrEqual(0);
   await expect(page.locator("#admin-status")).toContainText("Sold order saved");
-  // …and the dashboard shows it there.
+  // and the dashboard shows it there.
   const after = await titles.allTextContents();
   expect(after).not.toEqual(before);
   expect(after[at]).toBe(before[0]);
@@ -664,8 +661,8 @@ test("dragging Sold rows commits the new sold order", async ({ browser }) => {
 
 test("switching studio sections fades the page", async ({ page }) => {
   await page.goto("/admin");
-  // Click through the header, then sample 30ms into the 220ms arrival
-  // fade: an animation must be running on the fresh page.
+  // Navigate through the header, then check 30ms into the 220ms fade that
+  // an animation is running.
   const fading = await page.evaluate(
     () =>
       new Promise((resolve: (v: boolean) => void) => {
@@ -706,7 +703,8 @@ test("draggable rows show the grab fist, closing it mid-drag", async ({
       { timeout: 15_000 },
     )
     .toBe("grab");
-  // A held press closes the fist — released anywhere, no commit.
+  // Pressing shows the grabbing cursor. Releasing without a drop commits
+  // nothing.
   await card.hover();
   await page.mouse.down();
   await expect
@@ -731,7 +729,7 @@ test("delete moves to trash, restore brings it back, purge destroys", async ({
   await page.goto("/admin");
   const available = page.locator('[data-group="available"] .row-card');
   await expect(available).toHaveCount(2);
-  // Delete asks first, then moves to trash — nothing destroyed.
+  // Delete asks first, then moves the painting to trash.
   await available.first().locator(".row-del").click();
   await expect(page.locator("#row-confirm")).toBeVisible();
   await expect(page.locator("#row-confirm-title")).toHaveText("Move to trash?");
@@ -751,7 +749,7 @@ test("delete moves to trash, restore brings it back, purge destroys", async ({
   await expect(page.locator("#admin-status")).toContainText(
     "30 days to change your mind",
   );
-  // Restore brings it straight back, no questions.
+  // Restore brings it back without a confirmation.
   await page.locator("#edit-list .trash-fold summary").click();
   await page.locator('[data-group="trash"] .row-restore').click();
   await expect
@@ -762,7 +760,7 @@ test("delete moves to trash, restore brings it back, purge destroys", async ({
   await expect(page.locator("#admin-status")).toContainText(
     "back in the collection",
   );
-  // Delete forever asks again, then destroys the files.
+  // Delete forever asks again, then deletes the files.
   await available.first().locator(".row-del").click();
   await expect(page.locator("#row-confirm-yes")).toBeEnabled({ timeout: 8000 });
   await page.locator("#row-confirm-yes").click();
@@ -801,7 +799,7 @@ test("empty trash destroys everything trashed at once", async ({ browser }) => {
   await expect(page.locator('[data-group="available"] .row-card')).toHaveCount(
     1,
   );
-  // The fold rests closed until she opens it.
+  // The trash fold starts closed.
   const fold = page.locator("#edit-list .trash-fold");
   await expect(fold.locator("summary")).toContainText("2 trashed");
   await expect(fold.locator(".row-card").first()).toBeHidden();
@@ -833,7 +831,7 @@ test("trash older than 30 days clears itself", async ({ browser }) => {
     "keeper.md": stubMd("Keeper"),
   });
   await page.goto("/admin");
-  // No clicks: the visit itself clears the old trash in one commit.
+  // Loading the page clears old trash in one commit.
   await expect
     .poll(() => destroys().at(-1)?.message ?? null, { timeout: 15_000 })
     .toBe("Clear old trash (1 paintings)");
@@ -848,7 +846,7 @@ test("trash older than 30 days clears itself", async ({ browser }) => {
 });
 
 test("dragging in practice keeps the order in this tab", async ({ page }) => {
-  // No token on a local preview: the practice overlay, never a commit.
+  // Without a token on a local preview, saves go to the practice overlay.
   await mockCommitApi(page);
   await page.goto("/admin");
   const { n, before } = await dragFirstOntoLast(page);
@@ -858,9 +856,8 @@ test("dragging in practice keeps the order in this tab", async ({ page }) => {
       timeout: 15_000,
     },
   );
-  // Same mirror in practice mode: the list shows the dropped order.
-  // Polled like the live test — the re-render lands a beat after the
-  // drop, and a bare expect would compare the Promise itself.
+  // The list shows the dropped order in practice mode too. Polled because
+  // the re-render happens shortly after the drop.
   await expect
     .poll(
       () =>
@@ -870,8 +867,8 @@ test("dragging in practice keeps the order in this tab", async ({ page }) => {
       { timeout: 15_000 },
     )
     .toEqual([...before.slice(1, n - 1), before[0], before[n - 1]]);
-  // Resting on an Available photo reveals the reorder hint — not
-  // instantly (it would nag on every pass), only after a few seconds.
+  // Hovering an Available photo shows the reorder hint after a few
+  // seconds.
   await page.locator('[data-group="available"] .row-photo').first().hover();
   await page.waitForTimeout(1000);
   await expect(page.locator("#reorder-tip")).toBeHidden();
@@ -879,7 +876,7 @@ test("dragging in practice keeps the order in this tab", async ({ page }) => {
   await expect(page.locator("#reorder-tip")).toContainText(
     "Drag cards to reorder",
   );
-  // Leaving hides it again.
+  // Moving away hides it.
   await page.mouse.move(5, 5);
   await expect(page.locator("#reorder-tip")).toBeHidden();
   const overlay = await page.evaluate(() =>
@@ -892,18 +889,16 @@ test("dragging in practice keeps the order in this tab", async ({ page }) => {
     }
   ).upserts;
   const orders = Object.values(upserts ?? {}).map((u) => u.order);
-  // Same skip-unchanged contract as the live commit above: the unmoved
-  // last card keeps its order, so n-1 rows land in the overlay, each
-  // with a distinct position.
+  // As with the live commit, the unmoved last card is skipped, so n-1 rows
+  // reach the overlay, each with a distinct position.
   expect(orders.length).toBe(n - 1);
   expect(new Set(orders).size).toBe(n - 1);
 });
 
 test("dropping a card where it already sits stays silent", async ({ page }) => {
-  // Second-to-last onto the last card's center: already just before
-  // it, so the drop is a positional no-op — it used to toast
-  // "already the order" on every such miss. No token on a local
-  // preview: the practice overlay, never a commit.
+  // Drop the second-to-last card on the last card's center. It's already
+  // there, so nothing should change or show a toast. Without a token this
+  // uses the practice overlay.
   await mockCommitApi(page);
   await page.goto("/admin");
   const cards = page.locator('[data-group="available"] .row-card');
@@ -913,11 +908,11 @@ test("dropping a card where it already sits stays silent", async ({ page }) => {
   const n = await cards.count();
   expect(n).toBeGreaterThan(1);
   const before = await cards.locator(".row-title").allTextContents();
-  // Immediate reads, never toBeEmpty: the retrying assertion would
-  // out-wait the 6s toast and pass against the noisy code too.
+  // Read immediately instead of toBeEmpty. The retrying assertion would
+  // outlast the 6s toast and pass even if a toast appeared.
   expect(await page.locator("#admin-status").textContent()).toBe("");
   await cards.nth(n - 2).dragTo(cards.nth(n - 1));
-  // A beat for any commit or toast to appear — neither should.
+  // Give a commit or toast time to appear. Neither should.
   await page.waitForTimeout(2000);
   expect(await page.locator("#admin-status").textContent()).toBe("");
   expect(await cards.locator(".row-title").allTextContents()).toEqual(before);
@@ -929,9 +924,8 @@ test("dropping a card where it already sits stays silent", async ({ page }) => {
 });
 
 test("draft cards never trigger the reorder hint", async ({ page }) => {
-  // Seeded draft, not tree files — a clean checkout holds no drafts.
-  // No API stub here, so the dashboard falls back to its baked list and
-  // merges the overlay, draft included.
+  // Seed a draft, since a clean checkout has none. Without an API stub the
+  // dashboard uses the baked list merged with the overlay.
   await page.addInitScript(() => {
     window.localStorage.setItem(
       "studio-practice-v1",
@@ -956,8 +950,8 @@ test("draft cards never trigger the reorder hint", async ({ page }) => {
     );
   });
   await page.goto("/admin");
-  // Drafts don't drag, so resting on one must never summon the hint —
-  // even past the few-seconds delay.
+  // Drafts can't be dragged, so hovering one doesn't show the hint, even
+  // after the delay.
   await page.locator('[data-group="drafts"] .row-card').first().hover();
   await page.waitForTimeout(3600);
   await expect(page.locator("#reorder-tip")).toBeHidden();
@@ -967,12 +961,11 @@ test("delete warms to clay red, never brand orange", async ({ page }) => {
   await page.goto("/admin");
   const del = page.locator("#edit-list .row-del").first();
   await expect(del).toBeVisible();
-  // The ease is on the color itself, not just the end state.
+  // The color itself transitions.
   const ease = await del.evaluate((el) => getComputedStyle(el).transition);
   expect(ease).toContain("color");
-  // Re-hover inside the poll: under parallel load a late image can
-  // shift the button mid-transition and drop the hover — the assertion
-  // (clay, not brand orange) is unchanged.
+  // Hover again inside the poll. Under parallel load a late image can
+  // shift the button and lose the hover.
   await expect(async () => {
     await del.hover();
     expect(await del.evaluate((el) => getComputedStyle(el).color)).toBe(
@@ -992,7 +985,7 @@ test("info links list plainly, and Advanced eases open", async ({ page }) => {
   await expect(page.locator("#sec-info summary")).toContainText(
     "Advanced Settings",
   );
-  // The Advanced Settings heading stands clear of the lines above it.
+  // The Advanced Settings heading has space above it.
   await expect(page.locator("#sec-info summary")).toHaveCSS(
     "margin-top",
     "24px",
@@ -1005,8 +998,9 @@ test("Advanced drawer lands without a snap", async ({ page }) => {
   await page.goto("/admin/guide");
   await page.locator("#sec-info summary").click();
   await expect(page.locator("#admin-token")).toBeVisible();
-  // Sample the footer through the close: past the 350ms flight every
-  // step must be still. The old close eased 16px short, then snapped.
+  // Sample the footer position during the close. After the 350ms
+  // animation it shouldn't move, which catches a close that ends short
+  // and then jumps.
   const lateSteps: number[] = await page.evaluate(async () => {
     const footer = document.querySelector("footer");
     const details = document.querySelector("#sec-info details");
@@ -1046,9 +1040,8 @@ test("drawer headers never select their words", async ({ page }) => {
 });
 
 test("drawers animate through script on every browser", async ({ page }) => {
-  // The unfold is script-driven (Web Animations), not the Chromium-only
-  // interpolate-size slide — spy Element.animate to prove the script
-  // owns it, on the guide drawer and a collection fold alike.
+  // Spy on Element.animate to check the drawer script runs the animation,
+  // on both the guide drawer and a collection fold.
   const animatedProps = (summarySel: string): Promise<string[]> =>
     page.evaluate((sel) => {
       const seen: string[] = [];
@@ -1076,8 +1069,8 @@ test("drawers animate through script on every browser", async ({ page }) => {
       proto.animate = orig;
       return seen;
     }, summarySel);
-  // The collection fold needs a sold painting; a clean checkout holds
-  // none, so seed one (init scripts run on every page in this context).
+  // The collection fold needs a sold painting, so seed one. Init scripts
+  // run on every page in this context.
   await seedSoldOverlay(page);
   await page.goto("/admin/guide");
   const guideSeen = await animatedProps("#sec-info summary");
@@ -1094,19 +1087,19 @@ test("errors toast over the page wherever she is scrolled", async ({
   page,
 }) => {
   await page.goto("/admin/banner");
-  // Saving an empty banner with no backend behind it: a panel error.
+  // Saving an empty banner without a backend shows an error.
   await page.locator("#f-announce").fill("");
   await page.locator("#announce-save").click();
   await expect(page.locator("#admin-status")).not.toBeEmpty({
     timeout: 15_000,
   });
-  // Every message re-rises the toast.
+  // Each message restarts the toast animation.
   await expect(page.locator("#admin-status.toast-in")).toHaveCount(1);
   const pos = await page
     .locator("#admin-status")
     .evaluate((el) => getComputedStyle(el).position);
   expect(pos).toBe("fixed");
-  // Scrolled to the bottom, the toast still sits inside the viewport.
+  // Scrolled to the bottom, the toast is still in the viewport.
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   const box = await page.locator("#admin-status").boundingBox();
   const viewport = page.viewportSize();
@@ -1137,7 +1130,7 @@ test("collection names the missing API token when the API refuses", async ({
 
 test("view counts land in their collection rows", async ({ page }) => {
   await mockCommitApi(page);
-  // Later routes win: this overrides the mock's empty views above.
+  // Later routes take precedence, overriding the mock's empty views.
   await page.route("**/api/analytics*", async (route) =>
     route.fulfill({
       status: 200,
@@ -1152,10 +1145,10 @@ test("view counts land in their collection rows", async ({ page }) => {
     }),
   );
   await page.goto("/admin");
-  // No card anywhere — each count sits inside its own row, words and all.
+  // No separate card. Each count is inside its row.
   await expect(page.locator("#sec-views")).toHaveCount(0);
-  // Tag a photo before the counts land: patching them in must never
-  // rebuild the rows (photos would flicker).
+  // Tag a photo before the counts arrive, to check that patching them in
+  // doesn't rebuild the rows.
   const img = page.locator("#edit-list img.thumb").first();
   await expect(img).toBeVisible();
   const handle = await img.elementHandle();
@@ -1177,7 +1170,7 @@ test("rows stay count-less when analytics is empty", async ({ page }) => {
   await page.goto("/admin");
   await analytics;
   await expect(page.locator("#sec-views")).toHaveCount(0);
-  // Rows rendered AND the (empty) answer arrived — still no counts.
+  // Rows rendered and the empty response arrived, so there are no counts.
   await expect(page.locator("#edit-list")).toContainText("First Thaw");
   await expect(page.locator("#edit-list")).not.toContainText("view");
 });
@@ -1198,12 +1191,11 @@ test("metrics page ranks every painting, most watched first", async ({
       }),
     }),
   );
-  // Metrics rows are baked at build time and a clean checkout holds no
-  // sold painting, so flip one seed row for this visit: fetch the real
-  // document and rewrite its embedded seed.
+  // Metrics rows are baked at build time and a clean checkout has no sold
+  // painting, so fetch the page and mark one seed row sold.
   await page.route("**/admin/metrics*", async (route) => {
     const res = await route.fetch();
-    // The trailing-slash redirect passes through untouched.
+    // Pass the trailing-slash redirect through.
     if (res.status() !== 200) return route.fulfill({ response: res });
     const html = await res.text();
     const needle = '"slug":"prairie-moon","title":"Prairie Moon","sold":false';
@@ -1214,16 +1206,15 @@ test("metrics page ranks every painting, most watched first", async ({
     });
   });
   await page.goto("/admin/metrics");
-  // Most opened tops the ranking, with its count and the headline
-  // total above the rows.
+  // The most viewed painting ranks first, with the total above the rows.
   const rows = page.locator("#stats-body .metric-row");
   await expect(rows.first()).toContainText("First Thaw");
   await expect(rows.first()).toContainText("10 views");
   await expect(rows.nth(1)).toContainText("Prairie Moon");
   await expect(rows.first().locator(".metric-thumb")).toBeVisible();
   await expect(page.locator("#stats-total")).toHaveText("17");
-  // Every live painting has a row with its status (drafts never
-  // opened for a buyer, so they stay off this table).
+  // Every published painting has a row with its status. Drafts are
+  // excluded.
   await expect(page.locator("#stats-body")).toContainText("Sold");
   await expect(page.locator("#stats-body")).not.toContainText("Draft");
   await expect(page.locator("#stats-note")).toBeEmpty();
@@ -1240,10 +1231,8 @@ test("metric titles answer only their own words", async ({ page }) => {
   await page.goto("/admin/metrics");
   const title = page.locator("#stats-body .metric-title").first();
   await expect(title).toBeVisible();
-  // Far right of the title's *words*, level with them: the link hugs
-  // its text (its own box stretches the column, so measure the text
-  // range instead), and neither hover nor a click reaches it from
-  // empty space.
+  // Just right of the title text. Measure the text range, since the link
+  // box is wider. Hover and click there shouldn't reach the link.
   const words = await title.evaluate((el) => {
     const range = document.createRange();
     range.selectNodeContents(el);
@@ -1255,7 +1244,7 @@ test("metric titles answer only their own words", async ({ page }) => {
     words.y + words.height / 2,
   );
   expect(await title.evaluate((el) => el.matches(":hover"))).toBe(false);
-  // On the words themselves, hover answers as before.
+  // Hovering the text itself still works.
   await title.hover();
   expect(await title.evaluate((el) => el.matches(":hover"))).toBe(true);
 });
@@ -1271,7 +1260,7 @@ test("metrics page stays count-less with plain words when empty", async ({
     }),
   );
   await page.goto("/admin/metrics");
-  // Titles still list — only the counts wait.
+  // Titles render while the counts are pending.
   await expect(page.locator("#stats-body")).toContainText("First Thaw");
   await expect(page.locator("#stats-total")).toHaveText("—");
   await expect(page.locator("#stats-note")).not.toBeEmpty();
@@ -1294,7 +1283,7 @@ test("good-to-know names e-transfer, shippers open in a new tab", async ({
 
 test("collection photos never flicker on load", async ({ page }) => {
   await page.goto("/admin");
-  // Dashboard script ran (dev suffix) — the rows below are final.
+  // The dev note shows the script ran, so the rows are final.
   await expect(page.locator("#collection-dev")).toContainText(
     "Development only",
   );
@@ -1303,19 +1292,19 @@ test("collection photos never flicker on load", async ({ page }) => {
   const handle = await img.elementHandle();
   expect(handle !== null).toBe(true);
   if (handle === null) return;
-  // No re-render swaps identical markup underneath.
+  // No re-render replaces the identical markup.
   await page.waitForTimeout(1500);
   expect(await page.evaluate((el) => el.isConnected, handle)).toBe(true);
 });
 
 test("rows render count-less while analytics hangs", async ({ page }) => {
   await mockCommitApi(page);
-  // Hang the analytics call: the response never arrives.
+  // Leave the analytics request pending.
   await page.route("**/api/analytics*", async () => {
     await new Promise<never>(() => undefined);
   });
   await page.goto("/admin");
-  // Rows don't wait for counts — and no card or note appears instead.
+  // Rows don't wait for counts, and no card or note appears.
   await expect(page.locator("#sec-views")).toHaveCount(0);
   await expect(page.locator("#edit-list")).toContainText("First Thaw");
   await expect(page.locator("#edit-list")).not.toContainText("view");
@@ -1325,7 +1314,7 @@ test("dead analytics leaves rows alone, with no card or note", async ({
   page,
 }) => {
   await mockCommitApi(page);
-  // Later routes win: this overrides the mock's analytics success above.
+  // Later routes take precedence, overriding the mock's analytics response.
   await page.route(
     "**/api/analytics*",
     async (route) => await route.abort("failed"),
@@ -1354,7 +1343,7 @@ test("admin mode follows her through the whole gallery", async ({
   }
   await cards.first().click();
   await expect(page.locator("#admin-bar")).toBeVisible();
-  // The studio door carries the painting's own room.
+  // The studio link points to this painting's room.
   const href = await page.locator("#admin-bar a").first().getAttribute("href");
   expect(href?.startsWith("/admin/paintings/")).toBe(true);
   await authed.close();
@@ -1375,8 +1364,7 @@ test("studio dashboard grids without sideways scroll on a phone", async ({
   });
   const page = await context.newPage();
   await page.goto("/admin");
-  // The anchor strip is gone; one section per page, reached through
-  // the single header nav.
+  // No sub-nav. Each section is its own page in the header nav.
   await expect(page.locator(".subnav")).toHaveCount(0);
   const overflow = await page.evaluate(
     () =>
@@ -1384,10 +1372,10 @@ test("studio dashboard grids without sideways scroll on a phone", async ({
       document.documentElement.clientWidth,
   );
   expect(overflow).toBeLessThanOrEqual(0);
-  // The collection list is the first thing a phone shows — the single
-  // header nav fits beside it without scrolling sideways.
+  // On a phone the collection list is visible without horizontal
+  // scrolling.
   await expect(page.locator("#edit-list")).toBeVisible();
-  // Her way home stays visible on a phone (non-CTA links hide by default).
+  // The home link stays visible on a phone, while other non-CTA links hide.
   await expect(
     page.locator('.site-nav .nav-links a.keep[href="/"]'),
   ).toBeVisible();
@@ -1412,17 +1400,17 @@ test("studio wakes up on every visit, not just full loads", async ({
     }),
   );
   await page.goto("/admin");
-  // Row counts prove the dashboard init ran on this load…
+  // Row counts show the dashboard init ran on this load.
   await expect(page.locator('.row-card:has-text("First Thaw")')).toContainText(
     "10 views",
   );
-  // Out through a painting's buyer page (client-side hop), back again.
+  // Navigate client-side to a buyer page and back.
   await page.locator("#edit-list a.row-title").first().click();
   await expect(page).toHaveURL(/\/paintings\//);
   await page.goBack();
   await expect(page).toHaveURL(/\/admin/);
-  // …and again on the return visit — lists refilled, and the new-painting
-  // door still opens its room.
+  // Init runs again on return. The lists refill and Add painting still
+  // opens its room.
   await expect(page.locator('.row-card:has-text("First Thaw")')).toContainText(
     "10 views",
   );
@@ -1438,10 +1426,9 @@ test("banner lifetimes are 1/3/7/14 days plus no end date", async ({
     .locator("#f-duration option")
     .evaluateAll((opts) => opts.map((o) => (o as HTMLOptionElement).value));
   expect(values).toEqual(["", "1", "3", "7", "14"]);
-  // Show-until, Update, and Remove share one desktop row (bottoms
-  // level); the status sits below all three — and fades in instead of
-  // snapping. Remove hides when no banner exists, so only the visible
-  // controls pin the row.
+  // Show until, Update, and Remove share one bottom-aligned desktop row,
+  // and the status fades in below. Remove is hidden without a banner, so
+  // only visible controls are measured.
   const bottoms = await page
     .locator("#f-duration, #announce-save, #announce-clear:visible")
     .evaluateAll((els) =>
@@ -1466,15 +1453,15 @@ test("tickle button pings browsers without email", async ({ page }) => {
   await page.goto("/admin/ping");
   const btn = page.locator("#tickle-send");
   await expect(btn).toBeVisible();
-  // Hugs the left, never the full column.
+  // Left-aligned, not full width.
   const btnBox = await btn.boundingBox();
   const secBox = await page.locator("#sec-tickle").boundingBox();
   expect(btnBox !== null && secBox !== null).toBe(true);
   if (btnBox !== null && secBox !== null) {
     expect(btnBox.width).toBeLessThan(secBox.width / 2);
   }
-  // Keyless there are no subscribers: the question comes first, then
-  // the honest empty result, faded in.
+  // Without keys there are no subscribers. The confirmation comes first,
+  // then the empty result fades in.
   const asked: string[] = [];
   page.on("dialog", async (dialog) => {
     asked.push(dialog.message());
@@ -1488,11 +1475,10 @@ test("tickle button pings browsers without email", async ({ page }) => {
   expect(asked).toEqual([
     "Nobody to ping yet — no browsers subscribed. Send anyway?",
   ]);
-  // A custom line rides along and is stored for the ping to show.
+  // Custom text is sent and stored for the ping.
   await page.locator("#tickle-body").fill("New seascape just listed");
   await btn.click();
-  // Every tap answers at once, so this result can't be the first tap's
-  // leftover text — wait out this tap's own cycle.
+  // Each tap clears the previous result, so wait for this tap's own cycle.
   await expect(status).toContainText("Pinging");
   await expect(status).toContainText("Nobody to ping yet");
   const stored = await page.request.get("/api/push-message");
@@ -1506,7 +1492,7 @@ test("ping preview wears the notification shape live", async ({ page }) => {
   await page.goto("/admin/ping");
   const preview = page.locator("#tickle-preview");
   await expect(preview).toBeVisible();
-  // Her icon, the fixed title, the standard note while blank.
+  // Site icon, standard title, and standard note while blank.
   await expect(preview.locator("img")).toHaveAttribute("src", "/favicon.png");
   await expect(preview.locator("strong")).toHaveText(
     "Something new in the gallery",
@@ -1514,7 +1500,7 @@ test("ping preview wears the notification shape live", async ({ page }) => {
   await expect(preview.locator("#tickle-preview-body")).toHaveText(
     "Tap to see it.",
   );
-  // Typing swaps in her line — the exact words buyers get.
+  // Typed text replaces the standard note.
   await page.locator("#tickle-body").fill("New seascape just listed");
   await expect(preview.locator("#tickle-preview-body")).toHaveText(
     "New seascape just listed",
@@ -1523,7 +1509,7 @@ test("ping preview wears the notification shape live", async ({ page }) => {
   await expect(preview.locator("#tickle-preview-body")).toHaveText(
     "Tap to see it.",
   );
-  // The title edits the same way — blank keeps the standard one.
+  // The title works the same way. Blank keeps the standard one.
   await page.locator("#tickle-title").fill("Fresh today");
   await expect(preview.locator("#tickle-preview-title")).toHaveText(
     "Fresh today",
@@ -1537,7 +1523,7 @@ test("ping preview wears the notification shape live", async ({ page }) => {
 test("device preview sends a local ping, never a broadcast", async ({
   page,
 }) => {
-  // Stand in for the OS renderer: records what would pop up.
+  // Stub the Notification API to record what would be shown.
   await page.addInitScript(() => {
     const seen: Array<{ title: string; opts: unknown }> = [];
     class FakeNotification {
@@ -1559,9 +1545,9 @@ test("device preview sends a local ping, never a broadcast", async ({
   await page.locator("#tickle-title").fill("Fresh today");
   await page.locator("#tickle-body").fill("New seascape just listed");
   await page.locator("#tickle-preview-send").click();
-  // The page says the ping went out on this browser only.
+  // The page says the preview was sent to this browser only.
   await expect(page.locator("#tickle-status")).toContainText("Preview sent");
-  // And it wears her words: custom title, custom line, her icon.
+  // It uses the custom title, custom text, and site icon.
   const shown = await page.evaluate(
     () => (window as unknown as Record<string, unknown>)["__notes"],
   );
@@ -1580,12 +1566,12 @@ test("device preview sends a local ping, never a broadcast", async ({
 
 test("tickle button names its reach and asks first", async ({ page }) => {
   await page.goto("/admin/ping");
-  // The field names the default note — blank never surprises.
+  // The placeholder shows the default note.
   await expect(page.locator("#tickle-body")).toHaveAttribute(
     "placeholder",
     "Blank: Something new in the gallery — tap to see it",
   );
-  // Five subscribed browsers: the button must ask before it pings.
+  // With five subscribers, the button asks before pinging.
   await page.route("**/api/notify", async (route) => {
     if (route.request().method() === "GET") {
       await route.fulfill({
@@ -1617,13 +1603,13 @@ test("tickle button names its reach and asks first", async ({ page }) => {
     if (asked.length === 1) await dialog.dismiss();
     else await dialog.accept();
   });
-  // Saying no sends nothing — still idle, button back.
+  // Declining sends nothing and re-enables the button.
   await btn.click();
   await expect.poll(() => asked.length).toBe(1);
   expect(asked[0]).toBe("This will ping 5 browsers. Are you sure?");
   await expect(status).toBeEmpty();
   await expect(btn).toBeEnabled();
-  // Saying yes pings all five.
+  // Confirming pings all five.
   await btn.click();
   await expect.poll(() => asked.length).toBe(2);
   await expect(status).toContainText("Pinged 5 of 5 browsers.");
@@ -1632,7 +1618,7 @@ test("tickle button names its reach and asks first", async ({ page }) => {
 
 test("tickle walks big lists in batches", async ({ page }) => {
   await page.goto("/admin/ping");
-  // 65 subscribed browsers: one Worker call can't ping them all.
+  // 65 subscribers is more than one Worker call can ping.
   await page.route("**/api/notify", async (route) => {
     if (route.request().method() === "GET") {
       await route.fulfill({
@@ -1673,7 +1659,7 @@ test("tickle walks big lists in batches", async ({ page }) => {
   await btn.click();
   await expect.poll(() => asked.length).toBe(1);
   expect(asked[0]).toBe("This will ping 65 browsers. Are you sure?");
-  // Two taps behind the scenes — 40 then 25 — one result on screen.
+  // Two requests (40 then 25) and one result on screen.
   await expect.poll(() => posts.length).toBe(2);
   expect(posts).toEqual([0, 40]);
   await expect(status).toContainText("Pinged 65 of 65 browsers.");
@@ -1684,7 +1670,7 @@ test("send email button confirms the list before broadcasting", async ({
   page,
 }) => {
   await page.goto("/admin/email");
-  // Three addresses on the list: the button must ask before it sends.
+  // With three addresses on the list, the button asks before sending.
   await page.route("**/api/collectors", async (route) => {
     await route.fulfill({
       status: 200,
@@ -1726,13 +1712,13 @@ test("send email button confirms the list before broadcasting", async ({
     if (asked.length === 1) await dialog.dismiss();
     else await dialog.accept();
   });
-  // Saying no sends nothing — still idle, button back.
+  // Declining sends nothing and re-enables the button.
   await btn.click();
   await expect.poll(() => asked.length).toBe(1);
   expect(asked[0]).toBe("This will email 3 subscribers. Are you sure?");
   await expect(status).toBeEmpty();
   await expect(btn).toBeEnabled();
-  // Saying yes emails all three.
+  // Confirming emails all three.
   await btn.click();
   await expect.poll(() => asked.length).toBe(2);
   await expect(status).toContainText("Emailed 3 subscribers.");
@@ -1740,8 +1726,8 @@ test("send email button confirms the list before broadcasting", async ({
 });
 
 test("send email asks even when the count didn't load", async ({ page }) => {
-  // The count request fails, so the button asks blind rather than
-  // sending blind — saying no sends nothing.
+  // The count request fails, so the button still asks. Declining sends
+  // nothing.
   await page.route("**/api/collectors", async (route) => {
     await route.abort();
   });
@@ -1798,7 +1784,7 @@ test("email page previews the exact email buyers get", async ({ page }) => {
       });
       return;
     }
-    // Echo her draft fields the way the server composes them.
+    // Echo the draft fields the way the server composes them.
     const params = new URL(route.request().url()).searchParams;
     const esc = (s: string): string =>
       s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -1816,7 +1802,7 @@ test("email page previews the exact email buyers get", async ({ page }) => {
     });
   });
   await page.goto("/admin/email");
-  // Both fields start as the standard note.
+  // Both fields start with the standard text.
   await expect(page.locator("#email-subject")).toHaveValue(
     "New painting at Barbara Straka's studio",
   );
@@ -1827,13 +1813,13 @@ test("email page previews the exact email buyers get", async ({ page }) => {
   await expect(page.locator("#email-preview-subject")).toHaveText(
     "New painting at Barbara Straka's studio",
   );
-  // The body is the styled email itself, in a sandboxed frame.
+  // The body is the styled email in a sandboxed iframe.
   const frame = page.frameLocator("#email-preview-body");
   await expect(frame.locator("h1")).toHaveText(
     "New painting at Barbara Straka's studio",
   );
   await expect(frame.locator("body")).toContainText("come look");
-  // Her words land in the preview as she types, and ride the send.
+  // Typed text shows in the preview and is included in the send.
   await page.locator("#email-body").fill("Fresh off the easel");
   await expect(frame.locator("body")).toContainText("Fresh off the easel");
   page.on("dialog", async (dialog) => {
@@ -1861,8 +1847,8 @@ test("collection groups available then sold, never bare statuses", async ({
   const text = (await page.locator("#edit-list").textContent()) ?? "";
   expect(text).not.toContain("— available");
   expect(text).not.toContain("— sold");
-  // Every row carries its thumbnail and its studio door (one Edit link
-  // per card — drafts link their titles to the room instead of buyers).
+  // Every row has a thumbnail and one Edit link. Draft titles link to the
+  // room instead of a buyer page.
   const links = await page
     .locator('#edit-list a.row-title[href^="/paintings/"]')
     .count();
@@ -1876,8 +1862,8 @@ test("collection groups available then sold, never bare statuses", async ({
 test("collection falls back to the baked-in list when the API fails", async ({
   page,
 }) => {
-  // Even a reachable API can fail its list call — in dev the page's own
-  // baked-in list covers for it, with practice edits and deletes.
+  // If the list call fails in dev, the page falls back to its baked list
+  // with practice edits and deletes.
   await page.route("**/api/commit*", async (route) =>
     route.fulfill({
       status: 500,
@@ -1888,8 +1874,7 @@ test("collection falls back to the baked-in list when the API fails", async ({
   await page.goto("/admin");
   const rows = page.locator('#edit-list a.row-title[href^="/paintings/"]');
   await expect(rows.first()).toBeVisible();
-  // Every row still carries its thumbnail and its studio door (one Edit
-  // link per card — drafts link their titles to the room instead).
+  // Every row still has a thumbnail and one Edit link.
   await expect(page.locator("#edit-list .row-edit")).toHaveCount(
     await page.locator("#edit-list .row-card").count(),
   );
@@ -1898,9 +1883,9 @@ test("collection falls back to the baked-in list when the API fails", async ({
   await expect(page.locator("#collection-dev")).toContainText(
     "Development only",
   );
-  // Script-built rows still wear the studio styles (accent links, boxed rows).
+  // Script-built rows still get the studio styles.
   const color = await rows.first().evaluate((el) => getComputedStyle(el).color);
-  // Same clay in both computed-color serializations (rgb vs P3).
+  // Accent color in either serialization (rgb or P3).
   expect(color).toMatch(/164, 74, 36|0\.622 0\.289 0\.133/);
   const box = await rows.first().evaluate((el) => {
     const li = el.closest("li");
@@ -1912,10 +1897,9 @@ test("collection falls back to the baked-in list when the API fails", async ({
 test("practice draft from the new room lands in the dashboard Drafts section", async ({
   page,
 }) => {
-  // The fold label pluralizes ("2 drafts"): seed a companion so the new
-  // practice draft isn't alone — a clean checkout holds no drafts. The
-  // save redirects back here, which re-runs this script, so MERGE the
-  // companion instead of overwriting (or the saved draft is wiped).
+  // Seed a second draft so the fold label pluralizes ("2 drafts"). The
+  // save redirects back here and re-runs this init script, so merge into
+  // the overlay instead of overwriting it, or the saved draft is lost.
   await page.addInitScript(() => {
     const key = "studio-practice-v1";
     let overlay: { upserts: Record<string, unknown>; deletes: string[] } = {
@@ -1936,7 +1920,7 @@ test("practice draft from the new room lands in the dashboard Drafts section", a
         }
       }
     } catch {
-      // Corrupt seed — start empty.
+      // Invalid stored overlay. Start empty.
     }
     overlay.upserts["draft-companion"] = {
       slug: "draft-companion",
@@ -1960,7 +1944,7 @@ test("practice draft from the new room lands in the dashboard Drafts section", a
     .locator("#de-photo")
     .setInputFiles("src/content/paintings/1943x1967.jpg");
   await page.locator("#de-save-draft").click();
-  // Saving lands back on the dashboard with its confirmation…
+  // Saving returns to the dashboard with a confirmation,
   await expect(page).toHaveURL(/\/admin\/?$/);
   await expect(page.locator("#admin-status")).toContainText(
     'Draft "Practice Piece" kept',
@@ -1968,8 +1952,7 @@ test("practice draft from the new room lands in the dashboard Drafts section", a
       timeout: 15_000,
     },
   );
-  // …and the Drafts fold appears (count label, like the sold fold),
-  // practice row inside.
+  // and the Drafts fold appears with the practice row inside.
   await expect(page.locator("#edit-list")).toContainText(/drafts/i);
   await expect(page.locator("#edit-list")).toContainText("Practice Piece");
   await expect(page.locator("#practice-reset")).toBeVisible();
@@ -2040,7 +2023,7 @@ test("toast words fade in and out, even under reduced motion", async ({
   await page.locator("#practice-reset").click();
   const toast = page.locator("#admin-status");
   await expect(toast).toContainText("Practice changes cleared");
-  // All news rides high, under the sticky header — nothing hides low.
+  // Toasts appear near the top, under the sticky header.
   const high = await toast.evaluate((el) => {
     const s = getComputedStyle(el);
     return { position: s.position, top: Number.parseFloat(s.top) };
@@ -2048,19 +2031,19 @@ test("toast words fade in and out, even under reduced motion", async ({
   expect(high.position).toBe("fixed");
   expect(high.top).toBeGreaterThan(60);
   expect(high.top).toBeLessThan(200);
-  // Opacity-only fade runs despite reduced motion. Pinned by name,
-  // not by a live getAnimations count — the 0.25s run finishes
-  // between round-trips under CI load, so an instant read flakes 0.
+  // The opacity fade runs despite reduced motion. Checked by class rather
+  // than getAnimations, since the 0.25s animation can finish before the
+  // read under CI load.
   await expect(toast).toHaveClass(/toast-in/);
   await expect(toast).toHaveCSS("animation-name", "toast-in");
   await expect(toast).toHaveCSS("animation-duration", "0.25s");
-  // Six seconds later it fades out instead of snapping away.
+  // After six seconds it fades out.
   await page.clock.fastForward(6000);
   await expect(toast).toHaveClass(/toast-out/);
   await expect(toast).not.toBeEmpty();
   await page.clock.fastForward(1000);
   await expect(toast).toBeEmpty();
-  // Errors ride the same high line, tinted red.
+  // Errors appear in the same place, tinted red.
   await toast.evaluate((el) => {
     el.textContent = "Nope.";
     el.dataset.tone = "error";
@@ -2070,8 +2053,8 @@ test("toast words fade in and out, even under reduced motion", async ({
     return { position: s.position, top: s.top, bottom: s.bottom };
   });
   expect(pos.position).toBe("fixed");
-  // Below the sticky header, not behind it. (Chrome reports bottom as a
-  // used pixel value once top pins a fixed box, so top carries the claim.)
+  // Below the sticky header, not behind it. Check top, since Chrome
+  // reports bottom as a used pixel value once top is set on a fixed box.
   const top = Number.parseFloat(pos.top);
   expect(top).toBeGreaterThan(60);
   expect(top).toBeLessThan(200);
@@ -2102,7 +2085,7 @@ test("dashboard delete asks first, then removes the row", async ({ page }) => {
     );
   });
   await page.goto("/admin");
-  // Drafts get their own foldable row below Available on desktop.
+  // On desktop, drafts get their own fold below Available.
   await expect(async () => {
     const availBox = await page
       .locator('#edit-list .list-group[data-group="available"]')
@@ -2120,7 +2103,7 @@ test("dashboard delete asks first, then removes the row", async ({ page }) => {
   const del = row.locator(".row-del");
   const modal = page.locator("#row-confirm");
   const yes = page.locator("#row-confirm-yes");
-  // One tap opens the question — nothing deleted, nowhere navigated.
+  // Clicking opens the confirmation without deleting or navigating.
   await del.click();
   await expect(modal).toBeVisible();
   await expect(page.locator("#row-confirm-body")).toContainText("Doomed Piece");
@@ -2128,11 +2111,11 @@ test("dashboard delete asks first, then removes the row", async ({ page }) => {
   await expect(yes).toHaveText(/Move to trash \(\d\)/);
   await expect(row).toBeVisible();
   await expect(page).toHaveURL(/\/admin\/?$/);
-  // "Keep it" backs out with the row untouched.
+  // "Keep it" cancels and leaves the row.
   await page.locator("#row-confirm-no").click();
   await expect(modal).toBeHidden();
   await expect(row).toBeVisible();
-  // After 3.5 seconds of reading time, MOVE TO TRASH arms and fires.
+  // After 3.5 seconds the confirm button enables and works.
   await del.click();
   await expect(yes).toBeEnabled({ timeout: 8000 });
   await yes.click();
@@ -2147,7 +2130,7 @@ test("error toasts clear themselves after a few seconds", async ({ page }) => {
   await page.locator("#de-publish").click();
   const toast = page.locator("#de-status");
   await expect(toast).toContainText("Title and a valid price are required.");
-  // Errors included: no stale complaint sits over the page.
+  // The toast clears, errors included.
   await expect(toast).toBeEmpty({ timeout: 10_000 });
 });
 
@@ -2168,10 +2151,10 @@ test("studio inputs show one focus ring, never two", async ({ page }) => {
   const title = page.locator("#de-title");
   await title.click();
   await expect(title).toBeFocused();
-  // The accent outline is the only ring: the border stays the quiet one.
+  // Focus shows only the accent outline. The border doesn't change.
   await expect(title).toHaveCSS("outline-width", "2px");
   await expect(title).toHaveCSS("border-color", "rgb(229, 220, 203)");
-  // And the border eases rather than snapping if it ever does move.
+  // The border has a transition in case it changes.
   const borderEase = await title.evaluate(
     (el) => getComputedStyle(el).transition,
   );
@@ -2182,14 +2165,13 @@ test("gallery link leaves admin and lands home", async ({ browser }) => {
   const authed = await browser.newContext();
   const page = await authed.newPage();
   await page.goto("/admin");
-  // Set once (addInitScript would re-run on the post-leave navigation and
-  // replant the token, defeating the assertion).
+  // Set once with evaluate. addInitScript would re-run after leaving and
+  // restore the token.
   await page.evaluate(() =>
     window.localStorage.setItem("ADMIN_API_TOKEN", "test"),
   );
   await page.reload();
-  // Full words on desktop, arrow-only on phones — either way it reads
-  // as leaving.
+  // Full text on desktop, arrow only on phones.
   await expect(page.locator("#leave-admin")).toContainText("Leave Admin");
   await page.locator("#leave-admin").click();
   await expect(page).toHaveURL(/\/$/);
@@ -2220,7 +2202,7 @@ test("scheduled drafts whose day has come publish themselves", async ({
     "later.md": stubMd("Later", `draft: true\npublishOn: "2999-01-01"\n`),
   });
   await page.goto("/admin");
-  // No clicks: the visit itself publishes the due draft in one commit.
+  // Loading the page publishes the due draft in one commit.
   await expect
     .poll(() => commits().at(-1)?.message ?? null, { timeout: 15_000 })
     .toBe('Publish scheduled painting: "Soon"');
@@ -2228,7 +2210,7 @@ test("scheduled drafts whose day has come publish themselves", async ({
   expect(published).toMatch(/^draft: false$/m);
   expect(published).not.toMatch(/^publishOn:/m);
   await expect(page.locator("#admin-status")).toContainText('Published "Soon"');
-  // Soon reads as available; Later stays a draft and says when it goes live.
+  // Soon is now available. Later stays a draft and shows its date.
   await expect(page.locator('[data-group="available"] .row-card')).toHaveCount(
     1,
   );
@@ -2246,8 +2228,8 @@ test("qr codes page prints one card per published painting", async ({
   await expect(
     page.locator(".site-nav").getByRole("link", { name: "QR codes" }),
   ).toHaveAttribute("aria-current", "page");
-  // Every published painting gets a card whose address is its live buyer
-  // page — drafts have no page, so they get no card.
+  // Every published painting gets a card with its buyer page URL. Drafts
+  // get none.
   for (const p of paintings) {
     const card = page.locator(`.qr-card[id="${p.slug}"]`);
     await expect(card).toBeVisible();
@@ -2257,7 +2239,7 @@ test("qr codes page prints one card per published painting", async ({
     );
   }
   await expect(page.locator("#qr-print")).toHaveText("Print codes");
-  // Desktop lays the cards three across.
+  // Three cards across on desktop.
   const rows = await page
     .locator(".qr-card")
     .evaluateAll((els) =>
@@ -2271,7 +2253,7 @@ test("collection rows link published paintings to their qr card", async ({
 }) => {
   await mockCommitApi(page);
   await page.goto("/admin");
-  // Published rows carry a QR code link to their anchored print card.
+  // Published rows link to their print card on the QR page.
   const qrLinks = page.locator(
     '[data-group="available"] .row-card .row-qr, [data-group="sold"] .row-card .row-qr',
   );
@@ -2283,16 +2265,16 @@ test("collection rows link published paintings to their qr card", async ({
     if ((await link.count()) === 0) continue;
     await expect(link.first()).toHaveText("QR code");
   }
-  // Drafts have no buyer page and no code to print.
+  // Drafts have no buyer page, so no code.
   await expect(
     page.locator('[data-group="drafts"] .row-card .row-qr'),
   ).toHaveCount(0);
-  // Published rows wear the actual mini code beside the link.
+  // Published rows show the mini code beside the link.
   const minis = page.locator(
     '[data-group="available"] .row-card .qr-mini svg, [data-group="sold"] .row-card .qr-mini svg',
   );
   expect(await minis.count()).toBeGreaterThan(0);
-  // The mark is pencil-sized, plateless, and clay — an icon, not an image.
+  // The mini code is icon-sized, with no background, in the accent color.
   const mini = page
     .locator('[data-group="available"] .row-card .qr-mini')
     .first();
@@ -2315,14 +2297,14 @@ test("the QR mark itself opens its print card", async ({ page }) => {
     .locator('[data-group="available"] .row-card .qr-mini')
     .first();
   await expect(mark.locator("svg")).toBeAttached({ timeout: 15000 });
-  // The mark rides inside the link — tapping the icon lands anchored.
+  // The code is inside the link, so tapping it navigates to the card.
   await mark.click();
   await expect(page).toHaveURL(/\/admin\/qr-codes\/#.+/);
 });
 
 test("qr cards print one code at a time", async ({ page }) => {
-  // The print dialog never opens under test — count the call, then run
-  // the afterprint cleanup by hand.
+  // Stub print so no dialog opens. Count the call, then fire afterprint
+  // manually.
   await page.addInitScript(() => {
     const w = window as unknown as { __prints?: number };
     w.__prints = 0;
@@ -2347,7 +2329,7 @@ test("qr cards print one code at a time", async ({ page }) => {
 });
 
 test("the old marketing page is gone", async ({ page }) => {
-  // Ping and email split it in two — the old address reads empty.
+  // Marketing was split into Ping and Email, so the old URL is empty.
   await page.goto("/admin/marketing");
   await expect(page.locator("h1")).toHaveText("That wall is empty.");
 });

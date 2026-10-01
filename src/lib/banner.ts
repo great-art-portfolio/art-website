@@ -1,10 +1,11 @@
-/** Homepage banner (src/content/announcement.txt). First line may be
- * `expires: YYYY-MM-DD`; the rest is the text. Empty file = hidden. Shows
- * through the expiry date (local time), enforced at build + in browser. */
+/** Homepage banner from src/content/announcement.txt. The first line may be
+ * `expires: YYYY-MM-DD`, and the rest is the text. An empty file hides it.
+ * The banner shows through the expiry date in local time, checked both at
+ * build time and in the browser. */
 
 export interface Banner {
   text: string;
-  /** Local YYYY-MM-DD the banner shows through, or null for no end date. */
+  /** Last local date the banner shows (YYYY-MM-DD), or null for no end. */
   expires: string | null;
 }
 
@@ -29,7 +30,7 @@ export function formatAnnouncement(
   return expires === null ? body : `expires: ${expires}\n${body}`;
 }
 
-/** Local YYYY-MM-DD (the studio's clock, not UTC). */
+/** Today's local date as YYYY-MM-DD, not UTC. */
 export function localToday(date: Date = new Date()): string {
   const y = date.getFullYear();
   const m = `${date.getMonth() + 1}`.padStart(2, "0");
@@ -37,7 +38,7 @@ export function localToday(date: Date = new Date()): string {
   return `${y}-${m}-${d}`;
 }
 
-/** End-of-life date for a banner saved today with the given lifetime. */
+/** Expiry date for a banner saved today with the given duration. */
 export function expiryForDuration(
   days: number | null,
   now: Date = new Date(),
@@ -47,7 +48,8 @@ export function expiryForDuration(
   return localToday(end);
 }
 
-/** True once the expiry date has passed (shows through that date). */
+/** True once the expiry date has passed. The banner still shows on that
+ * date. */
 export function isExpired(
   expires: string | null,
   today: string = localToday(),

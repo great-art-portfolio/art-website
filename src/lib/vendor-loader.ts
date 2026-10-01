@@ -1,12 +1,13 @@
-/** On-demand loader for vendored 3D bundles. Plain <script> tags — Vite dev
- * won't serve /public as modules. ~1.4MB stays out of the graph. */
+/** On-demand loader for the vendored 3D bundles, which keeps about 1.4MB out
+ * of Vite's graph. Uses <script> tags because Vite dev won't serve /public
+ * files as modules. */
 import type { ArModels, DimFixResult } from "./ar";
 import type { PaintingEdits, ParsedPainting } from "./painting-edit";
 
 export const MODEL_VIEWER_URL = "/js/model-viewer.js";
 export const AR_TOOLING_URL = "/js/ar-tooling.js";
 
-/** The ar-tooling entry points the admin flows actually call. */
+/** The ar-tooling entry points used by the admin flows. */
 export interface ArTooling {
   buildArModels(
     img: HTMLImageElement,
@@ -31,7 +32,7 @@ export interface ArTooling {
 
 const pending = new Map<string, Promise<void>>();
 
-/** Inject a <script> once per URL; concurrent callers share one load. */
+/** Injects a <script> once per URL. Concurrent callers share one load. */
 export function loadScript(src: string, module: boolean): Promise<void> {
   let p = pending.get(src);
   if (p === undefined) {
@@ -49,12 +50,12 @@ export function loadScript(src: string, module: boolean): Promise<void> {
   return p;
 }
 
-/** Viewer side effects (registers <model-viewer>) — idempotent. */
+/** Loads the viewer, which registers <model-viewer>. Idempotent. */
 export function loadModelViewer(): Promise<void> {
   return loadScript(MODEL_VIEWER_URL, true);
 }
 
-/** Builder namespace off window.ArTooling (IIFE global, typed in client-globals). */
+/** Loads the AR builder and returns the window.ArTooling global. */
 export async function loadArTooling(): Promise<ArTooling> {
   await loadScript(AR_TOOLING_URL, false);
   const api = window.ArTooling;

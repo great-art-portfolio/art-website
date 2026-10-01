@@ -1,11 +1,12 @@
 import type { AppEnv } from "./env";
 
-/** Email list with no storage: confirmed addresses live in Resend, and the
- * pending proof travels inside the emailed links as HMAC tokens. */
+/** Email list with no local storage. Confirmed addresses live in Resend,
+ * and pending confirmations are HMAC tokens inside the emailed links. */
 
 const MAX_EMAIL_LENGTH = 254;
 
-/** Normalize a submitted address, or null. The tap proves it later. */
+/** Normalizes a submitted address, or returns null. Ownership is proven
+ * later by the confirm link. */
 export function parseCollectorEmail(input: unknown): string | null {
   if (typeof input !== "string") return null;
   const email = input.trim().toLowerCase();
@@ -14,7 +15,7 @@ export function parseCollectorEmail(input: unknown): string | null {
   return email;
 }
 
-/** Confirm links live a week; goodbye links never expire. */
+/** Confirm links expire after a week. Goodbye links don't expire. */
 export const CONFIRM_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 export type LinkKind = "confirm" | "goodbye";
@@ -63,8 +64,8 @@ function linkKey(env: AppEnv): string {
   return env.RESEND_API_KEY ?? "";
 }
 
-/** Mint a purpose-bound token. Keyed by the Resend secret, so rotating it
- * invalidates outstanding links. */
+/** Issues a token bound to one purpose. It's keyed by the Resend secret, so
+ * rotating the secret invalidates outstanding links. */
 export async function issueLinkToken(
   env: AppEnv,
   email: string,
@@ -78,7 +79,8 @@ export async function issueLinkToken(
   return `${b64urlEncode(email)}.${issued}.${sig}`;
 }
 
-/** Verify a token. Null maxAgeMs = never expires. Null = dead link. */
+/** Verifies a token. A null maxAgeMs means no expiry. Returns null for an
+ * invalid or expired link. */
 export async function verifyLinkToken(
   env: AppEnv,
   email: string,

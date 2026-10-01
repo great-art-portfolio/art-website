@@ -8,7 +8,8 @@ import {
 } from "../_lib/http";
 import { publishNewPainting } from "../_lib/social";
 
-/** Admin: one-click social post. 501 until enabled (the share kit always works). */
+/** Admin: one-click social post. Returns 501 until enabled. The share
+ * helper works without it. */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   const denied = requireAdmin(context.request, context.env);
   if (denied !== null) return denied;

@@ -7,11 +7,11 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 /**
- * Vendored 3D bundles (rebuilt via `pnpm vendor`): the painting page and
- * the admin flows load these from stable /js/* URLs so Vite never
- * prefetches ~850KB of viewer/builder code with the page. If this test
- * fails after touching src/lib/ar.ts or upgrading three/model-viewer,
- * re-run `pnpm vendor` and commit the result.
+ * Vendored 3D bundles, rebuilt with `pnpm vendor`. The painting page and
+ * admin flows load them from stable /js/* URLs so Vite doesn't prefetch
+ * ~850KB of viewer code with the page. If this fails after changing
+ * src/lib/ar.ts or upgrading three or model-viewer, rerun `pnpm vendor` and
+ * commit the result.
  */
 describe("vendored viewer + AR builder", () => {
   for (const file of ["public/js/model-viewer.js", "public/js/ar-tooling.js"]) {
@@ -38,9 +38,9 @@ describe("vendored viewer + AR builder", () => {
   });
 
   it("bundles are self-contained (no bare imports for browsers to choke on)", () => {
-    // The verbatim model-viewer module imports bare "three" — browsers
-    // can't resolve that without an import map, so the viewer silently
-    // never loads. Bundles must inline everything (see scripts/vendor).
+    // The unbundled model-viewer module imports bare "three", which browsers
+    // can't resolve without an import map, so the viewer would fail to load.
+    // Bundles have to inline their dependencies (see scripts/vendor).
     for (const file of [
       "public/js/model-viewer.js",
       "public/js/ar-tooling.js",
@@ -52,8 +52,8 @@ describe("vendored viewer + AR builder", () => {
   });
 
   it("ar-tooling exposes the window.ArTooling global", () => {
-    // IIFE build: callers load it with a <script> tag (Vite dev refuses
-    // /public files as modules), then call through the global.
+    // IIFE build. Callers load it with a <script> tag, since Vite dev won't
+    // import /public files as modules, and then use the global.
     const bundle = readFileSync(join(root, "public/js/ar-tooling.js"), "utf8");
     assert.ok(bundle.includes("ArTooling"), "bundle sets window.ArTooling");
   });

@@ -21,10 +21,8 @@ import Layout from "../../layouts/Layout.astro";
 </style>
 
 <script>
-  // One shot: link landings are full document loads — and the
-  // unsubscribe call sends a goodbye email, so this must never
-  // re-fire on astro:page-load.
-  // Plain JS on purpose (annotations don't survive astro check).
+  // Runs once per full page load, not on astro:page-load, because
+  // unsubscribing sends a goodbye email.
   const say = document.getElementById("email-token-say");
   const params = new URLSearchParams(window.location.search);
   const email = params.get("email") || "";

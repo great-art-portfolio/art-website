@@ -1,21 +1,19 @@
 #!/usr/bin/env node
 /**
- * Vendor heavy browser-only bundles into public/js/ (committed).
+ * Bundles heavy browser-only code into public/js/, which is committed.
  *
- * Why: Vite prefetches every chunk reachable from a page module's
- * dynamic imports, and Astro 7 gives user config no way to turn that
- * off for the client build — so ~1MB of 3D viewer + model-building
- * code downloaded on pages whose visitors never touch those features.
- * Loading these stable URLs with plain <script> tags (see
- * src/lib/vendor-loader.ts) keeps them out of Vite's graph entirely:
- * strictly on-demand, no prefetch. Script tags — never native import() —
- * because Vite dev refuses to serve /public files as modules.
+ * Vite prefetches every chunk reachable from a page's dynamic imports, and
+ * Astro 7 has no config option to disable that for the client build. That
+ * meant about 1MB of 3D viewer and model-building code downloaded on every
+ * page. Loading these files with plain <script> tags (see
+ * src/lib/vendor-loader.ts) keeps them out of Vite's graph so they load
+ * only on demand. Script tags are used because Vite dev won't serve
+ * /public files as modules.
  *
  *   pnpm vendor
  *
- * Re-run after upgrading @google/model-viewer or three, or after
- * editing src/lib/ar.ts (ar-tooling.js bundles it), then commit
- * the result. Nothing else in the build depends on these files.
+ * Re-run after upgrading @google/model-viewer or three, or after editing
+ * src/lib/ar.ts (bundled into ar-tooling.js), then commit the result.
  */
 import { mkdirSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -29,13 +27,13 @@ const require = createRequire(join(root, "package.json"));
 const outDir = join(root, "public", "js");
 mkdirSync(outDir, { recursive: true });
 
-// esbuild bundles both outputs (viewer + AR builder) as self-contained ESM.
+// esbuild bundles both outputs as self-contained files.
 const esbuild = join(root, "node_modules", ".bin", "esbuild");
 
-// 3D viewer: bundle the package's module build so `three` is inlined.
-// (The verbatim model-viewer-module.min.js imports bare "three", which
-// browsers can't resolve without an import map — shipping it raw 404s
-// nothing but still never defines <model-viewer>.)
+// 3D viewer. Bundle the package's module build so `three` is inlined. The
+// prebuilt model-viewer-module.min.js imports bare "three", which browsers
+// can't resolve without an import map, so <model-viewer> would never be
+// defined.
 const mvPkg = join(
   dirname(require.resolve("@google/model-viewer/package.json")),
   "dist",
@@ -55,11 +53,11 @@ execFileSync(
   { stdio: "inherit" },
 );
 
-// AR builder (three.js + GLB/USDZ exporters): bunded from src so the
-// upload flow, backfill, and dimension-fix regens share one implementation.
-// IIFE + global (not ESM): callers load it with a plain <script> tag because
-// Vite dev refuses to serve /public files as modules — native import() of a
-// /js URL works in production but throws in `astro dev`.
+// AR builder (three.js plus the GLB/USDZ exporters), bundled from src so
+// uploads, the backfill, and dimension-change rebuilds share one
+// implementation. Built as an IIFE with a global because it's loaded with
+// a <script> tag. Native import() of a /js URL works in production but
+// fails under `astro dev`.
 execFileSync(
   esbuild,
   [

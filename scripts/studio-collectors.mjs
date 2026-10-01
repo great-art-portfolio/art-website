@@ -1,18 +1,17 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-/** Studio sidecar support for /api/collectors (dev-only, never deployed).
+/** Dev-only support for /api/collectors in the local content API.
  *
- * The sidecar answers with the REAL Pages Functions handler — no second
- * implementation to drift. This module only adapts the environment: a
- * localhost-forced mock flag, mail settings from .dev.vars, and a
- * file-backed stand-in for the D1 table the mock reads and writes.
+ * Requests go to the real Pages Functions handler. This module only
+ * supplies its environment: the mock flag, mail settings from .dev.vars,
+ * and a file-backed stand-in for the D1 table.
  */
 
 const COLLECTORS_CACHE_FILE = "studio-collectors.json";
 
-/** Parse .dev.vars (KEY=VALUE, # comments, optional quotes). Missing file
- * means every secret reads blank — same as production without it. */
+/** Parses .dev.vars (KEY=VALUE, # comments, optional quotes). A missing
+ * file leaves every secret blank. */
 export function readDevVars(root) {
   let raw;
   try {
@@ -41,8 +40,8 @@ export function readDevVars(root) {
 }
 
 /** In-memory email_collectors table, persisted to the dev cache so a
- * sidecar restart doesn't wipe the loop mid-test. Matches the SQL shapes
- * functions/_lib/collectors-mock.ts issues — nothing else. */
+ * restart doesn't lose state. Supports only the SQL that
+ * functions/_lib/collectors-mock.ts issues. */
 export function createCollectorsDb(cacheDir) {
   const file = join(cacheDir, COLLECTORS_CACHE_FILE);
   let rows = new Map();
@@ -51,14 +50,14 @@ export function createCollectorsDb(cacheDir) {
     if (raw !== null && typeof raw === "object")
       rows = new Map(Object.entries(raw));
   } catch {
-    // Fresh table — the cache is best-effort either way.
+    // Start with an empty table. The cache is best-effort.
   }
   const save = () => {
     try {
       mkdirSync(cacheDir, { recursive: true });
       writeFileSync(file, JSON.stringify(Object.fromEntries(rows)));
     } catch {
-      // Dev cache loss just restarts the loop; never fail a request.
+      // Losing the dev cache is harmless, so don't fail the request.
     }
   };
   return {
@@ -100,8 +99,8 @@ export function createCollectorsDb(cacheDir) {
 }
 
 /** Browser-facing origin for the dev confirm link. The proxy rewrites the
- * host to the sidecar's own (:4333, which serves no pages), so only the
- * hostname is kept and the port always points back at the site. */
+ * host to the API's own port (:4333, which serves no pages), so keep the
+ * hostname and point the port back at the site. */
 export function siteOriginFor(hostHeader) {
   const hostname =
     typeof hostHeader === "string" && hostHeader !== ""
@@ -110,9 +109,9 @@ export function siteOriginFor(hostHeader) {
   return `http://${hostname}:4332`;
 }
 
-/** Handler env: mock forced on (localhost-only anyway), mail settings
- * from .dev.vars. A real key plus a *@resend.dev address rides the true
- * Resend confirm; anything else (or no key) stays fully local. */
+/** Handler env with the mock forced on and mail settings from .dev.vars.
+ * With a real key, *@resend.dev addresses also get a real Resend confirm.
+ * Everything else stays local. */
 export function collectorsEnv(root, db) {
   const vars = readDevVars(root);
   return {
