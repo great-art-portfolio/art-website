@@ -33,6 +33,15 @@ deletion) makes a deletion permanent — ordinary commits never do.
 In the studio dev loop (`pnpm dev:studio`) delete removes working-tree
 files instead of committing; `pnpm studio:reset` brings them back.
 
+## Scheduled paintings
+
+A "Publish on" date goes live that day (Calgary time) on its own: the
+`Publish scheduled paintings` workflow runs just after midnight, flips due
+drafts to published, and commits — Pages rebuilds from that push. The
+studio also publishes due drafts whenever it loads, so whichever runs first
+wins and the other finds nothing to do. Run it by hand from the Actions tab
+(Run workflow) or locally with `node scripts/publish-due.mjs`.
+
 ## Setup
 
 ```sh

@@ -120,9 +120,21 @@ export function setOrder(md: string, order: number | null): string {
   return md.replace(/^(title:.*)(\r?\n)/m, `$1$2${line}$2`);
 }
 
-/** Today's date as "YYYY-MM-DD" in UTC. */
-export function todayKey(): string {
-  return new Date().toISOString().slice(0, 10);
+/** The studio's time zone. A "Publish on" date means her calendar day,
+ * whatever zone the device (or the nightly publish job) runs in. */
+export const STUDIO_TIME_ZONE = "America/Edmonton";
+
+/** The studio's date as "YYYY-MM-DD". */
+export function todayKey(now: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: STUDIO_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const part = (type: string): string =>
+    parts.find((p) => p.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
 }
 
 /** Normalizes a publish date. Anything but a valid calendar date becomes "". */
@@ -179,7 +191,7 @@ export function appendSlugHistory(current: string, oldSlug: string): string {
 }
 
 /** Publishes a due draft and removes its schedule. Runs when the studio
- * loads rather than on a timer. */
+ * loads, and nightly from scripts/publish-due.mjs. */
 export function publishDue(md: string): string {
   const next = md.replace(/^draft:.*$/m, "draft: false");
   return next.replace(/^publishOn:.*(\r?\n?)/m, "");
