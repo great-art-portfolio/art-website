@@ -187,6 +187,11 @@ export function createStudioPushMock(cacheDir) {
     }
     const pushOpt = body?.push;
     const isTickle = typeof pushOpt === "object" && pushOpt !== null;
+    const wantPush = body?.push !== false;
+    const cursor = Math.max(
+      0,
+      Math.floor(Number((isTickle ? pushOpt : body)?.cursor ?? 0)) || 0,
+    );
     if (isTickle) {
       customLine = String(pushOpt.body ?? "")
         .trim()
@@ -194,8 +199,11 @@ export function createStudioPushMock(cacheDir) {
       customTitle = String(pushOpt.title ?? "")
         .trim()
         .slice(0, 80);
+    } else if (wantPush && cursor === 0) {
+      // Publish alerts show the standard text, like the live endpoint.
+      customLine = "";
+      customTitle = "";
     }
-    const wantPush = body?.push !== false;
     let sent = 0;
     let gone = 0;
     let failed = 0;
@@ -204,10 +212,7 @@ export function createStudioPushMock(cacheDir) {
     if (wantPush) {
       // Same cursor paging as the live endpoint, 40 per call.
       const all = [...subs.keys()];
-      const cursor = isTickle
-        ? Math.max(0, Math.floor(Number(pushOpt.cursor ?? 0)) || 0)
-        : 0;
-      const batch = isTickle ? all.slice(cursor, cursor + 40) : all;
+      const batch = all.slice(cursor, cursor + 40);
       await Promise.all(
         batch.map(async (endpoint) => {
           const result = await sendTickle(endpoint);
@@ -218,8 +223,9 @@ export function createStudioPushMock(cacheDir) {
           } else failed += 1;
         }),
       );
-      if (isTickle && cursor + batch.length < all.length)
-        nextCursor = cursor + batch.length;
+      // Expired entries were deleted, shifting the rest back by that many.
+      const next = cursor + batch.length - gone;
+      if (batch.length > 0 && next < all.length - gone) nextCursor = next;
     }
     return json({
       sent,

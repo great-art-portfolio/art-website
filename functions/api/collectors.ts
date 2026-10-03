@@ -212,12 +212,20 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
           "The email list isn't set up yet — try again later.",
         );
       }
+      // Without a link token anyone can type any address, so the goodbye
+      // only goes to an address that was really on the list. The reply is
+      // the same either way, so it doesn't reveal who is.
+      const member =
+        token !== "" ||
+        (await isConfirmedContact(context.env, email).catch(() => false));
       await syncContactRemoved(context.env, email).catch(() => false);
-      await sendSiteEmail(context.env, {
-        to: [email],
-        replyTo: artistInbox(context.env),
-        ...goodbyeEmail(),
-      }).catch(() => false);
+      if (member) {
+        await sendSiteEmail(context.env, {
+          to: [email],
+          replyTo: artistInbox(context.env),
+          ...goodbyeEmail(),
+        }).catch(() => false);
+      }
       return json({ ok: true });
     } catch (err) {
       console.error(err);
