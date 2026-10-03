@@ -120,9 +120,10 @@ see.
   and the "Browsers" / "Email list" boxes on a painting room fan out on
   publish (push only, email only, or both). The subscription table is the
   only database the site keeps (disclosed on `/privacy`).
-- Spam: Security > Turnstile > Add site (managed widget), set
-  `TURNSTILE_SITE_KEY` var + `TURNSTILE_SECRET_KEY` secret. Until then the
-  honeypot guards the form.
+- Spam: Turnstile (managed widget). The public `TURNSTILE_SITE_KEY` lives
+  in `wrangler.toml`; the `TURNSTILE_SECRET_KEY` secret (dashboard) is the
+  on switch — without it `/api/status` hands out no site key, so local runs
+  and CI never render the widget, and only the honeypot guards the forms.
 
 ## Docs
 

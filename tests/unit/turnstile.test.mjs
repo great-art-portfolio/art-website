@@ -137,3 +137,20 @@ describe("public forms with Turnstile on", async () => {
     assert.equal(res.status, 400);
   });
 });
+
+describe("status hands out the site key", async () => {
+  const { onRequestGet } = await import("../../functions/api/status.ts");
+  const keyFor = async (env) =>
+    (await (await onRequestGet({ env })).json()).turnstileSiteKey;
+
+  it("only once the secret is set, so the widget never shows unchecked", async () => {
+    assert.equal(await keyFor({ TURNSTILE_SITE_KEY: "0xSite" }), "");
+    assert.equal(
+      await keyFor({
+        TURNSTILE_SITE_KEY: "0xSite",
+        TURNSTILE_SECRET_KEY: "shh",
+      }),
+      "0xSite",
+    );
+  });
+});
