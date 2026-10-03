@@ -16,14 +16,15 @@ import {
   sendTickle,
   stampPushAt,
   TICKLE_BATCH,
-  type StoredSubscription,
 } from "../_lib/push";
 
 /** Admin: notifies collectors. Both channels default on, and
  * { push: false } or { email: false } sends only one. { push: { body } }
  * replaces the standard ping text. Repeat pings within the cooldown get a
  * 429. Publish alerts and pings that reach no one don't start the
- * cooldown. Unconfigured channels are skipped. */
+ * cooldown. Unconfigured channels are skipped. Both kinds of push are
+ * paged by cursor ({ push: { cursor } } for pings, { push: true, cursor }
+ * for publish alerts) until nextCursor is null. */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   const denied = requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
@@ -45,18 +46,20 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       const pushOpt = body["push"];
       // An object comes from the Ping button. A boolean is a publish alert,
       // which skips the cooldown.
-      const isTickle = typeof pushOpt === "object" && pushOpt !== null;
-      let subs: StoredSubscription[];
-      if (isTickle) {
-        // A Worker call allows about 50 subrequests, so large lists are
-        // paged by cursor until nextCursor is null. Only the first batch
-        // stores the text and starts the cooldown.
-        const tickle = pushOpt as Record<string, unknown>;
-        const cursor = Math.max(
-          0,
-          Math.floor(Number(tickle["cursor"] ?? 0)) || 0,
-        );
-        total = await countSubscriptions(context.env);
+      const tickle =
+        typeof pushOpt === "object" && pushOpt !== null
+          ? (pushOpt as Record<string, unknown>)
+          : null;
+      // A Worker call allows about 50 subrequests, so large lists are paged
+      // by cursor until nextCursor is null. Pings carry it inside `push`,
+      // publish alerts at the top level.
+      const cursor = Math.max(
+        0,
+        Math.floor(Number((tickle ?? body)["cursor"] ?? 0)) || 0,
+      );
+      total = await countSubscriptions(context.env);
+      if (tickle !== null) {
+        // Only the first batch stores the text and starts the cooldown.
         if (cursor === 0) {
           const line = String(tickle["body"] ?? "")
             .trim()
@@ -86,12 +89,14 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
             await stampPushAt(context.env);
           }
         }
-        subs = await listSubscriptions(context.env, TICKLE_BATCH, cursor);
-        nextCursor = cursor + subs.length < total ? cursor + subs.length : null;
-      } else {
-        subs = await listSubscriptions(context.env);
-        total = subs.length;
+      } else if (cursor === 0) {
+        // A publish alert shows the standard text, so clear any custom ping
+        // text the service worker would otherwise fetch. No cooldown.
+        await savePushMessage(context.env, "", "").catch((err: unknown) =>
+          console.error("push message reset failed", err),
+        );
       }
+      const subs = await listSubscriptions(context.env, TICKLE_BATCH, cursor);
       await Promise.all(
         subs.map(async (sub) => {
           const result = await sendTickle(context.env, sub);
@@ -105,6 +110,10 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
           else failed += 1;
         }),
       );
+      // Expired rows were deleted, which shifts the rest of the list back
+      // by that many, so the next batch starts that much earlier.
+      const next = cursor + subs.length - gone;
+      nextCursor = subs.length > 0 && next < total - gone ? next : null;
     }
     let emailed = false;
     let emailTotal = 0;
@@ -156,7 +165,7 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
       cleanBroadcastBody(params.get("body")),
     );
     return json({
-      total: (await listSubscriptions(context.env)).length,
+      total: await countSubscriptions(context.env),
       emailSubject: subject,
       emailText: text,
       emailHtml: html,

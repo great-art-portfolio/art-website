@@ -39,3 +39,26 @@ test("buyer pages share the painting, not the site icon", async ({ page }) => {
   expect(image).not.toContain("apple-touch-icon");
   expect(image).not.toContain("localhost");
 });
+
+test("painting structured data points at the photo and names the artist", async ({
+  page,
+}) => {
+  await page.goto("/paintings/first-thaw");
+  await expect(page).toHaveTitle(/^First Thaw by Barbara Straka/);
+  const raw = await page
+    .locator('script[type="application/ld+json"]')
+    .first()
+    .textContent();
+  const ld = JSON.parse(raw ?? "{}") as {
+    image?: string;
+    url?: string;
+    brand?: { name?: string };
+    offers?: { url?: string };
+  };
+  expect(ld.url).toBe("https://barbart.ca/paintings/first-thaw");
+  expect(ld.offers?.url).toBe("https://barbart.ca/paintings/first-thaw");
+  expect(ld.image).toMatch(
+    /^https:\/\/barbart\.ca\/_astro\/.+\.(jpe?g|png|webp)$/,
+  );
+  expect(ld.brand?.name).toBe("Barbara Straka");
+});

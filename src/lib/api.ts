@@ -240,10 +240,13 @@ export const api = {
    * default. Pass { push: false } or { email: false } to send only one.
    * For push, `title` and `body` override the standard text when nonblank,
    * and `cursor` continues a large list where the last batch stopped.
+   * Publish alerts (`push: true`) page the same way with the top-level
+   * `cursor`.
    */
   async notifyCollectors(channels?: {
     push?: boolean | { title?: string; body?: string; cursor?: number };
     email?: boolean;
+    cursor?: number;
   }): Promise<{
     sent: number;
     total: number;
@@ -257,6 +260,7 @@ export const api = {
       body: JSON.stringify({
         push: channels?.push ?? true,
         email: channels?.email ?? true,
+        ...(channels?.cursor === undefined ? {} : { cursor: channels.cursor }),
       }),
     });
     return data;

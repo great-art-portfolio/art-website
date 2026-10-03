@@ -6,7 +6,12 @@ import PaintingDetail, {
 } from "../../components/PaintingDetail.astro";
 import { formatDimensions } from "../../lib/dims";
 import { modelGlbOrEmpty } from "../../lib/model-files";
-import { isPublished, slugifyTitle } from "../../lib/site";
+import {
+  ARTIST_NAME,
+  isPublished,
+  SITE_URL,
+  slugifyTitle,
+} from "../../lib/site";
 
 export async function getStaticPaths() {
   const paintings = (await getCollection("paintings")).filter((p) =>
@@ -71,14 +76,21 @@ const data: PaintingDetailData = {
   slug: slugifyTitle(painting.data.title),
   draft: false,
 };
+const pageUrl = new URL(`/paintings/${data.slug}`, SITE_URL).href;
+// Search engines want the photo itself here, not the page it sits on.
 const paintingJsonLd = {
   "@context": "https://schema.org",
   "@type": "Product",
   name: painting.data.title,
-  image: Astro.url.href,
+  url: pageUrl,
+  image: new URL(painting.data.image.src, SITE_URL).href,
   description: painting.data.alt,
+  ...(ARTIST_NAME === null
+    ? {}
+    : { brand: { "@type": "Brand", name: ARTIST_NAME } }),
   offers: {
     "@type": "Offer",
+    url: pageUrl,
     priceCurrency: "CAD",
     price: painting.data.price.toFixed(2),
     availability: painting.data.sold
@@ -89,7 +101,7 @@ const paintingJsonLd = {
 ---
 
 <Layout
-  title={`${painting.data.title} — ${painting.data.sold ? "Sold" : "Original Painting"}`}
+  title={`${painting.data.title}${ARTIST_NAME === null ? "" : ` by ${ARTIST_NAME}`} — ${painting.data.sold ? "Sold" : "Original Painting"}`}
   description={painting.data.alt}
   canonical={`/paintings/${data.slug}`}
   image={painting.data.image.src}

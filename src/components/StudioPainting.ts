@@ -511,9 +511,18 @@ async function publishAlerts(): Promise<string> {
   const email = maybe("de-notify-email")?.checked ?? false;
   if (!push && !email) return "";
   try {
+    // One Worker call only reaches about 40 browsers, so pushes are paged
+    // by cursor. The email goes out once, with the first batch.
     const r = await api.notifyCollectors({ push, email });
+    let sent = r.sent;
+    let cursor = r.nextCursor;
+    while (push && cursor !== null && cursor !== undefined) {
+      const next = await api.notifyCollectors({ push, email: false, cursor });
+      sent += next.sent;
+      cursor = next.nextCursor;
+    }
     const bits: string[] = [];
-    if (push) bits.push(`Notified ${r.sent} of ${r.total} subscribers.`);
+    if (push) bits.push(`Notified ${sent} of ${r.total} subscribers.`);
     if (email) {
       bits.push(
         r.emailTotal === 0

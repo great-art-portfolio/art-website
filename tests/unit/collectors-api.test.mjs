@@ -217,6 +217,37 @@ describe("unsubscribe", () => {
     );
   });
 
+  it("says goodbye from the modal button to a real member", async () => {
+    stubFetch((url) => {
+      if (url.includes("/segments/")) {
+        return okJson({
+          object: "list",
+          data: [{ email: "fan@example.com", unsubscribed: false }],
+        });
+      }
+      if (url.endsWith("/emails")) return okRes();
+      if (url.includes("/contacts")) return okRes();
+      return failRes();
+    });
+    const res = await onRequestPost(
+      postContext({ action: "unsubscribe", email: "fan@example.com" }),
+    );
+    assert.equal(res.status, 200);
+    const goodbye = sentEmails().find((m) => m.to.includes("fan@example.com"));
+    assert.ok(goodbye);
+  });
+
+  it("mails nothing to a typed address that isn't on the list", async () => {
+    stubEmptyList();
+    const res = await onRequestPost(
+      postContext({ action: "unsubscribe", email: "stranger@example.com" }),
+    );
+    // Same answer as for a member, so the list can't be probed.
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), { ok: true });
+    assert.equal(sentEmails().length, 0);
+  });
+
   it("rejects a forged link", async () => {
     stubEmptyList();
     const res = await onRequestPost(
