@@ -643,3 +643,55 @@ test("offline inquiry queues on the phone and sends on reconnect", async ({
   await page.evaluate(() => window.dispatchEvent(new Event("online")));
   await expect.poll(() => attempts, { timeout: 10_000 }).toBe(2);
 });
+
+test("a saved inquiry survives an expired spam check and sends later", async ({
+  page,
+}) => {
+  expect(available.length).toBeGreaterThan(0);
+  const bodies: string[] = [];
+  await page.route("**/api/inquiries", async (route) => {
+    bodies.push(route.request().postData() ?? "");
+    // Offline first; then the saved token has expired (403); then it goes.
+    if (bodies.length === 1) return route.abort("failed");
+    if (bodies.length === 2) {
+      return route.fulfill({
+        status: 403,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "Spam check failed" }),
+      });
+    }
+    return route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: "{}",
+    });
+  });
+  await page.goto(`/paintings/${available[0]?.slug ?? ""}`);
+  // Page flush only, as on iPhones (see the test above).
+  await page.evaluate(async () => {
+    const reg = await navigator.serviceWorker.ready;
+    Object.defineProperty(reg, "sync", {
+      value: undefined,
+      configurable: true,
+    });
+  });
+  await page.locator("#inquiry-reveal").click();
+  await page.locator('#inquiry-form input[name="name"]').fill("Market Buyer");
+  await page
+    .locator('#inquiry-form input[name="email"]')
+    .fill("buyer@example.com");
+  await page.locator('#inquiry-form button[type="submit"]').click();
+  await expect(page.locator("#inquiry-status")).toContainText(
+    "Saved — it will send",
+  );
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await expect.poll(() => bodies.length, { timeout: 10_000 }).toBe(2);
+  // The note was kept, not dropped as bad input: the next flush sends it.
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await expect.poll(() => bodies.length, { timeout: 10_000 }).toBe(3);
+  expect(bodies[2]).toContain("Market Buyer");
+  // Delivered once, then gone from the outbox.
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await page.waitForTimeout(1000);
+  expect(bodies.length).toBe(3);
+});

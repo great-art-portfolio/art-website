@@ -56,7 +56,30 @@ async function enqueue(path: string, body: string): Promise<void> {
 
 let flushing = false;
 
-export async function flushOutbox(): Promise<void> {
+/** Notes older than this are dropped unsent; the moment has passed. */
+const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** 403 is the failed spam check. The note is a real person's, so it is kept
+ * for a resend with a fresh token instead of dropped like bad input. */
+const SPAM_CHECK = 403;
+
+/** Swaps in a fresh spam-check token, since the saved one expires within
+ * minutes. Bodies that aren't JSON objects pass through unchanged. */
+function withToken(body: string, token: string): string {
+  try {
+    const parsed: unknown = JSON.parse(body);
+    if (parsed === null || typeof parsed !== "object") return body;
+    return JSON.stringify({ ...parsed, turnstileToken: token });
+  } catch {
+    return body;
+  }
+}
+
+/** Replays saved posts. freshToken, when given, supplies a new spam-check
+ * token for each saved inquiry. */
+export async function flushOutbox(
+  freshToken?: () => Promise<string>,
+): Promise<void> {
   // Concurrent flushes would send the same post twice.
   if (flushing) return;
   flushing = true;
@@ -83,12 +106,21 @@ export async function flushOutbox(): Promise<void> {
       });
     };
     for (const post of posts) {
+      if (Date.now() - post.ts > MAX_AGE_MS) {
+        await drop(post.id);
+        continue;
+      }
       try {
+        const body =
+          freshToken !== undefined && post.path === "/api/inquiries"
+            ? withToken(post.body, await freshToken())
+            : post.body;
         const res = await fetch(post.path, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: post.body,
+          body,
         });
+        if (res.status === SPAM_CHECK) continue; // Keep for a fresh token.
         if (res.status >= 400 && res.status < 500) {
           // Rejected by the server, such as bad input or an expired spam
           // check. Retrying won't help.
@@ -111,7 +143,7 @@ export async function flushOutbox(): Promise<void> {
 export async function queuePost(
   path: string,
   payload: unknown,
-): Promise<"sent" | "queued" | "rejected"> {
+): Promise<"sent" | "queued" | "check" | "rejected"> {
   const body = JSON.stringify(payload);
   try {
     const res = await fetch(path, {
@@ -120,7 +152,10 @@ export async function queuePost(
       body,
     });
     if (res.ok) return "sent";
-    // A 4xx means the server rejected it, such as bad input or a sold
+    // The spam check wasn't finished. Not queued: the visitor is here and
+    // can finish it.
+    if (res.status === SPAM_CHECK) return "check";
+    // Other 4xx means the server rejected it, such as bad input or a sold
     // painting, so don't queue it.
     if (res.status >= 400 && res.status < 500) return "rejected";
     await enqueue(path, body);
@@ -137,14 +172,15 @@ export async function queuePost(
 
 let armed = false;
 
-export function armOutboxFlush(): void {
+export function armOutboxFlush(freshToken?: () => Promise<string>): void {
   // Client-side navigation re-runs page init, so arm once per session.
   if (armed) return;
   armed = true;
-  window.addEventListener("online", () => void flushOutbox());
+  const flush = (): void => void flushOutbox(freshToken);
+  window.addEventListener("online", flush);
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => void flushOutbox());
+    document.addEventListener("DOMContentLoaded", flush);
   } else {
-    void flushOutbox();
+    flush();
   }
 }

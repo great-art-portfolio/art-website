@@ -125,7 +125,11 @@ async function replayOutbox() {
         headers: { "Content-Type": "application/json" },
         body: post.body,
       });
-      if (!res.ok && res.status >= 400 && res.status < 500) {
+      if (res.status === 403) {
+        // Failed spam check: the saved token expired. Keep the note; the
+        // next painting page visit resends it with a fresh token.
+        continue;
+      } else if (!res.ok && res.status >= 400 && res.status < 500) {
         // Rejected by the server. Drop it so it isn't retried.
       } else if (!res.ok) {
         break;

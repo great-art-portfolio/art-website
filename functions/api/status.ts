@@ -8,8 +8,14 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
     stripe: flag(context.env.ENABLE_STRIPE),
     shippo: flag(context.env.ENABLE_SHIPPO),
     socialPost: flag(context.env.ENABLE_SOCIAL_POST),
-    // The site key is public. It ships in page HTML.
-    turnstileSiteKey: context.env.TURNSTILE_SITE_KEY ?? "",
+    // The site key is public. It's only handed out once the secret is set
+    // too: without the secret nothing checks the token, so the widget
+    // would just slow visitors down (and on localhost Cloudflare refuses
+    // the production key, so every send would wait for a token in vain).
+    turnstileSiteKey:
+      (context.env.TURNSTILE_SECRET_KEY ?? "") === ""
+        ? ""
+        : (context.env.TURNSTILE_SITE_KEY ?? ""),
     email: (context.env.RESEND_API_KEY ?? "") !== "",
     push: (context.env.PUSHOVER_APP_TOKEN ?? "") !== "",
   });

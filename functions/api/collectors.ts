@@ -1,5 +1,11 @@
 import type { AppEnv } from "../_lib/env";
-import { badRequest, json, requireAdmin, serverError } from "../_lib/http";
+import {
+  badRequest,
+  json,
+  requireAdmin,
+  serverError,
+  spamCheckFailed,
+} from "../_lib/http";
 import {
   CONFIRM_TTL_MS,
   issueLinkToken,
@@ -73,7 +79,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
         context.request.headers.get("cf-connecting-ip"),
       ))
     ) {
-      return badRequest("Spam check failed — please try again.");
+      return spamCheckFailed();
     }
     const email = parseCollectorEmail(body["email"]);
     if (email === null) return badRequest("A valid email address is required");
@@ -205,7 +211,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
           context.request.headers.get("cf-connecting-ip"),
         ))
       ) {
-        return badRequest("Spam check failed — please try again.");
+        return spamCheckFailed();
       }
       if (!hasList(context.env)) {
         return serverError(

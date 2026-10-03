@@ -33,6 +33,15 @@ deletion) makes a deletion permanent — ordinary commits never do.
 In the studio dev loop (`pnpm dev:studio`) delete removes working-tree
 files instead of committing; `pnpm studio:reset` brings them back.
 
+## Scheduled paintings
+
+A "Publish on" date goes live that day (Calgary time) on its own: the
+`Publish scheduled paintings` workflow runs just after midnight, flips due
+drafts to published, and commits — Pages rebuilds from that push. The
+studio also publishes due drafts whenever it loads, so whichever runs first
+wins and the other finds nothing to do. Run it by hand from the Actions tab
+(Run workflow) or locally with `node scripts/publish-due.mjs`.
+
 ## Setup
 
 ```sh
@@ -111,9 +120,10 @@ see.
   and the "Browsers" / "Email list" boxes on a painting room fan out on
   publish (push only, email only, or both). The subscription table is the
   only database the site keeps (disclosed on `/privacy`).
-- Spam: Security > Turnstile > Add site (managed widget), set
-  `TURNSTILE_SITE_KEY` var + `TURNSTILE_SECRET_KEY` secret. Until then the
-  honeypot guards the form.
+- Spam: Turnstile (managed widget). The public `TURNSTILE_SITE_KEY` lives
+  in `wrangler.toml`; the `TURNSTILE_SECRET_KEY` secret (dashboard) is the
+  on switch — without it `/api/status` hands out no site key, so local runs
+  and CI never render the widget, and only the honeypot guards the forms.
 
 ## Docs
 

@@ -7,7 +7,7 @@
 - [ ] Put Cloudflare Access (email OTP) on `/admin/*`
 - [ ] Verify the 5 painting measurements with a tape (frontmatter is flagged GUESSED)
 - [ ] Custom domain + verify it in Resend (free on Cloudflare); set `PUBLIC_CF_BEACON_TOKEN` at build time
-- [ ] Turnstile deferred: Security > Turnstile > Add site (managed), then `TURNSTILE_SITE_KEY` var + `TURNSTILE_SECRET_KEY` secret — honeypot covers the form until then
+- [ ] Turnstile: widget created and `TURNSTILE_SITE_KEY` is in `wrangler.toml`; set the `TURNSTILE_SECRET_KEY` secret (Pages → Settings → Variables and Secrets) to switch it on — honeypot covers the forms until then
 
 ## Sell more
 

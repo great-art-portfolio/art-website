@@ -16,6 +16,9 @@ ARTIST_SENDER = "Gallery <hello@barbart.ca>" # What the buyer sees
 # ARTIST_INBOX= what the buyer sends their request to
 VAPID_PUBLIC_KEY = "BLCBFf14oWxzjSGDFknG-5K8UvhbcUnw7-ewBy-rmVgS6ME9Z9KDkFJBBKW2C9EQAUlGNgy-H8TnMmA6GiDgBzY"
 VAPID_CONTACT = "mailto:hello@barbart.ca"
+# Turnstile spam check (public). Inert until the TURNSTILE_SECRET_KEY
+# secret is set in the dashboard; setting that secret switches it on.
+TURNSTILE_SITE_KEY = "0x4AAAAAAEruWk1A_Or1b_Jx"
 # VAPID_PRIVATE_JWK= needed for browser push (node scripts/gen-vapid.mjs)
 
 CF_ACCOUNT_ID = "ee6937662d7aeda01d2a6f1f49a1168a" # feeds /admin "Most viewed"

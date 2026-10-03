@@ -1,5 +1,5 @@
 import type { AppEnv } from "../_lib/env";
-import { badRequest, json, serverError } from "../_lib/http";
+import { badRequest, json, serverError, spamCheckFailed } from "../_lib/http";
 import { sendInquiryNotifications } from "../_lib/notify";
 import { turnstileOk } from "../_lib/turnstile";
 
@@ -29,7 +29,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       context.request.headers.get("cf-connecting-ip"),
     ))
   ) {
-    return badRequest("Spam check failed — please try again.");
+    return spamCheckFailed();
   }
   const paintingTitle =
     typeof body["paintingTitle"] === "string"

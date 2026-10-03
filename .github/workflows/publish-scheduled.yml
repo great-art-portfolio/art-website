@@ -1,0 +1,59 @@
+name: Publish scheduled paintings
+
+# A "Publish on" date goes live that day even if nobody opens the studio.
+# Runs just after Calgary midnight (07:10 UTC is 1:10 MDT / 0:10 MST). The
+# commit lands on main and Pages rebuilds from it like any studio save.
+on:
+  schedule:
+    - cron: "10 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-scheduled
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      # Plain node, no install: the script only needs src/lib/painting-edit.ts.
+      - id: due
+        run: |
+          summary="$(node scripts/publish-due.mjs)"
+          echo "$summary"
+          echo "summary=$summary" >> "$GITHUB_OUTPUT"
+      - name: Commit and push
+        env:
+          SUMMARY: ${{ steps.due.outputs.summary }}
+        run: |
+          if git diff --quiet -- src/content/paintings; then
+            echo "Nothing to publish."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/content/paintings
+          git commit -m "Publish scheduled paintings" -m "$SUMMARY"
+          # A studio save may have landed meanwhile (it may even have
+          # published the same painting). The script is idempotent, so redo
+          # it on top of the newest main rather than merging.
+          for attempt in 1 2 3; do
+            git push origin HEAD:main && exit 0
+            git fetch origin main
+            git reset --hard origin/main
+            summary="$(node scripts/publish-due.mjs)"
+            if git diff --quiet -- src/content/paintings; then
+              echo "Already published by the studio."
+              exit 0
+            fi
+            git add src/content/paintings
+            git commit -m "Publish scheduled paintings" -m "$summary"
+          done
+          exit 1

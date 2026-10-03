@@ -32,7 +32,8 @@ interface Window {
         "error-callback"?: () => void;
         "timeout-callback"?: () => void;
       },
-    ) => void;
+    ) => string | undefined;
+    reset: (widgetId?: string) => void;
   };
   /** Detail lightbox doc-level listeners, registered once per session. */
   __detailDocWired?: boolean;
