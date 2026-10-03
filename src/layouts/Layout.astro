@@ -347,16 +347,21 @@ const currentSection = adminSection(Astro.url.pathname);
         return import("../lib/push");
       }
 
-      let notifyTurnstileToken = "";
-
       // Spam check, shared with the inquiry form via lib/turnstile-widget.
+      // Tokens are single-use, so Join and Leave each take their own.
       function loadNotifyTurnstile() {
         void import("../lib/turnstile-widget").then(({ ensureTurnstile }) =>
-          ensureTurnstile("#notify-turnstile-mount", (t) => {
-            notifyTurnstileToken = t;
-          }),
+          ensureTurnstile("#notify-turnstile-mount"),
         );
       }
+
+      async function notifyToken() {
+        const { takeTurnstileToken } = await import("../lib/turnstile-widget");
+        return await takeTurnstileToken("#notify-turnstile-mount");
+      }
+
+      const NOTIFY_CHECK_MSG =
+        "One more step — finish the quick check above, then try again.";
 
       // Shows a status message that fades in and later out. The fade is
       // opacity-only so reduced motion keeps it. A counter skips a stale
@@ -443,14 +448,14 @@ const currentSection = adminSection(Astro.url.pathname);
             return;
           }
           notifySay(hint, "Joining…");
-          fetch("/api/collectors", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              email,
-              turnstileToken: notifyTurnstileToken,
-            }),
-          })
+          notifyToken()
+            .then((turnstileToken) =>
+              fetch("/api/collectors", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, turnstileToken }),
+              }),
+            )
             .then((res) => {
               if (res.ok) {
                 res
@@ -490,6 +495,8 @@ const currentSection = adminSection(Astro.url.pathname);
                     notifySay(hint, "Check your inbox — one tap confirms it.");
                   });
                 input.value = "";
+              } else if (res.status === 403) {
+                notifySay(hint, NOTIFY_CHECK_MSG);
               } else if (res.status === 400) {
                 notifySay(
                   hint,
@@ -503,7 +510,9 @@ const currentSection = adminSection(Astro.url.pathname);
               notifySay(hint, "That didn't work — try again in a bit.");
             });
         });
-        // Leaving skips the spam check and always reports success.
+        // Leaving by typed address needs the spam check too (an emailed
+        // link carries its own proof instead). The reply is the same
+        // whether or not the address was on the list.
         const leaveEl = document.getElementById("notify-email-leave");
         const leave = leaveEl instanceof HTMLButtonElement ? leaveEl : null;
         if (leave !== null) {
@@ -515,15 +524,24 @@ const currentSection = adminSection(Astro.url.pathname);
               return;
             }
             notifySay(hint, "Leaving…");
-            fetch("/api/collectors", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ action: "unsubscribe", email }),
-            })
+            notifyToken()
+              .then((turnstileToken) =>
+                fetch("/api/collectors", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    action: "unsubscribe",
+                    email,
+                    turnstileToken,
+                  }),
+                }),
+              )
               .then((res) => {
                 if (res.ok) {
                   notifySay(hint, "Done — that address is off the list.");
                   input.value = "";
+                } else if (res.status === 403) {
+                  notifySay(hint, NOTIFY_CHECK_MSG);
                 } else {
                   notifySay(hint, "That didn't work — try again in a bit.");
                 }

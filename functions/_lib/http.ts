@@ -11,6 +11,16 @@ export function badRequest(message: string): Response {
   return json({ error: message }, { status: 400 });
 }
 
+/** A failed or missing Turnstile check. 403, not 400, so clients can ask
+ * the visitor to finish the check, and the offline outbox keeps the note
+ * for a resend with a fresh token instead of dropping it as bad input. */
+export function spamCheckFailed(): Response {
+  return json(
+    { error: "Spam check failed — please try again." },
+    { status: 403 },
+  );
+}
+
 export function serverError(message = "Something went wrong"): Response {
   return json({ error: message }, { status: 500 });
 }

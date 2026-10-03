@@ -561,15 +561,17 @@ const eyebrow =
       mdPath: pageData?.mdPath ?? "",
     };
   }
-  let turnstileToken = "";
-
-  /** Turnstile spam check, shared with the collector modal. */
+  /** Turnstile spam check, shared with the collector modal. Each send
+   * takes its own single-use token. */
   function loadTurnstile() {
     void import("../lib/turnstile-widget").then(({ ensureTurnstile }) =>
-      ensureTurnstile("#turnstile-mount", (t) => {
-        turnstileToken = t;
-      }),
+      ensureTurnstile("#turnstile-mount"),
     );
+  }
+
+  async function inquiryToken() {
+    const { takeTurnstileToken } = await import("../lib/turnstile-widget");
+    return await takeTurnstileToken("#turnstile-mount");
   }
 
   /** "View on your wall" AR viewer, rendered only when models exist. */
@@ -683,7 +685,11 @@ const eyebrow =
     initAdmin();
     initPageShare();
     // iOS has no Background Sync, so flush the outbox on load and reconnect.
-    void import("../lib/queue").then(({ armOutboxFlush }) => armOutboxFlush());
+    // Notes saved offline get a fresh spam check token here, since the one
+    // they were saved with has expired by now.
+    void import("../lib/queue").then(({ armOutboxFlush }) =>
+      armOutboxFlush(inquiryToken),
+    );
     // Inquiries are emailed and not stored. Spam checks are a honeypot field,
     // then Turnstile.
     const formEl = document.getElementById("inquiry-form");
@@ -699,26 +705,29 @@ const eyebrow =
         if (status === null) return;
         say(status, "Sending…");
         const live = readPageData();
-        void import("../lib/queue").then(({ queuePost }) =>
-          queuePost("/api/inquiries", {
-            paintingTitle: live.title,
-            priceCents: live.priceCents,
-            name: String(data.get("name") ?? ""),
-            email: String(data.get("email") ?? ""),
-            message: String(data.get("message") ?? ""),
-            website: "",
-            turnstileToken,
-          }).then((result) => {
-            say(
-              status,
-              result === "sent"
-                ? "Thanks! The artist will reply by email."
-                : result === "queued"
-                  ? "Saved — it will send automatically when you're back online."
-                  : "That didn't go through — check your email address and try again.",
-            );
-            if (result === "sent") form.reset();
-          }),
+        void Promise.all([import("../lib/queue"), inquiryToken()]).then(
+          ([{ queuePost }, turnstileToken]) =>
+            queuePost("/api/inquiries", {
+              paintingTitle: live.title,
+              priceCents: live.priceCents,
+              name: String(data.get("name") ?? ""),
+              email: String(data.get("email") ?? ""),
+              message: String(data.get("message") ?? ""),
+              website: "",
+              turnstileToken,
+            }).then((result) => {
+              say(
+                status,
+                result === "sent"
+                  ? "Thanks! The artist will reply by email."
+                  : result === "queued"
+                    ? "Saved — it will send automatically when you're back online."
+                    : result === "check"
+                      ? "One more step — finish the quick check above, then tap Send inquiry again."
+                      : "That didn't go through — check your email address and try again.",
+              );
+              if (result === "sent") form.reset();
+            }),
         );
       });
     }
