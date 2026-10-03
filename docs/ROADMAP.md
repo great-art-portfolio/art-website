@@ -7,14 +7,17 @@
 - [ ] Put Cloudflare Access (email OTP) on `/admin/*`
 - [ ] Verify the 5 painting measurements with a tape (frontmatter is flagged GUESSED)
 - [ ] Custom domain + verify it in Resend (free on Cloudflare); set `PUBLIC_CF_BEACON_TOKEN` at build time
-- [ ] Turnstile: widget created and `TURNSTILE_SITE_KEY` is in `wrangler.toml`; set the `TURNSTILE_SECRET_KEY` secret (Pages → Settings → Variables and Secrets) to switch it on — honeypot covers the forms until then
+- [ ] Turnstile: site key in `wrangler.toml`, `TURNSTILE_SECRET_KEY` secret set (Oct 2026) — confirm it's live: `/api/status` shows the site key, the check appears above "Send inquiry" and in the Notify me box, and a test inquiry reaches her inbox
 
 ## Sell more
 
-- [ ] Enable Stripe checkout (`ENABLE_STRIPE` + key) — Apple Pay / Google Pay come free with it, which covers Android buyers too
+- [ ] Card checkout via Stripe (`ENABLE_STRIPE` + key) — Apple Pay / Google Pay come free with it, which covers Android buyers too. No monthly fee, only a cut per sale.
+  - The old checkout was removed with the D1 gallery (it looked paintings up by id). Re-adding it means a title + price POST from the painting page, with the price checked against the built content, not trusted from the browser (see DECISIONS → Checkout).
+  - A paid order should mark the painting `sold: true` (a commit like any studio save) so it can't sell twice.
 - [ ] Enable Shippo (`ENABLE_SHIPPO` + token) when label volume justifies it; until then Chit Chats / Pirate Ship links in `/admin`
 - [ ] QR price tags for in-person markets (print stylesheet from the collection list)
-- [ ] Sold archive + testimonials page (social proof)
+- [ ] "Recently sold" section + a few words from buyers (social proof for new visitors)
+  - Sold paintings already carry `sold: true`; the gallery groups them. Needs a buyer-quote field she can fill in from the painting room, shown with permission only.
 
 ## Wow (impress visitors)
 
@@ -27,6 +30,7 @@
 
 - [ ] One-click auto-posting (`ENABLE_SOCIAL_POST` + Ayrshare) if manual sharing gets tedious
 - [ ] Email list for collectors (free tier: Buttondown / Resend broadcast) + "new painting" alerts
+- [ ] Alerts for scheduled paintings: the nightly `Publish scheduled paintings` workflow (and the studio's own on-load check) publish due drafts silently — the room's "On publish, also tell" boxes only fire on a manual publish. Remember those choices in the frontmatter at scheduling time and send them when the painting goes live. The workflow has no admin token, so it would need its own way to call `/api/notify` (e.g. a repo secret).
 - [ ] Sitemap + richer JSON-LD for Google image search
 
 ## Tech hygiene
