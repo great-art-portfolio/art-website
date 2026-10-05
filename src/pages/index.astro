@@ -1,13 +1,15 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import Gallery from "../components/Gallery.astro";
-import { ARTIST_LOCATION, ARTIST_NAME, TAGLINE } from "../lib/site";
+import { ARTIST_LOCATION, ARTIST_NAME } from "../lib/site";
 import { isExpired, localToday, parseAnnouncement } from "../lib/banner";
 import bannerRaw from "../content/announcement.txt?raw";
 
-// The header wordmark already carries the artist's name, so the hero
-// headline stays generic instead of repeating "by …".
-const headlineHtml = "Original paintings, from the studio";
+// One sentence says who, what and where. The paintings below do the rest.
+const headline =
+  ARTIST_NAME !== null
+    ? `${ARTIST_NAME} paints nature and abstraction in ${ARTIST_LOCATION}.`
+    : `Nature and abstract paintings from ${ARTIST_LOCATION}.`;
 
 // The studio note, set from /admin. Empty means hidden. Notes expired at
 // build time aren't rendered, and the script below hides notes that expire
@@ -20,65 +22,32 @@ const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
   <main id="main">
     <section class:list={["hero", announcement !== "" && "hero-note"]}>
       <div class="hero-main">
-        <p class="eyebrow">
-          {TAGLINE} · {ARTIST_LOCATION}
-        </p>
-        <h1 set:html={headlineHtml} />
+        <h1>{headline}</h1>
         <p class="lede">
-          Nature and abstract originals, painted by hand and sold directly from
-          the studio. What you see is the actual painting — and when an original
-          sells, only its prints remain.
+          Every painting here is an original, sold directly from the studio.
         </p>
-        <div class="hero-ctas">
-          <a href="#collection" class="btn-primary">
-            Browse the collection
-          </a>
-          <button type="button" class="btn-ghost" id="notify-hero">
-            Get notified of new work
-          </button>
-        </div>
       </div>
       {announcement !== "" && (
         <aside class="announce" data-expires={banner.expires ?? ""}>
           {announcement}
         </aside>
       )}
-      <dl class="hero-meta">
-        <div>
-          <dt>Originals &amp; prints</dt>
-          <dd>painted once, printed to order</dd>
-        </div>
-        <div>
-          <dt>Direct</dt>
-          <dd>from the studio, no gallery markup</dd>
-        </div>
-        <div>
-          <dt>Shipped with care</dt>
-          <dd>arranged together after purchase</dd>
-        </div>
-      </dl>
     </section>
 
     <Gallery />
 
     <section class="about" id="about">
-      <div class="about-inner">
-        <p class="eyebrow">From the studio</p>
-        <h2>Painted in {ARTIST_LOCATION}</h2>
-        <p>
-          {ARTIST_NAME} paints nature and abstraction from her Calgary studio —
-          prairie light, quiet water, and colour studies that sit somewhere
-          between landscape and feeling. Every piece here starts as an original
-          — most are also available as prints. When an original sells, it's gone
-          for good — though its prints live on.
-        </p>
-        <p>
-          Everything here sells directly from the studio: the listed price is
-          the full price, and shipping is arranged together after purchase. To
-          ask about a piece, open it and tap <strong>Interested?</strong> — your
-          note goes straight to the artist.
-        </p>
-      </div>
+      <h2>About the studio</h2>
+      <p>
+        Prairie light, quiet water, and colour studies that sit somewhere
+        between landscape and feeling. Each painting is one of a kind, and most
+        are also available as prints.
+      </p>
+      <p>
+        The listed price is the full price, and shipping is arranged with you
+        after purchase. To ask about a painting, open it and tap{" "}
+        <strong>Interested?</strong> Your note goes straight to the artist.
+      </p>
     </section>
   </main>
 </Layout>
@@ -148,10 +117,10 @@ const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
   .hero {
     max-width: 76rem;
     margin: 0 auto;
-    padding: clamp(3.5rem, 8vw, 6.5rem) 1.5rem 3rem;
+    padding: clamp(2rem, 5vw, 3.5rem) 1.5rem 2.25rem;
   }
-  /* With a studio note the hero splits into text on the left and the note
-     on the right. */
+  /* With a studio note the intro splits into text on the left and the
+     note on the right. */
   .hero-note {
     display: grid;
     gap: 2rem;
@@ -162,9 +131,6 @@ const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
       grid-template-columns: 1.2fr 0.8fr;
       gap: 0 3rem;
       align-items: center;
-    }
-    .hero-note .hero-meta {
-      grid-column: 1 / -1;
     }
   }
   /* The studio note, styled as paper with a tape strip. It stays cream in
@@ -206,169 +172,39 @@ const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
     );
     box-shadow: 0 1px 2px rgb(35 32 27 / 0.14);
   }
-  .eyebrow {
-    margin: 0 0 1rem;
-    font-size: 0.8rem;
-    font-weight: 700;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--accent);
-  }
+  /* Layout's heading font is scoped to Layout, so pages set their own. */
   .hero h1 {
-    margin: 0 0 1.25rem;
-    font-weight: 500;
-    font-size: clamp(2.4rem, 6vw, 4.25rem);
-    max-width: 16ch;
+    font-family: Georgia, "Iowan Old Style", Charter, serif;
+    margin: 0 0 0.4rem;
+    font-weight: 400;
+    font-size: clamp(1.6rem, 4vw, 2.2rem);
+    line-height: 1.2;
     text-wrap: balance;
   }
-  .hero h1 .nobr {
-    white-space: nowrap;
-  }
   .lede {
-    margin: 0 0 2rem;
-    font-size: 1.15rem;
-    color: var(--muted);
-    max-width: 38rem;
-  }
-  .hero-ctas {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.9rem;
-    margin-bottom: 3rem;
-  }
-  .btn-primary,
-  .btn-ghost {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    text-decoration: none;
-    text-align: center;
-    min-height: 3rem;
-    border-radius: 0.75rem;
-    padding: 0.75rem 1.7rem;
-    font-weight: 600;
-    font-size: 1rem;
-    cursor: pointer;
-    transition:
-      background-color 0.25s ease,
-      border-color 0.25s ease,
-      color 0.25s ease,
-      transform 0.2s ease;
-  }
-  /* Lift only with a hover-capable pointer. On touch it sticks after a
-     tap. */
-  @media (hover: hover) {
-    .btn-primary:hover,
-    .btn-ghost:hover {
-      transform: translateY(-1px);
-    }
-  }
-  /* Reduced motion removes the button lifts. Color fades still run. */
-  @media (prefers-reduced-motion: reduce) {
-    .btn-primary:hover,
-    .btn-ghost:hover {
-      transform: none;
-    }
-  }
-  .btn-primary:active,
-  .btn-ghost:active {
-    transform: none;
-  }
-  .btn-primary:hover {
-    background: var(--primary-hover);
-    border-color: var(--primary-hover);
-    color: var(--accent-ink);
-  }
-  .btn-ghost:hover {
-    border-color: var(--ink);
-  }
-  .btn-primary:focus-visible,
-  .btn-ghost:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
-  .btn-primary {
-    background: var(--primary);
-    color: var(--primary-ink);
-    border: 1px solid var(--primary);
-  }
-  .btn-ghost {
-    border: 1px solid var(--line);
-    color: var(--ink);
-    background: transparent;
-  }
-  button.btn-primary,
-  button.btn-ghost {
-    font: inherit;
-    font-weight: 600;
-  }
-  .hero-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem 2.5rem;
     margin: 0;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--line);
-  }
-  .hero-meta div {
-    display: flex;
-    gap: 0.5rem;
-    align-items: baseline;
-    margin: 0;
-  }
-  /* Narrow screens use a two-column grid so descriptions line up instead
-     of following each wrapped term. */
-  @media (max-width: 40rem) {
-    .hero-meta {
-      display: grid;
-      gap: 0.75rem;
-    }
-    .hero-meta div {
-      display: grid;
-      grid-template-columns: 7.5rem 1fr;
-      gap: 0.25rem 1rem;
-      align-items: baseline;
-    }
-    .hero-meta dd {
-      text-wrap: pretty;
-    }
-  }
-  .hero-meta dt {
-    font-weight: 700;
-    font-size: 0.9rem;
-  }
-  .hero-meta dd {
-    margin: 0;
-    font-size: 0.9rem;
-    color: var(--muted);
+    font-size: 1.05rem;
+    max-width: 46ch;
   }
 
   .about {
     max-width: 76rem;
-    margin: 1rem auto 0;
-    padding: 0 1.5rem 3rem;
+    box-sizing: border-box;
+    margin: 2.5rem auto 0;
+    padding: 0 1.5rem 3.5rem;
     scroll-margin-top: 5rem;
   }
-  .about-inner {
-    background: var(--card);
-    border: 1px solid var(--line);
-    border-radius: 1rem;
-    padding: clamp(1.75rem, 4vw, 3rem);
-    max-width: 44rem;
+  .about h2 {
+    font-family: Georgia, "Iowan Old Style", Charter, serif;
+    margin: 0 0 0.6rem;
+    font-size: clamp(1.4rem, 3vw, 1.8rem);
+    font-weight: 400;
   }
-  .about-inner h2 {
+  .about p {
     margin: 0 0 1rem;
-    font-size: clamp(1.5rem, 3vw, 2rem);
-    font-weight: 500;
+    max-width: 38rem;
   }
-  .about-inner p {
-    margin: 0 0 1rem;
-    color: var(--muted);
-  }
-  .about-inner p:last-child {
+  .about p:last-child {
     margin-bottom: 0;
-  }
-  .about-inner strong {
-    color: var(--ink);
   }
 </style>

@@ -2,6 +2,8 @@
 import { Image } from "astro:assets";
 import { getCollection, type CollectionEntry } from "astro:content";
 import { formatDimensions } from "../lib/dims";
+import { galleryTiles } from "../lib/gallery-layout";
+import { formatPriceShort } from "../lib/money";
 import {
   GALLERY_WIDTHS,
   SOLD_WIDTHS,
@@ -17,12 +19,9 @@ import {
 } from "../lib/site";
 
 type Painting = CollectionEntry<"paintings">;
+// Captions show the face only. Depth is on the painting page.
 const dimsOf = (p: Painting): string =>
-  formatDimensions(
-    p.data.widthIn ?? null,
-    p.data.heightIn ?? null,
-    p.data.depthIn ?? null,
-  );
+  formatDimensions(p.data.widthIn ?? null, p.data.heightIn ?? null, null);
 
 const paintings = (await getCollection("paintings")).filter((p) =>
   isPublished(p.data),
@@ -46,35 +45,37 @@ const sold = paintings
     ),
   );
 
+// Wide and much larger paintings get bigger tiles (see gallery-layout).
+const tiles = galleryTiles(
+  available.map((p) => ({
+    aspect: p.data.image.width / p.data.image.height,
+    widthIn: p.data.widthIn ?? null,
+    heightIn: p.data.heightIn ?? null,
+  })),
+);
+
 const NEW_MS = 7 * 24 * 60 * 60 * 1000;
 const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
-
-const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
 ---
 
 <section class="collection" id="collection" aria-label="Available paintings">
-  <div class="section-head">
-    <div>
-      <p class="eyebrow">The collection</p>
-      <h2>Available works</h2>
-    </div>
-    <p class="count">{workCount(available.length)} · each one of a kind</p>
-  </div>
-
   <div class="gallery" id="gallery-static">
     {available.map((painting, i) => (
       <a
-        class="card"
+        class:list={["card", tiles[i] !== "normal" && `tile-${tiles[i]}`]}
         href={`/paintings/${slugifyTitle(painting.data.title)}`}
         data-astro-prefetch="hover"
       >
-        <span class="mat">
+        <span
+          class="mat"
+          style={`--ar: ${painting.data.image.width / painting.data.image.height}`}
+        >
           <Image
             src={painting.data.image}
             alt={painting.data.alt}
             width={1000}
             widths={GALLERY_WIDTHS}
-            sizes={gallerySizes()}
+            sizes={gallerySizes(tiles[i])}
             format="webp"
             decoding="async"
             loading={i === 0 ? "eager" : "lazy"}
@@ -88,9 +89,9 @@ const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
           <span class="caption-title">{painting.data.title}</span>
           <span class="caption-sub">
             {SHOW_PRICES ? (
-              <span class="price">{priceLabel(painting.data.price)}</span>
+              <span class="price">{formatPriceShort(painting.data.price)}</span>
             ) : (
-              <span class="ask">Ask about this piece →</span>
+              <span class="ask">Ask about this piece</span>
             )}
             {dimsOf(painting) !== "" && (
               <span class="dims">{dimsOf(painting)}</span>
@@ -105,10 +106,7 @@ const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
 {sold.length > 0 && (
   <section class="collection collected" id="sold" aria-label="Sold paintings">
     <div class="section-head">
-      <div>
-        <p class="eyebrow">Collected</p>
-        <h2>Found their homes</h2>
-      </div>
+      <h2>Found their homes</h2>
       <p class="count">{workCount(sold.length)} sold</p>
     </div>
     <div class="gallery sold-grid">
@@ -118,7 +116,10 @@ const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
           href={`/paintings/${slugifyTitle(painting.data.title)}`}
           data-astro-prefetch="hover"
         >
-          <span class="mat">
+          <span
+            class="mat"
+            style={`--ar: ${painting.data.image.width / painting.data.image.height}`}
+          >
             <Image
               src={painting.data.image}
               alt={painting.data.alt}
@@ -144,35 +145,22 @@ const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
   .collection {
     max-width: 76rem;
     margin: 0 auto;
-    padding: 1rem 1.5rem 2rem;
+    padding: 0 1.5rem 2rem;
     scroll-margin-top: 5rem;
   }
   .section-head {
     display: flex;
-    align-items: end;
+    align-items: baseline;
     justify-content: space-between;
-    gap: 1rem;
+    gap: 0.5rem 1rem;
     flex-wrap: wrap;
-    margin: 0 0 2.5rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid var(--line);
-  }
-  .section-head > div {
-    min-width: 0;
-  }
-  .eyebrow {
-    margin: 0 0 0.35rem;
-    font-size: 0.78rem;
-    font-weight: 700;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--accent);
-    white-space: nowrap;
+    margin: 0 0 2rem;
   }
   .section-head h2 {
+    font-family: Georgia, "Iowan Old Style", Charter, serif;
     margin: 0;
-    font-size: clamp(1.6rem, 3vw, 2.2rem);
-    font-weight: 500;
+    font-size: clamp(1.4rem, 3vw, 1.8rem);
+    font-weight: 400;
     text-wrap: balance;
   }
   .count {
@@ -182,72 +170,46 @@ const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
     white-space: nowrap;
   }
 
+  /* Two columns on phones, three from 60rem. Each painting keeps its
+     shape and captions line up along the bottom of the row. Dense flow
+     lets small tiles fill the gaps beside a big one. */
   .gallery {
     display: grid;
-    gap: 3rem 2.5rem;
-    align-items: start;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2.25rem 1rem;
+    align-items: end;
   }
   #gallery-static {
-    grid-template-columns: 1fr;
+    grid-auto-flow: dense;
   }
   @media (min-width: 40rem) {
-    #gallery-static {
-      grid-template-columns: repeat(2, 1fr);
+    .gallery {
+      gap: 3rem 2rem;
+    }
+  }
+  @media (min-width: 60rem) {
+    .gallery {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 3.5rem 2.5rem;
     }
   }
-  /* Desktop: a repeating 10-card pattern on a 12-column grid (7+5, 4+4+4,
-     5+7, 4+4+4). It alternates a large-left pair, a trio with the middle
-     card lowered, a large-right pair, and a trio with the outer cards
-     lowered. */
-  @media (min-width: 60rem) {
-    #gallery-static {
-      grid-template-columns: repeat(12, 1fr);
-    }
-    #gallery-static > .card:nth-child(10n + 1) {
-      grid-column: span 7;
-    }
-    #gallery-static > .card:nth-child(10n + 2) {
-      grid-column: span 5;
-      margin-top: 5rem;
-    }
-    #gallery-static > .card:nth-child(10n + 3),
-    #gallery-static > .card:nth-child(10n + 5),
-    #gallery-static > .card:nth-child(10n + 9) {
-      grid-column: span 4;
-    }
-    #gallery-static > .card:nth-child(10n + 4) {
-      grid-column: span 4;
-      margin-top: 2.5rem;
-    }
-    #gallery-static > .card:nth-child(10n + 6) {
-      grid-column: span 5;
-      margin-top: 5rem;
-    }
-    #gallery-static > .card:nth-child(10n + 7) {
-      grid-column: span 7;
-    }
-    #gallery-static > .card:nth-child(10n + 8),
-    #gallery-static > .card:nth-child(10n + 10) {
-      grid-column: span 4;
-      margin-top: 2.5rem;
-    }
-    /* A lowered card that ends the grid has no row below it, so keep it
-       level. */
-    #gallery-static > .card:nth-child(10n + 2):last-child,
-    #gallery-static > .card:nth-child(10n + 4):last-child,
-    #gallery-static > .card:nth-child(10n + 6):last-child,
-    #gallery-static > .card:nth-child(10n + 8):last-child,
-    #gallery-static > .card:nth-child(10n + 10):last-child {
-      margin-top: 0;
-    }
+  .tile-wide {
+    grid-column: span 2;
+  }
+  .tile-big {
+    grid-column: span 2;
+    grid-row: span 2;
+  }
+  .tile-big-wide {
+    grid-column: 1 / -1;
   }
 
   .card {
     display: block;
+    min-width: 0;
     color: inherit;
     text-decoration: none;
-    border-radius: var(--radius);
+    border-radius: 2px;
     animation: rise 0.5s ease both;
   }
   .card:focus-visible {
@@ -266,93 +228,81 @@ const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
   .mat {
     position: relative;
     display: block;
-    background: var(--card);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: clamp(0.6rem, 1.5vw, 0.9rem);
-    box-shadow: var(--shadow);
-    transition:
-      transform 0.35s ease,
-      box-shadow 0.35s ease;
+    transition: transform 0.35s ease;
   }
   @media (hover: hover) {
     .card:hover .mat {
-      transform: translateY(-4px);
+      transform: translateY(-3px);
     }
   }
   .mat img {
-    /* Size the box to the photo rather than the column. With both max
-       sizes set it keeps the photo's aspect ratio, so there's no
-       letterboxing. Narrower photos are centered. */
-    width: auto;
-    max-width: 100%;
-    height: auto;
-    max-height: 80vh;
-    margin: 0 auto;
+    /* Each photo fits a square as wide as its tile, so a tall painting's
+       long side matches a square's and never outgrows a bigger canvas.
+       Short screens cap the height at 80vh. Both caps work through the
+       width (--ar is the photo's width / height), so the box keeps the
+       photo's shape and never letterboxes. A narrower photo sits on the
+       left edge, in line with its caption. */
     display: block;
-    border-radius: 0.25rem;
+    width: min(100%, calc(100% * var(--ar, 1)));
+    max-width: calc(80vh * var(--ar, 1));
+    height: auto;
+    margin: 0;
+    border-radius: 2px;
     background: transparent;
     object-fit: contain;
+    box-shadow: var(--shadow);
   }
   .caption {
     display: flex;
     flex-direction: column;
-    gap: 0.15rem;
-    padding: 0.9rem 0.25rem 0;
+    gap: 0.1rem;
+    padding-top: 0.7rem;
   }
   .caption-title {
-    font-family: Georgia, serif;
-    font-size: 1.2rem;
+    font-family: Georgia, "Iowan Old Style", Charter, serif;
+    font-size: 1.05rem;
+    line-height: 1.3;
     text-decoration: underline transparent;
     text-underline-offset: 4px;
     transition: text-decoration-color 0.12s ease;
   }
+  @media (min-width: 40rem) {
+    .caption-title {
+      font-size: 1.15rem;
+    }
+  }
   .card:hover .caption-title {
     text-decoration-color: currentColor;
-  }
-  /* Reduced motion removes the entrance and hover lift. The caption fade
-     still runs. This comes after the hover rules so it wins. */
-  @media (prefers-reduced-motion: reduce) {
-    .card {
-      animation: none;
-    }
-    .card:hover .mat {
-      transform: none;
-    }
-  }
-  .caption-sub {
-    font-size: 0.95rem;
-  }
-  .price {
-    font-weight: 700;
-    color: var(--accent);
-  }
-  .ask {
-    color: var(--accent);
-    font-weight: 600;
   }
   .caption-sub {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.25rem 0.75rem;
     align-items: baseline;
+    font-size: 0.9rem;
   }
   .dims {
-    font-size: 0.88rem;
     color: var(--muted);
   }
-  .muted {
-    color: var(--muted);
+  .price + .dims::before,
+  .ask + .dims::before {
+    content: "\00a0·\00a0";
+  }
+  /* Reduced motion removes the hover lift. The entrance and caption
+     fades still run. This comes after the hover rules so it wins. */
+  @media (prefers-reduced-motion: reduce) {
+    .card:hover .mat {
+      transform: none;
+    }
   }
   .badge {
     position: absolute;
-    top: 1.1rem;
-    right: 1.1rem;
-    padding: 0.3rem 0.8rem;
+    top: 0.6rem;
+    right: 0.6rem;
+    padding: 0.2rem 0.65rem;
     border-radius: 999px;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 700;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.04em;
     background: rgb(20 18 15 / 0.82);
     color: #fff;
   }
@@ -363,30 +313,18 @@ const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
     background: rgb(46 110 94 / 0.9);
   }
 
-  /* Sold archive: smaller uniform cards. */
+  /* Sold archive: the same grid, quieter photos. */
   .collected {
-    margin-top: 1rem;
-  }
-  .sold-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 2.5rem 2rem;
-  }
-  @media (min-width: 60rem) {
-    .sold-grid {
-      grid-template-columns: repeat(3, 1fr);
-    }
-  }
-  .sold-grid .mat {
-    box-shadow: none;
+    margin-top: 2.5rem;
   }
   .sold-grid img {
+    box-shadow: none;
     filter: saturate(0.88);
   }
   .sold-grid .caption-title {
-    font-size: 1.02rem;
+    font-size: 1rem;
   }
 
-  /* Opacity-only entrance. A slide-up looked busier than a fade. */
   @keyframes rise {
     from {
       opacity: 0;

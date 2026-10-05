@@ -9,9 +9,6 @@ export const ARTIST_NAME: string | null = "Barbara Straka";
 
 export const ARTIST_LOCATION = "Calgary, Alberta";
 
-/** One-line description used in the hero and metadata. */
-export const TAGLINE = "Nature & abstract originals, painted by hand";
-
 /** Show prices on cards and painting pages. */
 export const SHOW_PRICES = true;
 

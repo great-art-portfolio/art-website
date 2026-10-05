@@ -119,17 +119,15 @@ test("pages fade in on swap, even under reduced motion", async ({ page }) => {
 
 test("notify buttons open the signup modal", async ({ page }) => {
   await page.goto("/");
-  // The nav and hero buttons open a modal without scrolling the page.
-  for (const opener of ["#notify-nav", "#notify-hero"]) {
-    await page.locator(opener).click();
-    await expect(page.locator("#notify-dialog")).toBeVisible();
-    // The signup responds. Headless denies notification permission, so the
-    // button shows its blocked state.
-    await expect(page.locator("#notify-btn")).toBeAttached();
-    await expect(page).not.toHaveURL(/#notify-card/);
-    await page.locator("#notify-close").click();
-    await expect(page.locator("#notify-dialog")).toBeHidden();
-  }
+  // The nav button opens a modal without scrolling the page.
+  await page.locator("#notify-nav").click();
+  await expect(page.locator("#notify-dialog")).toBeVisible();
+  // The signup responds. Headless denies notification permission, so the
+  // button shows its blocked state.
+  await expect(page.locator("#notify-btn")).toBeAttached();
+  await expect(page).not.toHaveURL(/#notify-card/);
+  await page.locator("#notify-close").click();
+  await expect(page.locator("#notify-dialog")).toBeHidden();
   // The same modal opens from a painting page, since it belongs to the nav.
   await page.goto("/paintings/night-reeds");
   await page.locator("#notify-nav").click();

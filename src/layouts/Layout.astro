@@ -644,14 +644,6 @@ const currentSection = adminSection(Astro.url.pathname);
             openNotify();
           });
         }
-        const heroEl = document.getElementById("notify-hero");
-        const hero = heroEl instanceof HTMLButtonElement ? heroEl : null;
-        if (hero !== null && hero.dataset.wired !== "1") {
-          hero.dataset.wired = "1";
-          hero.addEventListener("click", () => {
-            openNotify();
-          });
-        }
         const dlgEl = document.getElementById("notify-dialog");
         const dlg = dlgEl instanceof HTMLDialogElement ? dlgEl : null;
         if (dlg !== null && dlg.dataset.wired !== "1") {

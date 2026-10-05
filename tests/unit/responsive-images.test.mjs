@@ -12,7 +12,7 @@ import { MAX_SIDE, scaleFor } from "../../src/lib/image.ts";
 
 describe("responsive-images contracts", () => {
   it("gallery widths stay ascending and phone-friendly", () => {
-    assert.deepEqual(GALLERY_WIDTHS, [400, 700, 1000]);
+    assert.deepEqual(GALLERY_WIDTHS, [400, 700, 1000, 1400]);
   });
 
   it("sold widths are a subset of gallery widths", () => {
@@ -25,14 +25,11 @@ describe("responsive-images contracts", () => {
   });
 
   it("sizes() match the CSS grid slots", () => {
-    assert.equal(
-      gallerySizes(),
-      "(min-width: 60rem) 42vw, (min-width: 40rem) 44vw, 92vw",
-    );
-    assert.equal(
-      soldSizes(),
-      "(min-width: 60rem) 22vw, (min-width: 40rem) 44vw, 92vw",
-    );
+    assert.equal(gallerySizes(), "(min-width: 60rem) 30vw, 46vw");
+    assert.equal(gallerySizes("wide"), "(min-width: 60rem) 62vw, 92vw");
+    assert.equal(gallerySizes("big"), "(min-width: 60rem) 62vw, 92vw");
+    assert.equal(gallerySizes("big-wide"), "92vw");
+    assert.equal(soldSizes(), "(min-width: 60rem) 30vw, 46vw");
     assert.equal(photoSizes(), "(min-width: 48rem) 55vw, 92vw");
   });
 });
