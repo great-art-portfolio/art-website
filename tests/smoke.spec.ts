@@ -450,9 +450,18 @@ test("public header becomes a bar only once the page scrolls", async ({
   // Clear over the top of the page.
   await expect(header).not.toHaveAttribute("data-scrolled");
   await expect(header).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
-  // The translucent bar fades in once the page moves.
+  // Partway through the first 80px the bar is partly filled in, so it
+  // tracks the scroll instead of playing on a timer.
+  await page.evaluate(() => window.scrollTo(0, 40));
+  await expect
+    .poll(() => header.evaluate((el) => el.style.getPropertyValue("--bar")))
+    .toBe("0.500");
+  // Past it the bar is fully on.
   await page.evaluate(() => window.scrollTo(0, 600));
   await expect(header).toHaveAttribute("data-scrolled", "");
+  await expect
+    .poll(() => header.evaluate((el) => el.style.getPropertyValue("--bar")))
+    .toBe("1.000");
   await expect
     .poll(() => header.evaluate((el) => getComputedStyle(el).backgroundColor))
     .not.toBe("rgba(0, 0, 0, 0)");
