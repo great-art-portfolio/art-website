@@ -2,13 +2,8 @@
 import { Image } from "astro:assets";
 import { getCollection, type CollectionEntry } from "astro:content";
 import { formatDimensions } from "../lib/dims";
-import {
-  galleryTiles,
-  leadSentence,
-  pickFeatured,
-  type Tile,
-} from "../lib/gallery-layout";
-import { formatPriceShort } from "../lib/money";
+import { galleryTiles } from "../lib/gallery-layout";
+import { formatPriceCAD } from "../lib/money";
 import {
   GALLERY_WIDTHS,
   SOLD_WIDTHS,
@@ -24,9 +19,12 @@ import {
 } from "../lib/site";
 
 type Painting = CollectionEntry<"paintings">;
-// Captions show the face only. Depth is on the painting page.
 const dimsOf = (p: Painting): string =>
-  formatDimensions(p.data.widthIn ?? null, p.data.heightIn ?? null, null);
+  formatDimensions(
+    p.data.widthIn ?? null,
+    p.data.heightIn ?? null,
+    p.data.depthIn ?? null,
+  );
 
 const paintings = (await getCollection("paintings")).filter((p) =>
   isPublished(p.data),
@@ -50,30 +48,35 @@ const sold = paintings
     ),
   );
 
-// The newest painting hangs first, across the full row, with its label
-// beside it: the front wall of the show. The rest keep her order.
-const featuredAt = pickFeatured(available.map((p) => p.data));
-const featured = available[featuredAt];
-const rest = available.filter((_, i) => i !== featuredAt);
-const hung = featured === undefined ? rest : [featured, ...rest];
-// Wide and much larger paintings get bigger tiles (see gallery-layout).
-const restTiles = galleryTiles(
-  rest.map((p) => ({
+const NEW_MS = 7 * 24 * 60 * 60 * 1000;
+const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
+
+const priceLabel = (price: number): string =>
+  formatPriceCAD(Math.round(price * 100));
+
+// Much larger paintings, and wide ones, get bigger slots in the staggered
+// layout so a 30 × 30 in canvas reads bigger than a 12 × 12 in one (see
+// gallery-layout).
+const tiles = galleryTiles(
+  available.map((p) => ({
     aspect: p.data.image.width / p.data.image.height,
     widthIn: p.data.widthIn ?? null,
     heightIn: p.data.heightIn ?? null,
   })),
 );
-const tiles: Tile[] =
-  featured === undefined ? restTiles : ["featured", ...restTiles];
-
-const NEW_MS = 7 * 24 * 60 * 60 * 1000;
-const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
 ---
 
 <section class="collection" id="collection" aria-label="Available paintings">
+  <div class="section-head">
+    <div>
+      <p class="eyebrow">The collection</p>
+      <h2>Available works</h2>
+    </div>
+    <p class="count">{workCount(available.length)} · each one of a kind</p>
+  </div>
+
   <div class="gallery" id="gallery-static">
-    {hung.map((painting, i) => (
+    {available.map((painting, i) => (
       <a
         class:list={["card", tiles[i] !== "normal" && `tile-${tiles[i]}`]}
         href={`/paintings/${slugifyTitle(painting.data.title)}`}
@@ -81,7 +84,6 @@ const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
       >
         <span
           class="mat"
-          style={`--ar: ${painting.data.image.width / painting.data.image.height}`}
           transition:name={`painting-${slugifyTitle(painting.data.title)}`}
         >
           <Image
@@ -99,25 +101,18 @@ const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
             <span class="badge new">New</span>
           )}
         </span>
-        {/* A gallery wall label: title, size, price. */}
         <span class="caption">
-          {tiles[i] === "featured" && (
-            <span class="kicker">Newest on the wall</span>
-          )}
           <span class="caption-title">{painting.data.title}</span>
           <span class="caption-sub">
+            {SHOW_PRICES ? (
+              <span class="price">{priceLabel(painting.data.price)}</span>
+            ) : (
+              <span class="ask">Ask about this piece →</span>
+            )}
             {dimsOf(painting) !== "" && (
               <span class="dims">{dimsOf(painting)}</span>
             )}
-            {SHOW_PRICES ? (
-              <span class="price">{formatPriceShort(painting.data.price)}</span>
-            ) : (
-              <span class="ask">Ask about this piece</span>
-            )}
           </span>
-          {tiles[i] === "featured" && (painting.body ?? "") !== "" && (
-            <span class="lead">{leadSentence(painting.body ?? "")}</span>
-          )}
         </span>
       </a>
     ))}
@@ -127,7 +122,10 @@ const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
 {sold.length > 0 && (
   <section class="collection collected" id="sold" aria-label="Sold paintings">
     <div class="section-head">
-      <h2>Found their homes</h2>
+      <div>
+        <p class="eyebrow">Collected</p>
+        <h2>Found their homes</h2>
+      </div>
       <p class="count">{workCount(sold.length)} sold</p>
     </div>
     <div class="gallery sold-grid">
@@ -139,7 +137,6 @@ const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
         >
           <span
             class="mat"
-            style={`--ar: ${painting.data.image.width / painting.data.image.height}`}
             transition:name={`painting-${slugifyTitle(painting.data.title)}`}
           >
             <Image
@@ -167,22 +164,35 @@ const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
   .collection {
     max-width: 76rem;
     margin: 0 auto;
-    padding: 0 clamp(1.5rem, 4vw, 3rem) 2rem;
+    padding: 1rem 1.5rem 2rem;
     scroll-margin-top: 5rem;
   }
   .section-head {
     display: flex;
-    align-items: baseline;
+    align-items: end;
     justify-content: space-between;
-    gap: 0.5rem 1rem;
+    gap: 1rem;
     flex-wrap: wrap;
-    margin: 0 0 2rem;
+    margin: 0 0 2.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--line);
+  }
+  .section-head > div {
+    min-width: 0;
+  }
+  .eyebrow {
+    margin: 0 0 0.35rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    white-space: nowrap;
   }
   .section-head h2 {
-    font-family: var(--serif);
     margin: 0;
-    font-size: clamp(1.4rem, 3vw, 1.8rem);
-    font-weight: 400;
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+    font-weight: 500;
     text-wrap: balance;
   }
   .count {
@@ -192,82 +202,96 @@ const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
     white-space: nowrap;
   }
 
-  /* Two columns on phones, three from 60rem. Each painting keeps its
-     shape and captions line up along the bottom of the row. Dense flow
-     lets small tiles fill the gaps beside a big one. */
   .gallery {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 2.25rem 1rem;
-    align-items: end;
+    gap: 3rem 2.5rem;
+    align-items: start;
   }
   #gallery-static {
-    grid-auto-flow: dense;
+    grid-template-columns: 1fr;
   }
   @media (min-width: 40rem) {
-    .gallery {
-      gap: 3rem 2rem;
-    }
-  }
-  @media (min-width: 60rem) {
-    .gallery {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+    #gallery-static {
+      grid-template-columns: repeat(2, 1fr);
       gap: 3.5rem 2.5rem;
     }
   }
-  .tile-wide {
-    grid-column: span 2;
-  }
-  .tile-big {
-    grid-column: span 2;
-    grid-row: span 2;
-  }
-  .tile-big-wide {
-    grid-column: 1 / -1;
-  }
-  /* The newest painting: full row, label beside it from 48rem. Doubled
-     class so it beats the plain .card rule further down. */
-  .card.tile-featured {
-    grid-column: 1 / -1;
-    display: grid;
-    gap: 0.25rem;
-    margin-bottom: clamp(0.5rem, 3vw, 2rem);
-  }
-  @media (min-width: 48rem) {
-    .card.tile-featured {
-      grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
-      align-items: center;
-      gap: clamp(2rem, 5vw, 4rem);
+  /* Desktop: a repeating 10-card pattern on a 12-column grid (7+5, 4+4+4,
+     5+7, 4+4+4). It alternates a large-left pair, a trio with the middle
+     card lowered, a large-right pair, and a trio with the outer cards
+     lowered. */
+  @media (min-width: 60rem) {
+    #gallery-static {
+      grid-template-columns: repeat(12, 1fr);
     }
-    .tile-featured .caption {
-      padding-top: 0;
+    #gallery-static > .card:nth-child(10n + 1) {
+      grid-column: span 7;
+    }
+    #gallery-static > .card:nth-child(10n + 2) {
+      grid-column: span 5;
+      margin-top: 5rem;
+    }
+    #gallery-static > .card:nth-child(10n + 3),
+    #gallery-static > .card:nth-child(10n + 5),
+    #gallery-static > .card:nth-child(10n + 9) {
+      grid-column: span 4;
+    }
+    #gallery-static > .card:nth-child(10n + 4) {
+      grid-column: span 4;
+      margin-top: 2.5rem;
+    }
+    #gallery-static > .card:nth-child(10n + 6) {
+      grid-column: span 5;
+      margin-top: 5rem;
+    }
+    #gallery-static > .card:nth-child(10n + 7) {
+      grid-column: span 7;
+    }
+    #gallery-static > .card:nth-child(10n + 8),
+    #gallery-static > .card:nth-child(10n + 10) {
+      grid-column: span 4;
+      margin-top: 2.5rem;
+    }
+    /* A lowered card that ends the grid has no row below it, so keep it
+       level. */
+    #gallery-static > .card:nth-child(10n + 2):last-child,
+    #gallery-static > .card:nth-child(10n + 4):last-child,
+    #gallery-static > .card:nth-child(10n + 6):last-child,
+    #gallery-static > .card:nth-child(10n + 8):last-child,
+    #gallery-static > .card:nth-child(10n + 10):last-child {
+      margin-top: 0;
+    }
+    /* Size beats the pattern: a much larger canvas takes the 8-column
+       slot and a wide one the full row, level with its neighbours. Dense
+       flow lets the next small paintings fill in beside it. */
+    #gallery-static {
+      grid-auto-flow: dense;
+    }
+    #gallery-static > .card.tile-big,
+    #gallery-static > .card.tile-wide {
+      grid-column: span 8;
+      margin-top: 0;
+    }
+    #gallery-static > .card.tile-big-wide {
+      grid-column: 1 / -1;
+      margin-top: 0;
     }
   }
-  .kicker {
-    margin-bottom: 0.35rem;
-    font-size: 0.85rem;
-    color: var(--muted);
-  }
-  .tile-featured .caption-title {
-    font-size: clamp(1.6rem, 3.4vw, 2.3rem);
-    line-height: 1.1;
-  }
-  .tile-featured .caption-sub {
-    margin-top: 0.3rem;
-    font-size: 0.95rem;
-  }
-  .lead {
-    margin-top: 1rem;
-    max-width: 34ch;
-    text-wrap: pretty;
+  /* Two columns: bigger paintings take both. */
+  @media (min-width: 40rem) and (max-width: 59.99rem) {
+    #gallery-static {
+      grid-auto-flow: dense;
+    }
+    #gallery-static > .card:is(.tile-big, .tile-wide, .tile-big-wide) {
+      grid-column: 1 / -1;
+    }
   }
 
   .card {
     display: block;
-    min-width: 0;
     color: inherit;
     text-decoration: none;
-    border-radius: 2px;
+    border-radius: var(--radius);
     animation: rise 0.5s ease both;
   }
   .card:focus-visible {
@@ -286,86 +310,93 @@ const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
   .mat {
     position: relative;
     display: block;
-    transition: transform 0.35s ease;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: clamp(0.6rem, 1.5vw, 0.9rem);
+    box-shadow: var(--shadow);
+    transition:
+      transform 0.35s ease,
+      box-shadow 0.35s ease;
   }
   @media (hover: hover) {
     .card:hover .mat {
-      transform: translateY(-3px);
+      transform: translateY(-4px);
     }
   }
   .mat img {
-    /* Each photo fits a square as wide as its tile, so a tall painting's
-       long side matches a square's and never outgrows a bigger canvas.
-       Short screens cap the height at 80vh. Both caps work through the
-       width (--ar is the photo's width / height), so the box keeps the
-       photo's shape and never letterboxes. A narrower photo sits on the
-       left edge, in line with its caption. */
-    display: block;
-    width: min(100%, calc(100% * var(--ar, 1)));
-    max-width: calc(80vh * var(--ar, 1));
+    /* Size the box to the photo rather than the column. With both max
+       sizes set it keeps the photo's aspect ratio, so there's no
+       letterboxing. Narrower photos are centered. */
+    width: auto;
+    max-width: 100%;
     height: auto;
-    margin: 0;
-    /* Square corners, like a stretched canvas. */
-    border-radius: 0;
+    max-height: 80vh;
+    margin: 0 auto;
+    display: block;
+    border-radius: 0.25rem;
     background: transparent;
     object-fit: contain;
-    box-shadow: var(--canvas-shadow);
   }
-  /* Gallery wall label: italic title, then size, then price, each on its
-     own line. */
   .caption {
     display: flex;
     flex-direction: column;
-    padding-top: 0.85rem;
+    gap: 0.15rem;
+    padding: 0.9rem 0.25rem 0;
   }
   .caption-title {
     font-family: var(--serif);
-    font-style: italic;
-    font-weight: 380;
-    font-size: 1.1rem;
-    line-height: 1.25;
+    font-size: 1.2rem;
     text-decoration: underline transparent;
-    text-decoration-thickness: 1px;
     text-underline-offset: 4px;
     transition: text-decoration-color 0.12s ease;
-  }
-  @media (min-width: 40rem) {
-    .caption-title {
-      font-size: 1.2rem;
-    }
   }
   .card:hover .caption-title {
     text-decoration-color: currentColor;
   }
-  .caption-sub {
-    display: grid;
-    margin-top: 0.15rem;
-    font-size: 0.88rem;
-    line-height: 1.45;
-  }
-  .dims {
-    color: var(--muted);
-  }
-  .price {
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.02em;
-  }
-  /* Reduced motion removes the hover lift. The entrance and caption
-     fades still run. This comes after the hover rules so it wins. */
+  /* Reduced motion removes the entrance and hover lift. The caption fade
+     still runs. This comes after the hover rules so it wins. */
   @media (prefers-reduced-motion: reduce) {
+    .card {
+      animation: none;
+    }
     .card:hover .mat {
       transform: none;
     }
   }
+  .caption-sub {
+    font-size: 0.95rem;
+  }
+  .price {
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .ask {
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .caption-sub {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.75rem;
+    align-items: baseline;
+  }
+  .dims {
+    font-size: 0.88rem;
+    color: var(--muted);
+  }
+  .muted {
+    color: var(--muted);
+  }
   .badge {
     position: absolute;
-    top: 0.6rem;
-    right: 0.6rem;
-    padding: 0.2rem 0.65rem;
+    top: 1.1rem;
+    right: 1.1rem;
+    padding: 0.3rem 0.8rem;
     border-radius: 999px;
-    font-size: 0.75rem;
+    font-size: 0.78rem;
     font-weight: 700;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.05em;
     background: rgb(20 18 15 / 0.82);
     color: #fff;
   }
@@ -376,18 +407,30 @@ const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
     background: rgb(46 110 94 / 0.9);
   }
 
-  /* Sold archive: the same grid, quieter photos. */
+  /* Sold archive: smaller uniform cards. */
   .collected {
-    margin-top: 2.5rem;
+    margin-top: 1rem;
+  }
+  .sold-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2.5rem 2rem;
+  }
+  @media (min-width: 60rem) {
+    .sold-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  .sold-grid .mat {
+    box-shadow: none;
   }
   .sold-grid img {
-    box-shadow: none;
     filter: saturate(0.88);
   }
   .sold-grid .caption-title {
-    font-size: 1.05rem;
+    font-size: 1.02rem;
   }
 
+  /* Opacity-only entrance. A slide-up looked busier than a fade. */
   @keyframes rise {
     from {
       opacity: 0;

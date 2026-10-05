@@ -87,12 +87,12 @@ const currentSection = adminSection(Astro.url.pathname);
     />
     <meta
       name="theme-color"
-      content={wordmark === "admin" ? "#faf7f1" : "#ebe4d8"}
+      content="#faf7f1"
       media="(prefers-color-scheme: light)"
     />
     <meta
       name="theme-color"
-      content={wordmark === "admin" ? "#171512" : "#211d18"}
+      content="#171512"
       media="(prefers-color-scheme: dark)"
     />
     <meta name="description" content={description} />
@@ -112,7 +112,7 @@ const currentSection = adminSection(Astro.url.pathname);
     <ClientRouter />
     <Analytics />
   </head>
-  <body class:list={[wordmark !== "admin" && "public"]}>
+  <body>
     <script>
       // Fade #main in on every page load and View Transitions swap. Under
       // reduced motion the browser skips view transitions entirely, and
@@ -134,7 +134,7 @@ const currentSection = adminSection(Astro.url.pathname);
     <a class="skip" href="#main">
       Skip to content
     </a>
-    <header class:list={["site-header", wordmark !== "admin" && "public"]}>
+    <header class="site-header">
       <nav class="site-nav" aria-label="Main">
         <a
           href={wordmark === "admin" ? "/admin" : "/"}
@@ -187,9 +187,7 @@ const currentSection = adminSection(Astro.url.pathname);
           ) : (
             <>
               <a href="/#collection">Collection</a>
-              <a href="/#about" class="keep">
-                About
-              </a>
+              <a href="/#about">About</a>
               <button type="button" id="notify-nav" class="nav-cta">
                 Notify me
               </button>
@@ -206,20 +204,14 @@ const currentSection = adminSection(Astro.url.pathname);
       )
     }
 
-    {
-      /* Studio pages get a drawn wash. Public pages stay flat so the
-         paintings carry the color. */
-      wordmark === "admin" && (
-        <img
-          id="background"
-          src={backdropSrc}
-          alt=""
-          fetchpriority="high"
-          aria-hidden="true"
-          transition:persist={backdrop}
-        />
-      )
-    }
+    <img
+      id="background"
+      src={backdropSrc}
+      alt=""
+      fetchpriority="high"
+      aria-hidden="true"
+      transition:persist={backdrop}
+    />
     <slot />
 
     <footer class="site-footer">
@@ -653,6 +645,14 @@ const currentSection = adminSection(Astro.url.pathname);
             openNotify();
           });
         }
+        const heroEl = document.getElementById("notify-hero");
+        const hero = heroEl instanceof HTMLButtonElement ? heroEl : null;
+        if (hero !== null && hero.dataset.wired !== "1") {
+          hero.dataset.wired = "1";
+          hero.addEventListener("click", () => {
+            openNotify();
+          });
+        }
         const dlgEl = document.getElementById("notify-dialog");
         const dlg = dlgEl instanceof HTMLDialogElement ? dlgEl : null;
         if (dlg !== null && dlg.dataset.wired !== "1") {
@@ -766,16 +766,6 @@ const currentSection = adminSection(Astro.url.pathname);
     --shadow: 0 24px 60px -30px rgb(60 42 20 / 0.35);
     --radius: 0.6rem;
     --serif: "Fraunces Variable", Georgia, "Iowan Old Style", Charter, serif;
-    /* Public pages hang the paintings on a gallery wall: a slightly deeper
-       ground than the studio's paper, one soft room light from above, and a
-       canvas shadow under each painting. */
-    --wall: #ebe4d8;
-    /* --muted darkened to keep 4.5:1 on the deeper wall. */
-    --wall-muted: #6a5f50;
-    --room-light: rgb(255 253 248 / 0.95);
-    --canvas-shadow:
-      0 1px 1px rgb(60 42 20 / 0.18), 0 8px 12px -4px rgb(60 42 20 / 0.22),
-      0 26px 40px -20px rgb(60 42 20 / 0.35);
   }
   html {
     scroll-behavior: smooth;
@@ -932,65 +922,6 @@ const currentSection = adminSection(Astro.url.pathname);
     outline: 2px solid var(--accent);
     outline-offset: 3px;
     border-radius: 0.35rem;
-  }
-  /* Public pages: the name and links sit on the page like a gallery's
-     lettering on the wall. No bar, border or blur, and the header scrolls
-     away with the page. Studio pages keep the sticky bar their toasts sit
-     under. */
-  body.public {
-    --paper: var(--wall);
-    --muted: var(--wall-muted);
-    background-image: none;
-  }
-  /* The room light: one warm glow from above, fixed to the screen so it
-     stays overhead while the wall scrolls. It lives on the root, which page
-     navigations keep, so it warms up once when the site opens and stays on
-     from page to page. Opacity only, so it also runs under reduced motion. */
-  :global(html:has(body.public)::before) {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    background: radial-gradient(
-      120% 70% at 50% -12%,
-      var(--room-light) 0%,
-      transparent 62%
-    );
-    pointer-events: none;
-    animation: room-light-on 1.4s ease 0.1s backwards;
-  }
-  @keyframes room-light-on {
-    from {
-      opacity: 0;
-    }
-  }
-  .site-header.public {
-    position: static;
-    background: transparent;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    border-bottom: 0;
-  }
-  /* Side padding grows on wide screens to match the homepage gutter. */
-  .public .site-nav {
-    padding: 1.25rem clamp(1.5rem, 4vw, 3rem) 0.5rem;
-  }
-  .public .nav-links {
-    gap: 1rem 1.25rem;
-  }
-  .public .nav-links .nav-cta {
-    border: 0;
-    border-radius: 0.35rem;
-    padding: 0;
-    font-weight: 500;
-    text-decoration: underline transparent;
-    text-underline-offset: 4px;
-  }
-  .public .nav-links .nav-cta:hover {
-    background-color: transparent;
-    color: var(--ink);
-    text-decoration-color: currentColor;
-    transform: none;
   }
   /* Current studio section: full strength with the underline shown. */
   .nav-links a[aria-current="page"] {
@@ -1353,10 +1284,6 @@ const currentSection = adminSection(Astro.url.pathname);
     border-top: 1px solid var(--line);
     margin-top: 2rem;
   }
-  /* On the gallery wall, space alone separates the footer. */
-  .public .site-footer {
-    border-top: 0;
-  }
   .footer-mark {
     font-family: var(--serif);
     font-size: 1.1rem;
@@ -1432,12 +1359,6 @@ const currentSection = adminSection(Astro.url.pathname);
         transparent 60%
       );
       --shadow: 0 24px 60px -30px rgb(0 0 0 / 0.8);
-      --wall: #211d18;
-      --wall-muted: #a89e8e;
-      --room-light: rgb(255 228 186 / 0.13);
-      --canvas-shadow:
-        0 1px 1px rgb(0 0 0 / 0.35), 0 8px 12px -4px rgb(0 0 0 / 0.45),
-        0 26px 40px -20px rgb(0 0 0 / 0.65);
     }
     #background {
       opacity: 0.22;
@@ -1448,7 +1369,6 @@ const currentSection = adminSection(Astro.url.pathname);
   @media (prefers-contrast: more) {
     :root {
       --muted: var(--ink);
-      --wall-muted: var(--ink);
       --line: #8a7f6f;
     }
     @media (prefers-color-scheme: dark) {

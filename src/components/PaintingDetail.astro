@@ -52,16 +52,14 @@ const {
   preview = false,
 } = Astro.props;
 const studio = mode !== "buy";
-// CAD stays on this page, where a buyer decides. Gallery captions drop it.
 const priceLabel = formatPriceCAD(Math.round(data.price * 100));
-// Only the studio and drafts need a label; buyers see the painting.
 const eyebrow =
   mode === "edit"
     ? // The edit room is under /admin, separate from the public buyer page.
       "EDITING · ONLY YOU CAN SEE THIS"
     : data.draft
       ? "Draft · only you can see this"
-      : "";
+      : "Original painting · one of a kind";
 ---
 
 <main
@@ -263,7 +261,7 @@ const eyebrow =
       <img id="lightbox-img" alt="" />
     </div>
     <div class="info">
-      {eyebrow !== "" && <p class="eyebrow">{eyebrow}</p>}
+      <p class="eyebrow">{eyebrow}</p>
       {studio ? (
         <>
           <h1 id="pv-title">{data.title === "" ? "Untitled" : data.title}</h1>
@@ -964,18 +962,20 @@ const eyebrow =
       top: 5.5rem;
     }
   }
-  /* The painting hangs on the wall like the gallery's: a canvas shadow
-     cast from above and square corners, under the room light. */
   .frame {
     position: relative;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: clamp(0.7rem, 2vw, 1.1rem);
+    box-shadow: var(--shadow);
     cursor: zoom-in;
   }
   .frame img {
     width: 100%;
     height: auto;
     display: block;
-    border-radius: 0;
-    box-shadow: var(--canvas-shadow);
+    border-radius: 0.25rem;
   }
   .badge {
     position: absolute;
@@ -1076,18 +1076,15 @@ const eyebrow =
     text-underline-offset: 4px;
   }
   h1 {
-    font-family: var(--serif);
-    font-size: clamp(2.1rem, 4.4vw, 3rem);
-    font-weight: 340;
-    letter-spacing: -0.015em;
-    line-height: 1.08;
-    margin: 0 0 0.6rem;
+    font-size: clamp(1.9rem, 4vw, 2.6rem);
+    font-weight: 500;
+    margin: 0 0 0.75rem;
     text-wrap: balance;
   }
   .price {
-    font-size: 1.2rem;
-    font-weight: 500;
-    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 1.6rem;
+    color: var(--accent);
     margin: 0;
   }
   .price-note {
@@ -1098,7 +1095,7 @@ const eyebrow =
   .art-meta {
     font-size: 0.95rem;
     color: var(--muted);
-    margin: 0.3rem 0 0;
+    margin: 0.75rem 0 0;
   }
   .sold-note {
     display: inline-block;
@@ -1129,9 +1126,10 @@ const eyebrow =
   #pv-desc:empty {
     display: none;
   }
-  /* Space separates the wall preview from the buying details. */
   #ar-mount {
-    margin-top: 2.5rem;
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--line);
   }
   #ar-mount h2 {
     font-size: 1.25rem;

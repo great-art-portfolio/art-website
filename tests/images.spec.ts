@@ -34,10 +34,7 @@ test("gallery cards serve responsive webp widths", async ({ page }) => {
       .map((p) => p.trim().split(" ")[0] ?? "")) {
       expect(url.endsWith(".webp")).toBe(true);
     }
-    // The first card is the featured painting, hung across the row.
-    expect(await img.getAttribute("sizes")).toBe(
-      gallerySizes(i === 0 ? "featured" : "normal"),
-    );
+    expect(await img.getAttribute("sizes")).toBe(gallerySizes());
     expect(await img.getAttribute("decoding")).toBe("async");
     if (i === 0) {
       expect(await img.getAttribute("loading")).toBe("eager");
