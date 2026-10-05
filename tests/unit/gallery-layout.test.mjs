@@ -1,0 +1,57 @@
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { galleryTiles } from "../../src/lib/gallery-layout.ts";
+
+const square = (inches) => ({ aspect: 1, widthIn: inches, heightIn: inches });
+
+describe("galleryTiles", () => {
+  it("keeps a collection of one size even", () => {
+    assert.deepEqual(galleryTiles([square(12), square(12), square(12)]), [
+      "normal",
+      "normal",
+      "normal",
+    ]);
+  });
+
+  it("gives a painting much larger than the rest a big tile", () => {
+    assert.deepEqual(galleryTiles([square(12), square(30), square(12)]), [
+      "normal",
+      "big",
+      "normal",
+    ]);
+  });
+
+  it("follows her typical size instead of a fixed cutoff", () => {
+    // Once 24 in squares are the norm, they are normal and only a much
+    // larger canvas stands out.
+    assert.deepEqual(
+      galleryTiles([square(24), square(24), square(24), square(48)]),
+      ["normal", "normal", "normal", "big"],
+    );
+  });
+
+  it("treats the smaller of two paintings as typical", () => {
+    assert.deepEqual(galleryTiles([square(12), square(30)]), ["normal", "big"]);
+  });
+
+  it("spans wide photos across two columns, wider still when big", () => {
+    const wide = (w, h) => ({ aspect: w / h, widthIn: w, heightIn: h });
+    assert.deepEqual(
+      galleryTiles([square(12), square(12), wide(24, 12), wide(48, 24)]),
+      ["normal", "normal", "wide", "big-wide"],
+    );
+  });
+
+  it("leaves unmeasured paintings normal and out of the typical size", () => {
+    const unmeasured = { aspect: 1, widthIn: null, heightIn: null };
+    assert.deepEqual(galleryTiles([unmeasured, square(12), square(30)]), [
+      "normal",
+      "normal",
+      "big",
+    ]);
+    assert.deepEqual(galleryTiles([unmeasured, unmeasured]), [
+      "normal",
+      "normal",
+    ]);
+  });
+});
