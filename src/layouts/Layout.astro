@@ -134,7 +134,10 @@ const currentSection = adminSection(Astro.url.pathname);
     <a class="skip" href="#main">
       Skip to content
     </a>
-    <header class="site-header">
+    <header
+      class="site-header"
+      data-scroll-bar={wordmark === "admin" ? undefined : ""}
+    >
       <nav class="site-nav" aria-label="Main">
         <a
           href={wordmark === "admin" ? "/admin" : "/"}
@@ -736,6 +739,22 @@ const currentSection = adminSection(Astro.url.pathname);
         window.__notifyWired = true;
         document.addEventListener("astro:page-load", initNotify);
       }
+
+      // Public pages: the header is clear at the top of the page and fades
+      // into the translucent bar once the page scrolls. The header is
+      // replaced on every navigation, so look it up on each call.
+      function syncScrollBar() {
+        const header = document.querySelector(".site-header[data-scroll-bar]");
+        if (header instanceof HTMLElement) {
+          header.toggleAttribute("data-scrolled", window.scrollY > 8);
+        }
+      }
+      syncScrollBar();
+      if (window.__scrollBarWired !== true) {
+        window.__scrollBarWired = true;
+        window.addEventListener("scroll", syncScrollBar, { passive: true });
+        document.addEventListener("astro:page-load", syncScrollBar);
+      }
     </script>
   </body>
 </html>
@@ -829,6 +848,20 @@ const currentSection = adminSection(Astro.url.pathname);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--line);
+  }
+  /* Public pages: no bar until the page scrolls (the script sets
+     data-scrolled), then the translucent bar fades in. Color and border
+     fades only, so reduced motion keeps them. */
+  .site-header[data-scroll-bar] {
+    transition:
+      background-color 0.3s ease,
+      border-color 0.3s ease;
+  }
+  .site-header[data-scroll-bar]:not([data-scrolled]) {
+    background-color: transparent;
+    border-bottom-color: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
   .site-nav {
     max-width: 76rem;

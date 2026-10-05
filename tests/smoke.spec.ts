@@ -441,3 +441,27 @@ test("asked-for contrast inks the quiet text", async ({ browser }) => {
     .toBe("rgb(35, 32, 27)");
   await context.close();
 });
+
+test("public header becomes a bar only once the page scrolls", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const header = page.locator(".site-header");
+  // Clear over the top of the page.
+  await expect(header).not.toHaveAttribute("data-scrolled");
+  await expect(header).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  // The translucent bar fades in once the page moves.
+  await page.evaluate(() => window.scrollTo(0, 600));
+  await expect(header).toHaveAttribute("data-scrolled", "");
+  await expect
+    .poll(() => header.evaluate((el) => getComputedStyle(el).backgroundColor))
+    .not.toBe("rgba(0, 0, 0, 0)");
+  // Back at the top it clears again.
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect(header).not.toHaveAttribute("data-scrolled");
+  // Studio pages keep their always-on bar.
+  await page.goto("/admin");
+  await expect(page.locator(".site-header")).not.toHaveAttribute(
+    "data-scroll-bar",
+  );
+});
