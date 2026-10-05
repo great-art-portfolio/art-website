@@ -169,7 +169,9 @@ const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
   }
   /* The studio note, styled as paper with a tape strip. It stays cream in
      every color scheme. Keep in sync with the studio preview. */
-  .announce {
+  /* :global so the studio's in-browser preview, which the script builds
+     without Astro's scope attribute, looks like the real note. */
+  :global(.announce) {
     position: relative;
     margin: 0.9rem 0 0;
     max-width: 24rem;
@@ -190,7 +192,7 @@ const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
   }
   /* Translucent tape, slightly narrower than the note and slightly
      rotated. */
-  .announce::before {
+  :global(.announce)::before {
     content: "";
     position: absolute;
     top: -0.75rem;
