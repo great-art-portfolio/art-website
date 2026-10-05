@@ -82,12 +82,12 @@ const currentSection = adminSection(Astro.url.pathname);
     />
     <meta
       name="theme-color"
-      content="#faf7f1"
+      content={wordmark === "admin" ? "#faf7f1" : "#ebe4d8"}
       media="(prefers-color-scheme: light)"
     />
     <meta
       name="theme-color"
-      content="#171512"
+      content={wordmark === "admin" ? "#171512" : "#211d18"}
       media="(prefers-color-scheme: dark)"
     />
     <meta name="description" content={description} />
@@ -764,6 +764,16 @@ const currentSection = adminSection(Astro.url.pathname);
     --wash: radial-gradient(120% 60% at 50% -10%, #f1e7d4 0%, transparent 60%);
     --shadow: 0 24px 60px -30px rgb(60 42 20 / 0.35);
     --radius: 0.6rem;
+    /* Public pages hang the paintings on a gallery wall: a slightly deeper
+       ground than the studio's paper, a pool of picture light at each
+       painting, and a canvas shadow cast from above. */
+    --wall: #ebe4d8;
+    /* --muted darkened to keep 4.5:1 on the deeper wall. */
+    --wall-muted: #6a5f50;
+    --wall-light: rgb(255 253 248 / 1);
+    --canvas-shadow:
+      0 1px 1px rgb(60 42 20 / 0.18), 0 8px 12px -4px rgb(60 42 20 / 0.22),
+      0 26px 40px -20px rgb(60 42 20 / 0.35);
   }
   html {
     scroll-behavior: smooth;
@@ -926,6 +936,8 @@ const currentSection = adminSection(Astro.url.pathname);
      away with the page. Studio pages keep the sticky bar their toasts sit
      under. */
   body.public {
+    --paper: var(--wall);
+    --muted: var(--wall-muted);
     background-image: none;
   }
   .site-header.public {
@@ -1392,6 +1404,12 @@ const currentSection = adminSection(Astro.url.pathname);
         transparent 60%
       );
       --shadow: 0 24px 60px -30px rgb(0 0 0 / 0.8);
+      --wall: #211d18;
+      --wall-muted: #a89e8e;
+      --wall-light: rgb(255 228 186 / 0.2);
+      --canvas-shadow:
+        0 1px 1px rgb(0 0 0 / 0.35), 0 8px 12px -4px rgb(0 0 0 / 0.45),
+        0 26px 40px -20px rgb(0 0 0 / 0.65);
     }
     #background {
       opacity: 0.22;
@@ -1402,6 +1420,7 @@ const currentSection = adminSection(Astro.url.pathname);
   @media (prefers-contrast: more) {
     :root {
       --muted: var(--ink);
+      --wall-muted: var(--ink);
       --line: #8a7f6f;
     }
     @media (prefers-color-scheme: dark) {

@@ -179,8 +179,11 @@ const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
     gap: 2.25rem 1rem;
     align-items: end;
   }
+  /* The wall light sits under everything in the grid, so a pool never
+     covers the captions of the row above. */
   #gallery-static {
     grid-auto-flow: dense;
+    isolation: isolate;
   }
   @media (min-width: 40rem) {
     .gallery {
@@ -205,24 +208,44 @@ const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
   }
 
   .card {
+    position: relative;
     display: block;
     min-width: 0;
     color: inherit;
     text-decoration: none;
     border-radius: 2px;
+  }
+  /* The fade runs on the card's children. An animated card would become
+     its own layer and lift its wall light above the row before it. */
+  .mat,
+  .caption {
     animation: rise 0.5s ease both;
+  }
+  /* A pool of picture light on the wall, centered above the painting's
+     middle and fading out before the box edges. */
+  #gallery-static .card::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: -30% -16% 30%;
+    background: radial-gradient(
+      ellipse 50% 50% at 50% 50%,
+      var(--wall-light),
+      transparent
+    );
+    pointer-events: none;
   }
   .card:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 4px;
   }
-  .card:nth-child(2) {
+  .card:nth-child(2) :is(.mat, .caption) {
     animation-delay: 0.06s;
   }
-  .card:nth-child(3) {
+  .card:nth-child(3) :is(.mat, .caption) {
     animation-delay: 0.12s;
   }
-  .card:nth-child(n + 4) {
+  .card:nth-child(n + 4) :is(.mat, .caption) {
     animation-delay: 0.18s;
   }
   .mat {
@@ -247,10 +270,11 @@ const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
     max-width: calc(80vh * var(--ar, 1));
     height: auto;
     margin: 0;
-    border-radius: 2px;
+    /* Square corners, like a stretched canvas. */
+    border-radius: 0;
     background: transparent;
     object-fit: contain;
-    box-shadow: var(--shadow);
+    box-shadow: var(--canvas-shadow);
   }
   .caption {
     display: flex;
