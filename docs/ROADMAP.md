@@ -11,7 +11,10 @@
 
 ## Sell more
 
-- [ ] Card checkout via Stripe (`ENABLE_STRIPE` + key) — Apple Pay / Google Pay come free with it, which covers Android buyers too. No monthly fee, only a cut per sale.
+- [ ] Card checkout via Stripe (`ENABLE_STRIPE` + key) — Apple Pay / Google Pay come free with it, which covers Android buyers too. No monthly fee, only a cut per sale. Owner said yes (Oct 2026); needs a Stripe account in the artist's name (bank + ID) before any code ships.
+  - Fees (Canada, checked Oct 2026): 2.9% + $0.30 per domestic card, Apple/Google Pay the same; +0.8% international cards, +2% if currency converts; $15 per dispute (chargeback) plus $15 to contest, refunded if won. A $150 painting nets about $145.35.
+  - Stripe is not escrow: money settles to her bank on a schedule (first payout ~7 days, then ~3 business days), whether or not she has shipped. The buyer's protection is the chargeback. A manual-capture hold only lasts ~7 days (Visa ~5), too short to wait on shipping, so charge at checkout and ship promptly with tracking.
+  - Keep Interac e-transfer as the no-fee option for people she knows: free, money is final once deposited (no chargebacks), but no buyer protection and fully manual.
   - The old checkout was removed with the D1 gallery (it looked paintings up by id). Re-adding it means a title + price POST from the painting page, with the price checked against the built content, not trusted from the browser (see DECISIONS → Checkout).
   - A paid order should mark the painting `sold: true` (a commit like any studio save) so it can't sell twice.
 - [ ] Enable Shippo (`ENABLE_SHIPPO` + token) when label volume justifies it; until then Chit Chats / Pirate Ship links in `/admin`

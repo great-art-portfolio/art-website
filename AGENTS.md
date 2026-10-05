@@ -139,9 +139,17 @@ build and let them pick.
 - Captions stay on two lines: the title, then the orange price and the
   size together. Prices read "$140 CAD" (no ".00") wherever a buyer sees
   one.
-- Type: Fraunces (`var(--serif)`, self-hosted, SIL OFL) for painting
-  titles, prices, and section headings; system sans for the hero headline
-  and body; script only for the wordmark. Never hard-code a serif stack.
+- Prices read "$140 CAD" in the studio too (`formatPriceCAD`; the old
+  "$140.00" formatter is gone).
+- Type: Fraunces (`var(--serif)`, self-hosted, SIL OFL) and system sans;
+  script (Caveat) only for the wordmark and the banner note. Never
+  hard-code a serif stack. Today the split has no rule (card titles serif,
+  the painting page title sans, its price serif). A cleanup is waiting on
+  the owner (cz decision `fa310013`, Oct 2026): A keep, B serif painting
+  names + section headings with sans prices, C = B + serif hero headline
+  (recommended), D = C + italic titles and a serif lede. The orange
+  labels and clay buttons stay in every option. Apply the pick in the
+  real stylesheets, then rewrite this bullet.
 - Motion is expected, not optional. Every interaction gets a considered
   response: hovers, folds, toasts, and reveals ease in, mostly through
   opacity and color. Signature moments: the background drifts slowly, and
