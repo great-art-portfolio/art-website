@@ -109,29 +109,55 @@ API-dependent helpers to `lib/api.ts`).
 
 ## Taste (non-negotiable)
 
+The owner's taste is final. For any change in visual direction, show 2–4
+options with screenshots (phone, iPad, desktop) and let them pick.
+
 - Mom never handles tokens, secrets, or CLIs. Plain words everywhere.
-- Motion everywhere it earns its place: nearly every interaction gets a
-  considered animation — folds unfold, rows mirror drops, toasts fade,
-  reveals ease in. Opacity and color easing by default; movement only
-  when it aids understanding, never decoration for its own sake.
-- Reduced motion kills movement, never fades: slides, lifts, expands go
-  instant; color and opacity transitions still run.
+- Art first. The homepage is one sentence (who, what, where), then the
+  paintings. No startup patterns: no tracked-caps eyebrow labels, no pairs
+  of hero buttons, no selling-point strips, no app cards around paintings.
+- The gallery wall. Public pages (`body.public`) hang the paintings: a
+  slightly deeper `--wall` ground, a pool of picture light behind each
+  painting (`--wall-light`, layered under the grid so it never covers
+  text), and a canvas shadow cast from above (`--canvas-shadow`) with
+  square corners. The public header is just the wordmark and plain links:
+  no bar, no border, no blur. Studio pages keep paper and the sticky bar
+  their toasts sit under.
+- Real sizes. Paintings keep their shape. A painting at least twice her
+  typical area gets a double tile (`lib/gallery-layout.ts`), and every
+  photo fits a square as wide as its tile, so bigger canvases look bigger.
+- Type. Serif (the Georgia stack) for headings and painting titles, system
+  sans for everything else, script only for the wordmark. Layout's heading
+  rule is scoped to Layout, so each page sets its own heading font.
+- Prices: "$140" in gallery captions; "$140 CAD" where a buyer decides (the
+  painting page and share text). No ".00".
+- Say each fact once across the page, footer included.
+- Motion is expected, not optional. Every interaction gets a considered
+  response: hovers, folds, toasts, and reveals ease in, mostly through
+  opacity and color. On top of that, the site has signature moments that
+  come from a real gallery: picture lights warm up as paintings scroll into
+  view, and a tapped painting grows into its own page (a shared
+  `transition:name`) and shrinks back. New motion should feel like that,
+  something that happens in a gallery, rather than decoration.
+- Reduced motion kills movement, never fades: slides, lifts, expands, and
+  the painting morph go instant; color and opacity transitions (the lights
+  included) still run.
 - Three screens, always: every visual change is looked at on iPhone
-  (~390px), iPad (~820px), and desktop (~1280px) widths in a real
-  browser.
+  (~390px), iPad (~820px), and desktop (~1280px) widths, in dark and light,
+  in a real browser.
 - One focus ring only (accent outline, never outline + border change).
 - Prose measures 50–70 characters a line: admin text sections
   (`.admin section.prose`, 40rem) stay narrow while the collection grid
   keeps the full width its cards need. Same rule for buyer prose.
-- Whitespace separates, never divider lines in the studio: no hairlines
-  under admin headings or fold counts, no boxes around sections.
-- The taste skill governs every visual change: read it before editing,
-  check the result against it, and say which checks passed. Primary
-  information always reads in full-ink body text — muted grey is for
-  secondary asides only, never the lede.
+- Whitespace separates, never divider lines: no hairlines under headings,
+  above sections, or around the footer, and no boxes around sections.
+- Primary information reads in full-ink body text (the lede, painting
+  descriptions). Muted grey is for secondary asides only, and it keeps
+  4.5:1 contrast on the wall (`--wall-muted`).
 - Script-built nodes never carry Astro's scope attribute — style them
   with whole-selector `:global()` twins, and re-assert `[hidden]` whenever
-  author `display` beats the UA rule.
+  author `display` beats the UA rule. Pseudo-element-only selectors such
+  as `::view-transition-*` need `:global()` too, or scoping breaks them.
 
 ## Crash recovery
 
