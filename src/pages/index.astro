@@ -174,11 +174,13 @@ const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
   }
   /* Layout's heading font is scoped to Layout, so pages set their own. */
   .hero h1 {
-    font-family: Georgia, "Iowan Old Style", Charter, serif;
-    margin: 0 0 0.4rem;
-    font-weight: 400;
-    font-size: clamp(1.6rem, 4vw, 2.2rem);
-    line-height: 1.2;
+    font-family: var(--serif);
+    margin: 0 0 0.6rem;
+    max-width: 20ch;
+    font-weight: 340;
+    font-size: clamp(2rem, 5.2vw, 3rem);
+    letter-spacing: -0.015em;
+    line-height: 1.08;
     text-wrap: balance;
   }
   .lede {
@@ -187,18 +189,19 @@ const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
     max-width: 46ch;
   }
 
+  /* Same box model as .hero and .collection so all three share a left
+     edge. */
   .about {
     max-width: 76rem;
-    box-sizing: border-box;
     margin: 2.5rem auto 0;
     padding: 0 clamp(1.5rem, 4vw, 3rem) 3.5rem;
     scroll-margin-top: 5rem;
   }
   .about h2 {
-    font-family: Georgia, "Iowan Old Style", Charter, serif;
+    font-family: var(--serif);
     margin: 0 0 0.6rem;
-    font-size: clamp(1.4rem, 3vw, 1.8rem);
-    font-weight: 400;
+    font-size: clamp(1.6rem, 4vw, 2.2rem);
+    font-weight: 340;
   }
   .about p {
     margin: 0 0 1rem;

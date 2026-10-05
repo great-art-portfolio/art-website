@@ -19,7 +19,7 @@
   margin-inline: auto;
 }
 .admin h2 {
-  font-family: Georgia, "Iowan Old Style", Charter, serif;
+  font-family: var(--serif);
   font-weight: 500;
   margin: 0 0 1.25rem;
   font-size: 1.4rem;
@@ -158,7 +158,7 @@ button.primary:hover {
   color: var(--accent-ink);
 }
 .admin h3 {
-  font-family: Georgia, "Iowan Old Style", Charter, serif;
+  font-family: var(--serif);
   font-weight: 500;
   font-size: 1.1rem;
   margin: 1.5rem 0 0.5rem;
@@ -180,7 +180,7 @@ button.primary:hover {
 /* Drawer summaries use the h2 style so a closed drawer still reads as a
    section header. */
 .admin summary {
-  font-family: Georgia, "Iowan Old Style", Charter, serif;
+  font-family: var(--serif);
   font-weight: 500;
   font-size: 1.4rem;
   cursor: pointer;
