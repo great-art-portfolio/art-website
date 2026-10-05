@@ -222,10 +222,6 @@ const currentSection = adminSection(Astro.url.pathname);
         {artistLabel} · {ARTIST_LOCATION}
       </p>
       <p class="footer-sub">
-        Originals are one of a kind — prints of most pieces available on
-        request.
-      </p>
-      <p class="footer-sub">
         <a href="/privacy">Privacy</a> — no cookies, no trackers
         <button type="button" id="install-app" hidden>
           <span>Install the gallery app</span>
@@ -1329,6 +1325,10 @@ const currentSection = adminSection(Astro.url.pathname);
     border-top: 1px solid var(--line);
     margin-top: 2rem;
   }
+  /* On the gallery wall, space alone separates the footer. */
+  .public .site-footer {
+    border-top: 0;
+  }
   .footer-mark {
     font-family: Georgia, serif;
     font-size: 1.1rem;
@@ -1432,9 +1432,16 @@ const currentSection = adminSection(Astro.url.pathname);
   /* Disable the default root crossfade. #main runs its own 220ms fade,
      and the two together cause a visible dip that also fades the header
      and backdrop. */
-  ::view-transition-old(root),
-  ::view-transition-new(root) {
+  :global(::view-transition-old(root)),
+  :global(::view-transition-new(root)) {
     animation: none;
+  }
+  /* A painting tapped in the gallery grows into its page (and shrinks
+     back). The browser's 0.25s default reads as a jump at this distance,
+     so it slows and settles. Astro's reduced-motion rule turns it off. */
+  :global(::view-transition-group(*)) {
+    animation-duration: 0.45s;
+    animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
   }
   /* Reduced motion stops the background drift and hover lifts. Color and
      underline transitions still run. */
