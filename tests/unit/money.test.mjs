@@ -1,6 +1,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { dollarsToCents, formatCAD } from "../../src/lib/money.ts";
+import {
+  dollarsToCents,
+  formatCAD,
+  formatPriceCAD,
+  formatPriceShort,
+} from "../../src/lib/money.ts";
 
 describe("formatCAD", () => {
   it("formats integer cents as Canadian dollars", () => {
@@ -21,5 +26,23 @@ describe("dollarsToCents", () => {
     assert.equal(dollarsToCents(-5), null);
     assert.equal(dollarsToCents(NaN), null);
     assert.equal(dollarsToCents(Infinity), null);
+  });
+});
+
+describe("formatPriceShort", () => {
+  it("drops cents on whole-dollar prices", () => {
+    assert.equal(formatPriceShort(140), "$140");
+    assert.equal(formatPriceShort(1250), "$1,250");
+  });
+
+  it("keeps cents when there are any", () => {
+    assert.equal(formatPriceShort(140.5), "$140.50");
+  });
+});
+
+describe("formatPriceCAD", () => {
+  it("names the currency for buyers outside Canada", () => {
+    assert.equal(formatPriceCAD(14000), "$140 CAD");
+    assert.equal(formatPriceCAD(14050), "$140.50 CAD");
   });
 });

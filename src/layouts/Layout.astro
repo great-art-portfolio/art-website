@@ -3,6 +3,11 @@ import ClientRouter from "astro/components/ClientRouter.astro";
 // Handwritten font for the pinned studio note. Self-hosted so it works
 // offline and makes no third-party requests.
 import "@fontsource/caveat/600.css";
+// Fraunces (SIL OFL) for headings and painting titles. The optical-size
+// axis gives display sizes their high-contrast cut; only the Latin files
+// a page uses are downloaded.
+import "@fontsource-variable/fraunces/opsz.css";
+import "@fontsource-variable/fraunces/opsz-italic.css";
 import Analytics from "../components/Analytics.astro";
 import Signature from "../components/Signature.astro";
 import AdminWordmark from "../components/AdminWordmark.astro";
@@ -212,10 +217,6 @@ const currentSection = adminSection(Astro.url.pathname);
     <footer class="site-footer">
       <p class="footer-mark">
         {artistLabel} · {ARTIST_LOCATION}
-      </p>
-      <p class="footer-sub">
-        Originals are one of a kind — prints of most pieces available on
-        request.
       </p>
       <p class="footer-sub">
         <a href="/privacy">Privacy</a> — no cookies, no trackers
@@ -764,6 +765,7 @@ const currentSection = adminSection(Astro.url.pathname);
     --wash: radial-gradient(120% 60% at 50% -10%, #f1e7d4 0%, transparent 60%);
     --shadow: 0 24px 60px -30px rgb(60 42 20 / 0.35);
     --radius: 0.6rem;
+    --serif: "Fraunces Variable", Georgia, "Iowan Old Style", Charter, serif;
   }
   html {
     scroll-behavior: smooth;
@@ -795,7 +797,7 @@ const currentSection = adminSection(Astro.url.pathname);
   h1,
   h2,
   .serif {
-    font-family: Georgia, "Iowan Old Style", Charter, serif;
+    font-family: var(--serif);
     letter-spacing: 0.01em;
     line-height: 1.15;
   }
@@ -1283,7 +1285,7 @@ const currentSection = adminSection(Astro.url.pathname);
     margin-top: 2rem;
   }
   .footer-mark {
-    font-family: Georgia, serif;
+    font-family: var(--serif);
     font-size: 1.1rem;
     margin: 0 0 0.4rem;
   }
@@ -1378,9 +1380,16 @@ const currentSection = adminSection(Astro.url.pathname);
   /* Disable the default root crossfade. #main runs its own 220ms fade,
      and the two together cause a visible dip that also fades the header
      and backdrop. */
-  ::view-transition-old(root),
-  ::view-transition-new(root) {
+  :global(::view-transition-old(root)),
+  :global(::view-transition-new(root)) {
     animation: none;
+  }
+  /* A painting tapped in the gallery grows into its page (and shrinks
+     back). The browser's 0.25s default reads as a jump at this distance,
+     so it slows and settles. Astro's reduced-motion rule turns it off. */
+  :global(::view-transition-group(*)) {
+    animation-duration: 0.45s;
+    animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
   }
   /* Reduced motion stops the background drift and hover lifts. Color and
      underline transitions still run. */

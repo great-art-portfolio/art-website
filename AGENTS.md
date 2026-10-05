@@ -109,29 +109,55 @@ API-dependent helpers to `lib/api.ts`).
 
 ## Taste (non-negotiable)
 
+The owner's taste is final. For any change in visual direction, show 2–4
+options with screenshots (phone, iPad, desktop, dark and light) on the real
+build and let them pick.
+
 - Mom never handles tokens, secrets, or CLIs. Plain words everywhere.
-- Motion everywhere it earns its place: nearly every interaction gets a
-  considered animation — folds unfold, rows mirror drops, toasts fade,
-  reveals ease in. Opacity and color easing by default; movement only
-  when it aids understanding, never decoration for its own sake.
-- Reduced motion kills movement, never fades: slides, lifts, expands go
-  instant; color and opacity transitions still run.
+- Warm and rich, not minimal. The owner tried a stripped-down "gallery
+  wall" (no header bar, flat wall, stacked wall-label captions, one featured
+  painting) and found it boring and empty. Keep what they chose instead:
+  the translucent sticky header with blur, the warm drifting background
+  wash, orange accent labels and prices, the full hero (orange label,
+  headline, lede, two buttons, the three-point strip), and the staggered
+  12-column grid of matted cards.
+- Don't repeat the artist's name: the wordmark already says it, so the
+  hero headline stays generic.
+- Real sizes inside the stagger. Paintings keep their shape. A painting at
+  least twice her typical area, or a wide one, takes the 8-column slot (the
+  full row when it's both), and dense flow fills in beside it
+  (`lib/gallery-layout.ts`).
+- Captions stay on two lines: the title, then the orange price and the
+  size together. Prices read "$140 CAD" (no ".00") wherever a buyer sees
+  one.
+- Type: Fraunces (`var(--serif)`, self-hosted, SIL OFL) for painting
+  titles, prices, and section headings; system sans for the hero headline
+  and body; script only for the wordmark. Never hard-code a serif stack.
+- Motion is expected, not optional. Every interaction gets a considered
+  response: hovers, folds, toasts, and reveals ease in, mostly through
+  opacity and color. Signature moments: the background drifts slowly, and
+  a tapped painting grows into its own page (a shared `transition:name`)
+  and shrinks back. New motion should feel like something that happens in
+  a gallery, not decoration.
+- Reduced motion kills movement, never fades: slides, lifts, expands, the
+  drift, and the painting morph go instant; color and opacity transitions
+  still run.
 - Three screens, always: every visual change is looked at on iPhone
-  (~390px), iPad (~820px), and desktop (~1280px) widths in a real
-  browser.
+  (~390px), iPad (~820px), and desktop (~1280px) widths, in dark and light,
+  in a real browser.
 - One focus ring only (accent outline, never outline + border change).
 - Prose measures 50–70 characters a line: admin text sections
   (`.admin section.prose`, 40rem) stay narrow while the collection grid
   keeps the full width its cards need. Same rule for buyer prose.
 - Whitespace separates, never divider lines in the studio: no hairlines
   under admin headings or fold counts, no boxes around sections.
-- The taste skill governs every visual change: read it before editing,
-  check the result against it, and say which checks passed. Primary
-  information always reads in full-ink body text — muted grey is for
-  secondary asides only, never the lede.
+- Painting descriptions and the "Interested?" button are primary: full-ink
+  text and a solid button in both themes. Muted grey is for secondary
+  asides only.
 - Script-built nodes never carry Astro's scope attribute — style them
   with whole-selector `:global()` twins, and re-assert `[hidden]` whenever
-  author `display` beats the UA rule.
+  author `display` beats the UA rule. Pseudo-element-only selectors such
+  as `::view-transition-*` need `:global()` too, or scoping breaks them.
 
 ## Crash recovery
 

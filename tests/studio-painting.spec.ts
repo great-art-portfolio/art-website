@@ -95,7 +95,7 @@ test("typing in the draft updates the buyer preview live", async ({ page }) => {
   await page.locator("#de-alt").fill("Blue waves");
   await page.locator("#de-desc").fill("First paragraph.\n\nSecond paragraph.");
   await expect(page.locator("#pv-title")).toHaveText("Test Thaw");
-  await expect(page.locator("#pv-price")).toHaveText("$200.00");
+  await expect(page.locator("#pv-price")).toHaveText("$200 CAD");
   await expect(page.locator("#pv-meta")).toHaveText(
     "Oil on canvas · 24 × 36 × 1 in",
   );
@@ -313,7 +313,7 @@ test("edit room arrives prefilled with save, visibility, and delete", async ({
   await page.goto("/admin/paintings/first-thaw");
   await expect(page.locator("#de-title")).toHaveValue("First Thaw");
   await expect(page.locator("#pv-title")).toHaveText("First Thaw");
-  await expect(page.locator("#pv-price")).toContainText("$125.00");
+  await expect(page.locator("#pv-price")).toHaveText("$125 CAD");
   await expect(page.locator("#de-save")).toHaveText("Save changes");
   await expect(page.locator("#de-del")).toHaveText("Delete");
   // Sold uses the custom studio checkbox, not the browser default.
@@ -325,7 +325,7 @@ test("edit room arrives prefilled with save, visibility, and delete", async ({
   await expect(page.locator(".crumbs a")).toHaveAttribute("href", "/admin");
   // Live preview follows edits.
   await page.locator("#de-price").fill("175");
-  await expect(page.locator("#pv-price")).toContainText("$175.00");
+  await expect(page.locator("#pv-price")).toHaveText("$175 CAD");
 });
 
 test("edit room validates before saving", async ({ page }) => {
@@ -629,7 +629,7 @@ test("social words come prefilled and follow edits until she writes her own", as
   // Prefilled with the title, price and page link.
   const words = page.locator("#de-share-text");
   await expect(words).toHaveValue(/New in the gallery: “First Thaw”/);
-  await expect(words).toHaveValue(/\$125\.00 CAD/);
+  await expect(words).toHaveValue(/\$125 CAD/);
   await expect(words).toHaveValue(/barbart\.ca\/paintings\/first-thaw/);
   // Changing the title updates the text
   await page.locator("#de-title").fill("Thaw Remix");
