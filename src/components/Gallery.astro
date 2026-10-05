@@ -2,7 +2,12 @@
 import { Image } from "astro:assets";
 import { getCollection, type CollectionEntry } from "astro:content";
 import { formatDimensions } from "../lib/dims";
-import { galleryTiles } from "../lib/gallery-layout";
+import {
+  galleryTiles,
+  leadSentence,
+  pickFeatured,
+  type Tile,
+} from "../lib/gallery-layout";
 import { formatPriceShort } from "../lib/money";
 import {
   GALLERY_WIDTHS,
@@ -45,14 +50,22 @@ const sold = paintings
     ),
   );
 
+// The newest painting hangs first, across the full row, with its label
+// beside it: the front wall of the show. The rest keep her order.
+const featuredAt = pickFeatured(available.map((p) => p.data));
+const featured = available[featuredAt];
+const rest = available.filter((_, i) => i !== featuredAt);
+const hung = featured === undefined ? rest : [featured, ...rest];
 // Wide and much larger paintings get bigger tiles (see gallery-layout).
-const tiles = galleryTiles(
-  available.map((p) => ({
+const restTiles = galleryTiles(
+  rest.map((p) => ({
     aspect: p.data.image.width / p.data.image.height,
     widthIn: p.data.widthIn ?? null,
     heightIn: p.data.heightIn ?? null,
   })),
 );
+const tiles: Tile[] =
+  featured === undefined ? restTiles : ["featured", ...restTiles];
 
 const NEW_MS = 7 * 24 * 60 * 60 * 1000;
 const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
@@ -60,7 +73,7 @@ const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
 
 <section class="collection" id="collection" aria-label="Available paintings">
   <div class="gallery" id="gallery-static">
-    {available.map((painting, i) => (
+    {hung.map((painting, i) => (
       <a
         class:list={["card", tiles[i] !== "normal" && `tile-${tiles[i]}`]}
         href={`/paintings/${slugifyTitle(painting.data.title)}`}
@@ -86,18 +99,25 @@ const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
             <span class="badge new">New</span>
           )}
         </span>
+        {/* A gallery wall label: title, size, price. */}
         <span class="caption">
+          {tiles[i] === "featured" && (
+            <span class="kicker">Newest on the wall</span>
+          )}
           <span class="caption-title">{painting.data.title}</span>
           <span class="caption-sub">
+            {dimsOf(painting) !== "" && (
+              <span class="dims">{dimsOf(painting)}</span>
+            )}
             {SHOW_PRICES ? (
               <span class="price">{formatPriceShort(painting.data.price)}</span>
             ) : (
               <span class="ask">Ask about this piece</span>
             )}
-            {dimsOf(painting) !== "" && (
-              <span class="dims">{dimsOf(painting)}</span>
-            )}
           </span>
+          {tiles[i] === "featured" && (painting.body ?? "") !== "" && (
+            <span class="lead">{leadSentence(painting.body ?? "")}</span>
+          )}
         </span>
       </a>
     ))}
@@ -159,7 +179,7 @@ const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
     margin: 0 0 2rem;
   }
   .section-head h2 {
-    font-family: Georgia, "Iowan Old Style", Charter, serif;
+    font-family: var(--serif);
     margin: 0;
     font-size: clamp(1.4rem, 3vw, 1.8rem);
     font-weight: 400;
@@ -204,6 +224,42 @@ const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
   }
   .tile-big-wide {
     grid-column: 1 / -1;
+  }
+  /* The newest painting: full row, label beside it from 48rem. Doubled
+     class so it beats the plain .card rule further down. */
+  .card.tile-featured {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: 0.25rem;
+    margin-bottom: clamp(0.5rem, 3vw, 2rem);
+  }
+  @media (min-width: 48rem) {
+    .card.tile-featured {
+      grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+      align-items: center;
+      gap: clamp(2rem, 5vw, 4rem);
+    }
+    .tile-featured .caption {
+      padding-top: 0;
+    }
+  }
+  .kicker {
+    margin-bottom: 0.35rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  .tile-featured .caption-title {
+    font-size: clamp(1.6rem, 3.4vw, 2.3rem);
+    line-height: 1.1;
+  }
+  .tile-featured .caption-sub {
+    margin-top: 0.3rem;
+    font-size: 0.95rem;
+  }
+  .lead {
+    margin-top: 1rem;
+    max-width: 34ch;
+    text-wrap: pretty;
   }
 
   .card {
@@ -255,40 +311,44 @@ const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
     object-fit: contain;
     box-shadow: var(--canvas-shadow);
   }
+  /* Gallery wall label: italic title, then size, then price, each on its
+     own line. */
   .caption {
     display: flex;
     flex-direction: column;
-    gap: 0.1rem;
-    padding-top: 0.7rem;
+    padding-top: 0.85rem;
   }
   .caption-title {
-    font-family: Georgia, "Iowan Old Style", Charter, serif;
-    font-size: 1.05rem;
-    line-height: 1.3;
+    font-family: var(--serif);
+    font-style: italic;
+    font-weight: 380;
+    font-size: 1.1rem;
+    line-height: 1.25;
     text-decoration: underline transparent;
+    text-decoration-thickness: 1px;
     text-underline-offset: 4px;
     transition: text-decoration-color 0.12s ease;
   }
   @media (min-width: 40rem) {
     .caption-title {
-      font-size: 1.15rem;
+      font-size: 1.2rem;
     }
   }
   .card:hover .caption-title {
     text-decoration-color: currentColor;
   }
   .caption-sub {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    font-size: 0.9rem;
+    display: grid;
+    margin-top: 0.15rem;
+    font-size: 0.88rem;
+    line-height: 1.45;
   }
   .dims {
     color: var(--muted);
   }
-  .price + .dims::before,
-  .ask + .dims::before {
-    content: "\00a0·\00a0";
+  .price {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
   }
   /* Reduced motion removes the hover lift. The entrance and caption
      fades still run. This comes after the hover rules so it wins. */
@@ -325,7 +385,7 @@ const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
     filter: saturate(0.88);
   }
   .sold-grid .caption-title {
-    font-size: 1rem;
+    font-size: 1.05rem;
   }
 
   @keyframes rise {

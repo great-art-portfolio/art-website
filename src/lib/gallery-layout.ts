@@ -3,7 +3,7 @@
  * double tile, so a 30 × 30 in canvas reads bigger than a 12 × 12 in one.
  * "Typical" is the median area of the paintings shown, so the cutoff
  * follows whatever sizes she paints instead of a fixed number. */
-export type Tile = "normal" | "wide" | "big" | "big-wide";
+export type Tile = "normal" | "wide" | "big" | "big-wide" | "featured";
 
 export interface TileInput {
   /** Photo width divided by height. */
@@ -40,4 +40,30 @@ export function galleryTiles(items: readonly TileInput[]): Tile[] {
     if (big) return wide ? "big-wide" : "big";
     return wide ? "wide" : "normal";
   });
+}
+
+/** The painting hung large under the intro: the most recently added one,
+ * so the front wall changes on its own when she adds work. Ties keep the
+ * gallery order (the earlier item wins). Returns -1 for an empty list. */
+export function pickFeatured(items: readonly { dateAdded: Date }[]): number {
+  let best = -1;
+  items.forEach((item, i) => {
+    const current = items[best];
+    if (
+      current === undefined ||
+      item.dateAdded.getTime() > current.dateAdded.getTime()
+    ) {
+      best = i;
+    }
+  });
+  return best;
+}
+
+/** The first sentence of a painting's description, for the featured
+ * painting's one-line note. Markdown emphasis is dropped; a description
+ * with no sentence break is used whole. */
+export function leadSentence(body: string): string {
+  const text = body.replace(/[*_`]/g, "").replace(/\s+/g, " ").trim();
+  const match = /^.+?[.!?](?=\s|$)/.exec(text);
+  return match === null ? text : match[0];
 }

@@ -126,9 +126,14 @@ options with screenshots (phone, iPad, desktop) and let them pick.
 - Real sizes. Paintings keep their shape. A painting at least twice her
   typical area gets a double tile (`lib/gallery-layout.ts`), and every
   photo fits a square as wide as its tile, so bigger canvases look bigger.
-- Type. Serif (the Georgia stack) for headings and painting titles, system
-  sans for everything else, script only for the wordmark. Layout's heading
-  rule is scoped to Layout, so each page sets its own heading font.
+- Type. Fraunces (`var(--serif)`, self-hosted, SIL OFL) for headings and
+  painting titles at light display weights (~340), system sans for
+  everything else, script only for the wordmark. Never hard-code a serif
+  stack; use the token. Layout's heading rule is scoped to Layout, so each
+  page sets its own heading font.
+- Captions are gallery wall labels: italic title, then size, then price,
+  each on its own line. The newest painting (`pickFeatured`) hangs first
+  across the full row with its label and first sentence beside it.
 - Prices: "$140" in gallery captions; "$140 CAD" where a buyer decides (the
   painting page and share text). No ".00".
 - Say each fact once across the page, footer included.

@@ -29,6 +29,7 @@ describe("responsive-images contracts", () => {
     assert.equal(gallerySizes("wide"), "(min-width: 60rem) 62vw, 92vw");
     assert.equal(gallerySizes("big"), "(min-width: 60rem) 62vw, 92vw");
     assert.equal(gallerySizes("big-wide"), "92vw");
+    assert.equal(gallerySizes("featured"), "(min-width: 48rem) 56vw, 92vw");
     assert.equal(soldSizes(), "(min-width: 60rem) 30vw, 46vw");
     assert.equal(photoSizes(), "(min-width: 48rem) 55vw, 92vw");
   });

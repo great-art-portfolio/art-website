@@ -7,8 +7,10 @@ export const SOLD_WIDTHS = [400, 700];
 export const PHOTO_WIDTHS = [640, 960, 1280, 1600];
 
 /** Available cards: two columns, three from 60rem. Wide and big tiles
- * span two columns; big-wide spans the row. */
+ * span two columns; big-wide spans the row. The featured painting takes
+ * the full row on phones and most of it beside its label on wide screens. */
 export function gallerySizes(tile: Tile = "normal"): string {
+  if (tile === "featured") return "(min-width: 48rem) 56vw, 92vw";
   if (tile === "big-wide") return "92vw";
   if (tile === "wide" || tile === "big") return "(min-width: 60rem) 62vw, 92vw";
   return "(min-width: 60rem) 30vw, 46vw";

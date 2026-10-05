@@ -1,6 +1,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { galleryTiles } from "../../src/lib/gallery-layout.ts";
+import {
+  galleryTiles,
+  leadSentence,
+  pickFeatured,
+} from "../../src/lib/gallery-layout.ts";
 
 const square = (inches) => ({ aspect: 1, widthIn: inches, heightIn: inches });
 
@@ -53,5 +57,44 @@ describe("galleryTiles", () => {
       "normal",
       "normal",
     ]);
+  });
+});
+
+describe("pickFeatured", () => {
+  const on = (iso) => ({ dateAdded: new Date(iso) });
+
+  it("picks the most recently added painting", () => {
+    assert.equal(
+      pickFeatured([on("2020-01-01"), on("2026-09-05"), on("2024-03-01")]),
+      1,
+    );
+  });
+
+  it("keeps gallery order on a tie", () => {
+    assert.equal(pickFeatured([on("2026-01-01"), on("2026-01-01")]), 0);
+  });
+
+  it("returns -1 when there is nothing to feature", () => {
+    assert.equal(pickFeatured([]), -1);
+  });
+});
+
+describe("leadSentence", () => {
+  it("takes the first sentence", () => {
+    assert.equal(
+      leadSentence("A pale moon hangs over rock. Warm and grounded."),
+      "A pale moon hangs over rock.",
+    );
+  });
+
+  it("drops markdown emphasis and joins wrapped lines", () => {
+    assert.equal(
+      leadSentence("Soft *white* shapes\ndrift across the canvas. More."),
+      "Soft white shapes drift across the canvas.",
+    );
+  });
+
+  it("uses a description with no sentence break whole", () => {
+    assert.equal(leadSentence("  Quiet and calm  "), "Quiet and calm");
   });
 });
