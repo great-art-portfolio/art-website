@@ -23,6 +23,10 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24
+          # setup-node v5 caches the packageManager from package.json
+          # (pnpm) by default and fails when pnpm isn't installed. This job
+          # needs no packages, so skip the cache.
+          package-manager-cache: false
       # Plain node, no install: the script only needs src/lib/painting-edit.ts.
       - id: due
         run: |
