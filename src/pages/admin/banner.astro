@@ -1,6 +1,10 @@
 ---
 import Layout from "../../layouts/Layout.astro";
 import "../../components/studio.css";
+import { ARTIST_NAME } from "../../lib/site";
+
+// Signed like the homepage note.
+const sign = ARTIST_NAME === null ? "" : `— ${ARTIST_NAME.split(" ")[0] ?? ""}`;
 ---
 
 <Layout title="Admin - Banner" wordmark="admin" backdrop="banner">
@@ -38,7 +42,7 @@ import "../../components/studio.css";
         </button>
       </div>
       <p class="hint" id="announce-meta"></p>
-      <aside id="banner-preview" hidden></aside>
+      <aside id="banner-preview" data-sign={sign} hidden></aside>
     </section>
   </main>
 </Layout>
@@ -84,23 +88,24 @@ import "../../components/studio.css";
   }
   /* Live preview styled like the homepage note. Keep the two in sync.
      Hidden while empty. */
+  /* Matches the homepage note (index.astro). */
   #banner-preview {
     position: relative;
-    max-width: 24rem;
+    max-width: 19rem;
     box-sizing: border-box;
     margin: 1.75rem 0 2rem;
-    rotate: -0.8deg;
+    rotate: -2deg;
     border-radius: 2px;
-    background: linear-gradient(180deg, #fffdf8, #fdf6e9);
-    padding: 1.4rem 1.25rem 1.1rem;
+    background: linear-gradient(180deg, #fffdf7, #fbf1df);
+    padding: 1.6rem 1.4rem 1.1rem;
     color: #23201b;
     font-family: "Caveat", "Segoe Print", cursive;
-    font-size: 1.4rem;
+    font-size: 1.5rem;
     font-weight: 600;
-    line-height: 1.4;
+    line-height: 1.35;
     box-shadow:
-      0 1px 2px rgb(35 32 27 / 0.1),
-      0 10px 24px -14px rgb(35 32 27 / 0.35);
+      0 2px 3px rgb(35 32 27 / 0.14),
+      0 22px 34px -18px rgb(35 32 27 / 0.55);
   }
   #banner-preview::before {
     content: "";
@@ -110,13 +115,21 @@ import "../../components/studio.css";
     width: 5.5rem;
     height: 1.5rem;
     translate: -50% 0;
-    rotate: -2deg;
+    rotate: -5deg;
     background: linear-gradient(
       180deg,
       rgb(233 220 196 / 0.9),
       rgb(226 210 182 / 0.75)
     );
     box-shadow: 0 1px 2px rgb(35 32 27 / 0.14);
+  }
+  #banner-preview[data-sign]::after {
+    content: attr(data-sign);
+    display: block;
+    margin-top: 0.4rem;
+    text-align: right;
+    font-size: 0.82em;
+    color: #6b5d4f;
   }
   #banner-preview[hidden] {
     display: none;

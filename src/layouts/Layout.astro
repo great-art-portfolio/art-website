@@ -134,7 +134,10 @@ const currentSection = adminSection(Astro.url.pathname);
     <a class="skip" href="#main">
       Skip to content
     </a>
-    <header class="site-header">
+    <header
+      class="site-header"
+      data-scroll-bar={wordmark === "admin" ? undefined : ""}
+    >
       <nav class="site-nav" aria-label="Main">
         <a
           href={wordmark === "admin" ? "/admin" : "/"}
@@ -736,6 +739,34 @@ const currentSection = adminSection(Astro.url.pathname);
         window.__notifyWired = true;
         document.addEventListener("astro:page-load", initNotify);
       }
+
+      // Public pages: the header is clear at the top of the page and the
+      // translucent bar fills in with the scroll itself over the first
+      // 80px (--bar goes 0 to 1), so it moves as fast as the page does.
+      // The header is replaced on every navigation, so look it up on each
+      // call.
+      function syncScrollBar() {
+        const header = document.querySelector(".site-header[data-scroll-bar]");
+        if (!(header instanceof HTMLElement)) return;
+        const bar = Math.min(Math.max(window.scrollY / 80, 0), 1);
+        header.style.setProperty("--bar", bar.toFixed(3));
+        header.toggleAttribute("data-scrolled", bar > 0);
+      }
+      let scrollBarQueued = false;
+      function queueScrollBar() {
+        if (scrollBarQueued) return;
+        scrollBarQueued = true;
+        window.requestAnimationFrame(() => {
+          scrollBarQueued = false;
+          syncScrollBar();
+        });
+      }
+      syncScrollBar();
+      if (window.__scrollBarWired !== true) {
+        window.__scrollBarWired = true;
+        window.addEventListener("scroll", queueScrollBar, { passive: true });
+        document.addEventListener("astro:page-load", syncScrollBar);
+      }
     </script>
   </body>
 </html>
@@ -757,7 +788,9 @@ const currentSection = adminSection(Astro.url.pathname);
     --primary: #a44a24;
     --primary: color(display-p3 0.622 0.289 0.133);
     --primary-ink: #ffffff;
-    --primary-hover: color-mix(in srgb, #a44a24 80%, black);
+    /* Hover is the same color, a step darker (light) or brighter (dark),
+       so buttons answer without flipping color. */
+    --primary-hover: color-mix(in srgb, #a44a24 88%, black);
     /* Delete hover only. Distinct from the accent without reading as an
        alarm. */
     --danger: #b35545;
@@ -829,6 +862,29 @@ const currentSection = adminSection(Astro.url.pathname);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--line);
+  }
+  /* Public pages: the bar fills in with the scroll (--bar 0 to 1, set by
+     the script), so it tracks the page instead of playing on a timer.
+     Without the script --bar stays 1: the plain always-on bar. */
+  .site-header[data-scroll-bar] {
+    background-color: color-mix(
+      in srgb,
+      var(--paper) calc(82% * var(--bar, 1)),
+      transparent
+    );
+    border-bottom-color: color-mix(
+      in srgb,
+      var(--line) calc(100% * var(--bar, 1)),
+      transparent
+    );
+    backdrop-filter: blur(calc(12px * var(--bar, 1)));
+    -webkit-backdrop-filter: blur(calc(12px * var(--bar, 1)));
+  }
+  .site-header[data-scroll-bar]:not([data-scrolled]) {
+    background-color: transparent;
+    border-bottom-color: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
   .site-nav {
     max-width: 76rem;
@@ -1130,7 +1186,7 @@ const currentSection = adminSection(Astro.url.pathname);
   #notify-dialog .btn-primary:hover {
     background: var(--primary-hover);
     border-color: var(--primary-hover);
-    color: var(--accent-ink);
+    color: var(--primary-ink);
   }
   #notify-dialog .btn-ghost {
     border: 1px solid var(--line);
@@ -1351,7 +1407,7 @@ const currentSection = adminSection(Astro.url.pathname);
       --accent: color(display-p3 0.795 0.506 0.342);
       --primary: #ece5d8;
       --primary-ink: #171512;
-      --primary-hover: #d08159;
+      --primary-hover: #fbf6ee;
       --card: #211c16;
       --wash: radial-gradient(
         120% 60% at 50% -10%,

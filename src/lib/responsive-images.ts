@@ -15,6 +15,12 @@ export function gallerySizes(tile: Tile = "normal"): string {
   return "(min-width: 60rem) 42vw, (min-width: 40rem) 44vw, 92vw";
 }
 
+/** The newest painting beside the homepage headline: about half the
+ * page from 60rem, full width below. */
+export function featuredSizes(): string {
+  return "(min-width: 60rem) 44vw, 92vw";
+}
+
 /** Sold archive: smaller cards in two or three columns. */
 export function soldSizes(): string {
   return "(min-width: 60rem) 22vw, (min-width: 40rem) 44vw, 92vw";

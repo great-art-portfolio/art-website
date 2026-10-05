@@ -41,3 +41,20 @@ export function galleryTiles(items: readonly TileInput[]): Tile[] {
     return wide ? "wide" : "normal";
   });
 }
+
+/** The painting hung beside the homepage headline: the most recently
+ * added one, so it changes on its own when she adds work. Ties keep the
+ * gallery order (the earlier item wins). Returns -1 for an empty list. */
+export function pickFeatured(items: readonly { dateAdded: Date }[]): number {
+  let best = -1;
+  items.forEach((item, i) => {
+    const current = items[best];
+    if (
+      current === undefined ||
+      item.dateAdded.getTime() > current.dateAdded.getTime()
+    ) {
+      best = i;
+    }
+  });
+  return best;
+}
