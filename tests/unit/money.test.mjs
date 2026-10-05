@@ -2,18 +2,9 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   dollarsToCents,
-  formatCAD,
   formatPriceCAD,
   formatPriceShort,
 } from "../../src/lib/money.ts";
-
-describe("formatCAD", () => {
-  it("formats integer cents as Canadian dollars", () => {
-    assert.equal(formatCAD(14000), "$140.00");
-    assert.equal(formatCAD(1), "$0.01");
-    assert.equal(formatCAD(1999), "$19.99");
-  });
-});
 
 describe("dollarsToCents", () => {
   it("converts dollars to integer cents", () => {

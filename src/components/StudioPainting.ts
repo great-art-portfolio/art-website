@@ -4,7 +4,7 @@
 import { api, existingTitles, getApiToken, uniqueSlug } from "../lib/api";
 import { loadImageFile, prepareImage } from "../lib/image";
 
-import { dollarsToCents, formatCAD, formatPriceCAD } from "../lib/money";
+import { dollarsToCents, formatPriceCAD } from "../lib/money";
 import { formatDimensions } from "../lib/dims";
 import { isTitleTaken, slugifyTitle } from "../lib/site";
 import { buildShareCaption } from "../lib/share-caption";
@@ -846,7 +846,7 @@ async function saveNew(draft: boolean): Promise<void> {
         ? `Draft "${fields.title}" saved — goes live ${fields.publishOn}.`
         : draft
           ? `Draft "${fields.title}" saved — publish it from the studio when ready.`
-          : `Published "${fields.title}" (${formatCAD(priceCents)}) — live in a few minutes.${alerts}`,
+          : `Published "${fields.title}" (${formatPriceCAD(priceCents)}) — live in a few minutes.${alerts}`,
     );
   } catch (err) {
     setStatus(errorMessage(err), true);

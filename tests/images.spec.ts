@@ -36,13 +36,13 @@ test("gallery cards serve responsive webp widths", async ({ page }) => {
     }
     expect(await img.getAttribute("sizes")).toBe(gallerySizes());
     expect(await img.getAttribute("decoding")).toBe("async");
-    if (i === 0) {
-      expect(await img.getAttribute("loading")).toBe("eager");
-      expect(await img.getAttribute("fetchpriority")).toBe("high");
-    } else {
-      expect(await img.getAttribute("loading")).toBe("lazy");
-    }
+    // The featured painting up top is the one loaded first.
+    expect(await img.getAttribute("loading")).toBe("lazy");
+    expect(await img.getAttribute("fetchpriority")).toBeNull();
   }
+  const hero = page.locator(".hero .feature img");
+  await expect(hero).toHaveAttribute("loading", "eager");
+  await expect(hero).toHaveAttribute("fetchpriority", "high");
 });
 
 test("painting photo serves responsive webp widths", async ({ page }) => {
