@@ -4,7 +4,7 @@ import { sharePaintingPage, shareText } from "../../src/lib/page-share.ts";
 
 describe("shareText", () => {
   it("names the painting with its buyer price", () => {
-    assert.equal(shareText("First Thaw", 12500), "“First Thaw” — $125.00 CAD");
+    assert.equal(shareText("First Thaw", 12500), "“First Thaw” — $125 CAD");
   });
 
   it("stays bare while priceless, never empty-titled", () => {

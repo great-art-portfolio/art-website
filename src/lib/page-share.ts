@@ -1,4 +1,4 @@
-import { formatCAD } from "./money";
+import { formatPriceCAD } from "./money";
 
 /** Buyer page sharing. Uses the share sheet where available and copies the
  * link otherwise. Dismissing the sheet isn't treated as an error. */
@@ -11,10 +11,10 @@ export interface PageShareInput {
   url: string;
 }
 
-/** "“First Thaw” — $125.00 CAD", or just the title without a price. */
+/** "“First Thaw” — $125 CAD", or just the title without a price. */
 export function shareText(title: string, priceCents: number): string {
   const name = title === "" ? "this painting" : `“${title}”`;
-  return priceCents > 0 ? `${name} — ${formatCAD(priceCents)} CAD` : name;
+  return priceCents > 0 ? `${name} — ${formatPriceCAD(priceCents)}` : name;
 }
 
 export async function sharePaintingPage(

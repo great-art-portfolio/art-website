@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   dollarsToCents,
   formatCAD,
+  formatPriceCAD,
   formatPriceShort,
 } from "../../src/lib/money.ts";
 
@@ -36,5 +37,12 @@ describe("formatPriceShort", () => {
 
   it("keeps cents when there are any", () => {
     assert.equal(formatPriceShort(140.5), "$140.50");
+  });
+});
+
+describe("formatPriceCAD", () => {
+  it("names the currency for buyers outside Canada", () => {
+    assert.equal(formatPriceCAD(14000), "$140 CAD");
+    assert.equal(formatPriceCAD(14050), "$140.50 CAD");
   });
 });

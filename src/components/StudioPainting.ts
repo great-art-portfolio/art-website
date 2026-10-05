@@ -4,7 +4,7 @@
 import { api, existingTitles, getApiToken, uniqueSlug } from "../lib/api";
 import { loadImageFile, prepareImage } from "../lib/image";
 
-import { dollarsToCents, formatCAD } from "../lib/money";
+import { dollarsToCents, formatCAD, formatPriceCAD } from "../lib/money";
 import { formatDimensions } from "../lib/dims";
 import { isTitleTaken, slugifyTitle } from "../lib/site";
 import { buildShareCaption } from "../lib/share-caption";
@@ -136,7 +136,7 @@ function refreshPreview(): void {
   const cents = dollarsToCents(Number(priceRaw));
   setPreviewHtml(
     $("pv-price"),
-    escHtml(cents === null ? "Price?" : formatCAD(cents)),
+    escHtml(cents === null ? "Price?" : formatPriceCAD(cents)),
   );
   const { widthIn, heightIn, depthIn } = readDims();
   const medium = $("de-medium").value.trim();
@@ -177,12 +177,12 @@ let shareDirty = false;
 function refreshShareCaption(): void {
   const box = maybe("de-share-text");
   if (box === null || shareDirty) return;
-  // The preview price omits "CAD", but the caption should match the buyer
-  // page, so rebuild the price from the field.
+  // Rebuild the price from the field so the caption matches the buyer
+  // page even while the preview shows "Price?".
   const cents = dollarsToCents(Number(maybe("de-price")?.value.trim() ?? ""));
   box.value = buildShareCaption({
     title: maybe("pv-title")?.textContent ?? "",
-    priceLabel: cents === null ? null : `${formatCAD(cents)} CAD`,
+    priceLabel: cents === null ? null : formatPriceCAD(cents),
     meta: maybe("pv-meta")?.textContent ?? "",
     slug: document.getElementById("main")?.dataset.slug ?? "",
   });

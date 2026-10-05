@@ -135,15 +135,20 @@ test("inquiry fields preview their ring on hover", async ({ page }) => {
   await expect(name).toHaveCSS("border-color", "rgb(229, 220, 203)");
 });
 
-test("interested teaser whispers on light theme", async ({ page }) => {
+test("interested is the page's one solid button on light theme", async ({
+  page,
+}) => {
   expect(available.length).toBeGreaterThan(0);
   await page.goto(`/paintings/${available[0]?.slug ?? ""}`);
-  // The full-width teaser button is outlined. Solid clay is reserved for the
-  // Send button in the form. Headless runs in light mode by default.
+  // It's the only way to buy, so it reads as the clear next step: solid
+  // clay with white text. Headless runs in light mode by default.
   const reveal = page.locator("#inquiry-reveal");
-  await expect(reveal).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   // Clay as either an rgb or a P3 computed color.
-  await expect(reveal).toHaveCSS("color", /164, 74, 36|0\.622 0\.289 0\.133/);
+  await expect(reveal).toHaveCSS(
+    "background-color",
+    /164, 74, 36|0\.622 0\.289 0\.133/,
+  );
+  await expect(reveal).toHaveCSS("color", "rgb(255, 255, 255)");
 });
 
 test("hovering a card prefetches its painting page", async ({ page }) => {
@@ -223,8 +228,8 @@ for (const p of published) {
       ).toHaveCount(0);
     } else {
       if (SHOW_PRICES) {
-        await expect(page.locator(".price")).toContainText(
-          Number(p.price).toFixed(2),
+        await expect(page.locator(".price")).toHaveText(
+          `$${Number(p.price)} CAD`,
         );
       }
       // The inquiry form requires name and email and has a honeypot field.

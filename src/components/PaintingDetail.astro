@@ -4,6 +4,7 @@
  * elements are absent. */
 import { Image } from "astro:assets";
 import type { ImageMetadata } from "astro";
+import { formatPriceCAD } from "../lib/money";
 import { PHOTO_WIDTHS, photoSizes } from "../lib/responsive-images";
 import { SHOW_PAGE_SHARE, SHOW_PRICES } from "../lib/site";
 
@@ -51,14 +52,16 @@ const {
   preview = false,
 } = Astro.props;
 const studio = mode !== "buy";
-const priceLabel = `$${data.price.toFixed(2)} CAD`;
+// CAD stays on this page, where a buyer decides. Gallery captions drop it.
+const priceLabel = formatPriceCAD(Math.round(data.price * 100));
+// Only the studio and drafts need a label; buyers see the painting.
 const eyebrow =
   mode === "edit"
     ? // The edit room is under /admin, separate from the public buyer page.
       "EDITING · ONLY YOU CAN SEE THIS"
     : data.draft
       ? "Draft · only you can see this"
-      : "Original painting · one of a kind";
+      : "";
 ---
 
 <main
@@ -154,7 +157,12 @@ const eyebrow =
         </div>
       ) : (
         <div>
-          <div class="frame" id="photo-wrap" title="Tap to view fullscreen">
+          <div
+            class="frame"
+            id="photo-wrap"
+            title="Tap to view fullscreen"
+            transition:name={`painting-${data.slug}`}
+          >
             {data.image !== undefined && (
               <Image
                 src={data.image}
@@ -255,7 +263,7 @@ const eyebrow =
       <img id="lightbox-img" alt="" />
     </div>
     <div class="info">
-      <p class="eyebrow">{eyebrow}</p>
+      {eyebrow !== "" && <p class="eyebrow">{eyebrow}</p>}
       {studio ? (
         <>
           <h1 id="pv-title">{data.title === "" ? "Untitled" : data.title}</h1>
@@ -841,7 +849,7 @@ const eyebrow =
   .detail {
     max-width: 76rem;
     margin: 0 auto;
-    padding: 2rem 1.5rem 4rem;
+    padding: 2rem clamp(1.5rem, 4vw, 3rem) 4rem;
   }
   .crumbs {
     display: flex;
@@ -956,20 +964,32 @@ const eyebrow =
       top: 5.5rem;
     }
   }
+  /* The painting hangs on the wall like the gallery's: a canvas shadow
+     cast from above, square corners, and a pool of picture light behind
+     it. The light sits under the photo in the frame's own layer. */
   .frame {
     position: relative;
-    background: var(--card);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: clamp(0.7rem, 2vw, 1.1rem);
-    box-shadow: var(--shadow);
+    isolation: isolate;
     cursor: zoom-in;
+  }
+  .frame::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: -22% -14% 20%;
+    background: radial-gradient(
+      ellipse 50% 50% at 50% 50%,
+      var(--wall-light),
+      transparent
+    );
+    pointer-events: none;
   }
   .frame img {
     width: 100%;
     height: auto;
     display: block;
-    border-radius: 0.25rem;
+    border-radius: 0;
+    box-shadow: var(--canvas-shadow);
   }
   .badge {
     position: absolute;
@@ -1070,15 +1090,17 @@ const eyebrow =
     text-underline-offset: 4px;
   }
   h1 {
+    font-family: Georgia, "Iowan Old Style", Charter, serif;
     font-size: clamp(1.9rem, 4vw, 2.6rem);
-    font-weight: 500;
-    margin: 0 0 0.75rem;
+    font-weight: 400;
+    line-height: 1.15;
+    margin: 0 0 0.6rem;
     text-wrap: balance;
   }
   .price {
-    font-family: Georgia, serif;
-    font-size: 1.6rem;
-    color: var(--accent);
+    font-size: 1.2rem;
+    font-weight: 500;
+    color: var(--ink);
     margin: 0;
   }
   .price-note {
@@ -1089,7 +1111,7 @@ const eyebrow =
   .art-meta {
     font-size: 0.95rem;
     color: var(--muted);
-    margin: 0.75rem 0 0;
+    margin: 0.3rem 0 0;
   }
   .sold-note {
     display: inline-block;
@@ -1106,9 +1128,10 @@ const eyebrow =
       color: #e89a8a;
     }
   }
+  /* The description is what she wants buyers to read, so full ink. */
   .desc {
     margin: 1.25rem 0 0;
-    color: var(--muted);
+    max-width: 38rem;
   }
   .desc :global(p) {
     margin: 0 0 0.75rem;
@@ -1119,10 +1142,9 @@ const eyebrow =
   #pv-desc:empty {
     display: none;
   }
+  /* Space separates the wall preview from the buying details. */
   #ar-mount {
-    margin-top: 1.25rem;
-    padding-top: 1.25rem;
-    border-top: 1px solid var(--line);
+    margin-top: 2.5rem;
   }
   #ar-mount h2 {
     font-size: 1.25rem;
@@ -1331,21 +1353,6 @@ const eyebrow =
   .btn-primary:hover {
     background: var(--primary-hover);
     color: var(--accent-ink);
-  }
-  /* Light theme: a solid full-width "Interested?" button is too heavy, so
-     outline it. The Send button inside the form stays solid. Clay on cream
-     passes AA contrast. */
-  @media (prefers-color-scheme: light) {
-    #inquiry-reveal {
-      background: transparent;
-      border: 1px solid var(--primary);
-      color: var(--primary);
-    }
-    #inquiry-reveal:hover {
-      background: var(--primary);
-      border-color: var(--primary);
-      color: var(--primary-ink);
-    }
   }
   .btn-primary:disabled {
     opacity: 0.55;
