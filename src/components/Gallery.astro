@@ -145,7 +145,7 @@ const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
   .collection {
     max-width: 76rem;
     margin: 0 auto;
-    padding: 0 1.5rem 2rem;
+    padding: 0 clamp(1.5rem, 4vw, 3rem) 2rem;
     scroll-margin-top: 5rem;
   }
   .section-head {
