@@ -41,23 +41,23 @@ const codes = await Promise.all(
         Print this page and cut out a code to stand beside its painting — a
         phone camera opens that painting's page on the site.
       </p>
-      <button type="button" id="qr-print" class="primary"> Print codes </button>
+      <button type="button" id="qr-print" class="primary">
+        Print codes
+      </button>
       <ul class="qr-grid">
-        {
-          codes.map((c) => (
-            <li class="qr-card" id={c.slug}>
-              <div class="qr-code" set:html={c.svg} />
-              <p class="qr-title">
-                {c.title}
-                {c.sold ? " (sold)" : ""}
-              </p>
-              <p class="qr-url">{c.url}</p>
-              <button type="button" class="qr-print-one" data-slug={c.slug}>
-                Print this code
-              </button>
-            </li>
-          ))
-        }
+        {codes.map((c) => (
+          <li class="qr-card" id={c.slug}>
+            <div class="qr-code" set:html={c.svg} />
+            <p class="qr-title">
+              {c.title}
+              {c.sold ? " (sold)" : ""}
+            </p>
+            <p class="qr-url">{c.url}</p>
+            <button type="button" class="qr-print-one" data-slug={c.slug}>
+              Print this code
+            </button>
+          </li>
+        ))}
       </ul>
     </section>
   </main>

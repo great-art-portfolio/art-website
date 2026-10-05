@@ -7,8 +7,8 @@ import "../../components/studio.css";
   <main class="admin" id="main">
     <section id="sec-banner" class="prose">
       <h2>Homepage banner</h2>
-      <label
-        >Announcement
+      <label>
+        Announcement
         <input
           id="f-announce"
           type="text"
@@ -18,19 +18,21 @@ import "../../components/studio.css";
         />
       </label>
       <div class="row banner-line">
-        <label
-          >Show until
+        <label>
+          Show until
           <select id="f-duration">
             <option value="">No end date</option>
             <option value="1">1 day</option>
             <option value="3">3 days</option>
-            <option value="7" selected>7 days</option>
+            <option value="7" selected>
+              7 days
+            </option>
             <option value="14">2 weeks</option>
           </select>
         </label>
-        <button type="button" id="announce-save" class="primary"
-          >Update banner</button
-        >
+        <button type="button" id="announce-save" class="primary">
+          Update banner
+        </button>
         <button type="button" id="announce-clear" hidden>
           Remove banner
         </button>

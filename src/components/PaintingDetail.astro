@@ -77,183 +77,173 @@ const eyebrow =
 >
   <p class="crumbs">
     <a href={backHref}>{backLabel}</a>
-    {
-      mode === "buy" && !preview && SHOW_PAGE_SHARE && (
-        <button
-          type="button"
-          id="pg-share"
-          class="crumbs-share"
-          aria-label="Share this painting"
-          hidden
+    {mode === "buy" && !preview && SHOW_PAGE_SHARE && (
+      <button
+        type="button"
+        id="pg-share"
+        class="crumbs-share"
+        aria-label="Share this painting"
+        hidden
+      >
+        <svg
+          class="when-idle"
+          viewBox="0 0 24 24"
+          width="14"
+          height="14"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
         >
-          <svg
-            class="when-idle"
-            viewBox="0 0 24 24"
-            width="14"
-            height="14"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M12 15V3" />
-            <path d="M7 8l5-5 5 5" />
-            <path d="M5 12v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8" />
-          </svg>
-          <svg
-            class="when-copied is-parked"
-            viewBox="0 0 24 24"
-            width="14"
-            height="14"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M20 6L9 17l-5-5" />
-          </svg>
-        </button>
-      )
-    }
+          <path d="M12 15V3" />
+          <path d="M7 8l5-5 5 5" />
+          <path d="M5 12v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8" />
+        </svg>
+        <svg
+          class="when-copied is-parked"
+          viewBox="0 0 24 24"
+          width="14"
+          height="14"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M20 6L9 17l-5-5" />
+        </svg>
+      </button>
+    )}
   </p>
-  {
-    mode === "buy" && (
-      <div id="admin-bar" hidden>
-        <span>Admin mode</span>
-        <a href={editHref}>Edit in the studio</a>
-        <a href="/admin">Studio</a>
-      </div>
-    )
-  }
+  {mode === "buy" && (
+    <div id="admin-bar" hidden>
+      <span>Admin mode</span>
+      <a href={editHref}>Edit in the studio</a>
+      <a href="/admin">Studio</a>
+    </div>
+  )}
   <div class="detail-grid">
     <div class="media-col">
-      {
-        studio && mode === "draft" ? (
-          <div>
-            <div class="upload-tile">
+      {studio && mode === "draft" ? (
+        <div>
+          <div class="upload-tile">
+            <input
+              id="de-photo"
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/heic"
+              capture="environment"
+              aria-label="Upload photo"
+            />
+            <span id="de-photo-empty" aria-hidden="true">
+              Upload photo
+            </span>
+            <img id="de-photo-preview" alt="Photo preview" hidden />
+          </div>
+          <div class="tile-row" id="de-photo-tools" hidden>
+            <button type="button" id="de-rotate-90">
+              Rotate ↻
+            </button>
+            <button type="button" id="de-rotate-270">
+              Rotate ↺
+            </button>
+          </div>
+          <p class="hint" id="de-photo-meta" />
+        </div>
+      ) : (
+        <div>
+          <div class="frame" id="photo-wrap" title="Tap to view fullscreen">
+            {data.image !== undefined && (
+              <Image
+                src={data.image}
+                alt={data.alt}
+                width={1200}
+                widths={PHOTO_WIDTHS}
+                sizes={photoSizes()}
+                format="webp"
+                loading="eager"
+                fetchpriority="high"
+                decoding="async"
+              />
+            )}
+            {data.sold && <span class="badge sold">Sold</span>}
+          </div>
+          {studio && (
+            <div class="tile-row">
+              <button type="button" id="de-replace">
+                Replace photo
+              </button>
               <input
-                id="de-photo"
+                id="de-replace-file"
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/heic"
                 capture="environment"
-                aria-label="Upload photo"
+                aria-label="Replace photo"
+                hidden
               />
-              <span id="de-photo-empty" aria-hidden="true">
-                Upload photo
-              </span>
-              <img id="de-photo-preview" alt="Photo preview" hidden />
             </div>
-            <div class="tile-row" id="de-photo-tools" hidden>
-              <button type="button" id="de-rotate-90">
-                Rotate ↻
-              </button>
-              <button type="button" id="de-rotate-270">
-                Rotate ↺
-              </button>
-            </div>
-            <p class="hint" id="de-photo-meta" />
-          </div>
-        ) : (
-          <div>
-            <div class="frame" id="photo-wrap" title="Tap to view fullscreen">
-              {data.image !== undefined && (
-                <Image
-                  src={data.image}
-                  alt={data.alt}
-                  width={1200}
-                  widths={PHOTO_WIDTHS}
-                  sizes={photoSizes()}
-                  format="webp"
-                  loading="eager"
-                  fetchpriority="high"
-                  decoding="async"
-                />
-              )}
-              {data.sold && <span class="badge sold">Sold</span>}
-            </div>
-            {studio && (
-              <div class="tile-row">
-                <button type="button" id="de-replace">
-                  Replace photo
-                </button>
-                <input
-                  id="de-replace-file"
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/heic"
-                  capture="environment"
-                  aria-label="Replace photo"
-                  hidden
-                />
+          )}
+        </div>
+      )}
+      {studio && !data.sold && (
+        <div id="ar-mount">
+          <h2>3D Model Preview</h2>
+          {data.modelGlb !== "" ? (
+            <>
+              <p class="hint">
+                About true size — on your phone, point it at the wall where it
+                would hang.
+              </p>
+              <div id="ar-stage">
+                <div class="ar-skeleton" aria-hidden="true" />
               </div>
-            )}
-          </div>
-        )
-      }
-      {
-        studio && !data.sold && (
-          <div id="ar-mount">
-            <h2>3D Model Preview</h2>
-            {data.modelGlb !== "" ? (
-              <>
-                <p class="hint">
-                  About true size — on your phone, point it at the wall where it
-                  would hang.
+            </>
+          ) : (
+            <>
+              <div class="ar-waiting" id="de-ar-waiting">
+                <p>
+                  Waiting for a photo — once one arrives, the 3D model takes
+                  about 5 seconds to build. You'll see it here, and on a phone
+                  you can also view it in AR.
                 </p>
-                <div id="ar-stage">
-                  <div class="ar-skeleton" aria-hidden="true" />
-                </div>
-              </>
-            ) : (
-              <>
-                <div class="ar-waiting" id="de-ar-waiting">
-                  <p>
-                    Waiting for a photo — once one arrives, the 3D model takes
-                    about 5 seconds to build. You'll see it here, and on a phone
-                    you can also view it in AR.
-                  </p>
-                </div>
-                <div id="ar-stage" hidden />
-              </>
-            )}
+              </div>
+              <div id="ar-stage" hidden />
+            </>
+          )}
+        </div>
+      )}
+      {mode === "edit" && !data.draft && (
+        <section
+          class="share"
+          id="de-share"
+          aria-labelledby="de-share-title"
+          hidden
+        >
+          <h2 id="de-share-title">Tell social media</h2>
+          <p class="hint" id="de-share-hint" />
+          <textarea
+            id="de-share-text"
+            rows="3"
+            maxlength="2000"
+            autocomplete="off"
+            aria-label="Words for the post"
+          ></textarea>
+          <div class="share-actions">
+            <button type="button" id="de-share-send" class="btn-primary">
+              Share
+            </button>
+            <button type="button" id="de-share-photo">
+              Save photo
+            </button>
+            <button type="button" id="de-share-copy">
+              Copy
+            </button>
           </div>
-        )
-      }
-      {
-        mode === "edit" && !data.draft && (
-          <section
-            class="share"
-            id="de-share"
-            aria-labelledby="de-share-title"
-            hidden
-          >
-            <h2 id="de-share-title">Tell social media</h2>
-            <p class="hint" id="de-share-hint" />
-            <textarea
-              id="de-share-text"
-              rows="3"
-              maxlength="2000"
-              autocomplete="off"
-              aria-label="Words for the post"
-            />
-            <div class="share-actions">
-              <button type="button" id="de-share-send" class="btn-primary">
-                Share
-              </button>
-              <button type="button" id="de-share-photo">
-                Save photo
-              </button>
-              <button type="button" id="de-share-copy">
-                Copy
-              </button>
-            </div>
-            <p class="hint" id="de-share-status" role="status" />
-          </section>
-        )
-      }
+          <p class="hint" id="de-share-status" role="status" />
+        </section>
+      )}
     </div>
     <div
       id="lightbox"
@@ -266,282 +256,266 @@ const eyebrow =
     </div>
     <div class="info">
       <p class="eyebrow">{eyebrow}</p>
-      {
-        studio ? (
-          <>
-            <h1 id="pv-title">{data.title === "" ? "Untitled" : data.title}</h1>
-            <p class="price" id="pv-price">
-              {data.price > 0 ? priceLabel : "Price?"}
-            </p>
-            <p class="art-meta" id="pv-meta">
-              {data.meta}
-            </p>
-            <div class="desc" id="pv-desc" />
-            <div class="studio-fields">
-              <h2>Painting details</h2>
+      {studio ? (
+        <>
+          <h1 id="pv-title">{data.title === "" ? "Untitled" : data.title}</h1>
+          <p class="price" id="pv-price">
+            {data.price > 0 ? priceLabel : "Price?"}
+          </p>
+          <p class="art-meta" id="pv-meta">
+            {data.meta}
+          </p>
+          <div class="desc" id="pv-desc" />
+          <div class="studio-fields">
+            <h2>Painting details</h2>
+            <label>
+              Title
+              <input
+                id="de-title"
+                type="text"
+                maxlength="120"
+                autocomplete="off"
+                value={data.title}
+              />
+            </label>
+            <label>
+              Price (CAD)
+              <input
+                id="de-price"
+                type="number"
+                min="1"
+                step="0.01"
+                inputmode="decimal"
+                value={data.price > 0 ? String(data.price) : ""}
+              />
+            </label>
+            <div class="de-row">
               <label>
-                Title
+                Width (in)
                 <input
-                  id="de-title"
-                  type="text"
-                  maxlength="120"
-                  autocomplete="off"
-                  value={data.title}
-                />
-              </label>
-              <label>
-                Price (CAD)
-                <input
-                  id="de-price"
+                  id="de-w"
                   type="number"
                   min="1"
-                  step="0.01"
+                  step="0.5"
                   inputmode="decimal"
-                  value={data.price > 0 ? String(data.price) : ""}
-                />
-              </label>
-              <div class="de-row">
-                <label>
-                  Width (in)
-                  <input
-                    id="de-w"
-                    type="number"
-                    min="1"
-                    step="0.5"
-                    inputmode="decimal"
-                    value={data.widthIn}
-                  />
-                </label>
-                <label>
-                  Height (in)
-                  <input
-                    id="de-h"
-                    type="number"
-                    min="1"
-                    step="0.5"
-                    inputmode="decimal"
-                    value={data.heightIn}
-                  />
-                </label>
-                <label>
-                  Depth (in)
-                  <input
-                    id="de-d"
-                    type="number"
-                    min="0.5"
-                    step="0.5"
-                    inputmode="decimal"
-                    value={data.depthIn}
-                  />
-                </label>
-              </div>
-              <p class="hint">
-                Measure with a tape — buyers ask, shippers need it, and the wall
-                preview needs it for true size.
-              </p>
-              <label>
-                Medium (optional, e.g. Oil on canvas)
-                <input
-                  id="de-medium"
-                  type="text"
-                  maxlength="120"
-                  autocomplete="off"
-                  value={data.medium}
+                  value={data.widthIn}
                 />
               </label>
               <label>
-                Alt text (describe the art)
+                Height (in)
                 <input
-                  id="de-alt"
-                  type="text"
-                  maxlength="200"
-                  autocomplete="off"
-                  value={data.alt}
-                  aria-describedby="de-alt-hint"
+                  id="de-h"
+                  type="number"
+                  min="1"
+                  step="0.5"
+                  inputmode="decimal"
+                  value={data.heightIn}
                 />
               </label>
-              <p class="hint" id="de-alt-hint">
-                Alt text describes the photo for people who can't see it —
-                screen readers read it aloud. It never shows on the page.
-              </p>
-              <label class="de-desc-label">
-                Description
-                {/* prettier-ignore */}
-                <textarea id="de-desc" rows="4" maxlength="2000">{data.description}</textarea>
+              <label>
+                Depth (in)
+                <input
+                  id="de-d"
+                  type="number"
+                  min="0.5"
+                  step="0.5"
+                  inputmode="decimal"
+                  value={data.depthIn}
+                />
               </label>
             </div>
-            <div class="studio-toolbar">
-              <label class="de-check">
-                Publish on
-                <input
-                  id="de-publish-on"
-                  type="date"
-                  value={data.publishOn}
-                  aria-describedby="de-publish-on-hint"
-                />
-              </label>
-              <label class="de-check">
-                <input id="de-sold" type="checkbox" checked={data.sold} /> Sold
-              </label>
-              <span class="hint" id="de-publish-on-hint">
-                Leaving no date will publish right now, after your confirmation.
+            <p class="hint">
+              Measure with a tape — buyers ask, shippers need it, and the wall
+              preview needs it for true size.
+            </p>
+            <label>
+              Medium (optional, e.g. Oil on canvas)
+              <input
+                id="de-medium"
+                type="text"
+                maxlength="120"
+                autocomplete="off"
+                value={data.medium}
+              />
+            </label>
+            <label>
+              Alt text (describe the art)
+              <input
+                id="de-alt"
+                type="text"
+                maxlength="200"
+                autocomplete="off"
+                value={data.alt}
+                aria-describedby="de-alt-hint"
+              />
+            </label>
+            <p class="hint" id="de-alt-hint">
+              Alt text describes the photo for people who can't see it — screen
+              readers read it aloud. It never shows on the page.
+            </p>
+            <label class="de-desc-label">
+              Description
+              {/* prettier-ignore */}
+              <textarea id="de-desc" rows="4" maxlength="2000">{data.description}</textarea>
+            </label>
+          </div>
+          <div class="studio-toolbar">
+            <label class="de-check">
+              Publish on
+              <input
+                id="de-publish-on"
+                type="date"
+                value={data.publishOn}
+                aria-describedby="de-publish-on-hint"
+              />
+            </label>
+            <label class="de-check">
+              <input id="de-sold" type="checkbox" checked={data.sold} /> Sold
+            </label>
+            <span class="hint" id="de-publish-on-hint">
+              Leaving no date will publish right now, after your confirmation.
+            </span>
+            {mode === "draft" || data.draft ? (
+              <span class="de-notify-group">
+                <span class="de-notify-label">On publish, also tell:</span>
+                <label class="de-check">
+                  <input id="de-notify-push" type="checkbox" /> Browsers
+                </label>
+                <label class="de-check">
+                  <input id="de-notify-email" type="checkbox" /> Email list
+                </label>
               </span>
-              {mode === "draft" || data.draft ? (
-                <span class="de-notify-group">
-                  <span class="de-notify-label">On publish, also tell:</span>
-                  <label class="de-check">
-                    <input id="de-notify-push" type="checkbox" /> Browsers
-                  </label>
-                  <label class="de-check">
-                    <input id="de-notify-email" type="checkbox" /> Email list
-                  </label>
-                </span>
-              ) : null}
-              {mode === "draft" ? (
-                <>
-                  <button type="button" id="de-publish">
-                    Publish painting
-                  </button>
-                  <button type="button" id="de-save-draft" class="btn-primary">
-                    Save draft
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button type="button" id="de-save" class="btn-primary">
-                    Save changes
-                  </button>
-                  <button type="button" id="de-visibility">
-                    {data.draft ? "Publish" : "Unpublish"}
-                  </button>
-                  <a
-                    id="de-preview"
-                    class="de-preview"
-                    href={`/admin/preview/${data.slug}`}
-                    target="_blank"
-                    rel="noopener"
-                  >
-                    Preview
-                  </a>
-                  <button type="button" id="de-del">
-                    Delete
-                  </button>
-                </>
-              )}
-              <span id="de-status" role="status" />
-            </div>
-            {mode === "edit" && (
-              <div id="de-confirm" hidden>
-                <div
-                  role="dialog"
-                  aria-modal="true"
-                  aria-labelledby="de-confirm-title"
-                  class="de-confirm-card"
+            ) : null}
+            {mode === "draft" ? (
+              <>
+                <button type="button" id="de-publish">
+                  Publish painting
+                </button>
+                <button type="button" id="de-save-draft" class="btn-primary">
+                  Save draft
+                </button>
+              </>
+            ) : (
+              <>
+                <button type="button" id="de-save" class="btn-primary">
+                  Save changes
+                </button>
+                <button type="button" id="de-visibility">
+                  {data.draft ? "Publish" : "Unpublish"}
+                </button>
+                <a
+                  id="de-preview"
+                  class="de-preview"
+                  href={`/admin/preview/${data.slug}`}
+                  target="_blank"
+                  rel="noopener"
                 >
-                  <h2 id="de-confirm-title">Move to trash?</h2>
-                  <p id="de-confirm-body">
-                    This removes it from the site. Anything in trash restores in
-                    one tap, for 30 days.
-                  </p>
-                  <div class="de-confirm-actions">
-                    <button type="button" id="de-confirm-no">
-                      Keep it
-                    </button>
-                    <button type="button" id="de-confirm-yes" disabled>
-                      Move to trash
-                    </button>
-                  </div>
+                  Preview
+                </a>
+                <button type="button" id="de-del">
+                  Delete
+                </button>
+              </>
+            )}
+            <span id="de-status" role="status" />
+          </div>
+          {mode === "edit" && (
+            <div id="de-confirm" hidden>
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="de-confirm-title"
+                class="de-confirm-card"
+              >
+                <h2 id="de-confirm-title">Move to trash?</h2>
+                <p id="de-confirm-body">
+                  This removes it from the site. Anything in trash restores in
+                  one tap, for 30 days.
+                </p>
+                <div class="de-confirm-actions">
+                  <button type="button" id="de-confirm-no">
+                    Keep it
+                  </button>
+                  <button type="button" id="de-confirm-yes" disabled>
+                    Move to trash
+                  </button>
                 </div>
               </div>
-            )}
-          </>
-        ) : (
-          <>
-            <h1>{data.title}</h1>
-            {data.sold ? (
-              <p class="sold-note">This piece has found a home.</p>
-            ) : SHOW_PRICES ? (
-              <p class="price">{priceLabel}</p>
-            ) : (
-              <p class="price-note">
-                Price on request — send a note below and the artist will reply.
-              </p>
-            )}
-            {data.meta !== "" && <p class="art-meta">{data.meta}</p>}
-            <div class="desc">
-              <slot />
             </div>
-          </>
-        )
-      }
-      {
-        !data.sold && !studio && !preview && (
-          <>
-            <button
-              type="button"
-              id="inquiry-reveal"
-              class="btn-primary"
-              hidden
-            >
-              Interested?
-            </button>
-            <form id="inquiry-form">
-              <h2>Ask about this painting</h2>
-              <p class="ship-note">
-                Shipping arranged with the artist after purchase.
-              </p>
-              <label>
-                Name{" "}
-                <input name="name" type="text" required autocomplete="name" />
-              </label>
-              <label>
-                Email{" "}
-                <input
-                  name="email"
-                  type="email"
-                  required
-                  autocomplete="email"
-                />
-              </label>
-              <label>
-                Message{" "}
-                <textarea
-                  name="message"
-                  rows="3"
-                  placeholder="Hi, I love this piece…"
-                />
-              </label>
-              <input
-                type="text"
-                name="website"
-                tabindex="-1"
-                autocomplete="off"
-                class="hp"
-                aria-hidden="true"
-              />
-              <div id="turnstile-mount" />
-              <button type="submit" class="btn-primary">
-                Send inquiry
-              </button>
-              <p id="inquiry-status" role="status" />
-            </form>
-          </>
-        )
-      }
-      {
-        !studio && !data.sold && data.modelGlb !== "" && (
-          <div id="ar-mount">
-            <h2>Try it on your wall</h2>
-            <p class="hint">
-              About true size — on your phone, point it at the wall where it
-              would hang.
+          )}
+        </>
+      ) : (
+        <>
+          <h1>{data.title}</h1>
+          {data.sold ? (
+            <p class="sold-note">This piece has found a home.</p>
+          ) : SHOW_PRICES ? (
+            <p class="price">{priceLabel}</p>
+          ) : (
+            <p class="price-note">
+              Price on request — send a note below and the artist will reply.
             </p>
-            <div id="ar-stage">
-              <div class="ar-skeleton" aria-hidden="true" />
-            </div>
+          )}
+          {data.meta !== "" && <p class="art-meta">{data.meta}</p>}
+          <div class="desc">
+            <slot />
           </div>
-        )
-      }
+        </>
+      )}
+      {!data.sold && !studio && !preview && (
+        <>
+          <button type="button" id="inquiry-reveal" class="btn-primary" hidden>
+            Interested?
+          </button>
+          <form id="inquiry-form">
+            <h2>Ask about this painting</h2>
+            <p class="ship-note">
+              Shipping arranged with the artist after purchase.
+            </p>
+            <label>
+              Name{" "}
+              <input name="name" type="text" required autocomplete="name" />
+            </label>
+            <label>
+              Email{" "}
+              <input name="email" type="email" required autocomplete="email" />
+            </label>
+            <label>
+              Message{" "}
+              <textarea
+                name="message"
+                rows="3"
+                placeholder="Hi, I love this piece…"
+              ></textarea>
+            </label>
+            <input
+              type="text"
+              name="website"
+              tabindex="-1"
+              autocomplete="off"
+              class="hp"
+              aria-hidden="true"
+            />
+            <div id="turnstile-mount" />
+            <button type="submit" class="btn-primary">
+              Send inquiry
+            </button>
+            <p id="inquiry-status" role="status" />
+          </form>
+        </>
+      )}
+      {!studio && !data.sold && data.modelGlb !== "" && (
+        <div id="ar-mount">
+          <h2>Try it on your wall</h2>
+          <p class="hint">
+            About true size — on your phone, point it at the wall where it would
+            hang.
+          </p>
+          <div id="ar-stage">
+            <div class="ar-skeleton" aria-hidden="true" />
+          </div>
+        </div>
+      )}
     </div>
   </div>
 </main>

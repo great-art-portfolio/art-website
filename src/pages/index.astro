@@ -20,7 +20,9 @@ const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
   <main id="main">
     <section class:list={["hero", announcement !== "" && "hero-note"]}>
       <div class="hero-main">
-        <p class="eyebrow">{TAGLINE} · {ARTIST_LOCATION}</p>
+        <p class="eyebrow">
+          {TAGLINE} · {ARTIST_LOCATION}
+        </p>
         <h1 set:html={headlineHtml} />
         <p class="lede">
           Nature and abstract originals, painted by hand and sold directly from
@@ -28,26 +30,31 @@ const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
           sells, only its prints remain.
         </p>
         <div class="hero-ctas">
-          <a href="#collection" class="btn-primary">Browse the collection</a>
-          <button type="button" class="btn-ghost" id="notify-hero"
-            >Get notified of new work</button
-          >
+          <a href="#collection" class="btn-primary">
+            Browse the collection
+          </a>
+          <button type="button" class="btn-ghost" id="notify-hero">
+            Get notified of new work
+          </button>
         </div>
       </div>
-      {
-        announcement !== "" && (
-          <aside class="announce" data-expires={banner.expires ?? ""}>
-            {announcement}
-          </aside>
-        )
-      }
+      {announcement !== "" && (
+        <aside class="announce" data-expires={banner.expires ?? ""}>
+          {announcement}
+        </aside>
+      )}
       <dl class="hero-meta">
         <div>
-          <dt>Originals &amp; prints</dt><dd>painted once, printed to order</dd>
+          <dt>Originals &amp; prints</dt>
+          <dd>painted once, printed to order</dd>
         </div>
-        <div><dt>Direct</dt><dd>from the studio, no gallery markup</dd></div>
         <div>
-          <dt>Shipped with care</dt><dd>arranged together after purchase</dd>
+          <dt>Direct</dt>
+          <dd>from the studio, no gallery markup</dd>
+        </div>
+        <div>
+          <dt>Shipped with care</dt>
+          <dd>arranged together after purchase</dd>
         </div>
       </dl>
     </section>
@@ -59,17 +66,17 @@ const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
         <p class="eyebrow">From the studio</p>
         <h2>Painted in {ARTIST_LOCATION}</h2>
         <p>
-          {ARTIST_NAME} paints nature and abstraction from her Calgary studio — prairie
-          light, quiet water, and colour studies that sit somewhere between landscape
-          and feeling. Every piece here starts as an original — most are also available
-          as prints. When an original sells, it's gone for good — though its prints
-          live on.
+          {ARTIST_NAME} paints nature and abstraction from her Calgary studio —
+          prairie light, quiet water, and colour studies that sit somewhere
+          between landscape and feeling. Every piece here starts as an original
+          — most are also available as prints. When an original sells, it's gone
+          for good — though its prints live on.
         </p>
         <p>
           Everything here sells directly from the studio: the listed price is
           the full price, and shipping is arranged together after purchase. To
-          ask about a piece, open it and tap <strong>Interested?</strong> — your note
-          goes straight to the artist.
+          ask about a piece, open it and tap <strong>Interested?</strong> — your
+          note goes straight to the artist.
         </p>
       </div>
     </section>

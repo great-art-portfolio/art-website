@@ -18,8 +18,8 @@ const defaults = broadcastDefaults(SITE_URL);
         the sign-off and unsubscribe stay on every send. Buyers see it dressed
         in the gallery style.
       </p>
-      <label
-        >Subject
+      <label>
+        Subject
         <input
           type="text"
           id="email-subject"
@@ -28,11 +28,14 @@ const defaults = broadcastDefaults(SITE_URL);
           value={defaults.subject}
         />
       </label>
-      <label
-        >Body
-        <textarea id="email-body" rows="6" maxlength="2000" autocomplete="off"
-          >{defaults.body}</textarea
-        >
+      <label>
+        Body
+        <textarea
+          id="email-body"
+          rows="6"
+          maxlength="2000"
+          autocomplete="off"
+        >{defaults.body}</textarea>
       </label>
       <div id="email-preview" hidden>
         <p class="preview-subject">
@@ -42,15 +45,16 @@ const defaults = broadcastDefaults(SITE_URL);
         <iframe
           id="email-preview-body"
           title="How the email will look"
-          sandbox=""></iframe>
+          sandbox=""
+        ></iframe>
       </div>
       <p class="hint" id="email-preview-fallback" hidden>
         The preview didn't load — the button still sends the standard note.
       </p>
       <div class="row">
-        <button type="button" id="email-send"
-          >Send email to subscribers 📧</button
-        >
+        <button type="button" id="email-send">
+          Send email to subscribers 📧
+        </button>
       </div>
       <p class="hint" id="email-status" role="status"></p>
     </section>

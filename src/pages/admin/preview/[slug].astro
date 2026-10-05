@@ -66,11 +66,9 @@ const data: PaintingDetailData = {
 >
   <div class="preview-banner">
     <p>
-      {
-        isDraft
-          ? "Preview — buyers can't see this page yet."
-          : "Preview — this is what buyers see."
-      }
+      {isDraft
+        ? "Preview — buyers can't see this page yet."
+        : "Preview — this is what buyers see."}
       <a href={`/admin/paintings/${slug}`}>Back to editing</a>
     </p>
   </div>

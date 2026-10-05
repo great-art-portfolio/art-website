@@ -126,68 +126,68 @@ const currentSection = adminSection(Astro.url.pathname);
         });
       }
     </script>
-    <a class="skip" href="#main">Skip to content</a>
+    <a class="skip" href="#main">
+      Skip to content
+    </a>
     <header class="site-header">
       <nav class="site-nav" aria-label="Main">
         <a
           href={wordmark === "admin" ? "/admin" : "/"}
           id="signature"
-          aria-label={wordmark === "admin"
-            ? "Admin home"
-            : "Home — back to the gallery"}
+          aria-label={
+            wordmark === "admin" ? "Admin home" : "Home — back to the gallery"
+          }
         >
           {wordmark === "admin" ? <AdminWordmark /> : <Signature />}
         </a>
         <div class="nav-links">
-          {
-            wordmark === "admin" ? (
-              <>
-                {(
-                  [
-                    ["collection", "/admin", "Collection"],
-                    ["banner", "/admin/banner", "Banner"],
-                    ["ping", "/admin/ping", "Ping"],
-                    ["email", "/admin/email", "Email"],
-                    ["metrics", "/admin/metrics", "Metrics"],
-                    ["qr", "/admin/qr-codes", "QR codes"],
-                    ["guide", "/admin/guide", "Guide"],
-                  ] as const
-                ).map(([id, href, label]) => (
-                  <a
-                    href={href}
-                    class="sec keep"
-                    aria-current={currentSection === id ? "page" : undefined}
-                  >
-                    {label}
-                  </a>
-                ))}
+          {wordmark === "admin" ? (
+            <>
+              {(
+                [
+                  ["collection", "/admin", "Collection"],
+                  ["banner", "/admin/banner", "Banner"],
+                  ["ping", "/admin/ping", "Ping"],
+                  ["email", "/admin/email", "Email"],
+                  ["metrics", "/admin/metrics", "Metrics"],
+                  ["qr", "/admin/qr-codes", "QR codes"],
+                  ["guide", "/admin/guide", "Guide"],
+                ] as const
+              ).map(([id, href, label]) => (
                 <a
-                  href="/"
-                  class="keep"
-                  id="leave-admin"
-                  aria-label="Leave Admin"
+                  href={href}
+                  class="sec keep"
+                  aria-current={currentSection === id ? "page" : undefined}
                 >
-                  <span aria-hidden="true" class="leave-full">
-                    ← Leave Admin
-                  </span>
-                  <span aria-hidden="true" class="leave-short">
-                    ←
-                  </span>
+                  {label}
                 </a>
-                <a href="/admin/paintings/new" class="nav-cta">
-                  Add painting
-                </a>
-              </>
-            ) : (
-              <>
-                <a href="/#collection">Collection</a>
-                <a href="/#about">About</a>
-                <button type="button" id="notify-nav" class="nav-cta">
-                  Notify me
-                </button>
-              </>
-            )
-          }
+              ))}
+              <a
+                href="/"
+                class="keep"
+                id="leave-admin"
+                aria-label="Leave Admin"
+              >
+                <span aria-hidden="true" class="leave-full">
+                  ← Leave Admin
+                </span>
+                <span aria-hidden="true" class="leave-short">
+                  ←
+                </span>
+              </a>
+              <a href="/admin/paintings/new" class="nav-cta">
+                Add painting
+              </a>
+            </>
+          ) : (
+            <>
+              <a href="/#collection">Collection</a>
+              <a href="/#about">About</a>
+              <button type="button" id="notify-nav" class="nav-cta">
+                Notify me
+              </button>
+            </>
+          )}
         </div>
       </nav>
     </header>
@@ -210,93 +210,90 @@ const currentSection = adminSection(Astro.url.pathname);
     <slot />
 
     <footer class="site-footer">
-      <p class="footer-mark">{artistLabel} · {ARTIST_LOCATION}</p>
+      <p class="footer-mark">
+        {artistLabel} · {ARTIST_LOCATION}
+      </p>
       <p class="footer-sub">
         Originals are one of a kind — prints of most pieces available on
         request.
       </p>
       <p class="footer-sub">
         <a href="/privacy">Privacy</a> — no cookies, no trackers
-        <button type="button" id="install-app" hidden
-          ><span>Install the gallery app</span></button
-        >
+        <button type="button" id="install-app" hidden>
+          <span>Install the gallery app</span>
+        </button>
       </p>
-      <p class="footer-sub">© {year} {artistLabel}</p>
+      <p class="footer-sub">
+        © {year} {artistLabel}
+      </p>
     </footer>
 
-    {
-      wordmark === "signature" && (
-        <dialog
-          id="notify-dialog"
-          aria-labelledby="notify-dialog-title"
-          closedby="closerequest"
-        >
-          <form method="dialog" class="notify-close-row">
-            <button
-              type="submit"
-              id="notify-close"
-              aria-label="Close notifications"
-            >
-              <svg
-                viewBox="0 0 16 16"
-                width="14"
-                height="14"
-                aria-hidden="true"
-              >
-                <path
-                  d="M2 2l12 12M14 2L2 14"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                />
-              </svg>
+    {wordmark === "signature" && (
+      <dialog
+        id="notify-dialog"
+        aria-labelledby="notify-dialog-title"
+        closedby="closerequest"
+      >
+        <form method="dialog" class="notify-close-row">
+          <button
+            type="submit"
+            id="notify-close"
+            aria-label="Close notifications"
+          >
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+              <path
+                d="M2 2l12 12M14 2L2 14"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+            </svg>
+          </button>
+        </form>
+        <h3 id="notify-dialog-title">Never miss a new painting</h3>
+        <p id="notify-push-blurb">
+          One tap — your browser tells you when something new is hung.
+        </p>
+        <button type="button" id="notify-btn" class="btn-primary">
+          Notify me with this browser
+        </button>
+        <p class="hint" id="notify-push-note" role="status" hidden>
+          Browser push notifications aren't enabled. Check your browser
+          settings, then close and reopen this box and try again.
+        </p>
+        <div class="email-capture">
+          <p>
+            Stay in the loop on new paintings and events. Unsubscribe any time
+            with one click.
+          </p>
+          <form id="notify-email-form">
+            <label>
+              Email address
+              <input
+                type="email"
+                id="notify-email"
+                name="email"
+                required
+                maxlength="254"
+                autocomplete="email"
+                placeholder="you@example.com"
+              />
+            </label>
+            <div id="notify-turnstile-mount" />
+            <button type="submit" class="btn-ghost">
+              Join the list <span aria-hidden="true">📬</span>
+            </button>
+            <button type="button" id="notify-email-leave" class="btn-ghost">
+              Leave the list <span aria-hidden="true">📭</span>
             </button>
           </form>
-          <h3 id="notify-dialog-title">Never miss a new painting</h3>
-          <p id="notify-push-blurb">
-            One tap — your browser tells you when something new is hung.
-          </p>
-          <button type="button" id="notify-btn" class="btn-primary">
-            Notify me with this browser
-          </button>
-          <p class="hint" id="notify-push-note" role="status" hidden>
-            Browser push notifications aren't enabled. Check your browser
-            settings, then close and reopen this box and try again.
-          </p>
-          <div class="email-capture">
-            <p>
-              Stay in the loop on new paintings and events. Unsubscribe any time
-              with one click.
-            </p>
-            <form id="notify-email-form">
-              <label>
-                Email address
-                <input
-                  type="email"
-                  id="notify-email"
-                  name="email"
-                  required
-                  maxlength="254"
-                  autocomplete="email"
-                  placeholder="you@example.com"
-                />
-              </label>
-              <div id="notify-turnstile-mount" />
-              <button type="submit" class="btn-ghost">
-                Join the list <span aria-hidden="true">📬</span>
-              </button>
-              <button type="button" id="notify-email-leave" class="btn-ghost">
-                Leave the list <span aria-hidden="true">📭</span>
-              </button>
-            </form>
-          </div>
-          <div class="status-wrap" id="notify-status-wrap">
-            <p class="hint" id="notify-status" role="status" />
-          </div>
-          <p class="toast" id="notify-toast" role="status" />
-        </dialog>
-      )
-    }
+        </div>
+        <div class="status-wrap" id="notify-status-wrap">
+          <p class="hint" id="notify-status" role="status" />
+        </div>
+        <p class="toast" id="notify-toast" role="status" />
+      </dialog>
+    )}
 
     <script>
       // Service worker: caches the gallery shell and artwork, and queues
@@ -335,7 +332,6 @@ const currentSection = adminSection(Astro.url.pathname);
         ask.prompt();
       });
     </script>
-
     <script>
       // Collector signup modal, opened by the nav "Notify me" and hero
       // buttons. Use dynamic import() only: this block ships as a classic

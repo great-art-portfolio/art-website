@@ -12,8 +12,8 @@ import "../../components/studio.css";
         otherwise buyers see the standard note. Preview on this device shows the
         real system ping on this browser only — nothing goes to subscribers.
       </p>
-      <label
-        >Title (optional)
+      <label>
+        Title (optional)
         <input
           type="text"
           id="tickle-title"
@@ -22,8 +22,8 @@ import "../../components/studio.css";
           placeholder="Blank: Something new in the gallery"
         />
       </label>
-      <label
-        >Message (optional)
+      <label>
+        Message (optional)
         <input
           type="text"
           id="tickle-body"
@@ -33,16 +33,19 @@ import "../../components/studio.css";
         />
       </label>
       <div class="row">
-        <button type="button" id="tickle-send">Ping subscribers</button>
-        <button type="button" id="tickle-preview-send"
-          >Preview on this device</button
-        >
+        <button type="button" id="tickle-send">
+          Ping subscribers
+        </button>
+        <button type="button" id="tickle-preview-send">
+          Preview on this device
+        </button>
       </div>
       <div id="tickle-preview" aria-label="How the ping will look">
         <img src="/favicon.png" alt="" width="40" height="40" />
         <p>
-          <strong id="tickle-preview-title">Something new in the gallery</strong
-          >
+          <strong id="tickle-preview-title">
+            Something new in the gallery
+          </strong>
           <span id="tickle-preview-body">Tap to see it.</span>
         </p>
       </div>

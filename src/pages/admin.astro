@@ -78,58 +78,54 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
   <main class="admin" id="main">
     <h2>
       <span id="collection-title">Available</span>
-      <span id="collection-dev" hidden
-        >(Development only — changes aren't persisted)</span
-      >
-      <button type="button" id="collection-refresh" hidden>Retry</button>
+      <span id="collection-dev" hidden>
+        (Development only — changes aren't persisted)
+      </span>
+      <button type="button" id="collection-refresh" hidden>
+        Retry
+      </button>
     </h2>
     <ul id="edit-list">
       <li class="list-group" data-group="available">
         <ul class="group-rows" set:html={availableHtml} />
       </li>
-      {
-        ssrDrafts.length > 0 && (
-          <details class="drafts-fold" data-group="drafts" open>
-            <summary>{ssrDraftLabel}</summary>
-            <ul class="group-rows" set:html={draftsHtml} />
-          </details>
-        )
-      }
-      {
-        soldCount > 0 && (
-          <details class="sold-fold" data-group="sold" open>
-            <summary>{soldLabel}</summary>
-            <ul class="group-rows" set:html={soldHtml} />
-          </details>
-        )
-      }
-      {
-        trashCount > 0 && (
-          <details class="trash-fold" data-group="trash">
-            <summary>{trashLabel}</summary>
-            <div class="fold-tools">
-              <button type="button" class="row-empty">
-                Empty trash
-              </button>
-            </div>
-            <p class="hint">
-              Anything here over 30 days old clears itself. Deleted forever is
-              forever.
-            </p>
-            <ul class="group-rows" set:html={trashHtml} />
-          </details>
-        )
-      }
+      {ssrDrafts.length > 0 && (
+        <details class="drafts-fold" data-group="drafts" open>
+          <summary>{ssrDraftLabel}</summary>
+          <ul class="group-rows" set:html={draftsHtml} />
+        </details>
+      )}
+      {soldCount > 0 && (
+        <details class="sold-fold" data-group="sold" open>
+          <summary>{soldLabel}</summary>
+          <ul class="group-rows" set:html={soldHtml} />
+        </details>
+      )}
+      {trashCount > 0 && (
+        <details class="trash-fold" data-group="trash">
+          <summary>{trashLabel}</summary>
+          <div class="fold-tools">
+            <button type="button" class="row-empty">
+              Empty trash
+            </button>
+          </div>
+          <p class="hint">
+            Anything here over 30 days old clears itself. Deleted forever is
+            forever.
+          </p>
+          <ul class="group-rows" set:html={trashHtml} />
+        </details>
+      )}
     </ul>
-    <button type="button" id="practice-reset" hidden
-      >Clear practice changes</button
-    >
+    <button type="button" id="practice-reset" hidden>
+      Clear practice changes
+    </button>
     <script
       is:inline
       type="application/json"
       id="local-collection"
       set:html={localJson}
-    />
+    ></script>
     <div id="row-confirm" hidden>
       <div
         role="dialog"
@@ -143,10 +139,12 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
           for 30 days.
         </p>
         <div class="confirm-actions">
-          <button type="button" id="row-confirm-no">Keep it</button>
-          <button type="button" id="row-confirm-yes" disabled
-            >Move to trash</button
-          >
+          <button type="button" id="row-confirm-no">
+            Keep it
+          </button>
+          <button type="button" id="row-confirm-yes" disabled>
+            Move to trash
+          </button>
         </div>
       </div>
     </div>

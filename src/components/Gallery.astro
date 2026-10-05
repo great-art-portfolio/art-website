@@ -62,8 +62,57 @@ const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
   </div>
 
   <div class="gallery" id="gallery-static">
-    {
-      available.map((painting, i) => (
+    {available.map((painting, i) => (
+      <a
+        class="card"
+        href={`/paintings/${slugifyTitle(painting.data.title)}`}
+        data-astro-prefetch="hover"
+      >
+        <span class="mat">
+          <Image
+            src={painting.data.image}
+            alt={painting.data.alt}
+            width={1000}
+            widths={GALLERY_WIDTHS}
+            sizes={gallerySizes()}
+            format="webp"
+            decoding="async"
+            loading={i === 0 ? "eager" : "lazy"}
+            fetchpriority={i === 0 ? "high" : undefined}
+          />
+          {isNewStatic(painting.data.dateAdded) && (
+            <span class="badge new">New</span>
+          )}
+        </span>
+        <span class="caption">
+          <span class="caption-title">{painting.data.title}</span>
+          <span class="caption-sub">
+            {SHOW_PRICES ? (
+              <span class="price">{priceLabel(painting.data.price)}</span>
+            ) : (
+              <span class="ask">Ask about this piece →</span>
+            )}
+            {dimsOf(painting) !== "" && (
+              <span class="dims">{dimsOf(painting)}</span>
+            )}
+          </span>
+        </span>
+      </a>
+    ))}
+  </div>
+</section>
+
+{sold.length > 0 && (
+  <section class="collection collected" id="sold" aria-label="Sold paintings">
+    <div class="section-head">
+      <div>
+        <p class="eyebrow">Collected</p>
+        <h2>Found their homes</h2>
+      </div>
+      <p class="count">{workCount(sold.length)} sold</p>
+    </div>
+    <div class="gallery sold-grid">
+      {sold.map((painting) => (
         <a
           class="card"
           href={`/paintings/${slugifyTitle(painting.data.title)}`}
@@ -73,76 +122,23 @@ const priceLabel = (price: number): string => `$${price.toFixed(2)} CAD`;
             <Image
               src={painting.data.image}
               alt={painting.data.alt}
-              width={1000}
-              widths={GALLERY_WIDTHS}
-              sizes={gallerySizes()}
+              width={700}
+              widths={SOLD_WIDTHS}
+              loading="lazy"
+              sizes={soldSizes()}
               format="webp"
               decoding="async"
-              loading={i === 0 ? "eager" : "lazy"}
-              fetchpriority={i === 0 ? "high" : undefined}
             />
-            {isNewStatic(painting.data.dateAdded) && (
-              <span class="badge new">New</span>
-            )}
+            <span class="badge sold">Sold</span>
           </span>
           <span class="caption">
             <span class="caption-title">{painting.data.title}</span>
-            <span class="caption-sub">
-              {SHOW_PRICES ? (
-                <span class="price">{priceLabel(painting.data.price)}</span>
-              ) : (
-                <span class="ask">Ask about this piece →</span>
-              )}
-              {dimsOf(painting) !== "" && (
-                <span class="dims">{dimsOf(painting)}</span>
-              )}
-            </span>
           </span>
         </a>
-      ))
-    }
-  </div>
-</section>
-
-{
-  sold.length > 0 && (
-    <section class="collection collected" id="sold" aria-label="Sold paintings">
-      <div class="section-head">
-        <div>
-          <p class="eyebrow">Collected</p>
-          <h2>Found their homes</h2>
-        </div>
-        <p class="count">{workCount(sold.length)} sold</p>
-      </div>
-      <div class="gallery sold-grid">
-        {sold.map((painting) => (
-          <a
-            class="card"
-            href={`/paintings/${slugifyTitle(painting.data.title)}`}
-            data-astro-prefetch="hover"
-          >
-            <span class="mat">
-              <Image
-                src={painting.data.image}
-                alt={painting.data.alt}
-                width={700}
-                widths={SOLD_WIDTHS}
-                loading="lazy"
-                sizes={soldSizes()}
-                format="webp"
-                decoding="async"
-              />
-              <span class="badge sold">Sold</span>
-            </span>
-            <span class="caption">
-              <span class="caption-title">{painting.data.title}</span>
-            </span>
-          </a>
-        ))}
-      </div>
-    </section>
-  )
-}
+      ))}
+    </div>
+  </section>
+)}
 
 <style>
   .collection {
