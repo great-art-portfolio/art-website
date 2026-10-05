@@ -3,6 +3,7 @@ import Layout from "../layouts/Layout.astro";
 import Gallery from "../components/Gallery.astro";
 import { ARTIST_LOCATION, ARTIST_NAME, TAGLINE } from "../lib/site";
 import { isExpired, localToday, parseAnnouncement } from "../lib/banner";
+import { publicPaintings } from "../lib/collection";
 import bannerRaw from "../content/announcement.txt?raw";
 
 // The header wordmark already carries the artist's name, so the hero
@@ -14,11 +15,16 @@ const headlineHtml = "Original paintings, from the studio";
 // between deploys.
 const banner = parseAnnouncement(bannerRaw);
 const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
+// The note is signed with her first name.
+const sign = ARTIST_NAME === null ? "" : `— ${ARTIST_NAME.split(" ")[0] ?? ""}`;
+// The newest painting hangs beside the headline, with the note taped to its
+// corner. With no paintings the note stands on its own in that column.
+const { featured } = await publicPaintings();
 ---
 
 <Layout>
   <main id="main">
-    <section class:list={["hero", announcement !== "" && "hero-note"]}>
+    <section class="hero" data-sign={sign}>
       <div class="hero-main">
         <p class="eyebrow">
           {TAGLINE} · {ARTIST_LOCATION}
@@ -38,10 +44,28 @@ const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
           </button>
         </div>
       </div>
-      {announcement !== "" && (
-        <aside class="announce" data-expires={banner.expires ?? ""}>
-          {announcement}
-        </aside>
+      {featured !== undefined ? (
+        <Gallery view="featured">
+          {announcement !== "" && (
+            <aside
+              class="announce"
+              data-expires={banner.expires ?? ""}
+              data-sign={sign}
+            >
+              {announcement}
+            </aside>
+          )}
+        </Gallery>
+      ) : (
+        announcement !== "" && (
+          <aside
+            class="announce"
+            data-expires={banner.expires ?? ""}
+            data-sign={sign}
+          >
+            {announcement}
+          </aside>
+        )
       )}
       <dl class="hero-meta">
         <div>
@@ -123,13 +147,18 @@ const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
       if (text.trim() !== "" && (expires === "" || today <= expires)) {
         let el = document.querySelector(".announce");
         if (el === null) {
+          // Same spot as the real note: on the newest painting's corner,
+          // or beside the headline when there's no painting.
           const hero = document.querySelector("#main .hero");
+          const feature = document.querySelector("#main .hero .feature");
           const main = document.querySelector("#main .hero-main");
-          if (hero !== null && main !== null) {
+          if (hero instanceof HTMLElement && main !== null) {
             el = document.createElement("aside");
             el.className = "announce";
-            hero.classList.add("hero-note");
-            main.insertAdjacentElement("afterend", el);
+            el.setAttribute("data-sign", hero.dataset.sign ?? "");
+            if (feature !== null)
+              feature.insertAdjacentElement("beforeend", el);
+            else main.insertAdjacentElement("afterend", el);
           }
         }
         if (el !== null) {
@@ -150,48 +179,47 @@ const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
     margin: 0 auto;
     padding: clamp(3.5rem, 8vw, 6.5rem) 1.5rem 3rem;
   }
-  /* With a studio note the hero splits into text on the left and the note
-     on the right. */
-  .hero-note {
+  /* Text on the left, the newest painting on the right from 60rem; both
+     columns start at the same height. Stacked below that. */
+  .hero {
     display: grid;
-    gap: 2rem;
+    gap: 2.5rem;
     align-content: start;
   }
   @media (min-width: 60rem) {
-    .hero-note {
-      grid-template-columns: 1.2fr 0.8fr;
-      gap: 0 3rem;
-      align-items: center;
+    .hero {
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 0 3.5rem;
+      align-items: start;
     }
-    .hero-note .hero-meta {
+    .hero .hero-meta {
       grid-column: 1 / -1;
+      margin-top: 3rem;
     }
   }
-  /* The studio note, styled as paper with a tape strip. It stays cream in
-     every color scheme. Keep in sync with the studio preview. */
-  /* :global so the studio's in-browser preview, which the script builds
-     without Astro's scope attribute, looks like the real note. */
+  /* The studio note: cream paper, one angled strip of tape, a slight
+     tilt, and her first name at the bottom. It stays cream in every color
+     scheme. :global so the script-built preview matches. Keep in sync with
+     the studio preview (admin/banner.astro). */
   :global(.announce) {
     position: relative;
-    margin: 0.9rem 0 0;
-    max-width: 24rem;
+    margin: 0;
+    max-width: 19rem;
     box-sizing: border-box;
     justify-self: center;
-    rotate: -0.8deg;
+    rotate: -2deg;
     border-radius: 2px;
-    background: linear-gradient(180deg, #fffdf8, #fdf6e9);
-    padding: 1.4rem 1.25rem 1.1rem;
+    background: linear-gradient(180deg, #fffdf7, #fbf1df);
+    padding: 1.6rem 1.4rem 1.1rem;
     color: #23201b;
     font-family: "Caveat", "Segoe Print", cursive;
-    font-size: 1.4rem;
+    font-size: 1.5rem;
     font-weight: 600;
-    line-height: 1.4;
+    line-height: 1.35;
     box-shadow:
-      0 1px 2px rgb(35 32 27 / 0.1),
-      0 10px 24px -14px rgb(35 32 27 / 0.35);
+      0 2px 3px rgb(35 32 27 / 0.14),
+      0 22px 34px -18px rgb(35 32 27 / 0.55);
   }
-  /* Translucent tape, slightly narrower than the note and slightly
-     rotated. */
   :global(.announce)::before {
     content: "";
     position: absolute;
@@ -200,13 +228,48 @@ const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
     width: 5.5rem;
     height: 1.5rem;
     translate: -50% 0;
-    rotate: -2deg;
+    rotate: -5deg;
     background: linear-gradient(
       180deg,
       rgb(233 220 196 / 0.9),
       rgb(226 210 182 / 0.75)
     );
     box-shadow: 0 1px 2px rgb(35 32 27 / 0.14);
+  }
+  :global(.announce[data-sign])::after {
+    content: attr(data-sign);
+    display: block;
+    margin-top: 0.4rem;
+    text-align: right;
+    font-size: 0.82em;
+    color: #6b5d4f;
+  }
+  /* Stacked (phones, tablets), the newest painting stays a modest size
+     instead of filling a tablet's width. */
+  @media (max-width: 59.99rem) {
+    .hero :global(.feature) {
+      max-width: 30rem;
+    }
+  }
+  /* Taped to the newest painting's top corner, small enough to leave the
+     painting in view. */
+  :global(.feature > .announce) {
+    position: absolute;
+    z-index: 2;
+    top: 2.5rem;
+    right: -0.75rem;
+    max-width: 13rem;
+    padding: 1.3rem 1.1rem 0.9rem;
+    font-size: 1.2rem;
+    rotate: 3deg;
+  }
+  @media (max-width: 40rem) {
+    :global(.feature > .announce) {
+      top: 2rem;
+      right: -0.4rem;
+      max-width: 11rem;
+      font-size: 1.05rem;
+    }
   }
   .eyebrow {
     margin: 0 0 1rem;
@@ -236,7 +299,6 @@ const announcement = isExpired(banner.expires, localToday()) ? "" : banner.text;
     display: flex;
     flex-wrap: wrap;
     gap: 0.9rem;
-    margin-bottom: 3rem;
   }
   .btn-primary,
   .btn-ghost {

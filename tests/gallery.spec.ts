@@ -55,12 +55,12 @@ test("gallery shows one card per available painting, each linked correctly", asy
 }) => {
   expect(available.length).toBeGreaterThan(0);
   await page.goto("/");
-  const cards = page.locator("#gallery-static .card");
+  // The newest painting hangs beside the headline; the rest are in the grid.
+  const cards = page.locator("#main a.card");
   await expect(cards).toHaveCount(available.length);
+  await expect(page.locator(".hero .feature .card")).toHaveCount(1);
   for (const p of available) {
-    const card = page.locator(
-      `#gallery-static .card[href="/paintings/${p.slug}"]`,
-    );
+    const card = page.locator(`#main a.card[href="/paintings/${p.slug}"]`);
     await expect(card).toHaveCount(1);
     await expect(card.locator(".caption-title")).toHaveText(p.title);
     const alt = await card.locator("img").getAttribute("alt");
@@ -324,9 +324,7 @@ test("viewing one painting after another shows each painting's own 3D model", as
   );
   await page.locator('.crumbs a[href="/"]').click();
   await expect(page).toHaveURL(/\/$/);
-  await page
-    .locator(`#gallery-static .card[href="/paintings/${second.slug}"]`)
-    .click();
+  await page.locator(`#main a.card[href="/paintings/${second.slug}"]`).click();
   await expect(page).toHaveURL(new RegExp(`/paintings/${second.slug}/?$`));
   await page.locator("#ar-mount").scrollIntoViewIfNeeded();
   await expect(page.locator("#ar-stage model-viewer")).toHaveAttribute(

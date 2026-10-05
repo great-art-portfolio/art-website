@@ -121,6 +121,15 @@ build and let them pick.
   wash, orange accent labels and prices, the full hero (orange label,
   headline, lede, two buttons, the three-point strip), and the staggered
   12-column grid of matted cards.
+- The hero's right half holds her newest painting (`pickFeatured`, by
+  `dateAdded`), with its "Newest painting" label under it so both columns
+  start level. The studio banner is a cream note with one strip of tape
+  and her first name, taped to that painting's corner (beside the
+  headline when there are no paintings). The grid skips that painting.
+- The public header is clear at the top and the bar fills in with the
+  scroll itself (`--bar`), never on a timer.
+- Primary buttons hover a step darker (light) or brighter (dark), never
+  flipping to a different color.
 - Don't repeat the artist's name: the wordmark already says it, so the
   hero headline stays generic.
 - Real sizes inside the stagger. Paintings keep their shape. A painting at

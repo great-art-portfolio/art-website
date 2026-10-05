@@ -4,6 +4,7 @@ import {
   GALLERY_WIDTHS,
   PHOTO_WIDTHS,
   SOLD_WIDTHS,
+  featuredSizes,
   gallerySizes,
   photoSizes,
   soldSizes,
@@ -32,6 +33,7 @@ describe("responsive-images contracts", () => {
     assert.equal(gallerySizes("big"), "(min-width: 60rem) 62vw, 92vw");
     assert.equal(gallerySizes("wide"), "(min-width: 60rem) 62vw, 92vw");
     assert.equal(gallerySizes("big-wide"), "92vw");
+    assert.equal(featuredSizes(), "(min-width: 60rem) 44vw, 92vw");
     assert.equal(
       soldSizes(),
       "(min-width: 60rem) 22vw, (min-width: 40rem) 44vw, 92vw",

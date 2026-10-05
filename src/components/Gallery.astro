@@ -1,24 +1,26 @@
 ---
 import { Image } from "astro:assets";
-import { getCollection, type CollectionEntry } from "astro:content";
+import { publicPaintings, type Painting } from "../lib/collection";
 import { formatDimensions } from "../lib/dims";
 import { galleryTiles } from "../lib/gallery-layout";
 import { formatPriceCAD } from "../lib/money";
 import {
   GALLERY_WIDTHS,
   SOLD_WIDTHS,
+  featuredSizes,
   gallerySizes,
   soldSizes,
 } from "../lib/responsive-images";
-import {
-  SHOW_PRICES,
-  compareGalleryOrder,
-  isPublished,
-  slugifyTitle,
-  workCount,
-} from "../lib/site";
+import { SHOW_PRICES, slugifyTitle, workCount } from "../lib/site";
 
-type Painting = CollectionEntry<"paintings">;
+interface Props {
+  /** "featured" renders only the newest painting, for the homepage's top
+   * section (anything slotted in, like the studio note, is pinned to it).
+   * "grid" renders the collection without it, then the sold archive. */
+  view?: "grid" | "featured" | undefined;
+}
+const { view = "grid" } = Astro.props;
+
 const dimsOf = (p: Painting): string =>
   formatDimensions(
     p.data.widthIn ?? null,
@@ -26,27 +28,9 @@ const dimsOf = (p: Painting): string =>
     p.data.depthIn ?? null,
   );
 
-const paintings = (await getCollection("paintings")).filter((p) =>
-  isPublished(p.data),
-);
-// Sorted by the /admin drag order (`order:`), then alphabetically.
-const available = paintings
-  .filter((p) => !p.data.sold)
-  .sort((a, b) =>
-    compareGalleryOrder(
-      { order: a.data.order ?? null, title: a.data.title },
-      { order: b.data.order ?? null, title: b.data.title },
-    ),
-  );
-// Same ordering as Available.
-const sold = paintings
-  .filter((p) => p.data.sold)
-  .sort((a, b) =>
-    compareGalleryOrder(
-      { order: a.data.order ?? null, title: a.data.title },
-      { order: b.data.order ?? null, title: b.data.title },
-    ),
-  );
+const { available, sold, featured } = await publicPaintings();
+// The newest painting hangs up top, so the grid skips it.
+const hung = available.filter((p) => p !== featured);
 
 const NEW_MS = 7 * 24 * 60 * 60 * 1000;
 const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
@@ -58,7 +42,7 @@ const priceLabel = (price: number): string =>
 // layout so a 30 × 30 in canvas reads bigger than a 12 × 12 in one (see
 // gallery-layout).
 const tiles = galleryTiles(
-  available.map((p) => ({
+  hung.map((p) => ({
     aspect: p.data.image.width / p.data.image.height,
     widthIn: p.data.widthIn ?? null,
     heightIn: p.data.heightIn ?? null,
@@ -66,60 +50,106 @@ const tiles = galleryTiles(
 );
 ---
 
-<section class="collection" id="collection" aria-label="Available paintings">
-  <div class="section-head">
-    <div>
-      <p class="eyebrow">The collection</p>
-      <h2>Available works</h2>
-    </div>
-    <p class="count">{workCount(available.length)} · each one of a kind</p>
-  </div>
-
-  <div class="gallery" id="gallery-static">
-    {available.map((painting, i) => (
-      <a
-        class:list={["card", tiles[i] !== "normal" && `tile-${tiles[i]}`]}
-        href={`/paintings/${slugifyTitle(painting.data.title)}`}
-        data-astro-prefetch="hover"
+{view === "featured" && featured !== undefined && (
+  <figure class="feature">
+    <a
+      class="card feature-card"
+      href={`/paintings/${slugifyTitle(featured.data.title)}`}
+      data-astro-prefetch="hover"
+    >
+      <span
+        class="mat"
+        transition:name={`painting-${slugifyTitle(featured.data.title)}`}
       >
-        <span
-          class="mat"
-          transition:name={`painting-${slugifyTitle(painting.data.title)}`}
-        >
-          <Image
-            src={painting.data.image}
-            alt={painting.data.alt}
-            width={1000}
-            widths={GALLERY_WIDTHS}
-            sizes={gallerySizes(tiles[i])}
-            format="webp"
-            decoding="async"
-            loading={i === 0 ? "eager" : "lazy"}
-            fetchpriority={i === 0 ? "high" : undefined}
-          />
-          {isNewStatic(painting.data.dateAdded) && (
-            <span class="badge new">New</span>
+        <Image
+          src={featured.data.image}
+          alt={featured.data.alt}
+          width={1000}
+          widths={GALLERY_WIDTHS}
+          sizes={featuredSizes()}
+          format="webp"
+          decoding="async"
+          loading="eager"
+          fetchpriority="high"
+        />
+      </span>
+      {/* The label sits under the painting, so its top edge lines up with
+          the headline column. */}
+      <span class="caption">
+        <span class="kicker">Newest painting</span>
+        <span class="caption-title">{featured.data.title}</span>
+        <span class="caption-sub">
+          {SHOW_PRICES ? (
+            <span class="price">{priceLabel(featured.data.price)}</span>
+          ) : (
+            <span class="ask">Ask about this piece →</span>
+          )}
+          {dimsOf(featured) !== "" && (
+            <span class="dims">{dimsOf(featured)}</span>
           )}
         </span>
-        <span class="caption">
-          <span class="caption-title">{painting.data.title}</span>
-          <span class="caption-sub">
-            {SHOW_PRICES ? (
-              <span class="price">{priceLabel(painting.data.price)}</span>
-            ) : (
-              <span class="ask">Ask about this piece →</span>
-            )}
-            {dimsOf(painting) !== "" && (
-              <span class="dims">{dimsOf(painting)}</span>
+      </span>
+    </a>
+    <slot />
+  </figure>
+)}
+
+{view === "grid" && (
+  <section class="collection" id="collection" aria-label="Available paintings">
+    <div class="section-head">
+      <div>
+        <p class="eyebrow">The collection</p>
+        <h2>Available works</h2>
+      </div>
+      <p class="count">{workCount(available.length)} · each one of a kind</p>
+    </div>
+
+    <div class="gallery" id="gallery-static">
+      {hung.map((painting, i) => (
+        <a
+          class:list={["card", tiles[i] !== "normal" && `tile-${tiles[i]}`]}
+          href={`/paintings/${slugifyTitle(painting.data.title)}`}
+          data-astro-prefetch="hover"
+        >
+          <span
+            class="mat"
+            transition:name={`painting-${slugifyTitle(painting.data.title)}`}
+          >
+            <Image
+              src={painting.data.image}
+              alt={painting.data.alt}
+              width={1000}
+              widths={GALLERY_WIDTHS}
+              sizes={gallerySizes(tiles[i])}
+              format="webp"
+              decoding="async"
+              loading={i === 0 ? "eager" : "lazy"}
+              fetchpriority={i === 0 ? "high" : undefined}
+            />
+            {isNewStatic(painting.data.dateAdded) && (
+              <span class="badge new">New</span>
             )}
           </span>
-        </span>
-      </a>
-    ))}
-  </div>
-</section>
+          <span class="caption">
+            <span class="caption-title">{painting.data.title}</span>
+            <span class="caption-sub">
+              {SHOW_PRICES ? (
+                <span class="price">{priceLabel(painting.data.price)}</span>
+              ) : (
+                <span class="ask">Ask about this piece →</span>
+              )}
+              {dimsOf(painting) !== "" && (
+                <span class="dims">{dimsOf(painting)}</span>
+              )}
+            </span>
+          </span>
+        </a>
+      ))}
+    </div>
+  </section>
+)}
 
-{sold.length > 0 && (
+{view === "grid" && sold.length > 0 && (
   <section class="collection collected" id="sold" aria-label="Sold paintings">
     <div class="section-head">
       <div>
@@ -306,6 +336,19 @@ const tiles = galleryTiles(
   }
   .card:nth-child(n + 4) {
     animation-delay: 0.18s;
+  }
+  /* The newest painting, in the homepage's top section. */
+  .feature {
+    position: relative;
+    margin: 0;
+  }
+  .kicker {
+    margin-bottom: 0.2rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
   }
   .mat {
     position: relative;
