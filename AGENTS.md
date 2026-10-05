@@ -122,8 +122,8 @@ build and let them pick.
   headline, lede, two buttons, the three-point strip), and the staggered
   12-column grid of matted cards.
 - The hero's right half holds her newest painting (`pickFeatured`, by
-  `dateAdded`), with its "Newest painting" label under it so both columns
-  start level. The studio banner is a cream note with one strip of tape
+  `dateAdded`), with "Newest painting" at the right end of its title line,
+  under the painting's corner, so both columns start level. The studio banner is a cream note with one strip of tape
   and her first name, taped to that painting's corner (beside the
   headline when there are no paintings). The grid skips that painting.
 - The public header is clear at the top and the bar fills in with the

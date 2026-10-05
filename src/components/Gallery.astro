@@ -73,11 +73,14 @@ const tiles = galleryTiles(
           fetchpriority="high"
         />
       </span>
-      {/* The label sits under the painting, so its top edge lines up with
-          the headline column. */}
+      {/* "Newest painting" sits under the painting's bottom-right corner,
+          level with the title, so the painting's top lines up with the
+          headline column. */}
       <span class="caption">
-        <span class="kicker">Newest painting</span>
-        <span class="caption-title">{featured.data.title}</span>
+        <span class="caption-head">
+          <span class="caption-title">{featured.data.title}</span>
+          <span class="kicker">Newest painting</span>
+        </span>
         <span class="caption-sub">
           {SHOW_PRICES ? (
             <span class="price">{priceLabel(featured.data.price)}</span>
@@ -342,8 +345,14 @@ const tiles = galleryTiles(
     position: relative;
     margin: 0;
   }
+  .caption-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.25rem 1rem;
+  }
   .kicker {
-    margin-bottom: 0.2rem;
     font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.16em;
