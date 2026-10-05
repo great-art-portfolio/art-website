@@ -761,12 +761,12 @@ const currentSection = adminSection(Astro.url.pathname);
     --shadow: 0 24px 60px -30px rgb(60 42 20 / 0.35);
     --radius: 0.6rem;
     /* Public pages hang the paintings on a gallery wall: a slightly deeper
-       ground than the studio's paper, a pool of picture light at each
-       painting, and a canvas shadow cast from above. */
+       ground than the studio's paper, one soft room light from above, and a
+       canvas shadow under each painting. */
     --wall: #ebe4d8;
     /* --muted darkened to keep 4.5:1 on the deeper wall. */
     --wall-muted: #6a5f50;
-    --wall-light: rgb(255 253 248 / 1);
+    --room-light: rgb(255 253 248 / 0.95);
     --canvas-shadow:
       0 1px 1px rgb(60 42 20 / 0.18), 0 8px 12px -4px rgb(60 42 20 / 0.22),
       0 26px 40px -20px rgb(60 42 20 / 0.35);
@@ -935,6 +935,28 @@ const currentSection = adminSection(Astro.url.pathname);
     --paper: var(--wall);
     --muted: var(--wall-muted);
     background-image: none;
+  }
+  /* The room light: one warm glow from above, fixed to the screen so it
+     stays overhead while the wall scrolls. It lives on the root, which page
+     navigations keep, so it warms up once when the site opens and stays on
+     from page to page. Opacity only, so it also runs under reduced motion. */
+  :global(html:has(body.public)::before) {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: radial-gradient(
+      120% 70% at 50% -12%,
+      var(--room-light) 0%,
+      transparent 62%
+    );
+    pointer-events: none;
+    animation: room-light-on 1.4s ease 0.1s backwards;
+  }
+  @keyframes room-light-on {
+    from {
+      opacity: 0;
+    }
   }
   .site-header.public {
     position: static;
@@ -1406,7 +1428,7 @@ const currentSection = adminSection(Astro.url.pathname);
       --shadow: 0 24px 60px -30px rgb(0 0 0 / 0.8);
       --wall: #211d18;
       --wall-muted: #a89e8e;
-      --wall-light: rgb(255 228 186 / 0.2);
+      --room-light: rgb(255 228 186 / 0.13);
       --canvas-shadow:
         0 1px 1px rgb(0 0 0 / 0.35), 0 8px 12px -4px rgb(0 0 0 / 0.45),
         0 26px 40px -20px rgb(0 0 0 / 0.65);

@@ -965,24 +965,10 @@ const eyebrow =
     }
   }
   /* The painting hangs on the wall like the gallery's: a canvas shadow
-     cast from above, square corners, and a pool of picture light behind
-     it. The light sits under the photo in the frame's own layer. */
+     cast from above and square corners, under the room light. */
   .frame {
     position: relative;
-    isolation: isolate;
     cursor: zoom-in;
-  }
-  .frame::before {
-    content: "";
-    position: absolute;
-    z-index: -1;
-    inset: -22% -14% 20%;
-    background: radial-gradient(
-      ellipse 50% 50% at 50% 50%,
-      var(--wall-light),
-      transparent
-    );
-    pointer-events: none;
   }
   .frame img {
     width: 100%;

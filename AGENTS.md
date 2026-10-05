@@ -117,10 +117,10 @@ options with screenshots (phone, iPad, desktop) and let them pick.
   paintings. No startup patterns: no tracked-caps eyebrow labels, no pairs
   of hero buttons, no selling-point strips, no app cards around paintings.
 - The gallery wall. Public pages (`body.public`) hang the paintings: a
-  slightly deeper `--wall` ground, a pool of picture light behind each
-  painting (`--wall-light`, layered under the grid so it never covers
-  text), and a canvas shadow cast from above (`--canvas-shadow`) with
-  square corners. The public header is just the wordmark and plain links:
+  slightly deeper `--wall` ground, one soft room light from above
+  (`--room-light`, a fixed layer on the root), and a canvas shadow cast
+  from above (`--canvas-shadow`) with square corners. One light for the
+  room, not a halo behind each painting (the owner tried both). The public header is just the wordmark and plain links:
   no bar, no border, no blur. Studio pages keep paper and the sticky bar
   their toasts sit under.
 - Real sizes. Paintings keep their shape. A painting at least twice her
@@ -135,13 +135,13 @@ options with screenshots (phone, iPad, desktop) and let them pick.
 - Motion is expected, not optional. Every interaction gets a considered
   response: hovers, folds, toasts, and reveals ease in, mostly through
   opacity and color. On top of that, the site has signature moments that
-  come from a real gallery: picture lights warm up as paintings scroll into
-  view, and a tapped painting grows into its own page (a shared
+  come from a real gallery: the room light warms up when the site opens,
+  and a tapped painting grows into its own page (a shared
   `transition:name`) and shrinks back. New motion should feel like that,
   something that happens in a gallery, rather than decoration.
 - Reduced motion kills movement, never fades: slides, lifts, expands, and
-  the painting morph go instant; color and opacity transitions (the lights
-  included) still run.
+  the painting morph go instant; color and opacity transitions (the room
+  light included) still run.
 - Three screens, always: every visual change is looked at on iPhone
   (~390px), iPad (~820px), and desktop (~1280px) widths, in dark and light,
   in a real browser.
