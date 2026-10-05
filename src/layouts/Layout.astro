@@ -1307,13 +1307,15 @@ const currentSection = adminSection(Astro.url.pathname);
     border-radius: 0.25rem;
   }
   /* Install option styled as footer text. The "· " sits outside the
-     underline span so the hover underline starts at the I. */
+     underline span so the hover underline starts at the I. compressHTML
+     drops the space before the button, so the margin supplies it. */
   #install-app {
     font: inherit;
     color: var(--accent);
     background: none;
     border: 0;
     padding: 0;
+    margin-inline-start: 0.3em;
     cursor: pointer;
   }
   #install-app::before {
