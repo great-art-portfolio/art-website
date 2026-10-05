@@ -1,4 +1,4 @@
-import { dollarsToCents, formatCAD } from "./money";
+import { dollarsToCents, formatPriceCAD } from "./money";
 import { viewsLabel } from "./views";
 
 /** One dashboard row. The server and client share this renderer so their
@@ -37,7 +37,7 @@ export function studioRowHtml(r: StudioRowInput): string {
   const esc = (s: string): string =>
     s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
   const cents = dollarsToCents(Number(r.price));
-  const price = cents === null ? "Price?" : formatCAD(cents);
+  const price = cents === null ? "Price?" : formatPriceCAD(cents);
   // Photo and title link to the buyer page, or to the studio room for
   // saved drafts and trashed rows, which have no buyer page. Unsaved
   // practice rows link to the buyer page.

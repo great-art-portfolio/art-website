@@ -5,7 +5,7 @@
 - [ ] Provision D1 (`art-gallery-db`), apply `0001_init.sql` + `0002_drop-unused-tables.sql` (push table only)
 - [ ] Set secrets: `RESEND_API_KEY`, `ARTIST_SENDER` (verified domain), `ARTIST_INBOX`, `ADMIN_API_TOKEN`, `GITHUB_TOKEN` + `GITHUB_REPO`
 - [ ] Put Cloudflare Access (email OTP) on `/admin/*`
-- [ ] Verify the 5 painting measurements with a tape (frontmatter is flagged GUESSED)
+- [x] Painting measurements confirmed with the artist (Oct 2026)
 - [ ] Custom domain + verify it in Resend (free on Cloudflare); set `PUBLIC_CF_BEACON_TOKEN` at build time
 - [ ] Turnstile: site key in `wrangler.toml`, `TURNSTILE_SECRET_KEY` secret set (Oct 2026) — confirm it's live: `/api/status` shows the site key, the check appears above "Send inquiry" and in the Notify me box, and a test inquiry reaches her inbox
 

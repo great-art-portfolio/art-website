@@ -126,8 +126,10 @@ const tiles = galleryTiles(
               sizes={gallerySizes(tiles[i])}
               format="webp"
               decoding="async"
-              loading={i === 0 ? "eager" : "lazy"}
-              fetchpriority={i === 0 ? "high" : undefined}
+              loading={featured === undefined && i === 0 ? "eager" : "lazy"}
+              fetchpriority={
+                featured === undefined && i === 0 ? "high" : undefined
+              }
             />
             {isNewStatic(painting.data.dateAdded) && (
               <span class="badge new">New</span>
