@@ -3,6 +3,8 @@
 export interface AppEnv {
   /** D1 holds push state and the dev mock email list. Paintings live in git. */
   DB: D1Database;
+  /** The built site. Checkout reads /catalog.json through it. */
+  ASSETS: Fetcher;
   /** Canonical site URL for links in collector emails. */
   SITE_URL?: string;
   ADMIN_API_TOKEN?: string;
@@ -38,8 +40,10 @@ export interface AppEnv {
   PUSHOVER_USER_KEY?: string;
   ENABLE_STRIPE?: string;
   STRIPE_SECRET_KEY?: string;
-  STRIPE_SUCCESS_URL?: string;
-  STRIPE_CANCEL_URL?: string;
+  /** Signing secret of the payment webhook (whsec_…). */
+  STRIPE_WEBHOOK_SECRET?: string;
+  /** "true" adds Stripe Tax at checkout. */
+  STRIPE_TAX?: string;
   ENABLE_SHIPPO?: string;
   SHIPPO_API_TOKEN?: string;
   ENABLE_SOCIAL_POST?: string;

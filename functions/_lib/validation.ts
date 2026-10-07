@@ -121,3 +121,91 @@ export function parsePushUnsubscribe(raw: unknown): string | null {
   const result = pushUnsubscribeSchema.safeParse(raw);
   return result.success ? result.data.endpoint : null;
 }
+
+/** /catalog.json, built from the paintings collection. Malformed rows are
+ * dropped, so a bad entry can't be bought. */
+const catalogItemSchema = z.object({
+  slug: z.string(),
+  title: z.string(),
+  priceCents: z.number().int().positive(),
+  sold: z.boolean(),
+  file: z.string(),
+});
+
+export type CatalogItem = z.infer<typeof catalogItemSchema>;
+
+export function parseCatalog(raw: unknown): CatalogItem[] {
+  const list = z.object({ paintings: z.array(z.unknown()) }).safeParse(raw);
+  if (!list.success) return [];
+  const items: CatalogItem[] = [];
+  for (const row of list.data.paintings) {
+    const item = catalogItemSchema.safeParse(row);
+    if (item.success) items.push(item.data);
+  }
+  return items;
+}
+
+/** Checkout POST body from a painting page. */
+const checkoutBodySchema = z.object({
+  slug: z.string().max(200),
+  title: z.string().max(200),
+  priceCents: z.number(),
+});
+
+export type CheckoutBody = z.infer<typeof checkoutBodySchema>;
+
+export function parseCheckoutBody(raw: unknown): CheckoutBody | null {
+  const result = checkoutBodySchema.safeParse(raw);
+  return result.success ? result.data : null;
+}
+
+const addressSchema = z
+  .object({
+    line1: z.string().nullish(),
+    line2: z.string().nullish(),
+    city: z.string().nullish(),
+    state: z.string().nullish(),
+    postal_code: z.string().nullish(),
+    country: z.string().nullish(),
+  })
+  .nullish();
+
+/** The parts of a Stripe Checkout Session event the webhook reads. */
+const stripeEventSchema = z.object({
+  id: z.string(),
+  type: z.string(),
+  data: z.object({
+    object: z.object({
+      id: z.string(),
+      payment_status: z.string().nullish(),
+      amount_total: z.number().nullish(),
+      currency: z.string().nullish(),
+      livemode: z.boolean().nullish(),
+      metadata: z.record(z.string(), z.string()).nullish(),
+      total_details: z.object({ amount_tax: z.number().nullish() }).nullish(),
+      customer_details: z
+        .object({
+          name: z.string().nullish(),
+          email: z.string().nullish(),
+          phone: z.string().nullish(),
+          address: addressSchema,
+        })
+        .nullish(),
+      collected_information: z
+        .object({
+          shipping_details: z
+            .object({ name: z.string().nullish(), address: addressSchema })
+            .nullish(),
+        })
+        .nullish(),
+    }),
+  }),
+});
+
+export type StripeEvent = z.infer<typeof stripeEventSchema>;
+export type StripeAddress = z.infer<typeof addressSchema>;
+
+export function parseStripeEvent(raw: unknown): StripeEvent | null {
+  const result = stripeEventSchema.safeParse(raw);
+  return result.success ? result.data : null;
+}

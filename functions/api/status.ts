@@ -1,11 +1,12 @@
 import { flag, type AppEnv } from "../_lib/env";
 import { json } from "../_lib/http";
+import { stripeEnabled } from "../_lib/stripe";
 
 /** Public: feature flags and the Turnstile site key. Also used to check
  * whether the API is reachable. */
 export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
   return json({
-    stripe: flag(context.env.ENABLE_STRIPE),
+    stripe: stripeEnabled(context.env),
     shippo: flag(context.env.ENABLE_SHIPPO),
     socialPost: flag(context.env.ENABLE_SOCIAL_POST),
     // The site key is public. It's only handed out once the secret is set

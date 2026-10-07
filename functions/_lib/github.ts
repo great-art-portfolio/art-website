@@ -9,6 +9,7 @@
  * endpoint behind Cloudflare Access.
  */
 
+import type { AppEnv } from "./env";
 import { parseGitHubDir, parseGitHubFile } from "./validation";
 
 export interface GitHubConfig {
@@ -24,6 +25,14 @@ interface RepoFile {
   content: ArrayBuffer | string;
   /** Removes the file by writing a tree entry with a null sha. */
   deleted?: boolean;
+}
+
+/** Repo access from the environment. Null when publishing isn't set up. */
+export function gitConfig(env: AppEnv): GitHubConfig | null {
+  const token = env.GITHUB_TOKEN ?? "";
+  const repo = env.GITHUB_REPO ?? "";
+  if (token === "" || repo === "") return null;
+  return { token, repo, branch: env.GITHUB_BRANCH ?? "main" };
 }
 
 const apiBase = "https://api.github.com";

@@ -1,22 +1,10 @@
-import {
-  commitFiles,
-  listDir,
-  readTextFile,
-  type GitHubConfig,
-} from "../_lib/github";
+import { commitFiles, gitConfig, listDir, readTextFile } from "../_lib/github";
 import type { AppEnv } from "../_lib/env";
 import { badRequest, json, requireAdmin, serverError } from "../_lib/http";
 import { parseCommitBody } from "../_lib/validation";
 
 /** Repo path of the homepage banner. An empty file hides it. */
 export const BANNER_PATH = "src/content/announcement.txt";
-
-function gitConfig(env: AppEnv): GitHubConfig | null {
-  const token = env.GITHUB_TOKEN ?? "";
-  const repo = env.GITHUB_REPO ?? "";
-  if (token === "" || repo === "") return null;
-  return { token, repo, branch: env.GITHUB_BRANCH ?? "main" };
-}
 
 import { GALLERY_PATH, PAINTING_FILE } from "../_lib/gallery-paths";
 

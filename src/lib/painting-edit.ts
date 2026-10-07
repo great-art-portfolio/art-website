@@ -214,6 +214,11 @@ export function setTrash(
   return next;
 }
 
+/** Marks a painting sold after an online payment. Other keys are kept. */
+export function markSold(md: string): string {
+  return patchKey(md, "sold", "true");
+}
+
 /** Rewrites one frontmatter key in place, preserving the other lines. */
 function patchKey(md: string, key: string, value: string): string {
   const re = new RegExp(`^${key}:.*$`, "m");
