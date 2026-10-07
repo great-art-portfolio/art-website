@@ -827,9 +827,12 @@ const currentSection = adminSection(Astro.url.pathname);
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
   }
-  h1,
-  h2,
-  .serif {
+  /* Type rule: Fraunces for the hero headline, section headings, and
+     painting names; sans for everything read or bought (body, prices,
+     labels). Global so page and component headings pick it up. */
+  :global(h1),
+  :global(h2),
+  :global(.serif) {
     font-family: var(--serif);
     letter-spacing: 0.01em;
     line-height: 1.15;
