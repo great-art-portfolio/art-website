@@ -7,11 +7,11 @@
 - [ ] Put Cloudflare Access (email OTP) on `/admin/*`
 - [x] Painting measurements confirmed with the artist (Oct 2026)
 - [ ] Custom domain + verify it in Resend (free on Cloudflare); set `PUBLIC_CF_BEACON_TOKEN` at build time
-- [ ] Turnstile: site key in `wrangler.toml`, `TURNSTILE_SECRET_KEY` secret set (Oct 2026) — confirm it's live: `/api/status` shows the site key, the check appears above "Send inquiry" and in the Notify me box, and a test inquiry reaches her inbox
+- [ ] Turnstile: site key in `wrangler.toml`, `TURNSTILE_SECRET_KEY` secret set (Oct 2026). Confirmed live 2026-10-06: `/api/status` serves the site key and the check renders above "Send inquiry" on painting pages (phone and desktop). Still to do: one real test inquiry reaching her inbox (owner, since it emails her)
 
 ## Sell more
 
-- [ ] Card checkout via Stripe (`ENABLE_STRIPE` + key) — Apple Pay / Google Pay come free with it, which covers Android buyers too. No monthly fee, only a cut per sale. Owner said yes (Oct 2026); needs a Stripe account in the artist's name (bank + ID) before any code ships.
+- [ ] Card checkout via Stripe (`ENABLE_STRIPE` + key) — Apple Pay / Google Pay come free with it, which covers Android buyers too. No monthly fee, only a cut per sale. Owner said yes (Oct 2026); confirming the hold/fee trade-offs in cz decision `aea8f654` (Oct 6). Needs a Stripe account in the artist's name (bank + ID) before any code ships.
   - Fees (Canada, checked Oct 2026): 2.9% + $0.30 per domestic card, Apple/Google Pay the same; +0.8% international cards, +2% if currency converts; $15 per dispute (chargeback) plus $15 to contest, refunded if won. A $150 painting nets about $145.35.
   - Stripe is not escrow: money settles to her bank on a schedule (first payout ~7 days, then ~3 business days), whether or not she has shipped. The buyer's protection is the chargeback. A manual-capture hold only lasts ~7 days (Visa ~5), too short to wait on shipping, so charge at checkout and ship promptly with tracking.
   - Keep Interac e-transfer as the no-fee option for people she knows: free, money is final once deposited (no chargebacks), but no buyer protection and fully manual.

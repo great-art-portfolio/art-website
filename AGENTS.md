@@ -145,7 +145,7 @@ build and let them pick.
   script (Caveat) only for the wordmark and the banner note. Never
   hard-code a serif stack. Today the split has no rule (card titles serif,
   the painting page title sans, its price serif). A cleanup is waiting on
-  the owner (cz decision `fa310013`, Oct 2026): A keep, B serif painting
+  the owner (cz decision `abc80382`, re-asked Oct 6 2026 with screenshots; `fa310013` was lost): A keep, B serif painting
   names + section headings with sans prices, C = B + serif hero headline
   (recommended), D = C + italic titles and a serif lede. The orange
   labels and clay buttons stay in every option. Apply the pick in the
