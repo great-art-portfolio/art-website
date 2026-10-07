@@ -1,0 +1,49 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { artistLabel } from "../lib/site";
+---
+
+<Layout title="Thank you" description="Your painting is on its way." noindex>
+  <main class="thanks">
+    <p class="eyebrow">Payment received</p>
+    <h1>Thank you!</h1>
+    <p class="lede">
+      The painting is yours. Stripe has emailed your receipt, and{" "}
+      {artistLabel()} will be in touch by email about shipping.
+    </p>
+    <a class="back" href="/">
+      Back to the gallery
+    </a>
+  </main>
+</Layout>
+
+<style>
+  .thanks {
+    max-width: 36rem;
+    margin: 0 auto;
+    padding: 4rem 1.25rem 5rem;
+    text-align: center;
+  }
+  .eyebrow {
+    color: var(--accent);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-size: clamp(2.2rem, 6vw, 3.2rem);
+    margin: 0.4rem 0 1rem;
+  }
+  .lede {
+    font-size: 1.1rem;
+    line-height: 1.6;
+  }
+  .back {
+    display: inline-block;
+    margin-top: 2rem;
+    color: var(--accent);
+    font-weight: 600;
+  }
+</style>

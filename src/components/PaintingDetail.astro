@@ -470,6 +470,18 @@ const eyebrow =
       )}
       {!data.sold && !studio && !preview && (
         <>
+          {SHOW_PRICES && (
+            <div id="buy-box" hidden>
+              <button type="button" id="buy-now" class="btn-primary">
+                Buy now · {priceLabel}
+              </button>
+              <p class="pay-note">
+                Card, Apple Pay, or Google Pay. Prefer Interac e-transfer, with
+                no card fees? Ask below and you'll get the details by email.
+              </p>
+              <p id="buy-status" role="status" />
+            </div>
+          )}
           <button type="button" id="inquiry-reveal" class="btn-primary" hidden>
             Interested?
           </button>
@@ -539,6 +551,7 @@ const eyebrow =
       usdz: pageData?.usdz ?? "",
       alt: pageData?.alt ?? "",
       mdPath: pageData?.mdPath ?? "",
+      slug: pageData?.slug ?? "",
     };
   }
   /** Turnstile spam check, shared with the collector modal. Each send
@@ -664,6 +677,7 @@ const eyebrow =
     initAr();
     initAdmin();
     initPageShare();
+    initBuy();
     // iOS has no Background Sync, so flush the outbox on load and reconnect.
     // Notes saved offline get a fresh spam check token here, since the one
     // they were saved with has expired by now.
@@ -725,6 +739,53 @@ const eyebrow =
         const name = form.querySelector('input[name="name"]');
         if (name instanceof HTMLInputElement) name.focus();
       });
+    }
+
+    // Card checkout. The box stays hidden unless the site has Stripe on,
+    // and then "Interested?" steps back to a quieter question button.
+    function initBuy() {
+      const box = document.getElementById("buy-box");
+      const btnEl = document.getElementById("buy-now");
+      const btn = btnEl instanceof HTMLButtonElement ? btnEl : null;
+      const status = document.getElementById("buy-status");
+      if (box === null || btn === null || status === null) return;
+      if (box.dataset.wired === "1") return;
+      box.dataset.wired = "1";
+      void import("../lib/checkout").then(
+        ({ checkoutAvailable, startCheckout }) =>
+          checkoutAvailable().then((on) => {
+            if (!on) return;
+            box.hidden = false;
+            const ask = document.getElementById("inquiry-reveal");
+            if (ask !== null) {
+              ask.classList.add("is-quiet");
+              ask.textContent = "Ask a question";
+            }
+            // Back from Stripe restores the page from the cache with the
+            // button still disabled.
+            window.addEventListener("pageshow", () => {
+              btn.disabled = false;
+              say(status, "");
+            });
+            btn.addEventListener("click", () => {
+              const live = readPageData();
+              btn.disabled = true;
+              say(status, "Opening secure checkout…");
+              void startCheckout({
+                slug: live.slug,
+                title: live.title,
+                priceCents: live.priceCents,
+              }).then((result) => {
+                if ("url" in result) {
+                  window.location.assign(result.url);
+                  return;
+                }
+                btn.disabled = false;
+                say(status, result.error);
+              });
+            });
+          }),
+      );
     }
 
     // Buyer share button. Uses the share sheet where available, otherwise
@@ -1210,6 +1271,37 @@ const eyebrow =
   #inquiry-reveal {
     margin-top: 1.75rem;
     width: 100%;
+  }
+  #buy-box {
+    margin-top: 1.75rem;
+  }
+  #buy-now {
+    width: 100%;
+  }
+  .pay-note {
+    margin: 0.7rem 0 0;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+  #buy-status {
+    margin: 0.5rem 0 0;
+    font-weight: 600;
+  }
+  #buy-status:empty {
+    display: none;
+  }
+  #buy-box + #inquiry-reveal {
+    margin-top: 1rem;
+  }
+  /* With card checkout on, the question button steps back to an outline. */
+  #inquiry-reveal.is-quiet {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line);
+  }
+  #inquiry-reveal.is-quiet:hover {
+    border-color: var(--accent);
+    color: var(--ink);
   }
   /* .btn-primary sets display: inline-flex, which overrides the UA [hidden]
      rule, so re-hide or the button shows alongside the form. */
