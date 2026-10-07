@@ -62,7 +62,12 @@ optional.
 ## Checkout + shipping (disabled until needed)
 
 Stripe checkout was removed with the D1 gallery (it looked paintings up
-by id); re-adding it means a title+price POST, no database. Shippo
+by id); re-adding it means a title+price POST, no database, with the
+price checked against the built content. Decided 2026-10-07: card
+checkout (Apple/Google Pay included) charges at purchase — card holds
+expire in ~5-7 days, too short to wait on shipping — and a paid order
+marks the painting sold. Interac e-transfer stays as the no-fee option
+for people she knows: no 2.9% + $0.30 cut, no chargebacks. Shippo
 labels and Ayrshare auto-post stay implemented behind `ENABLE_SHIPPO` /
 `ENABLE_SOCIAL_POST` (501 + instructions until switched on). Day to day
 she ships via Chit Chats / Pirate Ship links in `/admin` — cheapest

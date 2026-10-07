@@ -11,7 +11,7 @@
 
 ## Sell more
 
-- [ ] Card checkout via Stripe (`ENABLE_STRIPE` + key) — Apple Pay / Google Pay come free with it, which covers Android buyers too. No monthly fee, only a cut per sale. Owner said yes (Oct 2026); confirming the hold/fee trade-offs in cz decision `aea8f654` (Oct 6). Needs a Stripe account in the artist's name (bank + ID) before any code ships.
+- [ ] Card checkout via Stripe (`ENABLE_STRIPE` + key) — Apple Pay / Google Pay come free with it, which covers Android buyers too. No monthly fee, only a cut per sale. Decided 2026-10-07 (cz decision `aea8f654`): Stripe card checkout incl. Apple/Google Pay, charged at purchase, with e-transfer kept as the no-fee option. Waiting on a Stripe account in the artist's name (bank + ID); no code ships until its test key is in `.dev.vars` (`STRIPE_SECRET_KEY=sk_test_…`) and checkout passes in test mode.
   - Fees (Canada, checked Oct 2026): 2.9% + $0.30 per domestic card, Apple/Google Pay the same; +0.8% international cards, +2% if currency converts; $15 per dispute (chargeback) plus $15 to contest, refunded if won. A $150 painting nets about $145.35.
   - Stripe is not escrow: money settles to her bank on a schedule (first payout ~7 days, then ~3 business days), whether or not she has shipped. The buyer's protection is the chargeback. A manual-capture hold only lasts ~7 days (Visa ~5), too short to wait on shipping, so charge at checkout and ship promptly with tracking.
   - Keep Interac e-transfer as the no-fee option for people she knows: free, money is final once deposited (no chargebacks), but no buyer protection and fully manual.
