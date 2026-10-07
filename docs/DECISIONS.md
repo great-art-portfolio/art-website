@@ -61,9 +61,13 @@ optional.
 
 ## Checkout + shipping (disabled until needed)
 
-Stripe checkout was removed with the D1 gallery (it looked paintings up
-by id); re-adding it means a title+price POST, no database, with the
-price checked against the built content. Decided 2026-10-07: card
+Stripe Checkout is back without a database: the page POSTs slug, title,
+and price, and `/api/checkout` checks them against `/catalog.json`, which
+the build writes from the paintings collection, so the browser never sets
+the price. A paid session's webhook commits `sold: true` like a studio
+save. Hosted Checkout, not Payment Links or Elements: one session per
+buyer, card data never on the site, Apple/Google Pay included. Stripe Tax
+is on (owner, 2026-10-07), tax added on top of the listed price. Decided 2026-10-07: card
 checkout (Apple/Google Pay included) charges at purchase — card holds
 expire in ~5-7 days, too short to wait on shipping — and a paid order
 marks the painting sold. Interac e-transfer stays as the no-fee option
