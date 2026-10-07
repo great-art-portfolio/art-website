@@ -143,13 +143,14 @@ build and let them pick.
   "$140.00" formatter is gone).
 - Type: Fraunces (`var(--serif)`, self-hosted, SIL OFL) and system sans;
   script (Caveat) only for the wordmark and the banner note. Never
-  hard-code a serif stack. Today the split has no rule (card titles serif,
-  the painting page title sans, its price serif). A cleanup is waiting on
-  the owner (cz decision `abc80382`, re-asked Oct 6 2026 with screenshots; `fa310013` was lost): A keep, B serif painting
-  names + section headings with sans prices, C = B + serif hero headline
-  (recommended), D = C + italic titles and a serif lede. The orange
-  labels and clay buttons stay in every option. Apply the pick in the
-  real stylesheets, then rewrite this bullet.
+  hard-code a serif stack. The rule (owner's pick, cz decision `abc80382`,
+  Oct 7 2026): serif for the hero headline, section headings, and painting
+  names (card titles and the painting page title); sans for everything
+  read or bought: body, the lede, labels, buttons, and prices. Prices are
+  bold orange sans on the grid and the painting page alike. `h1`, `h2`
+  and `.serif` get the serif from a `:global` rule in `Layout.astro`
+  (scoped, it never reached page headings); don't re-set it per page.
+  No italic titles, no serif lede.
 - Motion is expected, not optional. Every interaction gets a considered
   response: hovers, folds, toasts, and reveals ease in, mostly through
   opacity and color. Signature moments: the background drifts slowly, and
