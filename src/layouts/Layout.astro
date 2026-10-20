@@ -936,6 +936,16 @@ const currentSection = adminSection(selfPath);
   .nav-links .nav-cta {
     white-space: nowrap;
     flex-shrink: 0;
+    position: relative;
+  }
+  /* The pill draws about 36px tall. On touch screens an invisible margin
+     around it makes the tap target 44px without changing how it looks. */
+  @media (pointer: coarse) {
+    .nav-links .nav-cta::after {
+      content: "";
+      position: absolute;
+      inset: -4px -2px;
+    }
   }
   /* "Notify me" is a button styled as a link because it opens the signup
      modal. It needs the links' transitions so its hover fades too. */
