@@ -28,17 +28,38 @@ describe("responsive-images contracts", () => {
   it("sizes() match the CSS grid slots", () => {
     assert.equal(
       gallerySizes(),
-      "(min-width: 60rem) 42vw, (min-width: 40rem) 44vw, 92vw",
+      "(min-width: 76rem) 460px, (min-width: 60rem) 42vw, (min-width: 40rem) 44vw, 92vw",
     );
-    assert.equal(gallerySizes("big"), "(min-width: 60rem) 62vw, 92vw");
-    assert.equal(gallerySizes("wide"), "(min-width: 60rem) 62vw, 92vw");
-    assert.equal(gallerySizes("big-wide"), "92vw");
-    assert.equal(featuredSizes(), "(min-width: 60rem) 44vw, 92vw");
+    assert.equal(
+      gallerySizes("big"),
+      "(min-width: 76rem) 680px, (min-width: 60rem) 62vw, 92vw",
+    );
+    assert.equal(gallerySizes("wide"), gallerySizes("big"));
+    assert.equal(gallerySizes("big-wide"), "(min-width: 76rem) 1170px, 92vw");
+    assert.equal(
+      featuredSizes(),
+      "(min-width: 76rem) 530px, (min-width: 60rem) 44vw, 92vw",
+    );
     assert.equal(
       soldSizes(),
-      "(min-width: 60rem) 22vw, (min-width: 40rem) 44vw, 92vw",
+      "(min-width: 76rem) 270px, (min-width: 60rem) 22vw, (min-width: 40rem) 44vw, 92vw",
     );
-    assert.equal(photoSizes(), "(min-width: 48rem) 55vw, 92vw");
+    assert.equal(
+      photoSizes(),
+      "(min-width: 76rem) 600px, (min-width: 48rem) 55vw, 92vw",
+    );
+  });
+
+  it("sizes() cap at the 76rem page width", () => {
+    for (const s of [
+      gallerySizes(),
+      gallerySizes("big"),
+      gallerySizes("big-wide"),
+      featuredSizes(),
+      soldSizes(),
+      photoSizes(),
+    ])
+      assert.match(s, /^\(min-width: 76rem\) \d+px, /);
   });
 });
 

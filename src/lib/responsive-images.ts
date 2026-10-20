@@ -1,4 +1,7 @@
-/** Responsive image sizes. Update these when the CSS grid changes. */
+/** Responsive image sizes. Update these when the CSS grid changes. The
+ * page stops growing at 76rem, so each list starts with the fixed width a
+ * slot keeps from there on; without it a 1920px screen fetches nearly
+ * twice the pixels it shows. */
 
 import type { Tile } from "./gallery-layout";
 
@@ -10,24 +13,25 @@ export const PHOTO_WIDTHS = [640, 960, 1280, 1600];
  * staggered 12-column grid. Big and wide paintings take 8 columns (both on
  * tablet); big-wide takes the row. */
 export function gallerySizes(tile: Tile = "normal"): string {
-  if (tile === "big-wide") return "92vw";
-  if (tile === "big" || tile === "wide") return "(min-width: 60rem) 62vw, 92vw";
-  return "(min-width: 60rem) 42vw, (min-width: 40rem) 44vw, 92vw";
+  if (tile === "big-wide") return "(min-width: 76rem) 1170px, 92vw";
+  if (tile === "big" || tile === "wide")
+    return "(min-width: 76rem) 680px, (min-width: 60rem) 62vw, 92vw";
+  return "(min-width: 76rem) 460px, (min-width: 60rem) 42vw, (min-width: 40rem) 44vw, 92vw";
 }
 
 /** The newest painting beside the homepage headline: about half the
  * page from 60rem, full width below. */
 export function featuredSizes(): string {
-  return "(min-width: 60rem) 44vw, 92vw";
+  return "(min-width: 76rem) 530px, (min-width: 60rem) 44vw, 92vw";
 }
 
 /** Sold archive: smaller cards in two or three columns. */
 export function soldSizes(): string {
-  return "(min-width: 60rem) 22vw, (min-width: 40rem) 44vw, 92vw";
+  return "(min-width: 76rem) 270px, (min-width: 60rem) 22vw, (min-width: 40rem) 44vw, 92vw";
 }
 
 /** Painting detail photo: about 55vw beside the info column, full width
  * on mobile. */
 export function photoSizes(): string {
-  return "(min-width: 48rem) 55vw, 92vw";
+  return "(min-width: 76rem) 600px, (min-width: 48rem) 55vw, 92vw";
 }
