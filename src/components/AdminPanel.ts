@@ -11,7 +11,6 @@ import { studioRowHtml as rowHtml, viewsLabel } from "../lib/studio-rows";
 import {
   compareGalleryOrder,
   groupByAvailability,
-  SITE_URL,
   slugifyTitle,
 } from "../lib/site";
 import { parsePainting, setOrder } from "../lib/painting-edit";
@@ -275,14 +274,12 @@ async function fillRowQrs(list: Element): Promise<void> {
   if (empty.length === 0) return;
   try {
     // Imported lazily because the studio dev server sometimes fails to
-    // pre-bundle it, and a top-level import failure would break the panel.
-    const { default: qrcode } = await import("qrcode-generator");
+    // pre-bundle the generator, and a top-level import failure would break
+    // the panel.
+    const { paintingPageUrl, qrSvg } = await import("../lib/qr");
     for (const el of empty) {
       const slug = el.getAttribute("data-slug") ?? "";
-      const code = qrcode(0, "M");
-      code.addData(`${SITE_URL}/paintings/${slug}`);
-      code.make();
-      el.innerHTML = code.createSvgTag({ cellSize: 2, margin: 0 });
+      el.innerHTML = qrSvg(paintingPageUrl(slug), 0);
     }
   } catch {
     // Leave the plain link.
