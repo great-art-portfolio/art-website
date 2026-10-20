@@ -92,7 +92,8 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       const sub = await mockSubscribe(context.env, email).catch(() => null);
       if (sub === null) return serverError();
       // Same answer as a new join, so the page never says who's listed.
-      if (sub.already) return json({ ok: true, emailed: true }, { status: 201 });
+      if (sub.already)
+        return json({ ok: true, emailed: true }, { status: 201 });
       // Return the confirm link in the response, pointing at this server,
       // so the loop can finish locally. With a key present, Resend test
       // addresses also go through the real API so the send shows in
