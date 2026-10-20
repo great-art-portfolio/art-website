@@ -29,6 +29,15 @@ export function siteTitle(): string {
     : "Calgary & Abstract Original Paintings";
 }
 
+/** Browser-tab title: the page's own title, followed by the artist's name
+ * when the title doesn't already carry it, so a tab never reads twice.
+ * Studio pages keep their own "Admin - …" titles. */
+export function pageTitle(title: string, studio = false): string {
+  if (studio || ARTIST_NAME === null || title.includes(ARTIST_NAME))
+    return title;
+  return `${title} — ${ARTIST_NAME}`;
+}
+
 /** URL slug from a painting title: "Night Reeds" → "night-reeds". */
 export function slugifyTitle(title: string): string {
   return title

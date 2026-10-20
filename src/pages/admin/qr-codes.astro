@@ -18,19 +18,11 @@ const byOrder = [...published].sort((a, b) =>
 );
 const cards = [...byOrder.filter((p) => !p.data.sold)];
 for (const p of byOrder.filter((p) => p.data.sold)) cards.push(p);
-const codes = await Promise.all(
-  cards.map(async (p) => {
-    const slug = slugifyTitle(p.data.title);
-    const url = paintingPageUrl(slug);
-    return {
-      slug,
-      title: p.data.title,
-      sold: p.data.sold,
-      url,
-      svg: await qrSvg(url),
-    };
-  }),
-);
+const codes = cards.map((p) => {
+  const slug = slugifyTitle(p.data.title);
+  const url = paintingPageUrl(slug);
+  return { slug, title: p.data.title, sold: p.data.sold, url, svg: qrSvg(url) };
+});
 ---
 
 <Layout title="Admin - QR codes" wordmark="admin" noindex>

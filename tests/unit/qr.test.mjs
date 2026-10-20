@@ -14,14 +14,24 @@ describe("paintingPageUrl", () => {
 });
 
 describe("qrSvg", () => {
-  it("renders an embeddable SVG for the URL", async () => {
-    const svg = await qrSvg(paintingPageUrl("night-reeds"));
+  it("renders an embeddable SVG for the URL", () => {
+    const svg = qrSvg(paintingPageUrl("night-reeds"));
     assert.ok(svg.startsWith("<svg"));
     assert.ok(svg.includes("</svg>"));
   });
 
-  it("renders deterministically for the same URL", async () => {
+  it("draws a square with a two-module quiet zone by default", () => {
+    // night-reeds' URL fits a 29-module code, so 33 with the margin.
+    const svg = qrSvg(paintingPageUrl("night-reeds"));
+    assert.match(svg, /viewBox="0 0 33 33"/);
+    assert.match(
+      qrSvg(paintingPageUrl("night-reeds"), 0),
+      /viewBox="0 0 29 29"/,
+    );
+  });
+
+  it("renders deterministically for the same URL", () => {
     const url = paintingPageUrl("night-reeds");
-    assert.equal(await qrSvg(url), await qrSvg(url));
+    assert.equal(qrSvg(url), qrSvg(url));
   });
 });

@@ -15,7 +15,13 @@ import backgroundCollection from "../assets/background-studio-collection.svg";
 import backgroundBanner from "../assets/background-studio-banner.svg";
 import backgroundMetrics from "../assets/background-studio-metrics.svg";
 import backgroundGuide from "../assets/background-studio-guide.svg";
-import { ARTIST_LOCATION, ARTIST_NAME, SITE_URL, siteTitle } from "../lib/site";
+import {
+  ARTIST_LOCATION,
+  ARTIST_NAME,
+  pageTitle,
+  SITE_URL,
+  siteTitle,
+} from "../lib/site";
 
 interface Props {
   title?: string;
@@ -107,7 +113,7 @@ const currentSection = adminSection(selfPath);
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png" />
     <meta name="generator" content={Astro.generator} />
-    <title>{title} · Art Gallery</title>
+    <title>{pageTitle(title, wordmark === "admin")}</title>
     <ClientRouter />
     <Analytics />
   </head>
@@ -930,6 +936,16 @@ const currentSection = adminSection(selfPath);
   .nav-links .nav-cta {
     white-space: nowrap;
     flex-shrink: 0;
+    position: relative;
+  }
+  /* The pill draws about 36px tall. On touch screens an invisible margin
+     around it makes the tap target 44px without changing how it looks. */
+  @media (pointer: coarse) {
+    .nav-links .nav-cta::after {
+      content: "";
+      position: absolute;
+      inset: -4px -2px;
+    }
   }
   /* "Notify me" is a button styled as a link because it opens the signup
      modal. It needs the links' transitions so its hover fades too. */
