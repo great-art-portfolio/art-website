@@ -2325,7 +2325,7 @@ test("the QR mark itself opens its print card", async ({ page }) => {
   await expect(mark.locator("svg")).toBeAttached({ timeout: 15000 });
   // The code is inside the link, so tapping it navigates to the card.
   await mark.click();
-  await expect(page).toHaveURL(/\/admin\/qr-codes\/#.+/);
+  await expect(page).toHaveURL(/\/admin\/qr-codes#.+/);
 });
 
 test("qr cards print one code at a time", async ({ page }) => {

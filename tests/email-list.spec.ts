@@ -84,7 +84,6 @@ test("dev confirm link visits instead of copying", async ({ page }) => {
       contentType: "application/json",
       body: JSON.stringify({
         ok: true,
-        already: false,
         emailed: true,
         devConfirmUrl:
           "http://127.0.0.1:4331/email/confirmed?email=t%40example.com&token=t",

@@ -32,12 +32,22 @@ export function notEnabled(feature: string, hint: string): Response {
   );
 }
 
+/** True for requests to this machine (dev servers and tests). */
+export function isLocalRequest(request: Request): boolean {
+  const host = new URL(request.url).hostname;
+  return host === "localhost" || host === "127.0.0.1" || host === "[::1]";
+}
+
 /** Admin check. Cloudflare Access protects production, and the token is
- * a second layer and the local dev gate. If no token is configured, the
- * request is allowed. */
+ * a second layer and the local dev gate. With no token configured only
+ * localhost is let in, so a missing secret never opens the live API. */
 export function requireAdmin(request: Request, env: AppEnv): Response | null {
   const expected = env.ADMIN_API_TOKEN;
-  if (expected === undefined || expected === "") return null;
+  if (expected === undefined || expected === "") {
+    return isLocalRequest(request)
+      ? null
+      : json({ error: "Unauthorized" }, { status: 401 });
+  }
   const header = request.headers.get("authorization");
   if (header === `Bearer ${expected}`) return null;
   return json({ error: "Unauthorized" }, { status: 401 });

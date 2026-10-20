@@ -25,3 +25,14 @@ test("renamed studio Views page redirects to Metrics", async ({ request }) => {
   expect([301, 308]).toContain(res.status());
   expect(res.headers()["location"] ?? "").toContain("/admin/metrics");
 });
+
+test("painting links answer directly, with no slash redirect", async ({
+  request,
+}) => {
+  // Cards, QR codes, and shares all use /paintings/x. Built as folders,
+  // every one of them bounced through a 308 to /paintings/x/.
+  for (const path of ["/paintings/first-thaw", "/privacy", "/offline"]) {
+    const res = await request.get(path, { maxRedirects: 0 });
+    expect(res.status(), path).toBe(200);
+  }
+});

@@ -132,7 +132,12 @@ const tiles = galleryTiles(
               }
             />
             {isNewStatic(painting.data.dateAdded) && (
-              <span class="badge new">New</span>
+              <span
+                class="badge new"
+                data-new-until={painting.data.dateAdded.getTime() + NEW_MS}
+              >
+                New
+              </span>
             )}
           </span>
           <span class="caption">
@@ -194,6 +199,20 @@ const tiles = galleryTiles(
     </div>
   </section>
 )}
+
+<script>
+  // The build marks paintings added in the past week, but the next deploy
+  // can be weeks away, so the browser drops a badge once its week is up.
+  function expireNewBadges() {
+    const now = Date.now();
+    for (const el of document.querySelectorAll(".badge.new[data-new-until]")) {
+      if (el instanceof HTMLElement && Number(el.dataset.newUntil) <= now)
+        el.remove();
+    }
+  }
+  expireNewBadges();
+  document.addEventListener("astro:page-load", expireNewBadges);
+</script>
 
 <style>
   .collection {

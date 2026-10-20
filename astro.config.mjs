@@ -5,6 +5,11 @@ import { defineConfig } from "astro/config";
 export default defineConfig({
   // Production origin, used for absolute share and sitemap URLs.
   site: "https://barbart.ca",
+  // Pages are built as name.html, so Cloudflare serves /paintings/x
+  // directly. As folders it answered every link, QR code, and share with
+  // a redirect to /paintings/x/, and the canonical pointed at the redirect.
+  build: { format: "file" },
+  trailingSlash: "never",
   image: {
     // The stock sharp service drops embedded ICC profiles, and most painting
     // photos are Display P3. This one keeps them.

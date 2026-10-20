@@ -94,10 +94,13 @@ function post(db, body) {
   return onRequestPost({
     request: new Request("https://barbart.ca/api/notify", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        authorization: "Bearer t",
+      },
       body: JSON.stringify(body),
     }),
-    env: { DB: db, ...vapid },
+    env: { DB: db, ADMIN_API_TOKEN: "t", ...vapid },
   });
 }
 

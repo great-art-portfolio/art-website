@@ -107,7 +107,6 @@ describe("subscribe", () => {
     assert.equal(res.status, 201);
     assert.deepEqual(await res.json(), {
       ok: true,
-      already: false,
       emailed: true,
     });
     const { email, token } = confirmLinkOf("fan@example.com");
@@ -115,7 +114,7 @@ describe("subscribe", () => {
     assert.ok(token);
   });
 
-  it("sends nothing when the address is already confirmed", async () => {
+  it("answers an address already on the list like a new one", async () => {
     stubFetch((url) => {
       if (url.includes("/segments/")) {
         return okJson({
@@ -127,12 +126,15 @@ describe("subscribe", () => {
       return failRes();
     });
     const res = await onRequestPost(postContext({ email: "fan@example.com" }));
-    assert.deepEqual(await res.json(), {
-      ok: true,
-      already: true,
-      emailed: true,
-    });
-    assert.equal(sentEmails().length, 0);
+    // Same status and body as a new join: nothing tells a stranger the
+    // address is subscribed.
+    assert.equal(res.status, 201);
+    assert.deepEqual(await res.json(), { ok: true, emailed: true });
+    // Its inbox hears it's already on the list, with no confirm link.
+    const sent = sentEmails();
+    assert.equal(sent.length, 1);
+    assert.match(sent[0].subject, /already on the studio list/);
+    assert.doesNotMatch(sent[0].text, /token=/);
   });
 });
 
