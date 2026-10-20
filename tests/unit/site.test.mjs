@@ -6,7 +6,21 @@ import {
   isPublished,
   isTitleTaken,
   metaDescription,
+  pageTitle,
 } from "../../src/lib/site.ts";
+
+describe("pageTitle", () => {
+  it("adds the artist's name once", () => {
+    assert.equal(pageTitle("Thank you"), "Thank you — Barbara Straka");
+    assert.equal(
+      pageTitle("Night Reeds by Barbara Straka — Original Painting"),
+      "Night Reeds by Barbara Straka — Original Painting",
+    );
+  });
+  it("leaves studio titles alone", () => {
+    assert.equal(pageTitle("Admin - Email", true), "Admin - Email");
+  });
+});
 
 describe("metaDescription", () => {
   it("uses the description as plain text", () => {
