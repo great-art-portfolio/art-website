@@ -438,7 +438,6 @@ const currentSection = adminSection(Astro.url.pathname);
         if (form === null || input === null || hint === null) return;
         if (form.dataset.wired === "1") return;
         form.dataset.wired = "1";
-        loadNotifyTurnstile();
         form.addEventListener("submit", (e) => {
           e.preventDefault();
           const email = input.value.trim();
@@ -734,7 +733,9 @@ const currentSection = adminSection(Astro.url.pathname);
             });
           }
         }
-        if (dlg !== null) void paintNotify();
+        // Nothing loads for the box until it opens: openNotify paints it
+        // and starts the spam check, so a plain visit fetches neither the
+        // push module (zod) nor Cloudflare's script.
       }
 
       initNotify();
