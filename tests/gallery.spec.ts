@@ -714,3 +714,35 @@ test("a saved inquiry survives an expired spam check and sends later", async ({
   await page.waitForTimeout(1000);
   expect(bodies.length).toBe(3);
 });
+
+test("every gallery painting fills its mat, edge to edge", async ({
+  browser,
+}) => {
+  // Images are width: auto, so the browser draws them at the width sizes
+  // names. A sizes value below the slot left a wide empty mat beside the
+  // painting.
+  for (const width of [960, 1100, 1280, 1875]) {
+    const context = await browser.newContext({
+      viewport: { width, height: 1000 },
+    });
+    const page = await context.newPage();
+    await page.goto("/");
+    const gaps = await page.evaluate(() =>
+      [...document.querySelectorAll("#gallery-static .mat")].map((mat) => {
+        const img = mat.querySelector("img");
+        if (!(mat instanceof HTMLElement) || img === null) return 0;
+        const cs = getComputedStyle(mat);
+        const inner =
+          mat.clientWidth -
+          parseFloat(cs.paddingLeft) -
+          parseFloat(cs.paddingRight);
+        const r = img.getBoundingClientRect();
+        // A tall painting may stop at its height cap instead.
+        const capped = r.height >= window.innerHeight * 0.8 - 1;
+        return capped ? 0 : Math.round(inner - r.width);
+      }),
+    );
+    for (const gap of gaps) expect(gap, `${width}px`).toBeLessThanOrEqual(2);
+    await context.close();
+  }
+});

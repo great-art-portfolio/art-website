@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import {
   GALLERY_WIDTHS,
   PHOTO_WIDTHS,
+  STAGGER_SPANS,
+  cardSpan,
   SOLD_WIDTHS,
   featuredSizes,
   gallerySizes,
@@ -25,41 +27,37 @@ describe("responsive-images contracts", () => {
     assert.deepEqual(PHOTO_WIDTHS, [640, 960, 1280, 1600]);
   });
 
-  it("sizes() match the CSS grid slots", () => {
-    assert.equal(
-      gallerySizes(),
-      "(min-width: 76rem) 460px, (min-width: 60rem) 42vw, (min-width: 40rem) 44vw, 92vw",
-    );
-    assert.equal(
-      gallerySizes("big"),
-      "(min-width: 76rem) 680px, (min-width: 60rem) 62vw, 92vw",
-    );
-    assert.equal(gallerySizes("wide"), gallerySizes("big"));
-    assert.equal(gallerySizes("big-wide"), "(min-width: 76rem) 1170px, 92vw");
+  it("each gallery card asks for its exact stagger slot", () => {
+    // Measured in a browser at 1280px: 7, 5 and 4-column cards are 693,
+    // 483 and 379px wide.
+    const widest = (s) =>
+      Number(s.match(/^\(min-width: 1264px\) (\d+)px/)?.[1]);
+    assert.equal(widest(gallerySizes("normal", 0)), 693);
+    assert.equal(widest(gallerySizes("normal", 1)), 483);
+    assert.equal(widest(gallerySizes("normal", 2)), 379);
+    assert.equal(widest(gallerySizes("normal", 6)), 693);
+    assert.equal(widest(gallerySizes("normal", 11)), 483);
+    assert.equal(widest(gallerySizes("big", 2)), 797);
+    assert.equal(widest(gallerySizes("wide", 0)), 797);
+    assert.equal(widest(gallerySizes("big-wide", 3)), 1216);
+    assert.equal(widest(soldSizes()), 384);
+  });
+
+  it("stagger spans fill whole rows", () => {
+    assert.deepEqual(STAGGER_SPANS, [7, 5, 4, 4, 4, 5, 7, 4, 4, 4]);
+    assert.equal(cardSpan("normal", 0) + cardSpan("normal", 1), 12);
+    assert.equal(cardSpan("big", 5), 8);
+  });
+
+  it("featured and photo sizes cap at the page width", () => {
     assert.equal(
       featuredSizes(),
       "(min-width: 76rem) 530px, (min-width: 60rem) 44vw, 92vw",
     );
     assert.equal(
-      soldSizes(),
-      "(min-width: 76rem) 270px, (min-width: 60rem) 22vw, (min-width: 40rem) 44vw, 92vw",
-    );
-    assert.equal(
       photoSizes(),
       "(min-width: 76rem) 600px, (min-width: 60rem) 55vw, (min-width: 38rem) 600px, 92vw",
     );
-  });
-
-  it("sizes() cap at the 76rem page width", () => {
-    for (const s of [
-      gallerySizes(),
-      gallerySizes("big"),
-      gallerySizes("big-wide"),
-      featuredSizes(),
-      soldSizes(),
-      photoSizes(),
-    ])
-      assert.match(s, /^\(min-width: 76rem\) \d+px, /);
   });
 });
 

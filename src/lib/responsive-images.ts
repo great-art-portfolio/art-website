@@ -1,7 +1,13 @@
-/** Responsive image sizes. Update these when the CSS grid changes. The
- * page stops growing at 76rem, so each list starts with the fixed width a
- * slot keeps from there on; without it a 1920px screen fetches nearly
- * twice the pixels it shows. */
+/** Responsive image sizes. Update these when the CSS grid changes.
+ *
+ * Gallery images are `width: auto` inside their mat, so the browser draws
+ * them at the width `sizes` names, capped by the slot. A value below the
+ * real slot leaves a wide empty mat beside the painting; one above it only
+ * downloads a few more pixels. So each card's sizes is its exact slot.
+ *
+ * Grid geometry (Gallery.astro, Layout): the grid is the page width minus
+ * 48px of side padding, up to 1216px (reached at a 1264px window), with
+ * 40px gaps; the sold grid uses 32px gaps. */
 
 import type { Tile } from "./gallery-layout";
 
@@ -9,14 +15,36 @@ export const GALLERY_WIDTHS = [400, 700, 1000, 1400];
 export const SOLD_WIDTHS = [400, 700];
 export const PHOTO_WIDTHS = [640, 960, 1280, 1600];
 
-/** Available cards: one column on mobile, two on tablet, then the
- * staggered 12-column grid. Big and wide paintings take 8 columns (both on
- * tablet); big-wide takes the row. */
-export function gallerySizes(tile: Tile = "normal"): string {
-  if (tile === "big-wide") return "(min-width: 76rem) 1170px, 92vw";
-  if (tile === "big" || tile === "wide")
-    return "(min-width: 76rem) 680px, (min-width: 60rem) 62vw, 92vw";
-  return "(min-width: 76rem) 460px, (min-width: 60rem) 42vw, (min-width: 40rem) 44vw, 92vw";
+const MAX_GRID = 1216;
+const WIDEST = "(min-width: 1264px)";
+const GAP = 40;
+
+/** Desktop column spans of the repeating 10-card stagger (7+5, 4+4+4,
+ * 5+7, 4+4+4), in DOM order. */
+export const STAGGER_SPANS = [7, 5, 4, 4, 4, 5, 7, 4, 4, 4] as const;
+
+/** Columns (of 12) a card takes on desktop. Size beats the pattern. */
+export function cardSpan(tile: Tile, index: number): number {
+  if (tile === "big-wide") return 12;
+  if (tile === "big" || tile === "wide") return 8;
+  return STAGGER_SPANS[index % STAGGER_SPANS.length] ?? 4;
+}
+
+/** Width of a slot spanning `span` of 12 columns in a grid `grid` wide. */
+function slot(grid: number, span: number): number {
+  return Math.round(((grid - 11 * GAP) / 12) * span + GAP * (span - 1));
+}
+
+/** Available cards: one column on phones, two from 40rem (bigger
+ * paintings take both), then the 12-column stagger from 60rem. */
+export function gallerySizes(tile: Tile = "normal", index = 0): string {
+  const span = cardSpan(tile, index);
+  const fraction = (span / 12).toFixed(4);
+  const extra = Math.round(GAP * (span - 1) - (11 * GAP * span) / 12);
+  const desktop = `calc((100vw - 48px) * ${fraction} ${extra < 0 ? "-" : "+"} ${Math.abs(extra)}px)`;
+  const tablet =
+    tile === "normal" ? "calc((100vw - 88px) / 2)" : "calc(100vw - 48px)";
+  return `${WIDEST} ${slot(MAX_GRID, span)}px, (min-width: 60rem) ${desktop}, (min-width: 40rem) ${tablet}, calc(100vw - 48px)`;
 }
 
 /** The newest painting beside the homepage headline: about half the
@@ -25,9 +53,9 @@ export function featuredSizes(): string {
   return "(min-width: 76rem) 530px, (min-width: 60rem) 44vw, 92vw";
 }
 
-/** Sold archive: smaller cards in two or three columns. */
+/** Sold archive: two columns, three from 60rem, 32px gaps. */
 export function soldSizes(): string {
-  return "(min-width: 76rem) 270px, (min-width: 60rem) 22vw, (min-width: 40rem) 44vw, 92vw";
+  return `${WIDEST} ${Math.round((MAX_GRID - 64) / 3)}px, (min-width: 60rem) calc((100vw - 112px) / 3), calc((100vw - 80px) / 2)`;
 }
 
 /** Painting detail photo: about 55vw beside the info column from 60rem;
