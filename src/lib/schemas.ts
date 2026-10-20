@@ -191,8 +191,6 @@ export const notifyStatusSchema = z.object({
 
 export const localBackendSchema = z.object({ local: z.unknown().optional() });
 
-export const pushConfigSchema = z.object({ publicKey: z.string() });
-
 /** Commit POST response, the same from Pages and the local content API. */
 export const commitSchema = z.object({
   ok: z.literal(true),

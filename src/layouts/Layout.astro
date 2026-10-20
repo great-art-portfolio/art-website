@@ -732,9 +732,9 @@ const currentSection = adminSection(Astro.url.pathname);
             });
           }
         }
-        // Nothing loads for the box until it opens: openNotify paints it
-        // and starts the spam check, so a plain visit fetches neither the
-        // push module (zod) nor Cloudflare's script.
+        // Paint now so the box opens settled. The push module is small;
+        // Cloudflare's spam check waits for the box to open.
+        if (dlg !== null) void paintNotify();
       }
 
       initNotify();
