@@ -2,3 +2,8 @@
 # downgrade attacks. No includeSubDomains, so it applies to this host only.
 /*
   Strict-Transport-Security: max-age=31536000
+
+# Build output under /_astro has a content hash in every name, so a file
+# never changes: browsers keep it a year instead of rechecking every 4 hours.
+/_astro/*
+  Cache-Control: public, max-age=31536000, immutable

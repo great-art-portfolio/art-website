@@ -7,7 +7,6 @@ import "@fontsource/caveat/600.css";
 // axis gives display sizes their high-contrast cut; only the Latin files
 // a page uses are downloaded.
 import "@fontsource-variable/fraunces/opsz.css";
-import "@fontsource-variable/fraunces/opsz-italic.css";
 import Analytics from "../components/Analytics.astro";
 import Signature from "../components/Signature.astro";
 import AdminWordmark from "../components/AdminWordmark.astro";
@@ -97,7 +96,7 @@ const currentSection = adminSection(Astro.url.pathname);
     />
     <meta name="description" content={description} />
     {noindex && <meta name="robots" content="noindex" />}
-    <link rel="canonical" href={canonical} />
+    <link rel="canonical" href={new URL(canonical, SITE_URL).href} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
@@ -138,7 +137,10 @@ const currentSection = adminSection(Astro.url.pathname);
       class="site-header"
       data-scroll-bar={wordmark === "admin" ? undefined : ""}
     >
-      <nav class="site-nav" aria-label="Main">
+      <nav
+        class:list={["site-nav", { studio: wordmark === "admin" }]}
+        aria-label="Main"
+      >
         <a
           href={wordmark === "admin" ? "/admin" : "/"}
           id="signature"
@@ -435,7 +437,6 @@ const currentSection = adminSection(Astro.url.pathname);
         if (form === null || input === null || hint === null) return;
         if (form.dataset.wired === "1") return;
         form.dataset.wired = "1";
-        loadNotifyTurnstile();
         form.addEventListener("submit", (e) => {
           e.preventDefault();
           const email = input.value.trim();
@@ -731,6 +732,8 @@ const currentSection = adminSection(Astro.url.pathname);
             });
           }
         }
+        // Paint now so the box opens settled. The push module is small;
+        // Cloudflare's spam check waits for the box to open.
         if (dlg !== null) void paintNotify();
       }
 
@@ -986,6 +989,20 @@ const currentSection = adminSection(Astro.url.pathname);
   .nav-links a[aria-current="page"] {
     opacity: 1;
     text-decoration-color: currentColor;
+  }
+  /* Seven studio sections plus Leave and the CTA need about 55rem, so
+     narrower screens (iPad portrait) give them their own row under the
+     wordmark instead of running off the edge. */
+  @media (max-width: 60rem) {
+    .site-nav.studio {
+      flex-wrap: wrap;
+      row-gap: 0.5rem;
+    }
+    .site-nav.studio .nav-links {
+      flex: 1 0 100%;
+      flex-wrap: wrap;
+      row-gap: 0.35rem;
+    }
   }
   /* The home link shows only its arrow on phones. */
   #leave-admin .leave-short {
@@ -1301,6 +1318,11 @@ const currentSection = adminSection(Astro.url.pathname);
        fonts overflow 390px. */
     .nav-links a.sec {
       font-size: 0.8rem;
+      /* Small text, but a finger-sized target. */
+      padding-block: 0.45rem;
+    }
+    #leave-admin {
+      padding: 0.45rem 0.6rem;
     }
     #leave-admin .leave-full {
       display: none;
@@ -1411,6 +1433,8 @@ const currentSection = adminSection(Astro.url.pathname);
       --primary: #ece5d8;
       --primary-ink: #171512;
       --primary-hover: #fbf6ee;
+      /* White on the lighter dark-mode accent is 3:1; dark ink is 6:1. */
+      --accent-ink: #171512;
       --card: #211c16;
       --wash: radial-gradient(
         120% 60% at 50% -10%,

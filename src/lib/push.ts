@@ -3,8 +3,6 @@
  * desktop browsers, and iOS Safari 16.4+ when added to the home screen.
  */
 
-import { pushConfigSchema } from "./schemas";
-
 export type PushState =
   "unsupported" | "denied" | "subscribed" | "unsubscribed";
 
@@ -63,8 +61,16 @@ export async function subscribePush(): Promise<SubscribeResult> {
     // real failure.
     if (!cfgRes.ok) return "unavailable";
     const raw = (await cfgRes.json()) as unknown;
-    const parsed = pushConfigSchema.safeParse(raw);
-    if (!parsed.success || parsed.data.publicKey === "") return "failed"; // Server keys not set up yet.
+    // Checked by hand, not with zod: every public page loads this module,
+    // and zod would add 90 KB for one string.
+    const publicKey =
+      typeof raw === "object" &&
+      raw !== null &&
+      "publicKey" in raw &&
+      typeof raw.publicKey === "string"
+        ? raw.publicKey
+        : "";
+    if (publicKey === "") return "failed"; // Server keys not set up yet.
     stage = "permission";
     const permission = await Notification.requestPermission();
     if (permission === "default") return "cancelled";
@@ -75,7 +81,7 @@ export async function subscribePush(): Promise<SubscribeResult> {
       (await reg.pushManager.getSubscription()) ??
       (await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: b64ToU8(parsed.data.publicKey),
+        applicationServerKey: b64ToU8(publicKey),
       }));
     stage = "store";
     const res = await fetch("/api/push", {

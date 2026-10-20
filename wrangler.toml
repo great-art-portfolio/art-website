@@ -6,7 +6,8 @@ compatibility_date = "2025-03-20"
 # Non-secret config lives here (this file is git).
 # Secrets go in Cloudflare dashboard (Pages → art-website → Settings → EnvVars)
 [vars]
-NODE_VERSION = "22.12.0"
+# Pages build Node (Astro 7.4 needs 22.22+); CI uses 24 too.
+NODE_VERSION = "24"
 # Git publishing from /admin. Secret: GITHUB_TOKEN (`wrangler pages secret put`).
 GITHUB_REPO = "great-art-portfolio/art-website"
 GITHUB_BRANCH = "main"

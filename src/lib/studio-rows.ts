@@ -79,9 +79,8 @@ export function studioRowHtml(r: StudioRowInput): string {
   return (
     `<li class="row-card">${photo}<span class="row-body">` +
     `<a class="row-title" href="${viewHref}"><strong>${esc(r.title)}</strong></a>` +
-    `<span> — ${price}</span>` +
-    schedule +
-    views +
+    // Price, schedule, and views share one line under the title.
+    `<span class="row-meta">${price}${schedule}${views}</span>` +
     `<span class="row-actions">${actions}</span></span></li>`
   );
 }
