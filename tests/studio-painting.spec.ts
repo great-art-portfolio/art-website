@@ -505,7 +505,7 @@ test("buyer pages canonicalize to the title slug", async ({ page }) => {
   await page.goto("/paintings/first-thaw");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
     "href",
-    "/paintings/first-thaw",
+    "https://barbart.ca/paintings/first-thaw",
   );
   await expect(page.locator('meta[name="robots"]')).toHaveCount(0);
 });
