@@ -1356,6 +1356,32 @@ test("visitors see zero admin chrome", async ({ page }) => {
   await expect(page.locator('nav a[href="/#notify"]')).toHaveCount(0);
 });
 
+test("studio header fits a tablet without sideways scroll", async ({
+  browser,
+}) => {
+  // Seven sections plus Leave and Add painting overran an 820px iPad by
+  // about 60px, pushing Add painting off screen.
+  for (const width of [600, 820, 960]) {
+    const context = await browser.newContext({
+      viewport: { width, height: 1000 },
+    });
+    const page = await context.newPage();
+    await page.goto("/admin");
+    const overflow = await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth -
+        document.documentElement.clientWidth,
+    );
+    expect(overflow, `${width}px`).toBeLessThanOrEqual(0);
+    const cta = await page
+      .locator('.nav-links a.nav-cta[href="/admin/paintings/new"]')
+      .boundingBox();
+    expect(cta?.x ?? 0).toBeGreaterThanOrEqual(0);
+    expect((cta?.x ?? 0) + (cta?.width ?? 0)).toBeLessThanOrEqual(width);
+    await context.close();
+  }
+});
+
 test("studio dashboard grids without sideways scroll on a phone", async ({
   browser,
 }) => {
