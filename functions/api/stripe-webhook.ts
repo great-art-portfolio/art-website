@@ -5,13 +5,19 @@ import { badRequest, json, serverError } from "../_lib/http";
 import { artistInbox, sendSiteEmail } from "../_lib/notify";
 import { isPaidSale, saleEmail, verifyStripeSignature } from "../_lib/stripe";
 import { parseStripeEvent } from "../_lib/validation";
-import { markSold, parsePainting } from "../../src/lib/painting-edit";
+import {
+  markSold,
+  parsePainting,
+  soldSessionOf,
+} from "../../src/lib/painting-edit";
 
 /**
  * Stripe webhook: a paid checkout marks the painting `sold: true` with a
  * commit, like a studio save, so it can't sell twice, then emails the
  * artist the buyer and shipping address. A failed commit answers 500 so
- * Stripe retries. Other events are acknowledged and ignored.
+ * Stripe retries. Other events are acknowledged and ignored. The commit
+ * records the session, so a repeat delivery of the same sale is
+ * acknowledged quietly instead of emailing her to refund the real buyer.
  */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   const { env, request } = context;
@@ -34,6 +40,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
 
   const file = event.data.object.metadata?.["painting_file"] ?? "";
   const title = event.data.object.metadata?.["painting_title"] ?? file;
+  const session = event.data.object.id;
   let alreadySold = false;
   const config = gitConfig(env);
   if (!PAINTING_FILE.test(file)) {
@@ -46,10 +53,12 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       if (md === null) {
         console.error("sold painting file is missing:", file);
       } else if (parsePainting(md)?.sold === true) {
+        if (soldSessionOf(md) === session)
+          return json({ ok: true, duplicate: true });
         alreadySold = true;
       } else {
         await commitFiles(config, `Sold online: ${title}`, [
-          { path: file, content: markSold(md) },
+          { path: file, content: markSold(md, session) },
         ]);
       }
     } catch (err) {

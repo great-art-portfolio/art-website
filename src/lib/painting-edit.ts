@@ -215,8 +215,18 @@ export function setTrash(
 }
 
 /** Marks a painting sold after an online payment. Other keys are kept. */
-export function markSold(md: string): string {
-  return patchKey(md, "sold", "true");
+export function markSold(md: string, session = ""): string {
+  const sold = patchKey(md, "sold", "true");
+  return session === ""
+    ? sold
+    : patchKey(sold, "soldSession", yamlQuote(session));
+}
+
+/** The Stripe checkout session that sold the painting, or "". */
+export function soldSessionOf(md: string): string {
+  const m = md.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  const line = m?.[1]?.match(/^soldSession:(.*)$/m);
+  return line === null || line === undefined ? "" : unquote(line[1] ?? "");
 }
 
 /** Rewrites one frontmatter key in place, preserving the other lines. */

@@ -11,6 +11,9 @@ const paintings = defineCollection({
       image: image(), // Validates and imports the image as an asset
       alt: z.string(),
       sold: z.boolean(),
+      // Stripe checkout session that sold it online, so a repeated webhook
+      // delivery isn't mistaken for a second buyer.
+      soldSession: z.string().optional(),
       price: z.number().positive(),
       // Gallery position, set by dragging rows on /admin. Unordered
       // paintings sort after ordered ones, alphabetically.

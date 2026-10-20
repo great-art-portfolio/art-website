@@ -292,6 +292,7 @@ describe("POST /api/stripe-webhook", () => {
       "base64",
     ).toString();
     assert.match(written, /^sold: true$/m);
+    assert.match(written, /^soldSession: "cs_test_1"$/m);
     assert.equal(calls.trees[0].tree[0].path, item.file);
     assert.equal(calls.emails[0].to[0], "artist@resend.dev");
     assert.equal(calls.emails[0].reply_to, "ada@resend.dev");
@@ -302,6 +303,13 @@ describe("POST /api/stripe-webhook", () => {
     assert.deepEqual(await res.json(), { ok: true, alreadySold: true });
     assert.equal(calls.trees.length, 0);
     assert.match(calls.emails[0].subject, /^Check this sale/);
+  });
+  it("acknowledges a repeat delivery of the same sale quietly", async () => {
+    const calls = stubServices(markSold(md, "cs_test_1"));
+    const res = await webhook({ request: webhookRequest(paidEvent()), env });
+    assert.deepEqual(await res.json(), { ok: true, duplicate: true });
+    assert.equal(calls.trees.length, 0);
+    assert.equal(calls.emails.length, 0);
   });
   it("rejects unsigned requests", async () => {
     const calls = stubServices(md);
