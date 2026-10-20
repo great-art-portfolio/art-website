@@ -110,9 +110,11 @@ test("dev confirm link visits instead of copying", async ({ page }) => {
 test("notify box validates before sending", async ({ page }) => {
   await page.goto("/");
   await page.locator("#notify-nav").click();
-  // The drawer's async push check writes the shared hint once. Wait for it
-  // so it doesn't overwrite the validation message below.
-  await expect(page.locator("#notify-status")).toContainText("blocked");
+  // Wait for the async push check to settle before validating.
+  await expect(page.locator("#notify-dialog")).toHaveAttribute(
+    "data-push",
+    /./,
+  );
   // "missing@tld" passes the browser's email check but fails the site's
   // stricter one, so the message comes from the page script.
   await page.locator("#notify-email").fill("missing@tld");
