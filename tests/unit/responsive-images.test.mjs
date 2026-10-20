@@ -46,7 +46,7 @@ describe("responsive-images contracts", () => {
     );
     assert.equal(
       photoSizes(),
-      "(min-width: 76rem) 600px, (min-width: 48rem) 55vw, 92vw",
+      "(min-width: 76rem) 600px, (min-width: 60rem) 55vw, (min-width: 38rem) 600px, 92vw",
     );
   });
 
