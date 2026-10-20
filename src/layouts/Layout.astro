@@ -256,44 +256,37 @@ const currentSection = adminSection(selfPath);
             </svg>
           </button>
         </form>
-        <h3 id="notify-dialog-title">Never miss a new painting</h3>
-        <p id="notify-push-blurb">
-          One tap — your browser tells you when something new is hung.
+        <h2 id="notify-dialog-title">Never miss a new painting</h2>
+        <p>
+          Get an email when a new painting is hung or an event comes up.
+          Unsubscribe any time with one click.
         </p>
-        <button type="button" id="notify-btn" class="btn-primary">
-          Notify me with this browser
-        </button>
-        <p class="hint" id="notify-push-note" role="status" hidden>
-          Browser push notifications aren't enabled. Check your browser
-          settings, then close and reopen this box and try again.
-        </p>
-        <div class="email-capture">
-          <p>
-            Stay in the loop on new paintings and events. Unsubscribe any time
-            with one click.
-          </p>
-          <form id="notify-email-form">
-            <label>
-              Email address
-              <input
-                type="email"
-                id="notify-email"
-                name="email"
-                required
-                maxlength="254"
-                autocomplete="email"
-                placeholder="you@example.com"
-              />
-            </label>
-            <div id="notify-turnstile-mount" />
-            <button type="submit" class="btn-ghost">
-              Join the list <span aria-hidden="true">📬</span>
+        <form id="notify-email-form" class="email-capture">
+          <label>
+            Email address
+            <input
+              type="email"
+              id="notify-email"
+              name="email"
+              required
+              maxlength="254"
+              autocomplete="email"
+              placeholder="you@example.com"
+            />
+          </label>
+          <div id="notify-turnstile-mount" />
+          <button type="submit" class="btn-primary">
+            Join the list <span aria-hidden="true">📬</span>
+          </button>
+          <div class="notify-more">
+            <button type="button" id="notify-btn" class="text-btn" hidden>
+              Or get alerts in this browser
             </button>
-            <button type="button" id="notify-email-leave" class="btn-ghost">
-              Leave the list <span aria-hidden="true">📭</span>
+            <button type="button" id="notify-email-leave" class="text-btn">
+              Leave the list
             </button>
-          </form>
-        </div>
+          </div>
+        </form>
         <div class="status-wrap" id="notify-status-wrap">
           <p class="hint" id="notify-status" role="status" />
         </div>
@@ -553,56 +546,28 @@ const currentSection = adminSection(selfPath);
       }
 
       // Opening the modal repaints while an earlier paint may still be
-      // waiting on push state, so only the latest run writes. A failed push
-      // service hides the button until the modal is reopened.
+      // waiting on push state, so only the latest run writes. Browser
+      // alerts are a quiet second line under the email form, offered only
+      // where they can work: unsupported, blocked, or a push service that
+      // failed this visit hides the line, and email covers everyone. A
+      // reopen offers it again. data-push marks the paint as settled.
       let paintSeq = 0;
       let pushDeadThisVisit = false;
       async function paintNotify() {
         const btnEl = document.getElementById("notify-btn");
         const btn = btnEl instanceof HTMLButtonElement ? btnEl : null;
-        const hint = document.getElementById("notify-status");
-        const blurb = document.getElementById("notify-push-blurb");
-        const noteEl = document.getElementById("notify-push-note");
-        const note = noteEl instanceof HTMLElement ? noteEl : null;
-        if (btn === null || hint === null) return;
+        const dlg = document.getElementById("notify-dialog");
+        if (btn === null || dlg === null) return;
         wireNotifyEmail();
-        // Show the push button only where push is supported.
         const run = ++paintSeq;
         const s = await notifyPush().then((api) => api.pushState());
         if (run !== paintSeq) return;
-        if (s === "unsupported") {
-          btn.hidden = true;
-          if (blurb !== null) blurb.hidden = true;
-          return;
-        }
-        // Push failed earlier in this visit. Hide the button and show the
-        // note on what to check.
-        if (pushDeadThisVisit) {
-          btn.hidden = true;
-          if (blurb !== null) blurb.hidden = true;
-          if (note !== null) note.hidden = false;
-          notifyUnsay(hint);
-          return;
-        }
-        btn.hidden = false;
-        if (blurb !== null) blurb.hidden = false;
-        if (note !== null) note.hidden = true;
-        if (s === "subscribed") {
-          btn.textContent = "Notifying this browser — turn off";
-          notifyUnsay(hint);
-        } else if (s === "denied") {
-          btn.textContent = "Browser notifications blocked";
-          btn.disabled = true;
-          notifySay(
-            hint,
-            "Notifications for this site are blocked. Go to your browser settings and reset permissions for this website.",
-            true,
-          );
-        } else {
-          btn.textContent = "Notify me with this browser";
-          btn.disabled = false;
-          notifyUnsay(hint);
-        }
+        btn.hidden = s === "unsupported" || s === "denied" || pushDeadThisVisit;
+        btn.textContent =
+          s === "subscribed"
+            ? "This browser alerts you · turn off"
+            : "Or get alerts in this browser";
+        dlg.dataset.push = s;
       }
 
       // Toast for the signup card, used for copy confirmations so they
@@ -695,15 +660,15 @@ const currentSection = adminSection(selfPath);
                     // Repaint before reporting. The repaint clears the
                     // "Waiting…" line, and the result is written last.
                     void api.subscribePush().then(async (result) => {
-                      // The repaint shows the push-service note instead.
-                      if (result === "nopushservice") {
-                        pushDeadThisVisit = true;
-                        await paintNotify();
-                        return;
-                      }
+                      if (result === "nopushservice") pushDeadThisVisit = true;
                       await paintNotify();
                       if (hint === null) return;
-                      if (result === "subscribed") {
+                      if (result === "nopushservice") {
+                        notifySay(
+                          hint,
+                          "This browser can't do alerts — email works everywhere.",
+                        );
+                      } else if (result === "subscribed") {
                         notifySay(
                           hint,
                           "You're on the list — this browser will alert you.",
@@ -711,7 +676,10 @@ const currentSection = adminSection(selfPath);
                       } else if (result === "cancelled") {
                         notifySay(hint, "Request cancelled.");
                       } else if (result === "blocked") {
-                        // paintNotify already shows the message.
+                        notifySay(
+                          hint,
+                          "Your browser blocked alerts — email works everywhere.",
+                        );
                       } else if (result === "unavailable") {
                         notifySay(
                           hint,
@@ -1060,10 +1028,11 @@ const currentSection = adminSection(selfPath);
   #notify-dialog::backdrop {
     background: rgba(0, 0, 0, 0.6);
   }
-  #notify-dialog h3 {
-    margin: 0 0 0.4rem;
-    font-size: 1.2rem;
+  #notify-dialog h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1.45rem;
     font-weight: 500;
+    line-height: 1.2;
   }
   #notify-dialog p {
     margin: 0 0 1rem;
@@ -1098,14 +1067,6 @@ const currentSection = adminSection(selfPath);
     #notify-dialog .status-wrap {
       transition: none;
     }
-  }
-  /* The push-service note uses the accent color and doesn't fade, since
-     acting on it means visiting the browser's settings and coming back. */
-  #notify-dialog #notify-push-note {
-    margin: 0.6rem 0 0;
-    font-size: 0.9rem;
-    line-height: 1.5;
-    color: var(--accent);
   }
   /* Tapping the status line copies it, so it gets the copy cursor. The
      toast overlays the bottom of the card and ignores clicks. */
@@ -1152,7 +1113,7 @@ const currentSection = adminSection(selfPath);
     right: 0.75rem;
     margin: 0;
   }
-  #notify-dialog h3 {
+  #notify-dialog h2 {
     padding-right: 2.5rem;
   }
   .notify-close-row button {
@@ -1178,8 +1139,7 @@ const currentSection = adminSection(selfPath);
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
-  #notify-dialog .btn-primary,
-  #notify-dialog .btn-ghost {
+  #notify-dialog .btn-primary {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1206,67 +1166,74 @@ const currentSection = adminSection(selfPath);
     border-color: var(--primary-hover);
     color: var(--primary-ink);
   }
-  #notify-dialog .btn-ghost {
-    border: 1px solid var(--line);
-    color: var(--ink);
-    background: transparent;
-  }
-  #notify-dialog .btn-ghost:hover {
-    border-color: var(--ink);
-  }
-  #notify-dialog .btn-primary:focus-visible,
-  #notify-dialog .btn-ghost:focus-visible {
+  #notify-dialog .btn-primary:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
-  /* The author display rule overrides the UA [hidden] rule, so re-hide. */
-  #notify-dialog #notify-btn[hidden],
-  #notify-dialog #notify-push-blurb[hidden] {
-    display: none;
-  }
+  /* The email field and Join take full rows. Under them, browser alerts
+     and Leave are quiet text buttons sharing one line, since email is the
+     way most people sign up. */
   #notify-dialog .email-capture {
-    margin-top: 1.5rem;
-    padding-top: 1.25rem;
-    border-top: 1px solid var(--line);
+    display: grid;
+    gap: 1rem;
   }
-  /* The email field takes a full row. Join and Leave split the row below
-     it, and stack when there isn't room for both. */
-  #notify-dialog .email-capture form {
-    display: flex;
-    flex-wrap: wrap;
-    /* More space above the buttons than between them. */
-    column-gap: 0.5rem;
-    row-gap: 1rem;
-    align-items: end;
-  }
-  /* The Turnstile mount is in the button row. Empty, it would still take
-     a gap's worth of space, so hide it until the widget loads. Once
-     loaded, it takes a full row of its own. */
-  #notify-dialog #notify-turnstile-mount {
-    flex: 1 1 100%;
-    min-width: 0;
-  }
+  /* Empty, the Turnstile mount would still take a gap's worth of space,
+     so hide it until the widget loads. */
   #notify-dialog #notify-turnstile-mount:empty {
     display: none;
   }
   #notify-dialog .email-capture label {
     display: grid;
     gap: 0.3rem;
-    flex: 1 1 100%;
     min-width: 0;
     font-size: 0.88rem;
     font-weight: 600;
   }
-  #notify-dialog .email-capture .btn-ghost {
-    flex: 1 1 9rem;
+  #notify-dialog .email-capture .btn-primary {
     /* Fixed height, not min-height. The emoji makes the line box taller
-       than 3rem, which would leave the button 4px taller than the field. */
+       than 3rem, which would leave the button taller than the field. */
     height: 3rem;
-    /* Narrower padding than the modal default, with a gap between the
-       emoji and the text. */
-    padding-left: 1rem;
-    padding-right: 1rem;
     gap: 0.4rem;
+  }
+  #notify-dialog .notify-more {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.25rem 1rem;
+    margin-top: -0.25rem;
+  }
+  #notify-dialog .text-btn {
+    /* Tall enough to tap; the text itself stays small. */
+    min-height: 2.75rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.9rem;
+    text-decoration: underline;
+    text-decoration-color: var(--line);
+    text-underline-offset: 3px;
+    cursor: pointer;
+    transition:
+      color 0.2s ease,
+      text-decoration-color 0.2s ease;
+  }
+  #notify-dialog .text-btn:hover {
+    color: var(--ink);
+    text-decoration-color: currentColor;
+  }
+  #notify-dialog .text-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+  /* Leave keeps the right end even when the alerts line is hidden. */
+  #notify-dialog #notify-email-leave {
+    margin-left: auto;
+  }
+  #notify-dialog .text-btn[hidden] {
+    display: none;
   }
   #notify-dialog .email-capture input {
     font: inherit;

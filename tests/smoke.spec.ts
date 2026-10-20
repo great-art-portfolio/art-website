@@ -123,9 +123,11 @@ test("notify buttons open the signup modal", async ({ page }) => {
   for (const opener of ["#notify-nav", "#notify-hero"]) {
     await page.locator(opener).click();
     await expect(page.locator("#notify-dialog")).toBeVisible();
-    // The signup responds. Headless denies notification permission, so the
-    // button shows its blocked state.
-    await expect(page.locator("#notify-btn")).toBeAttached();
+    // The signup responds: the push paint settles.
+    await expect(page.locator("#notify-dialog")).toHaveAttribute(
+      "data-push",
+      /./,
+    );
     await expect(page).not.toHaveURL(/#notify-card/);
     await page.locator("#notify-close").click();
     await expect(page.locator("#notify-dialog")).toBeHidden();
@@ -144,9 +146,12 @@ test("email capture form answers in accent", async ({ page }) => {
   // The email option shows in every browser, with or without push support.
   await expect(page.locator("#notify-email-form")).toBeVisible();
   // A bad address fails client-side, so this works with the real list, the
-  // dev mock, or no backend. Headless denies notification permission; wait
-  // for that update first so it doesn't overwrite the validation message.
-  await expect(page.locator("#notify-status")).toContainText("blocked");
+  // dev mock, or no backend. Wait for the push paint first so it can't
+  // race the validation message.
+  await expect(page.locator("#notify-dialog")).toHaveAttribute(
+    "data-push",
+    /./,
+  );
   await page.locator("#notify-email").fill("missing@tld");
   await page.locator("#notify-email-form button[type=submit]").click();
   await expect(page.locator("#notify-status")).toContainText(
@@ -159,43 +164,50 @@ test("email capture form answers in accent", async ({ page }) => {
   );
 });
 
-test("email field spans full width, join and leave share the row below", async ({
+test("email comes first: field and Join span the card, quiet links below", async ({
   page,
 }) => {
   await page.goto("/");
   await page.locator("#notify-nav").click();
-  // Measure both boxes in one frame. Separate reads can land on either side
-  // of a font swap and report a gap that never existed.
-  const { field, btn } = await page.evaluate(() => {
-    const box = (sel: string): DOMRect =>
-      (document.querySelector(sel) as HTMLElement).getBoundingClientRect();
+  await expect(page.locator("#notify-dialog")).toHaveAttribute(
+    "data-push",
+    /./,
+  );
+  // Measure in one frame. Separate reads can land on either side of a font
+  // swap and report a gap that never existed.
+  const { dialog, field, join, leave } = await page.evaluate(() => {
+    const box = (sel: string) =>
+      (document.querySelector(sel) as HTMLElement)
+        .getBoundingClientRect()
+        .toJSON() as DOMRect;
     return {
-      field: box("#notify-email").toJSON(),
-      btn: box("#notify-email-form button[type=submit]").toJSON(),
+      dialog: box("#notify-dialog"),
+      field: box("#notify-email"),
+      join: box("#notify-email-form button[type=submit]"),
+      leave: box("#notify-email-leave"),
     };
   });
-  // The field spans nearly the full content width of the dialog.
-  const dialog = await page
-    .locator("#notify-dialog")
-    .evaluate((el) => el.getBoundingClientRect().width);
-  expect(field.width).toBeGreaterThan(dialog * 0.7);
-  // Both buttons sit below the field on one line, with Leave right of Join.
-  expect(btn.y).toBeGreaterThanOrEqual(field.y + field.height);
-  const leave = await page
-    .locator("#notify-email-leave")
-    .evaluate((el) => el.getBoundingClientRect().toJSON());
-  expect(Math.abs(btn.height - leave.height)).toBeLessThan(4);
-  const joinBottom = btn.y + btn.height;
-  const leaveBottom = leave.y + leave.height;
-  expect(Math.abs(joinBottom - leaveBottom)).toBeLessThan(4);
-  expect(leave.x).toBeGreaterThan(btn.x + btn.width / 2);
+  expect(field.width).toBeGreaterThan(dialog.width * 0.7);
+  // Join is full width under the field, on one line.
+  expect(join.y).toBeGreaterThanOrEqual(field.y + field.height);
+  expect(Math.abs(join.width - field.width)).toBeLessThan(2);
+  expect(join.height).toBeLessThan(56);
+  // Leave is a small text button under Join, at the right edge.
+  expect(leave.y).toBeGreaterThanOrEqual(join.y + join.height);
+  expect(leave.height).toBeGreaterThanOrEqual(40);
+  expect(Math.abs(leave.x + leave.width - (join.x + join.width))).toBeLessThan(
+    2,
+  );
 });
 
 test("modal status fades away on its own", async ({ page }) => {
   await page.goto("/");
   await page.locator("#notify-nav").click();
-  // Wait for the push status update first (see above), then validate.
-  await expect(page.locator("#notify-status")).toContainText("blocked");
+  // Wait for the push paint first (see above), then validate.
+  await expect(page.locator("#notify-dialog")).toHaveAttribute(
+    "data-push",
+    /./,
+  );
   await page.locator("#notify-email").fill("missing@tld");
   await page.locator("#notify-email-form button[type=submit]").click();
   const hint = page.locator("#notify-status");
@@ -206,8 +218,8 @@ test("modal status fades away on its own", async ({ page }) => {
 test("modal status unfolds the card, then folds away", async ({ page }) => {
   await page.goto("/");
   await page.locator("#notify-nav").click();
-  await expect(page.locator("#notify-status")).toContainText("blocked");
   const dialog = page.locator("#notify-dialog");
+  await expect(dialog).toHaveAttribute("data-push", /./);
   const wrap = page.locator("#notify-status-wrap");
   await page.locator("#notify-email").fill("missing@tld");
   await page.locator("#notify-email-form button[type=submit]").click();
@@ -225,16 +237,44 @@ test("modal status unfolds the card, then folds away", async ({ page }) => {
   expect(end).toBeLessThan(mid);
 });
 
-test("blocked push state stays put, not faded", async ({ page }) => {
-  // Headless denies notification permission, so the modal opens in its
-  // blocked state.
+test("blocked browser alerts leave only the email option", async ({ page }) => {
+  // Headless denies notification permission, so the alerts line is hidden
+  // and nothing tells the visitor off about it.
   await page.goto("/");
   await page.locator("#notify-nav").click();
-  const hint = page.locator("#notify-status");
-  await expect(hint).toContainText("blocked");
-  // After the fade delay, a state that needs action is still shown.
-  await page.waitForTimeout(6000);
-  await expect(hint).toContainText("blocked");
+  await expect(page.locator("#notify-dialog")).toHaveAttribute(
+    "data-push",
+    "denied",
+  );
+  await expect(page.locator("#notify-btn")).toBeHidden();
+  await expect(page.locator("#notify-status")).toBeEmpty();
+  await expect(page.locator("#notify-email-leave")).toBeVisible();
+});
+
+test("browser alerts are one quiet line where they can work", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window.Notification, "permission", {
+      value: "default",
+      configurable: true,
+    });
+  });
+  await page.goto("/");
+  await page.locator("#notify-nav").click();
+  const alerts = page.locator("#notify-btn");
+  await expect(alerts).toBeVisible();
+  await expect(alerts).toHaveText("Or get alerts in this browser");
+  // It shares a line with Leave, under Join.
+  const [a, l] = await page.evaluate(() =>
+    ["#notify-btn", "#notify-email-leave"].map((sel) =>
+      (document.querySelector(sel) as HTMLElement)
+        .getBoundingClientRect()
+        .toJSON(),
+    ),
+  );
+  expect(Math.abs(a.y - l.y)).toBeLessThan(4);
+  expect(l.x).toBeGreaterThan(a.x + a.width);
 });
 
 test("selecting status text never closes the modal", async ({ page }) => {
@@ -245,10 +285,9 @@ test("selecting status text never closes the modal", async ({ page }) => {
   await page.locator("#notify-nav").click();
   const dialog = page.locator("#notify-dialog");
   await expect(dialog).toBeVisible();
-  // Wait for the push status update before submitting so it can't overwrite
-  // the result.
+  // Wait for the push paint before submitting so it can't race the result.
   const hint = page.locator("#notify-status");
-  await expect(hint).toContainText("blocked");
+  await expect(dialog).toHaveAttribute("data-push", /./);
   await page.locator("#notify-email").fill(`e2e-${Date.now()}@example.com`);
   await page.locator("#notify-email-form button[type=submit]").click();
   // The dev mock replies with only a confirm link.
@@ -281,7 +320,10 @@ test("tapping status text copies it with a toast", async ({
   const mock = (await page.request.get("/api/collectors")).status() === 200;
   await page.locator("#notify-nav").click();
   const hint = page.locator("#notify-status");
-  await expect(hint).toContainText("blocked");
+  await expect(page.locator("#notify-dialog")).toHaveAttribute(
+    "data-push",
+    /./,
+  );
   await page.locator("#notify-email").fill(`e2e-${Date.now()}@example.com`);
   await page.locator("#notify-email-form button[type=submit]").click();
   // The dev mock replies with only a confirm link.
@@ -295,7 +337,7 @@ test("tapping status text copies it with a toast", async ({
   expect(pasted).toContain(words);
 });
 
-test("dead push service stands its button down with a settings note", async ({
+test("dead push service hides the alerts line and points to email", async ({
   page,
 }) => {
   // Headless denies notification permission even when granted, so stub it.
@@ -324,9 +366,9 @@ test("dead push service stands its button down with a settings note", async ({
   await page.goto("/");
   await page.locator("#notify-nav").click();
   await page.locator("#notify-btn").click();
-  const note = page.locator("#notify-push-note");
-  await expect(note).toBeVisible();
-  await expect(note).toContainText("push notifications aren't enabled");
+  await expect(page.locator("#notify-status")).toContainText(
+    "email works everywhere",
+  );
   await expect(page.locator("#notify-btn")).toBeHidden();
   // The email stays subscribed, and reopening shows the button again.
   await expect(page.locator("#notify-email-form")).toBeVisible();
@@ -334,7 +376,6 @@ test("dead push service stands its button down with a settings note", async ({
   await expect(page.locator("#notify-dialog")).toBeHidden();
   await page.locator("#notify-nav").click();
   await expect(page.locator("#notify-btn")).toBeVisible();
-  await expect(note).toBeHidden();
 });
 
 test("buyer signup validates, and needs the list set up", async ({
