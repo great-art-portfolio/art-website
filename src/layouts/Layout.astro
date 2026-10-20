@@ -464,9 +464,7 @@ const currentSection = adminSection(Astro.url.pathname);
                   .then((data) => {
                     const d =
                       data !== null && typeof data === "object" ? data : null;
-                    if (d !== null && "already" in d && d.already === true) {
-                      notifySay(hint, "You're already on the list.");
-                    } else if (
+                    if (
                       d !== null &&
                       "devConfirmUrl" in d &&
                       typeof d.devConfirmUrl === "string" &&
