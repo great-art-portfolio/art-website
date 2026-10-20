@@ -55,8 +55,8 @@ const backdropSrc = (
 
 // Use the path only. The static build renders with a placeholder origin,
 // so a full URL would be wrong on every real host.
-const selfPath =
-  Astro.url.pathname.length > 1 ? Astro.url.pathname.replace(/\/$/, "") : "/";
+// Pages build as name.html (astro.config), and the URL keeps the suffix.
+const selfPath = Astro.url.pathname.replace(/(\/index)?\.html$|\/$/, "") || "/";
 const canonical = canonicalOverride ?? selfPath;
 const year = new Date().getFullYear();
 const artistLabel = ARTIST_NAME ?? "The Studio";
@@ -73,7 +73,7 @@ function adminSection(path: string): string | null {
   if (clean.startsWith("/admin/qr-codes")) return "qr";
   return null;
 }
-const currentSection = adminSection(Astro.url.pathname);
+const currentSection = adminSection(selfPath);
 ---
 
 <!doctype html>
