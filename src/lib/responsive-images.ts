@@ -30,8 +30,8 @@ export function soldSizes(): string {
   return "(min-width: 76rem) 270px, (min-width: 60rem) 22vw, (min-width: 40rem) 44vw, 92vw";
 }
 
-/** Painting detail photo: about 55vw beside the info column, full width
- * on mobile. */
+/** Painting detail photo: about 55vw beside the info column from 60rem;
+ * stacked below that in a 38rem column, full width on phones. */
 export function photoSizes(): string {
-  return "(min-width: 76rem) 600px, (min-width: 48rem) 55vw, 92vw";
+  return "(min-width: 76rem) 600px, (min-width: 60rem) 55vw, (min-width: 38rem) 600px, 92vw";
 }

@@ -1014,7 +1014,21 @@ const eyebrow =
   .media-col > div {
     min-width: 0;
   }
-  @media (min-width: 48rem) {
+  /* Stacked, the painting and its words share one centered column, so an
+     upright iPad shows the painting large and the text at a readable
+     measure. Side by side from 60rem (iPad landscape and up). */
+  .crumbs,
+  #admin-bar,
+  .detail-grid {
+    max-width: 38rem;
+    margin-inline: auto;
+  }
+  @media (min-width: 60rem) {
+    .crumbs,
+    #admin-bar,
+    .detail-grid {
+      max-width: none;
+    }
     .detail-grid {
       grid-template-columns: 1.15fr 1fr;
     }
