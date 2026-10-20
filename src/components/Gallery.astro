@@ -123,7 +123,7 @@ const tiles = galleryTiles(
               alt={painting.data.alt}
               width={1000}
               widths={GALLERY_WIDTHS}
-              sizes={gallerySizes(tiles[i])}
+              sizes={gallerySizes(tiles[i], i)}
               format="webp"
               decoding="async"
               loading={featured === undefined && i === 0 ? "eager" : "lazy"}
