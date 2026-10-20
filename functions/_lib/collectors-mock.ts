@@ -1,5 +1,6 @@
 import type { AppEnv } from "./env";
 import { CONFIRM_TTL_MS, issueLinkToken, verifyLinkToken } from "./collectors";
+import { isLocalRequest } from "./http";
 
 /** Dev-only email list, so dev doesn't touch the real list in Resend. With
  * COLLECTORS_MOCK=true, the collectors endpoint stores pending and
@@ -11,9 +12,7 @@ import { CONFIRM_TTL_MS, issueLinkToken, verifyLinkToken } from "./collectors";
 const MOCK_KEY = "dev-collectors-mock";
 
 export function mockList(env: AppEnv, request: Request): boolean {
-  if (env.COLLECTORS_MOCK !== "true") return false;
-  const host = new URL(request.url).hostname;
-  return host === "localhost" || host === "127.0.0.1" || host === "[::1]";
+  return env.COLLECTORS_MOCK === "true" && isLocalRequest(request);
 }
 
 function mockEnv(env: AppEnv): AppEnv {

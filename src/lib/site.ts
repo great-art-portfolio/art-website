@@ -92,3 +92,24 @@ export function compareGalleryOrder(
   if (bo !== null) return 1;
   return a.title.localeCompare(b.title);
 }
+
+/** Search-result text for a painting: her description as plain text,
+ * cut at a sentence end within about 160 characters. Falls back to the
+ * alt text when there's no description. */
+export function metaDescription(body: string, fallback: string): string {
+  const plain = body
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/[*_`#>]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (plain === "") return fallback;
+  if (plain.length <= 160) return plain;
+  const cut = plain.slice(0, 160);
+  const end = Math.max(
+    cut.lastIndexOf(". "),
+    cut.lastIndexOf("! "),
+    cut.lastIndexOf("? "),
+  );
+  if (end >= 60) return cut.slice(0, end + 1);
+  return cut.slice(0, cut.lastIndexOf(" ")) + "…";
+}

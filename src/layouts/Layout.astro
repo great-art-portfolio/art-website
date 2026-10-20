@@ -20,7 +20,7 @@ import { ARTIST_LOCATION, ARTIST_NAME, SITE_URL, siteTitle } from "../lib/site";
 interface Props {
   title?: string;
   description?: string;
-  image?: string;
+  image?: string | undefined;
   /** "signature" on public pages, "admin" on studio pages. */
   wordmark?: "signature" | "admin";
   /** Set on studio previews so search engines don't index them. */
@@ -55,8 +55,8 @@ const backdropSrc = (
 
 // Use the path only. The static build renders with a placeholder origin,
 // so a full URL would be wrong on every real host.
-const selfPath =
-  Astro.url.pathname.length > 1 ? Astro.url.pathname.replace(/\/$/, "") : "/";
+// Pages build as name.html (astro.config), and the URL keeps the suffix.
+const selfPath = Astro.url.pathname.replace(/(\/index)?\.html$|\/$/, "") || "/";
 const canonical = canonicalOverride ?? selfPath;
 const year = new Date().getFullYear();
 const artistLabel = ARTIST_NAME ?? "The Studio";
@@ -73,7 +73,7 @@ function adminSection(path: string): string | null {
   if (clean.startsWith("/admin/qr-codes")) return "qr";
   return null;
 }
-const currentSection = adminSection(Astro.url.pathname);
+const currentSection = adminSection(selfPath);
 ---
 
 <!doctype html>
@@ -464,9 +464,7 @@ const currentSection = adminSection(Astro.url.pathname);
                   .then((data) => {
                     const d =
                       data !== null && typeof data === "object" ? data : null;
-                    if (d !== null && "already" in d && d.already === true) {
-                      notifySay(hint, "You're already on the list.");
-                    } else if (
+                    if (
                       d !== null &&
                       "devConfirmUrl" in d &&
                       typeof d.devConfirmUrl === "string" &&

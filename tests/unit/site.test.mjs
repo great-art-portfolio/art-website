@@ -5,7 +5,34 @@ import {
   groupByAvailability,
   isPublished,
   isTitleTaken,
+  metaDescription,
 } from "../../src/lib/site.ts";
+
+describe("metaDescription", () => {
+  it("uses the description as plain text", () => {
+    assert.equal(
+      metaDescription("Deep *teal* and\ngreen.", "alt"),
+      "Deep teal and green.",
+    );
+  });
+  it("falls back to the alt text", () => {
+    assert.equal(metaDescription("  ", "A teal painting"), "A teal painting");
+  });
+  it("cuts long text at a sentence end", () => {
+    const a =
+      "Layers of deep teal and green crossed by fine pale lines, like rain.";
+    const long = `${a} ${"More words follow here. ".repeat(8)}`;
+    const out = metaDescription(long, "");
+    assert.ok(out.length <= 160);
+    assert.ok(out.endsWith("."));
+    assert.ok(out.startsWith(a));
+  });
+  it("cuts at a word with an ellipsis when no sentence ends early", () => {
+    const out = metaDescription("word ".repeat(60), "");
+    assert.ok(out.length <= 161);
+    assert.ok(out.endsWith("word…"));
+  });
+});
 
 describe("isPublished", () => {
   it("treats missing or false draft as published", () => {

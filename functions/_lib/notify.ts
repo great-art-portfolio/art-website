@@ -73,6 +73,23 @@ export function confirmEmail(confirmUrl: string): {
   };
 }
 
+/** Sent when an address already on the list joins again. The page answers
+ * "check your inbox" either way, so it never says who is subscribed. */
+export function alreadyEmail(): { subject: string; text: string } {
+  return {
+    subject: "You're already on the studio list",
+    text: [
+      "Someone (hopefully you) asked to join Barbara Straka's",
+      "new-painting emails, and this address is already on the list.",
+      "Nothing to do — new paintings and events will keep arriving.",
+      "",
+      "If that wasn't you, ignore this.",
+      "",
+      "— Barbara",
+    ].join("\n"),
+  };
+}
+
 export function goodbyeEmail(): { subject: string; text: string } {
   return {
     subject: "Removed from the new-painting list",

@@ -20,6 +20,7 @@ import {
   mockUnsubscribe,
 } from "../_lib/collectors-mock";
 import {
+  alreadyEmail,
   artistInbox,
   confirmEmail,
   countSegmentContacts,
@@ -90,7 +91,9 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     if (mock) {
       const sub = await mockSubscribe(context.env, email).catch(() => null);
       if (sub === null) return serverError();
-      if (sub.already) return json({ ok: true, already: true, emailed: true });
+      // Same answer as a new join, so the page never says who's listed.
+      if (sub.already)
+        return json({ ok: true, emailed: true }, { status: 201 });
       // Return the confirm link in the response, pointing at this server,
       // so the loop can finish locally. With a key present, Resend test
       // addresses also go through the real API so the send shows in
@@ -110,7 +113,6 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       return json(
         {
           ok: true,
-          already: false,
           emailed,
           devConfirmUrl: confirmLink(origin, email, sub.token),
         },
@@ -118,8 +120,16 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       );
     }
     try {
+      // An address already on the list gets the same answer as a new
+      // one, and its inbox gets a note saying so. Only the person who
+      // reads that inbox learns it's subscribed.
       if (await isConfirmedContact(context.env, email).catch(() => false)) {
-        return json({ ok: true, already: true, emailed: true });
+        const emailed = await sendSiteEmail(context.env, {
+          to: [email],
+          replyTo: artistInbox(context.env),
+          ...alreadyEmail(),
+        }).catch(() => false);
+        return json({ ok: true, emailed }, { status: 201 });
       }
       const token = await issueLinkToken(context.env, email, "confirm");
       if (token === null) return serverError();
@@ -128,7 +138,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
         replyTo: artistInbox(context.env),
         ...confirmEmail(confirmLink(site, email, token)),
       }).catch(() => false);
-      return json({ ok: true, already: false, emailed }, { status: 201 });
+      return json({ ok: true, emailed }, { status: 201 });
     } catch (err) {
       console.error(err);
       return serverError();
