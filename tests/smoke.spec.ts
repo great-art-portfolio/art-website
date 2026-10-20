@@ -295,7 +295,15 @@ test("selecting status text never closes the modal", async ({ page }) => {
     mock ? "open the confirm page" : "That didn't work",
   );
   // Drag-select from the text out past the card edge. The click that ends on
-  // the dialog itself should not dismiss it.
+  // the dialog itself should not dismiss it. Measure once the status row
+  // has finished unfolding, or the drag can start on the card's empty edge.
+  await hint.evaluate((el) =>
+    Promise.all(
+      (el.parentElement ?? el)
+        .getAnimations({ subtree: true })
+        .map((a) => a.finished),
+    ),
+  );
   const box = await hint.boundingBox();
   expect(box).not.toBe(null);
   if (box !== null) {
