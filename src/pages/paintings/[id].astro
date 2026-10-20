@@ -1,5 +1,6 @@
 ---
 import { getCollection, render } from "astro:content";
+import { getImage } from "astro:assets";
 import Layout from "../../layouts/Layout.astro";
 import PaintingDetail, {
   type PaintingDetailData,
@@ -9,6 +10,7 @@ import { modelGlbOrEmpty } from "../../lib/model-files";
 import {
   ARTIST_NAME,
   isPublished,
+  metaDescription,
   SITE_URL,
   slugifyTitle,
 } from "../../lib/site";
@@ -77,6 +79,15 @@ const data: PaintingDetailData = {
   draft: false,
 };
 const pageUrl = new URL(`/paintings/${data.slug}`, SITE_URL).href;
+// Link previews get a 1200px JPEG. The original photo is near 1 MB, and
+// WhatsApp drops previews over about 300 KB.
+const share = await getImage({
+  src: painting.data.image,
+  width: 1200,
+  format: "jpeg",
+  quality: 72,
+});
+const description = metaDescription(painting.body ?? "", painting.data.alt);
 // Search engines want the photo itself here, not the page it sits on.
 const paintingJsonLd = {
   "@context": "https://schema.org",
@@ -84,7 +95,7 @@ const paintingJsonLd = {
   name: painting.data.title,
   url: pageUrl,
   image: new URL(painting.data.image.src, SITE_URL).href,
-  description: painting.data.alt,
+  description,
   ...(ARTIST_NAME === null
     ? {}
     : { brand: { "@type": "Brand", name: ARTIST_NAME } }),
@@ -102,9 +113,9 @@ const paintingJsonLd = {
 
 <Layout
   title={`${painting.data.title}${ARTIST_NAME === null ? "" : ` by ${ARTIST_NAME}`} — ${painting.data.sold ? "Sold" : "Original Painting"}`}
-  description={painting.data.alt}
+  description={description}
   canonical={`/paintings/${data.slug}`}
-  image={painting.data.image.src}
+  image={share.src}
 >
   <PaintingDetail
     mode="buy"

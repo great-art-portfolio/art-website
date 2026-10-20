@@ -20,7 +20,7 @@ import { ARTIST_LOCATION, ARTIST_NAME, SITE_URL, siteTitle } from "../lib/site";
 interface Props {
   title?: string;
   description?: string;
-  image?: string;
+  image?: string | undefined;
   /** "signature" on public pages, "admin" on studio pages. */
   wordmark?: "signature" | "admin";
   /** Set on studio previews so search engines don't index them. */

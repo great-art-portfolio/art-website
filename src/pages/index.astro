@@ -1,4 +1,5 @@
 ---
+import { getImage } from "astro:assets";
 import Layout from "../layouts/Layout.astro";
 import Gallery from "../components/Gallery.astro";
 import { ARTIST_LOCATION, ARTIST_NAME, TAGLINE } from "../lib/site";
@@ -20,9 +21,19 @@ const sign = ARTIST_NAME === null ? "" : `— ${ARTIST_NAME.split(" ")[0] ?? ""}
 // The newest painting hangs beside the headline, with the note taped to its
 // corner. With no paintings the note stands on its own in that column.
 const { featured } = await publicPaintings();
+// Link previews show the newest painting, not the 180px app icon.
+const share =
+  featured === undefined
+    ? undefined
+    : await getImage({
+        src: featured.data.image,
+        width: 1200,
+        format: "jpeg",
+        quality: 72,
+      });
 ---
 
-<Layout>
+<Layout image={share?.src}>
   <main id="main">
     <section class="hero" data-sign={sign}>
       <div class="hero-main">
