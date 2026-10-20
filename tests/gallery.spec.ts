@@ -410,6 +410,22 @@ test("photo lightbox opens on tap and closes on Escape", async ({ page }) => {
   await expect(page.locator("#lightbox")).toBeHidden();
 });
 
+test("photo lightbox works from the keyboard", async ({ page }) => {
+  await page.goto(`/paintings/${available[0]?.slug ?? ""}`);
+  const photo = page.locator("#photo-wrap");
+  await photo.focus();
+  await page.keyboard.press("Enter");
+  const box = page.locator("#lightbox");
+  await expect(box).toBeVisible();
+  await expect(box).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(box).toBeHidden();
+  // Focus comes back to the photo, then Space opens it too.
+  await expect(photo).toBeFocused();
+  await page.keyboard.press(" ");
+  await expect(box).toBeVisible();
+});
+
 test("unknown painting slug is a real 404 with a way back", async ({
   page,
 }) => {
