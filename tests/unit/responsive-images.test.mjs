@@ -49,6 +49,30 @@ describe("responsive-images contracts", () => {
     assert.equal(cardSpan("big", 5), 8);
   });
 
+  it("a short last row fills the width", () => {
+    const normal = (n) => Array.from({ length: n }, () => "normal");
+    // 4 cards: 7+5, then two in the trio's slots split the row.
+    assert.deepEqual(
+      [0, 1, 2, 3].map((i) => cardSpan("normal", i, normal(4))),
+      [7, 5, 6, 6],
+    );
+    // 3 cards: the lone third is centered at 6.
+    assert.equal(cardSpan("normal", 2, normal(3)), 6);
+    // 5 cards: a full trio keeps 4+4+4.
+    assert.equal(cardSpan("normal", 4, normal(5)), 4);
+    // 9 cards: the second trio's two cards split their row too.
+    assert.equal(cardSpan("normal", 7, normal(9)), 6);
+    assert.equal(cardSpan("normal", 8, normal(9)), 6);
+    // A big tile reflows the grid, so the stagger stands.
+    assert.equal(
+      cardSpan("normal", 3, ["normal", "normal", "big", "normal"]),
+      4,
+    );
+    const widest = (s) =>
+      Number(s.match(/^\(min-width: 1264px\) (\d+)px/)?.[1]);
+    assert.equal(widest(gallerySizes("normal", 3, normal(4))), 588);
+  });
+
   it("featured and photo sizes cap at the page width", () => {
     assert.equal(
       featuredSizes(),
