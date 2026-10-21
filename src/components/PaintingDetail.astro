@@ -5,6 +5,7 @@
 import { Image } from "astro:assets";
 import type { ImageMetadata } from "astro";
 import { formatPriceCAD } from "../lib/money";
+import { paintingPageUrl, qrSvg } from "../lib/qr";
 import { PHOTO_WIDTHS, photoSizes } from "../lib/responsive-images";
 import { SHOW_PAGE_SHARE, SHOW_PRICES } from "../lib/site";
 
@@ -536,6 +537,13 @@ const eyebrow =
           <div id="ar-stage">
             <div class="ar-skeleton" aria-hidden="true" />
           </div>
+          <div class="ar-scan">
+            <span class="ar-qr" set:html={qrSvg(paintingPageUrl(data.slug))} />
+            <p class="hint">
+              On a computer? Scan this with your phone's camera to open this
+              painting there, then tap <strong>View on your wall</strong>.
+            </p>
+          </div>
         </div>
       )}
     </div>
@@ -620,6 +628,14 @@ const eyebrow =
           el.setAttribute("ar-scale", "fixed");
           el.setAttribute("ar-placement", "wall");
           el.setAttribute("camera-controls", "");
+          // A three-quarter turn shows the canvas edge, so it reads as a
+          // painting hung on the wall rather than a flat photo. The wiggle
+          // prompt is off: stills caught mid-wiggle looked skewed. 125% of
+          // the fitted distance leaves room for the button underneath.
+          el.setAttribute("camera-orbit", "-25deg 85deg 125%");
+          // The default cap is the fitted distance, which ignored the 125%.
+          el.setAttribute("max-camera-orbit", "auto auto 125%");
+          el.setAttribute("interaction-prompt", "none");
           // Vertical swipes scroll the page, and horizontal drags rotate
           // the model. Otherwise phones capture the scroll.
           el.setAttribute("touch-action", "pan-y");
@@ -627,7 +643,21 @@ const eyebrow =
           el.style.width = "100%";
           el.style.height = "20rem";
           el.style.borderRadius = "1rem";
+          // model-viewer shows the slotted button only where AR works.
+          const arButton = document.createElement("button");
+          arButton.slot = "ar-button";
+          arButton.type = "button";
+          arButton.className = "ar-button";
+          arButton.textContent = "View on your wall";
           liveStage.replaceChildren(el);
+          // appendChild, since the Workers types give append() HTMLRewriter's
+          // signature.
+          liveStage.firstElementChild?.appendChild(arButton);
+          // An empty slot hides the loading bar, which the wall shadow
+          // smeared into a grey band across the top.
+          const noBar = document.createElement("span");
+          noBar.slot = "progress-bar";
+          liveStage.firstElementChild?.appendChild(noBar);
         })
         .catch(() => {
           mount.hidden = true;
@@ -1288,6 +1318,63 @@ const eyebrow =
     font-size: 0.92rem;
     padding: 1.5rem;
     margin-inline: auto;
+  }
+  /* The viewer hangs on a soft wall, lit from above. */
+  #ar-stage {
+    border-radius: 1rem;
+    background: radial-gradient(
+      90% 70% at 50% 30%,
+      color-mix(in srgb, var(--card) 70%, var(--paper)) 0%,
+      color-mix(in srgb, var(--line) 60%, var(--paper)) 100%
+    );
+  }
+  #ar-stage .ar-skeleton {
+    background: transparent;
+  }
+  :global(#ar-stage model-viewer) {
+    --poster-color: transparent;
+    filter: drop-shadow(14px 18px 16px rgb(70 45 20 / 0.32));
+  }
+  :global(#ar-stage .ar-button) {
+    position: absolute;
+    left: 50%;
+    bottom: 1rem;
+    transform: translateX(-50%);
+    padding: 0.6rem 1.1rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--card);
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.92rem;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  /* Desktop only: a QR code takes the page to a phone, where AR works. */
+  .ar-scan {
+    display: none;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .ar-scan {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .ar-scan .hint {
+      margin: 0;
+    }
+  }
+  .ar-qr {
+    flex: none;
+    width: 5.5rem;
+    line-height: 0;
+  }
+  .ar-qr :global(svg) {
+    width: 100%;
+    height: auto;
+    border-radius: 0.35rem;
   }
   #ar-stage[hidden] {
     display: none;

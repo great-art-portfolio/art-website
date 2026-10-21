@@ -77,6 +77,11 @@ labels and Ayrshare auto-post stay implemented behind `ENABLE_SHIPPO` /
 she ships via Chit Chats / Pirate Ship links in `/admin` — cheapest
 from Calgary.
 
+GST (owner, 2026-10-21): she isn't registered and is far below the
+$30,000-a-year small-supplier line, so live checkout goes in with
+`STRIPE_TAX` off and no registration: buyers pay the listed price. The
+studio guide tells her to say so if sales get close.
+
 ## Social
 
 Manual sharing lives in the painting room ("Tell social media"): the

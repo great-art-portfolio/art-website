@@ -35,8 +35,11 @@ test("gallery cards serve responsive webp widths", async ({ page }) => {
       expect(url.endsWith(".webp")).toBe(true);
     }
     // Every painting here is a normal tile, so its slot follows the
-    // stagger by position.
-    expect(await img.getAttribute("sizes")).toBe(gallerySizes("normal", i));
+    // stagger by position, with a short last row filling the width.
+    const tiles = Array.from({ length: await cards.count() }, () => "normal");
+    expect(await img.getAttribute("sizes")).toBe(
+      gallerySizes("normal", i, tiles as "normal"[]),
+    );
     expect(await img.getAttribute("decoding")).toBe("async");
     // The featured painting up top is the one loaded first.
     expect(await img.getAttribute("loading")).toBe("lazy");
