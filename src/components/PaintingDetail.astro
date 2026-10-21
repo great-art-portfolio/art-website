@@ -646,8 +646,10 @@ const eyebrow =
           arButton.type = "button";
           arButton.className = "ar-button";
           arButton.textContent = "View on your wall";
-          el.append(arButton);
           liveStage.replaceChildren(el);
+          // appendChild, since the Workers types give append() HTMLRewriter's
+          // signature.
+          liveStage.firstElementChild?.appendChild(arButton);
         })
         .catch(() => {
           mount.hidden = true;
