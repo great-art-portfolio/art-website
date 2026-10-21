@@ -630,9 +630,11 @@ const eyebrow =
           el.setAttribute("camera-controls", "");
           // A three-quarter turn shows the canvas edge, so it reads as a
           // painting hung on the wall rather than a flat photo. The wiggle
-          // prompt is off: stills caught mid-wiggle looked skewed. 135% of
+          // prompt is off: stills caught mid-wiggle looked skewed. 125% of
           // the fitted distance leaves room for the button underneath.
-          el.setAttribute("camera-orbit", "-25deg 85deg 135%");
+          el.setAttribute("camera-orbit", "-25deg 85deg 125%");
+          // The default cap is the fitted distance, which ignored the 125%.
+          el.setAttribute("max-camera-orbit", "auto auto 125%");
           el.setAttribute("interaction-prompt", "none");
           // Vertical swipes scroll the page, and horizontal drags rotate
           // the model. Otherwise phones capture the scroll.
