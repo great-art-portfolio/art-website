@@ -5,6 +5,9 @@ import {
   gallerySizes,
   photoSizes,
 } from "../src/lib/responsive-images";
+import { desktopSlots } from "../src/lib/gallery-layout";
+
+const square = () => ({ aspect: 1, widthIn: 12, heightIn: 12 });
 
 /**
  * Each painting photo serves several webp widths so phones get smaller
@@ -36,9 +39,9 @@ test("gallery cards serve responsive webp widths", async ({ page }) => {
     }
     // Every painting here is a normal tile, so its slot follows the
     // stagger by position, with a short last row filling the width.
-    const tiles = Array.from({ length: await cards.count() }, () => "normal");
+    const tiles = Array.from({ length: await cards.count() }, () => square());
     expect(await img.getAttribute("sizes")).toBe(
-      gallerySizes("normal", i, tiles as "normal"[]),
+      gallerySizes("normal", desktopSlots(tiles)[i]?.span ?? 0),
     );
     expect(await img.getAttribute("decoding")).toBe("async");
     // The featured painting up top is the one loaded first.
