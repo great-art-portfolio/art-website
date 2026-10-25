@@ -394,7 +394,7 @@ test("label text never warms its field", async ({ page }) => {
   // because label hover is forwarded to the field and the two couldn't be
   // distinguished. The border keeps the line color.
   await page
-    .locator(".studio-fields label")
+    .locator(".studio-fields > label")
     .first()
     .hover({ position: { x: 10, y: 8 } });
   await expect(page.locator("#de-title")).toHaveCSS(
