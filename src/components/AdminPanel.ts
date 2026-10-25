@@ -1,4 +1,10 @@
-import { api, ApiError, getApiToken, setApiToken } from "../lib/api";
+import {
+  api,
+  ApiError,
+  getApiToken,
+  publishingKeyExpiry,
+  setApiToken,
+} from "../lib/api";
 import { $, isLocalPreview, maybe, maybeButton } from "../lib/dom";
 import { drawerOpen, wireDrawer, wireDrawers } from "../lib/drawer";
 import { errorMessage } from "../lib/errors";
@@ -7,6 +13,8 @@ import {
   parseBannerPreview,
   type BakedRow,
 } from "../lib/schemas";
+import { sendPublishAlerts } from "../lib/alerts";
+import { keyWarning } from "../lib/key-expiry";
 import {
   SEARCH_FROM,
   matchesSearch,
@@ -30,6 +38,7 @@ import {
 import {
   isPublishDue,
   paintingFilePaths,
+  parseAlerts,
   publishDue,
   setTrash,
   todayKey,
@@ -936,6 +945,8 @@ async function publishDueRows(rows: LocalPainting[]): Promise<LocalPainting[]> {
   );
   if (due.length === 0) return rows;
   const flipped = new Map<string, string>();
+  // Alerts she ticked when scheduling, sent once for the whole batch.
+  const alerts = { push: false, email: false };
   for (const r of due) {
     const content = await api.getPaintingFile(r.mdPath);
     if (content === null) continue;
@@ -943,6 +954,9 @@ async function publishDueRows(rows: LocalPainting[]): Promise<LocalPainting[]> {
     if (parsed === null || !parsed.draft || parsed.trash) continue;
     if (!isPublishDue(parsed.publishOn, today)) continue;
     flipped.set(r.mdPath, publishDue(content));
+    const wanted = parseAlerts(parsed.alertOnPublish);
+    alerts.push ||= wanted.push;
+    alerts.email ||= wanted.email;
   }
   if (flipped.size > 0) {
     const names = due
@@ -955,10 +969,11 @@ async function publishDueRows(rows: LocalPainting[]): Promise<LocalPainting[]> {
         : `Publish ${flipped.size} scheduled paintings: ${names}`,
       [...flipped].map(([path, blob]) => ({ path, blob })),
     );
+    const sent = await sendPublishAlerts(alerts);
     setStatus(
       flipped.size === 1
-        ? `Published ${names} — live in a few minutes.`
-        : `Published ${flipped.size} scheduled paintings — live in a few minutes.`,
+        ? `Published ${names} — live in a few minutes.${sent}`
+        : `Published ${flipped.size} scheduled paintings — live in a few minutes.${sent}`,
     );
   }
   return rows.map((r) =>
@@ -1145,8 +1160,19 @@ async function refreshCollection(): Promise<void> {
   try {
     files = (await api.listPaintingFiles()).filter((f) => f.endsWith(".md"));
     $("collection-refresh").hidden = true;
+    const note = $("key-note");
+    note.textContent = keyWarning(publishingKeyExpiry(), todayKey());
+    note.hidden = note.textContent === "";
   } catch (err) {
     const retry = $("collection-refresh");
+    // GitHub refused the site's key: say so, not "check the connection".
+    if (err instanceof ApiError && err.status === 503) {
+      const li = document.createElement("li");
+      li.textContent = err.message;
+      list.replaceChildren(li);
+      retry.hidden = false;
+      return;
+    }
     if (err instanceof ApiError && err.status === 401) {
       list.innerHTML =
         '<li>Your sign-in has run out. <a href="/admin">Reload the page</a> to sign in again with the code from your email.</li>';

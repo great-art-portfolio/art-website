@@ -12,6 +12,9 @@ export interface AppEnv {
    * both set, her Access sign-in authorizes the admin API (lib/access). */
   ACCESS_TEAM_DOMAIN?: string;
   ACCESS_AUD?: string;
+  /** The scheduled-publish workflow's key for /api/notify: the standard
+   * publish alert only. Same value as the repo's ALERTS_TOKEN secret. */
+  ALERTS_TOKEN?: string;
   GITHUB_TOKEN?: string;
   GITHUB_REPO?: string;
   GITHUB_BRANCH?: string;

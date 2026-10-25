@@ -30,6 +30,9 @@ const paintings = defineCollection({
       // as a Date and fails this schema. The dashboard publishes due drafts
       // the next time it loads.
       publishOn: z.string().optional(),
+      // Alerts to send when it goes live on that date: "push", "email", or
+      // "push,email". Removed when it publishes.
+      alertOnPublish: z.string().optional(),
       // Previous slugs after renames, as a quoted "a, b" list. Each gets an
       // alias page with a canonical link to the current slug.
       slugHistory: z.string().optional(),

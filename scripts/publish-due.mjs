@@ -11,24 +11,33 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
   isPublishDue,
+  parseAlerts,
   parsePainting,
   publishDue,
   todayKey,
 } from "../src/lib/painting-edit.ts";
+import { slugifyTitle } from "../src/lib/site.ts";
 
 export const PAINTINGS_DIR = "src/content/paintings";
 
-/** The published text of a painting file, or null when it isn't due. */
+/** The published text of a painting file and the alerts she ticked for
+ * its day, or null when it isn't due. */
 export function dueContent(md, today) {
   const parsed = parsePainting(md);
   if (parsed === null || !parsed.draft || parsed.trash) return null;
   if (!isPublishDue(parsed.publishOn, today)) return null;
-  return { title: parsed.title, content: publishDue(md) };
+  return {
+    title: parsed.title,
+    content: publishDue(md),
+    alerts: parseAlerts(parsed.alertOnPublish),
+  };
 }
 
-/** Publishes every due painting in `dir`. Returns the titles published. */
+/** Publishes every due painting in `dir`. Returns the titles published
+ * and, merged across them, the alerts to send once they're live. */
 export async function publishDueFiles(dir, today) {
   const titles = [];
+  const alerts = { push: false, email: false, slug: "" };
   for (const name of (await readdir(dir)).sort()) {
     if (!name.endsWith(".md")) continue;
     const path = join(dir, name);
@@ -36,13 +45,24 @@ export async function publishDueFiles(dir, today) {
     if (due === null) continue;
     await writeFile(path, due.content);
     titles.push(due.title);
+    if (due.alerts.push || due.alerts.email) {
+      alerts.push ||= due.alerts.push;
+      alerts.email ||= due.alerts.email;
+      // The page the alert step waits for before sending.
+      if (alerts.slug === "") alerts.slug = slugifyTitle(due.title);
+    }
   }
-  return titles;
+  return { titles, alerts };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   const today = todayKey();
-  const titles = await publishDueFiles(PAINTINGS_DIR, today);
+  const { titles, alerts } = await publishDueFiles(PAINTINGS_DIR, today);
+  // `--alerts-file <path>` records the alerts for the workflow's send step
+  // (scripts/send-scheduled-alerts.mjs), outside the repo.
+  const at = process.argv.indexOf("--alerts-file");
+  const alertsFile = at === -1 ? "" : (process.argv[at + 1] ?? "");
+  if (alertsFile !== "") await writeFile(alertsFile, JSON.stringify(alerts));
   console.log(
     titles.length === 0
       ? `Nothing scheduled for ${today} or earlier.`

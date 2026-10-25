@@ -30,10 +30,11 @@ jobs:
       # Plain node, no install: the script only needs src/lib/painting-edit.ts.
       - id: due
         run: |
-          summary="$(node scripts/publish-due.mjs)"
+          summary="$(node scripts/publish-due.mjs --alerts-file "$RUNNER_TEMP/alerts.json")"
           echo "$summary"
           echo "summary=$summary" >> "$GITHUB_OUTPUT"
       - name: Commit and push
+        id: commit
         env:
           SUMMARY: ${{ steps.due.outputs.summary }}
         run: |
@@ -49,10 +50,13 @@ jobs:
           # published the same painting). The script is idempotent, so redo
           # it on top of the newest main rather than merging.
           for attempt in 1 2 3; do
-            git push origin HEAD:main && exit 0
+            if git push origin HEAD:main; then
+              echo "pushed=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
             git fetch origin main
             git reset --hard origin/main
-            summary="$(node scripts/publish-due.mjs)"
+            summary="$(node scripts/publish-due.mjs --alerts-file "$RUNNER_TEMP/alerts.json")"
             if git diff --quiet -- src/content/paintings; then
               echo "Already published by the studio."
               exit 0
@@ -61,3 +65,10 @@ jobs:
             git commit -m "Publish scheduled paintings" -m "$summary"
           done
           exit 1
+      # Alerts she ticked when scheduling. Only when this run's commit
+      # landed: if the studio published first, it sent them itself.
+      - name: Send ticked alerts
+        if: steps.commit.outputs.pushed == 'true'
+        env:
+          ALERTS_TOKEN: ${{ secrets.ALERTS_TOKEN }}
+        run: node scripts/send-scheduled-alerts.mjs "$RUNNER_TEMP/alerts.json"

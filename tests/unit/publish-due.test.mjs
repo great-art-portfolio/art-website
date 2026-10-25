@@ -40,8 +40,9 @@ describe("nightly publish", () => {
       for (const [name, text] of Object.entries(files)) {
         await writeFile(join(dir, name), text);
       }
-      const titles = await publishDueFiles(dir, "2026-10-03");
+      const { titles, alerts } = await publishDueFiles(dir, "2026-10-03");
       assert.deepEqual(titles, ["Due", "Overdue"]);
+      assert.deepEqual(alerts, { push: false, email: false, slug: "" });
       for (const name of ["due.md", "overdue.md"]) {
         const text = await readFile(join(dir, name), "utf8");
         assert.match(text, /^draft: false$/m);
@@ -56,7 +57,42 @@ describe("nightly publish", () => {
         assert.equal(await readFile(join(dir, name), "utf8"), files[name]);
       }
       // A second run finds nothing left to do.
-      assert.deepEqual(await publishDueFiles(dir, "2026-10-03"), []);
+      assert.deepEqual((await publishDueFiles(dir, "2026-10-03")).titles, []);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("scheduled alerts", () => {
+  it("hands the ticked alerts to the send step, once, and drops them", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "publish-due-alerts-"));
+    try {
+      await writeFile(
+        join(dir, "a.md"),
+        md(
+          "Night Reeds",
+          'draft: true\npublishOn: "2026-10-03"\nalertOnPublish: "email"\n',
+        ),
+      );
+      await writeFile(
+        join(dir, "b.md"),
+        md(
+          "Thaw",
+          'draft: true\npublishOn: "2026-10-02"\nalertOnPublish: "push"\n',
+        ),
+      );
+      const { alerts } = await publishDueFiles(dir, "2026-10-03");
+      assert.deepEqual(alerts, {
+        push: true,
+        email: true,
+        slug: "night-reeds",
+      });
+      const text = await readFile(join(dir, "a.md"), "utf8");
+      assert.doesNotMatch(text, /^alertOnPublish:/m);
+      // Published already, so a rerun sends nothing.
+      const again = await publishDueFiles(dir, "2026-10-03");
+      assert.deepEqual(again.alerts, { push: false, email: false, slug: "" });
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

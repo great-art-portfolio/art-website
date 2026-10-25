@@ -26,7 +26,15 @@ import {
  * paged by cursor ({ push: { cursor } } for pings, { push: true, cursor }
  * for publish alerts) until nextCursor is null. */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
-  const denied = await requireAdmin(context.request, context.env);
+  // The nightly scheduled-publish workflow has its own key, good for the
+  // standard publish alert only: no custom text, no Ping.
+  const alertsKey = context.env.ALERTS_TOKEN ?? "";
+  const viaAlertsKey =
+    alertsKey !== "" &&
+    context.request.headers.get("authorization") === `Bearer ${alertsKey}`;
+  const denied = viaAlertsKey
+    ? null
+    : await requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
   let body: Record<string, unknown>;
   try {
@@ -34,6 +42,14 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   } catch {
     body = {};
   }
+  if (
+    viaAlertsKey &&
+    (typeof body["push"] === "object" || typeof body["email"] === "object")
+  )
+    return json(
+      { error: "This key only sends the standard publish alert." },
+      { status: 403 },
+    );
   const wantPush = body["push"] !== false;
   const wantEmail = body["email"] !== false;
   try {

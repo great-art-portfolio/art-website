@@ -151,7 +151,11 @@ export const announcementSchema = z.object({ announcement: z.string() });
 
 export const paintingFileSchema = z.object({ content: z.string() });
 
-export const paintingFilesSchema = z.object({ files: z.array(z.string()) });
+export const paintingFilesSchema = z.object({
+  files: z.array(z.string()),
+  /** The site's GitHub key's last day, "YYYY-MM-DD", when it expires. */
+  keyExpires: z.string().nullable().optional(),
+});
 
 export const statusSchema = z.object({
   stripe: z.boolean(),

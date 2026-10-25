@@ -2451,3 +2451,45 @@ test("saving after the sign-in runs out says so in plain words", async ({
   );
   await expect(page.locator("#de-status")).not.toContainText("Unauthorized");
 });
+
+test("the studio warns ahead of the GitHub key's last day", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
+  );
+  await mockCommitApi(page);
+  const soon = new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10);
+  await page.route("**/api/commit*", async (route) =>
+    route.request().method() === "PUT"
+      ? route.fulfill({ json: { files: ["first-thaw.md"], keyExpires: soon } })
+      : route.fallback(),
+  );
+  await page.goto("/admin");
+  await expect(page.locator("#key-note")).toContainText("saving stops on");
+  await expect(page.locator("#key-note")).toContainText("Ask Chris");
+});
+
+test("a refused GitHub key reads as that, not a connection problem", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
+  );
+  await page.route("**/api/commit*", async (route) =>
+    route.fulfill({
+      status: 503,
+      json: {
+        error:
+          "Saving is paused: the site's GitHub key has run out. Ask Chris to renew it — nothing you've saved is lost.",
+        code: "github-key",
+      },
+    }),
+  );
+  await page.goto("/admin");
+  await expect(page.locator("#edit-list")).toContainText(
+    "GitHub key has run out",
+  );
+  await expect(page.locator("#edit-list")).not.toContainText("connection");
+  await expect(page.locator("#key-note")).toBeHidden();
+});

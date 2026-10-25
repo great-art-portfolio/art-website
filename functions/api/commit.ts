@@ -1,6 +1,12 @@
-import { commitFiles, gitConfig, listDir, readTextFile } from "../_lib/github";
+import {
+  commitFiles,
+  gitConfig,
+  githubKeyExpiry,
+  listDir,
+  readTextFile,
+} from "../_lib/github";
 import type { AppEnv } from "../_lib/env";
-import { badRequest, json, requireAdmin, serverError } from "../_lib/http";
+import { badRequest, githubFailure, json, requireAdmin } from "../_lib/http";
 import { parseCommitBody } from "../_lib/validation";
 
 /** Repo path of the homepage banner. An empty file hides it. */
@@ -27,8 +33,7 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
       announcement: (await readTextFile(config, BANNER_PATH)) ?? "",
     });
   } catch (err) {
-    console.error(err);
-    return serverError();
+    return githubFailure(err);
   }
 };
 
@@ -102,8 +107,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     const sha = await commitFiles(config, message, files);
     return json({ ok: true, commit: sha }, { status: 201 });
   } catch (err) {
-    console.error(err);
-    return serverError("Publishing failed — the commit did not land.");
+    return githubFailure(err, "Publishing failed — the commit did not land.");
   }
 };
 
@@ -115,9 +119,10 @@ export const onRequestPut: PagesFunction<AppEnv> = async (context) => {
   const config = gitConfig(context.env);
   if (config === null) return badRequest("GitHub publishing is not configured");
   try {
-    return json({ files: await listDir(config, "src/content/paintings") });
+    const files = await listDir(config, "src/content/paintings");
+    // The studio warns her ahead of the key's last day.
+    return json({ files, keyExpires: githubKeyExpiry() });
   } catch (err) {
-    console.error(err);
-    return serverError();
+    return githubFailure(err);
   }
 };

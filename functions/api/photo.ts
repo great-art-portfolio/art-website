@@ -1,6 +1,6 @@
 import { readBinaryFile } from "../_lib/github";
 import type { AppEnv } from "../_lib/env";
-import { badRequest, requireAdmin, serverError } from "../_lib/http";
+import { badRequest, githubFailure, requireAdmin } from "../_lib/http";
 
 /**
  * Admin: returns a painting's original photo from the repo so the browser
@@ -38,7 +38,6 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
       headers: { "Content-Type": IMAGE_TYPE[ext] ?? "image/jpeg" },
     });
   } catch (err) {
-    console.error(err);
-    return serverError();
+    return githubFailure(err);
   }
 };
