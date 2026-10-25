@@ -746,3 +746,16 @@ test("every gallery painting fills its mat, edge to edge", async ({
     await context.close();
   }
 });
+
+test("the all-paintings page lists every available painting in one grid", async ({
+  page,
+}) => {
+  await page.goto("/paintings");
+  await expect(page.locator("h2").first()).toHaveText("All paintings");
+  // The newest painting is in this grid too; nothing hangs above it.
+  await expect(page.locator("#gallery-static a.card")).toHaveCount(
+    available.length,
+  );
+  for (const card of await page.locator("#gallery-static a.card").all())
+    await expect(card).toBeVisible();
+});

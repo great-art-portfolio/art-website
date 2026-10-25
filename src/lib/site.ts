@@ -122,3 +122,6 @@ export function metaDescription(body: string, fallback: string): string {
   if (end >= 60) return cut.slice(0, end + 1);
   return cut.slice(0, cut.lastIndexOf(" ")) + "…";
 }
+
+/** How the homepage handles a large collection (collection-filters). */
+export const HOME_LAYOUT: "a" | "b" | "c" = "a";
