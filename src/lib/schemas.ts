@@ -189,6 +189,14 @@ export const notifyStatusSchema = z.object({
   emailHtml: z.string(),
 });
 
+/** Writing helper: whether it's set up, and its ideas for one painting. */
+export const suggestEnabledSchema = z.object({ enabled: z.boolean() });
+export const suggestionSchema = z.object({
+  titles: z.array(z.string()),
+  description: z.string(),
+  alt: z.string(),
+});
+
 export const localBackendSchema = z.object({ local: z.unknown().optional() });
 
 /** Commit POST response, the same from Pages and the local content API. */

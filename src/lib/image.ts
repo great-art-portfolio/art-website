@@ -83,3 +83,21 @@ export async function prepareImage(
   });
   return { blob, previewUrl: URL.createObjectURL(blob), width, height };
 }
+
+/** A small JPEG data URL of a photo, for the writing helper: 1024px on the
+ * long side is plenty to see a painting and keeps the upload ~150 KB. */
+export async function smallJpegDataUrl(
+  src: Blob,
+  maxSide = 1024,
+): Promise<string> {
+  const bitmap = await createImageBitmap(src);
+  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  const ctx = canvas.getContext("2d");
+  if (ctx === null) throw new Error("Could not read that photo");
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return canvas.toDataURL("image/jpeg", 0.8);
+}

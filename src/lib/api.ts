@@ -10,6 +10,8 @@ import {
   paintingFileSchema,
   paintingFilesSchema,
   statusSchema,
+  suggestEnabledSchema,
+  suggestionSchema,
   viewsSchema,
 } from "./schemas";
 import { parsePainting } from "./painting-edit";
@@ -203,6 +205,32 @@ export const api = {
   }> {
     return await request("/api/status", statusSchema, {
       headers: adminHeaders(),
+    });
+  },
+  /** True when the writing helper is set up (its key is on the server). */
+  async suggestEnabled(): Promise<boolean> {
+    try {
+      const data = await request("/api/suggest", suggestEnabledSchema, {
+        headers: adminHeaders(),
+      });
+      return data.enabled;
+    } catch {
+      return false;
+    }
+  },
+  /** Title, description, and alt text ideas from a small photo. */
+  async suggest(input: {
+    image: string;
+    title: string;
+    medium: string;
+    widthIn: number | null;
+    heightIn: number | null;
+    notes: string;
+  }): Promise<{ titles: string[]; description: string; alt: string }> {
+    return await request("/api/suggest", suggestionSchema, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...adminHeaders() },
+      body: JSON.stringify(input),
     });
   },
   /** True when the local studio content API responds. Checked per action,

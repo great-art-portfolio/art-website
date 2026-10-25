@@ -279,6 +279,40 @@ const eyebrow =
           <div class="desc" id="pv-desc" />
           <div class="studio-fields">
             <h2>Painting details</h2>
+            <section
+              class="de-suggest"
+              id="de-suggest"
+              hidden
+              aria-label="Writing helper"
+            >
+              <p class="de-suggest-lede">
+                Stuck for words? The helper looks at the photo and suggests a
+                title and description. Use one, change it, or ignore it.
+              </p>
+              <label>
+                A few words about it (optional)
+                <input
+                  id="de-suggest-notes"
+                  type="text"
+                  maxlength="500"
+                  autocomplete="off"
+                  placeholder="e.g. the Bow River in March"
+                />
+              </label>
+              <button type="button" id="de-suggest-go">
+                Suggest a title and description
+              </button>
+              <p class="hint" id="de-suggest-status" role="status" />
+              <div class="de-suggest-out" id="de-suggest-out" hidden>
+                <p class="de-suggest-label">Tap a title to use it</p>
+                <div class="de-suggest-titles" id="de-suggest-titles" />
+                <p class="de-suggest-label">Description</p>
+                <p class="de-suggest-desc" id="de-suggest-desc" />
+                <button type="button" id="de-suggest-use-desc">
+                  Use this description
+                </button>
+              </div>
+            </section>
             <label>
               Title
               <input
@@ -1617,6 +1651,70 @@ const eyebrow =
     font-weight: 500;
     margin: 0 0 0.25rem;
   }
+  /* Writing helper, above the title. Whitespace sets it apart. */
+  .de-suggest {
+    display: grid;
+    gap: 0.6rem;
+    justify-items: start;
+    margin-bottom: 1rem;
+  }
+  .de-suggest[hidden],
+  .de-suggest-out[hidden] {
+    display: none;
+  }
+  .de-suggest > label {
+    justify-self: stretch;
+  }
+  .de-suggest-lede {
+    margin: 0;
+    max-width: 34rem;
+  }
+  .de-suggest-out {
+    display: grid;
+    gap: 0.5rem;
+    justify-items: start;
+    animation: suggest-in 0.3s ease both;
+  }
+  .de-suggest-label {
+    margin: 0.4rem 0 0;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .de-suggest-titles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  /* Title chips are built by script, so they carry no scope attribute. */
+  .de-suggest .de-suggest-titles :global(button) {
+    border-radius: 999px;
+    font-family: var(--serif);
+    font-size: 1.02rem;
+    font-weight: 400;
+  }
+  .de-suggest button:disabled {
+    opacity: 0.6;
+    cursor: progress;
+  }
+  .de-suggest .de-suggest-titles :global(button[aria-pressed="true"]) {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .de-suggest-desc {
+    margin: 0;
+    max-width: 34rem;
+  }
+  @keyframes suggest-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
   .de-row {
     display: flex;
     gap: 0.45rem;
@@ -1747,7 +1845,9 @@ const eyebrow =
   }
   .studio-toolbar button:not(.btn-primary),
   .studio-toolbar a.de-preview,
-  .share-actions button:not(.btn-primary) {
+  .share-actions button:not(.btn-primary),
+  .de-suggest button,
+  .de-suggest-titles :global(button) {
     font: inherit;
     font-size: 0.9rem;
     font-weight: 600;
@@ -1769,12 +1869,16 @@ const eyebrow =
   }
   .studio-toolbar button:not(.btn-primary):hover,
   .studio-toolbar a.de-preview:hover,
-  .share-actions button:not(.btn-primary):hover {
+  .share-actions button:not(.btn-primary):hover,
+  .de-suggest button:hover,
+  .de-suggest-titles :global(button:hover) {
     border-color: var(--ink);
   }
   .studio-toolbar button:focus-visible,
   .studio-toolbar a.de-preview:focus-visible,
-  .share-actions button:focus-visible {
+  .share-actions button:focus-visible,
+  .de-suggest button:focus-visible,
+  .de-suggest-titles :global(button:focus-visible) {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }

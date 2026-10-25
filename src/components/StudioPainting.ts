@@ -2,7 +2,7 @@
  * editor matches the buyer page. Saving commits the .md, photo, and AR
  * models. Local dev without a token uses the practice overlay. */
 import { api, existingTitles, getApiToken, uniqueSlug } from "../lib/api";
-import { loadImageFile, prepareImage } from "../lib/image";
+import { loadImageFile, prepareImage, smallJpegDataUrl } from "../lib/image";
 
 import { dollarsToCents, formatPriceCAD } from "../lib/money";
 import { formatDimensions } from "../lib/dims";
@@ -1092,6 +1092,93 @@ function wireDelete(
   });
 }
 
+/** Sets a field as if she typed it, so the preview and autosave follow. */
+function fillField(id: "de-title" | "de-desc" | "de-alt", value: string): void {
+  const el = $(id);
+  el.value = value;
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+/** The photo the helper looks at: a new upload, else the saved one. */
+async function suggestPhoto(): Promise<Blob | null> {
+  if (preparedBlob !== null) return preparedBlob;
+  const img = document.querySelector<HTMLImageElement>("#photo-wrap img");
+  if (img === null) return null;
+  const src = img.currentSrc !== "" ? img.currentSrc : img.src;
+  if (src === "") return null;
+  const res = await fetch(src);
+  return res.ok ? await res.blob() : null;
+}
+
+/** Writing helper: title, description, and alt text ideas from the photo.
+ * Shown only when the server has its key. Nothing is filled in until she
+ * taps an idea, except alt text when that field is still empty. */
+function initSuggest(): void {
+  const box = maybe("de-suggest");
+  if (box === null) return;
+  void api.suggestEnabled().then((on) => {
+    box.hidden = !on;
+  });
+  const go = $("de-suggest-go");
+  const say = (msg: string): void => {
+    $("de-suggest-status").textContent = msg;
+  };
+  go.addEventListener("click", () => {
+    void (async () => {
+      const photo = await suggestPhoto().catch(() => null);
+      if (photo === null) {
+        say("Add a photo first — the helper works from the picture.");
+        return;
+      }
+      go.disabled = true;
+      say("Looking at the painting… (about 10 seconds)");
+      try {
+        const { widthIn, heightIn } = readDims();
+        const ideas = await api.suggest({
+          image: await smallJpegDataUrl(photo),
+          title: $("de-title").value.trim(),
+          medium: $("de-medium").value.trim(),
+          widthIn,
+          heightIn,
+          notes: $("de-suggest-notes").value.trim(),
+        });
+        const titles = $("de-suggest-titles");
+        titles.replaceChildren(
+          ...ideas.titles.map((title) => {
+            const chip = document.createElement("button");
+            chip.type = "button";
+            chip.textContent = title;
+            chip.setAttribute("aria-pressed", "false");
+            chip.addEventListener("click", () => {
+              fillField("de-title", title);
+              for (const other of titles.querySelectorAll("button"))
+                other.setAttribute("aria-pressed", String(other === chip));
+            });
+            return chip;
+          }),
+        );
+        $("de-suggest-desc").textContent = ideas.description;
+        $("de-suggest-out").hidden = false;
+        const altFilled = $("de-alt").value.trim() === "" && ideas.alt !== "";
+        if (altFilled) fillField("de-alt", ideas.alt);
+        say(
+          altFilled
+            ? "Here are some ideas. The alt text is filled in too."
+            : "Here are some ideas. Tap again for different ones.",
+        );
+      } catch (err) {
+        say(errorMessage(err));
+      } finally {
+        go.disabled = false;
+      }
+    })();
+  });
+  $("de-suggest-use-desc").addEventListener("click", () => {
+    fillField("de-desc", $("de-suggest-desc").textContent ?? "");
+    say("Description added — change any words you like.");
+  });
+}
+
 function initStudio(): void {
   const main = document.getElementById("main");
   if (main === null) return;
@@ -1116,6 +1203,7 @@ function initStudio(): void {
   refreshPreview();
   restoreAutosave();
   initShare();
+  initSuggest();
   for (const id of [
     "de-title",
     "de-price",

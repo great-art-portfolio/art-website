@@ -57,6 +57,14 @@ export interface ElementMap {
   "de-medium": HTMLInputElement;
   "de-alt": HTMLInputElement;
   "de-desc": HTMLTextAreaElement;
+  "de-suggest": HTMLElement;
+  "de-suggest-notes": HTMLInputElement;
+  "de-suggest-go": HTMLButtonElement;
+  "de-suggest-status": HTMLElement;
+  "de-suggest-out": HTMLElement;
+  "de-suggest-titles": HTMLElement;
+  "de-suggest-desc": HTMLElement;
+  "de-suggest-use-desc": HTMLButtonElement;
   "de-save-draft": HTMLButtonElement;
   "de-publish": HTMLButtonElement;
   "de-save": HTMLButtonElement;
