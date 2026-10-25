@@ -3,8 +3,6 @@ import assert from "node:assert/strict";
 import {
   GALLERY_WIDTHS,
   PHOTO_WIDTHS,
-  STAGGER_SPANS,
-  cardSpan,
   SOLD_WIDTHS,
   featuredSizes,
   gallerySizes,
@@ -27,50 +25,29 @@ describe("responsive-images contracts", () => {
     assert.deepEqual(PHOTO_WIDTHS, [640, 960, 1280, 1600]);
   });
 
-  it("each gallery card asks for its exact stagger slot", () => {
+  it("each gallery card asks for its exact slot", () => {
     // Measured in a browser at 1280px: 7, 5 and 4-column cards are 693,
     // 483 and 379px wide.
     const widest = (s) =>
       Number(s.match(/^\(min-width: 1264px\) (\d+)px/)?.[1]);
-    assert.equal(widest(gallerySizes("normal", 0)), 693);
-    assert.equal(widest(gallerySizes("normal", 1)), 483);
-    assert.equal(widest(gallerySizes("normal", 2)), 379);
-    assert.equal(widest(gallerySizes("normal", 6)), 693);
-    assert.equal(widest(gallerySizes("normal", 11)), 483);
-    assert.equal(widest(gallerySizes("big", 2)), 797);
-    assert.equal(widest(gallerySizes("wide", 0)), 797);
-    assert.equal(widest(gallerySizes("big-wide", 3)), 1216);
+    assert.equal(widest(gallerySizes("normal", 7)), 693);
+    assert.equal(widest(gallerySizes("normal", 5)), 483);
+    assert.equal(widest(gallerySizes("normal", 4)), 379);
+    assert.equal(widest(gallerySizes("normal", 6)), 588);
+    assert.equal(widest(gallerySizes("big", 8)), 797);
+    assert.equal(widest(gallerySizes("big-wide", 12)), 1216);
     assert.equal(widest(soldSizes()), 384);
   });
 
-  it("stagger spans fill whole rows", () => {
-    assert.deepEqual(STAGGER_SPANS, [7, 5, 4, 4, 4, 5, 7, 4, 4, 4]);
-    assert.equal(cardSpan("normal", 0) + cardSpan("normal", 1), 12);
-    assert.equal(cardSpan("big", 5), 8);
-  });
-
-  it("a short last row fills the width", () => {
-    const normal = (n) => Array.from({ length: n }, () => "normal");
-    // 4 cards: 7+5, then two in the trio's slots split the row.
-    assert.deepEqual(
-      [0, 1, 2, 3].map((i) => cardSpan("normal", i, normal(4))),
-      [7, 5, 6, 6],
+  it("bigger tiles take the full width on tablets", () => {
+    assert.match(
+      gallerySizes("wide", 8),
+      /\(min-width: 40rem\) calc\(100vw - 48px\)/,
     );
-    // 3 cards: the lone third is centered at 6.
-    assert.equal(cardSpan("normal", 2, normal(3)), 6);
-    // 5 cards: a full trio keeps 4+4+4.
-    assert.equal(cardSpan("normal", 4, normal(5)), 4);
-    // 9 cards: the second trio's two cards split their row too.
-    assert.equal(cardSpan("normal", 7, normal(9)), 6);
-    assert.equal(cardSpan("normal", 8, normal(9)), 6);
-    // A big tile reflows the grid, so the stagger stands.
-    assert.equal(
-      cardSpan("normal", 3, ["normal", "normal", "big", "normal"]),
-      4,
+    assert.match(
+      gallerySizes("normal", 4),
+      /\(min-width: 40rem\) calc\(\(100vw - 88px\) \/ 2\)/,
     );
-    const widest = (s) =>
-      Number(s.match(/^\(min-width: 1264px\) (\d+)px/)?.[1]);
-    assert.equal(widest(gallerySizes("normal", 3, normal(4))), 588);
   });
 
   it("featured and photo sizes cap at the page width", () => {

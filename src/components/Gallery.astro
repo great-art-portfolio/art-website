@@ -2,7 +2,7 @@
 import { Image } from "astro:assets";
 import { publicPaintings, type Painting } from "../lib/collection";
 import { formatDimensions } from "../lib/dims";
-import { galleryTiles } from "../lib/gallery-layout";
+import { desktopSlots, galleryTiles } from "../lib/gallery-layout";
 import { formatPriceCAD } from "../lib/money";
 import {
   GALLERY_WIDTHS,
@@ -39,15 +39,25 @@ const priceLabel = (price: number): string =>
   formatPriceCAD(Math.round(price * 100));
 
 // Much larger paintings, and wide ones, get bigger slots in the staggered
-// layout so a 30 × 30 in canvas reads bigger than a 12 × 12 in one (see
+// layout so a 30 × 30 in canvas reads bigger than a 12 × 12 in one, and the
+// desktop rows are packed so they always fill the width (see
 // gallery-layout).
-const tiles = galleryTiles(
-  hung.map((p) => ({
-    aspect: p.data.image.width / p.data.image.height,
-    widthIn: p.data.widthIn ?? null,
-    heightIn: p.data.heightIn ?? null,
-  })),
-);
+const tileInputs = hung.map((p) => ({
+  aspect: p.data.image.width / p.data.image.height,
+  widthIn: p.data.widthIn ?? null,
+  heightIn: p.data.heightIn ?? null,
+}));
+const tiles = galleryTiles(tileInputs);
+const slots = desktopSlots(tileInputs, tiles);
+const slotClass = (i: number): string[] => {
+  const s = slots[i];
+  if (s === undefined) return [];
+  return [
+    `span-${s.span}`,
+    s.start !== null ? `start-${s.start}` : "",
+    s.lift > 0 ? `lift-${s.lift}` : "",
+  ].filter((c) => c !== "");
+};
 ---
 
 {view === "featured" && featured !== undefined && (
@@ -110,7 +120,11 @@ const tiles = galleryTiles(
     <div class="gallery" id="gallery-static">
       {hung.map((painting, i) => (
         <a
-          class:list={["card", tiles[i] !== "normal" && `tile-${tiles[i]}`]}
+          class:list={[
+            "card",
+            tiles[i] !== "normal" && `tile-${tiles[i]}`,
+            ...slotClass(i),
+          ]}
           href={`/paintings/${slugifyTitle(painting.data.title)}`}
           data-astro-prefetch="hover"
         >
@@ -123,7 +137,7 @@ const tiles = galleryTiles(
               alt={painting.data.alt}
               width={1000}
               widths={GALLERY_WIDTHS}
-              sizes={gallerySizes(tiles[i], i, tiles)}
+              sizes={gallerySizes(tiles[i] ?? "normal", slots[i]?.span ?? 4)}
               format="webp"
               decoding="async"
               loading={featured === undefined && i === 0 ? "eager" : "lazy"}
@@ -270,83 +284,44 @@ const tiles = galleryTiles(
       gap: 3.5rem 2.5rem;
     }
   }
-  /* Desktop: a repeating 10-card pattern on a 12-column grid (7+5, 4+4+4,
-     5+7, 4+4+4). It alternates a large-left pair, a trio with the middle
-     card lowered, a large-right pair, and a trio with the outer cards
-     lowered. */
+  /* Desktop: rows packed by desktopSlots (lib/gallery-layout) on a
+     12-column grid. Each card carries its span, a start column when it's
+     centered alone, and a drop for the stagger (7+5, 4+4+4, 5+7, 4+4+4,
+     with big and wide paintings at 8 beside a 4). Every row fills the
+     width, so cards flow in order. */
   @media (min-width: 60rem) {
     #gallery-static {
       grid-template-columns: repeat(12, 1fr);
     }
-    #gallery-static > .card:nth-child(10n + 1) {
+    #gallery-static > .span-4 {
+      grid-column: span 4;
+    }
+    #gallery-static > .span-5 {
+      grid-column: span 5;
+    }
+    #gallery-static > .span-6 {
+      grid-column: span 6;
+    }
+    #gallery-static > .span-7 {
       grid-column: span 7;
     }
-    #gallery-static > .card:nth-child(10n + 2) {
-      grid-column: span 5;
-      margin-top: 5rem;
-    }
-    #gallery-static > .card:nth-child(10n + 3),
-    #gallery-static > .card:nth-child(10n + 5),
-    #gallery-static > .card:nth-child(10n + 9) {
-      grid-column: span 4;
-    }
-    #gallery-static > .card:nth-child(10n + 4) {
-      grid-column: span 4;
-      margin-top: 2.5rem;
-    }
-    #gallery-static > .card:nth-child(10n + 6) {
-      grid-column: span 5;
-      margin-top: 5rem;
-    }
-    #gallery-static > .card:nth-child(10n + 7) {
-      grid-column: span 7;
-    }
-    #gallery-static > .card:nth-child(10n + 8),
-    #gallery-static > .card:nth-child(10n + 10) {
-      grid-column: span 4;
-      margin-top: 2.5rem;
-    }
-    /* A lowered card that ends the grid has no row below it, so keep it
-       level. */
-    #gallery-static > .card:nth-child(10n + 2):last-child,
-    #gallery-static > .card:nth-child(10n + 4):last-child,
-    #gallery-static > .card:nth-child(10n + 6):last-child,
-    #gallery-static > .card:nth-child(10n + 8):last-child,
-    #gallery-static > .card:nth-child(10n + 10):last-child {
-      margin-top: 0;
-    }
-    /* A short last row fills the width instead of leaving a hole: two
-       cards in a trio's slots split it, and a card left alone is centered.
-       Grids with a big or wide tile reflow densely, so slots don't apply.
-       cardSpan in lib/responsive-images mirrors this for image sizes. */
-    #gallery-static:not(:has(.tile-big, .tile-wide, .tile-big-wide)) {
-      & > .card:nth-child(10n + 3):nth-last-child(2),
-      & > .card:nth-child(10n + 4):last-child,
-      & > .card:nth-child(10n + 8):nth-last-child(2),
-      & > .card:nth-child(10n + 9):last-child {
-        grid-column: span 6;
-      }
-      & > .card:nth-child(10n + 1):last-child,
-      & > .card:nth-child(10n + 3):last-child,
-      & > .card:nth-child(10n + 6):last-child,
-      & > .card:nth-child(10n + 8):last-child {
-        grid-column: 4 / span 6;
-      }
-    }
-    /* Size beats the pattern: a much larger canvas takes the 8-column
-       slot and a wide one the full row, level with its neighbours. Dense
-       flow lets the next small paintings fill in beside it. */
-    #gallery-static {
-      grid-auto-flow: dense;
-    }
-    #gallery-static > .card.tile-big,
-    #gallery-static > .card.tile-wide {
+    #gallery-static > .span-8 {
       grid-column: span 8;
-      margin-top: 0;
     }
-    #gallery-static > .card.tile-big-wide {
+    #gallery-static > .span-12 {
       grid-column: 1 / -1;
-      margin-top: 0;
+    }
+    #gallery-static > .start-3 {
+      grid-column: 3 / span 8;
+    }
+    #gallery-static > .start-4 {
+      grid-column: 4 / span 6;
+    }
+    #gallery-static > .lift-1 {
+      margin-top: 2.5rem;
+    }
+    #gallery-static > .lift-2 {
+      margin-top: 5rem;
     }
   }
   /* Two columns: bigger paintings take both. */
@@ -359,8 +334,14 @@ const tiles = galleryTiles(
     }
   }
 
+  /* One column as wide as the mat, centered in the slot. The mat is as
+     wide as its painting, which fills the slot unless the height cap
+     stops a tall one first; then the mat hugs it instead of leaving empty
+     mat beside it. The caption takes the mat's width without widening it. */
   .card {
-    display: block;
+    display: grid;
+    grid-template-columns: minmax(0, max-content);
+    justify-content: center;
     color: inherit;
     text-decoration: none;
     border-radius: var(--radius);
@@ -430,6 +411,7 @@ const tiles = galleryTiles(
     object-fit: contain;
   }
   .caption {
+    contain: inline-size;
     display: flex;
     flex-direction: column;
     gap: 0.15rem;
