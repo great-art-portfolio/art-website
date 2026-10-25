@@ -86,6 +86,13 @@ async function request<T>(
   } catch {
     throw notJson(res.status);
   }
+  // A refusal means her day-long email sign-in ran out mid-visit. The
+  // studio rooms autosave her words, so a reload keeps them.
+  if (res.status === 401)
+    throw new ApiError(
+      401,
+      "Your sign-in has run out. Reload the page and enter the code from your email — your words are kept.",
+    );
   if (!res.ok)
     throw new ApiError(
       res.status,

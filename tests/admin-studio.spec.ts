@@ -2419,3 +2419,33 @@ test("a short collection has no search box", async ({ page }) => {
   await expect(page.locator("#edit-list .row-card").first()).toBeVisible();
   await expect(page.locator("#collection-search")).toBeHidden();
 });
+
+test("saving after the sign-in runs out says so in plain words", async ({
+  page,
+}) => {
+  // A stored token skips practice mode, so the save reaches the API.
+  await page.addInitScript(() =>
+    sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
+  );
+  await mockCommitApi(page);
+  await page.route("**/api/commit*", async (route) =>
+    route.request().method() === "POST"
+      ? route.fulfill({
+          status: 401,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "Unauthorized" }),
+        })
+      : route.fallback(),
+  );
+  await page.goto("/admin/paintings/first-thaw");
+  await expect(page.locator("#main")).toHaveAttribute(
+    "data-studio-wired",
+    /edit/,
+  );
+  await page.locator("#de-title").fill("First Thaw, Again");
+  await page.locator("#de-save").click();
+  await expect(page.locator("#de-status")).toContainText(
+    "Your sign-in has run out",
+  );
+  await expect(page.locator("#de-status")).not.toContainText("Unauthorized");
+});
