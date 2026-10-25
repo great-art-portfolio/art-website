@@ -85,6 +85,19 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
         Retry
       </button>
     </h2>
+    <div class="collection-search" id="collection-search-wrap" hidden>
+      <input
+        id="collection-search"
+        type="search"
+        placeholder="Find a painting by name"
+        aria-label="Find a painting by name"
+        autocomplete="off"
+        enterkeyhint="search"
+      />
+      <p class="hint" id="collection-search-none" hidden>
+        No painting by that name.
+      </p>
+    </div>
     <ul id="edit-list">
       <li class="list-group" data-group="available">
         <ul class="group-rows" set:html={availableHtml} />
@@ -158,6 +171,21 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
      components/studio.css. */
   /* Dev-only note under the heading, in small muted text. Hidden in
      production. */
+  .collection-search {
+    max-width: 24rem;
+    margin: 0 0 1.5rem;
+  }
+  .collection-search[hidden],
+  :global(#edit-list .row-card[hidden]),
+  :global(#edit-list [data-group][hidden]) {
+    display: none;
+  }
+  .collection-search input {
+    width: 100%;
+  }
+  .collection-search .hint {
+    margin: 0.6rem 0 0;
+  }
   :global(#collection-dev) {
     flex-basis: 100%;
     font-family:

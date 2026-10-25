@@ -7,6 +7,9 @@ export interface ElementMap {
   "collection-dev": HTMLElement;
   "collection-refresh": HTMLButtonElement;
   "edit-list": HTMLUListElement;
+  "collection-search": HTMLInputElement;
+  "collection-search-wrap": HTMLElement;
+  "collection-search-none": HTMLElement;
   "local-collection": HTMLElement;
   "row-confirm": HTMLElement;
   "row-confirm-title": HTMLElement;

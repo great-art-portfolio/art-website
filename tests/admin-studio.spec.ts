@@ -2359,3 +2359,59 @@ test("the old marketing page is gone", async ({ page }) => {
   await page.goto("/admin/marketing");
   await expect(page.locator("h1")).toHaveText("That wall is empty.");
 });
+
+test("a long collection gets a search box that filters every group", async ({
+  page,
+}) => {
+  // Practice rows push the list past the point where scrolling is a chore.
+  await page.addInitScript(() => {
+    const upserts: Record<string, unknown> = {};
+    const names = ["Bow River", "Rivière Rouge", "Canola", "Chinook Arch"];
+    for (let i = 0; i < 14; i += 1) {
+      const title = `${names[i % names.length] ?? ""} ${i + 1}`;
+      const slug = `search-${i + 1}`;
+      upserts[slug] = {
+        slug,
+        title,
+        price: 100,
+        sold: i % 3 === 0,
+        alt: "",
+        description: "",
+        widthIn: "",
+        heightIn: "",
+        depthIn: "",
+        medium: "",
+        draft: false,
+      };
+    }
+    window.localStorage.setItem(
+      "studio-practice-v1",
+      JSON.stringify({ upserts, deletes: [] }),
+    );
+  });
+  await page.goto("/admin");
+  const search = page.locator("#collection-search");
+  await expect(search).toBeVisible();
+  const visible = page.locator("#edit-list .row-card:visible");
+  // Accents and case don't matter, and a sold match opens its fold.
+  await search.fill("riviere");
+  await expect(visible).toHaveCount(4);
+  for (const title of await visible.locator(".row-del").all())
+    expect(await title.getAttribute("data-title")).toMatch(/^Rivière Rouge/);
+  await expect(page.locator('details[data-group="sold"]')).toHaveAttribute(
+    "open",
+    "",
+  );
+  await search.fill("nothing like this");
+  await expect(visible).toHaveCount(0);
+  await expect(page.locator("#collection-search-none")).toBeVisible();
+  await search.fill("");
+  await expect(page.locator("#collection-search-none")).toBeHidden();
+  expect(await visible.count()).toBeGreaterThan(12);
+});
+
+test("a short collection has no search box", async ({ page }) => {
+  await page.goto("/admin");
+  await expect(page.locator("#edit-list .row-card").first()).toBeVisible();
+  await expect(page.locator("#collection-search")).toBeHidden();
+});
