@@ -9,7 +9,7 @@ import {
 /** Admin: whether the title and description helper is set up, so the
  * studio only shows its button when it can work. */
 export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
-  const denied = requireAdmin(context.request, context.env);
+  const denied = await requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
   return json({ enabled: suggestEnabled(context.env) });
 };
@@ -17,7 +17,7 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
 /** Admin: title, description, and alt text ideas from the painting's photo.
  * Body: { image: data URL, title, medium, widthIn, heightIn, notes }. */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
-  const denied = requireAdmin(context.request, context.env);
+  const denied = await requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
   if (!suggestEnabled(context.env))
     return notEnabled("The writing helper", "Set the MUSE_API_KEY secret.");

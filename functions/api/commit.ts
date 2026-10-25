@@ -10,7 +10,7 @@ import { GALLERY_PATH, PAINTING_FILE } from "../_lib/gallery-paths";
 
 /** Admin: reads the banner text, or one painting file with ?path=. */
 export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
-  const denied = requireAdmin(context.request, context.env);
+  const denied = await requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
   const config = gitConfig(context.env);
   if (config === null) return badRequest("GitHub publishing is not configured");
@@ -40,7 +40,7 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
  * later.
  */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
-  const denied = requireAdmin(context.request, context.env);
+  const denied = await requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
   const config = gitConfig(context.env);
   if (config === null) return badRequest("GitHub publishing is not configured");
@@ -110,7 +110,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
 /** Admin: lists filenames in the paintings folder for slug collision
  * checks. */
 export const onRequestPut: PagesFunction<AppEnv> = async (context) => {
-  const denied = requireAdmin(context.request, context.env);
+  const denied = await requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
   const config = gitConfig(context.env);
   if (config === null) return badRequest("GitHub publishing is not configured");
