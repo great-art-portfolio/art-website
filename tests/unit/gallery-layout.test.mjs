@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   desktopSlots,
+  fullRowCount,
   galleryTiles,
   pickFeatured,
 } from "../../src/lib/gallery-layout.ts";
@@ -161,5 +162,26 @@ describe("pickFeatured", () => {
 
   it("returns -1 when there is nothing to feature", () => {
     assert.equal(pickFeatured([]), -1);
+  });
+});
+
+describe("fullRowCount", () => {
+  const n = (count) =>
+    Array.from({ length: count }, () => ({
+      aspect: 1,
+      widthIn: 12,
+      heightIn: 12,
+    }));
+
+  it("stops a capped run on a full row", () => {
+    // 12 cards end with one alone (7+5, 4+4+4, 5+7, 4+4+4 is 10, then 7+5
+    // is 12): already full. 13 of them would leave one alone.
+    assert.equal(fullRowCount(n(30), 12), 12);
+    assert.equal(fullRowCount(n(30), 13), 12);
+    assert.equal(fullRowCount(n(30), 11), 10);
+  });
+
+  it("shows everything when the run is short", () => {
+    assert.equal(fullRowCount(n(3), 12), 3);
   });
 });

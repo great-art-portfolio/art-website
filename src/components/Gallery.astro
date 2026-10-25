@@ -2,7 +2,11 @@
 import { Image } from "astro:assets";
 import { publicPaintings, type Painting } from "../lib/collection";
 import { formatDimensions } from "../lib/dims";
-import { desktopSlots, galleryTiles } from "../lib/gallery-layout";
+import {
+  desktopSlots,
+  fullRowCount,
+  galleryTiles,
+} from "../lib/gallery-layout";
 import { formatPriceCAD } from "../lib/money";
 import {
   GALLERY_WIDTHS,
@@ -11,13 +15,34 @@ import {
   gallerySizes,
   soldSizes,
 } from "../lib/responsive-images";
-import { SHOW_PRICES, slugifyTitle, workCount } from "../lib/site";
+import { HOME_LAYOUT, SHOW_PRICES, slugifyTitle, workCount } from "../lib/site";
+import {
+  BIG_COLLECTION_FROM,
+  HOME_LIMIT,
+  PRICE_LABELS,
+  ROOM_LIMIT,
+  ROOM_TITLES,
+  SHAPE_LABELS,
+  SIZE_HINTS,
+  SIZE_LABELS,
+  SOLD_LIMIT,
+  priceBand,
+  shapeOf,
+  sizeBand,
+  sizeRooms,
+  type PriceBand,
+  type Shape,
+  type SizeBand,
+} from "../lib/collection-filters";
 
 interface Props {
   /** "featured" renders only the newest painting, for the homepage's top
    * section (anything slotted in, like the studio note, is pinned to it).
-   * "grid" renders the collection without it, then the sold archive. */
-  view?: "grid" | "featured" | undefined;
+   * "grid" renders the homepage collection without it, then the sold
+   * archive; a large collection is capped, split into rooms, or browsed in
+   * place (HOME_LAYOUT). "all" renders every painting with filters, for
+   * the /paintings page. */
+  view?: "grid" | "featured" | "all" | undefined;
 }
 const { view = "grid" } = Astro.props;
 
@@ -38,26 +63,151 @@ const isNewStatic = (d: Date): boolean => Date.now() - d.getTime() < NEW_MS;
 const priceLabel = (price: number): string =>
   formatPriceCAD(Math.round(price * 100));
 
+const sizeOf = (p: Painting): SizeBand | null =>
+  sizeBand(p.data.widthIn ?? null, p.data.heightIn ?? null);
+const aspectOf = (p: Painting): number =>
+  p.data.image.width / p.data.image.height;
+const inputsOf = (list: readonly Painting[]) =>
+  list.map((p) => ({
+    aspect: aspectOf(p),
+    widthIn: p.data.widthIn ?? null,
+    heightIn: p.data.heightIn ?? null,
+  }));
+// A capped run stops on a full row rather than one painting alone.
+const capped = (list: Painting[], limit: number): Painting[] =>
+  list.slice(0, fullRowCount(inputsOf(list), limit));
+
+/** One run of staggered cards with its heading. */
+interface Section {
+  eyebrow: string;
+  title: string;
+  count: string;
+  paintings: Painting[];
+  /** "See all" link under the cards. */
+  more?: { href: string; label: string } | undefined;
+  /** Filter chips and/or Show more (gallery-browse). */
+  browse?: { filters: boolean; limit: number } | undefined;
+  /** A room inside the collection: a smaller heading. */
+  room?: boolean | undefined;
+}
+
+const big = available.length >= BIG_COLLECTION_FROM;
+const collectionHead = {
+  eyebrow: "The collection",
+  title: view === "all" ? "All paintings" : "Available works",
+  count: `${workCount(available.length)} · each one of a kind`,
+};
+const sections: Section[] =
+  view === "all"
+    ? [
+        {
+          ...collectionHead,
+          paintings: available,
+          browse: { filters: true, limit: 0 },
+        },
+      ]
+    : !big
+      ? [{ ...collectionHead, paintings: hung }]
+      : HOME_LAYOUT === "a"
+        ? [
+            {
+              ...collectionHead,
+              paintings: capped(hung, HOME_LIMIT),
+              more: {
+                href: "/paintings",
+                label: `See all ${available.length} paintings`,
+              },
+            },
+          ]
+        : HOME_LAYOUT === "c"
+          ? [
+              {
+                ...collectionHead,
+                paintings: hung,
+                browse: { filters: true, limit: HOME_LIMIT },
+              },
+            ]
+          : sizeRooms(hung, sizeOf).map((room) => ({
+              eyebrow:
+                room.key === "other"
+                  ? "Not yet measured"
+                  : SIZE_HINTS[room.key],
+              title: ROOM_TITLES[room.key],
+              count: workCount(room.items.length),
+              paintings: capped(room.items, ROOM_LIMIT),
+              room: true,
+              more:
+                capped(room.items, ROOM_LIMIT).length < room.items.length
+                  ? {
+                      href:
+                        room.key === "other"
+                          ? "/paintings"
+                          : `/paintings?size=${room.key}`,
+                      label: `See all ${room.items.length} ${ROOM_TITLES[room.key].toLowerCase()}`,
+                    }
+                  : undefined,
+            }));
+// Rooms sit under one collection heading.
+const roomsHead = sections.some((sec) => sec.room === true);
+
 // Much larger paintings, and wide ones, get bigger slots in the staggered
 // layout so a 30 × 30 in canvas reads bigger than a 12 × 12 in one, and the
 // desktop rows are packed so they always fill the width (see
-// gallery-layout).
-const tileInputs = hung.map((p) => ({
-  aspect: p.data.image.width / p.data.image.height,
-  widthIn: p.data.widthIn ?? null,
-  heightIn: p.data.heightIn ?? null,
-}));
-const tiles = galleryTiles(tileInputs);
-const slots = desktopSlots(tileInputs, tiles);
-const slotClass = (i: number): string[] => {
-  const s = slots[i];
+// gallery-layout). Each section packs its own rows.
+const layouts = sections.map((sec) => {
+  const inputs = inputsOf(sec.paintings);
+  const tiles = galleryTiles(inputs);
+  return { tiles, slots: desktopSlots(inputs, tiles) };
+});
+const cardClass = (si: number, i: number): string[] => {
+  const tile = layouts[si]?.tiles[i];
+  const s = layouts[si]?.slots[i];
   if (s === undefined) return [];
   return [
+    tile !== undefined && tile !== "normal" ? `tile-${tile}` : "",
     `span-${s.span}`,
     s.start !== null ? `start-${s.start}` : "",
     s.lift > 0 ? `lift-${s.lift}` : "",
   ].filter((c) => c !== "");
 };
+
+// Chips only for groups the collection actually has.
+const present = <T extends string>(all: readonly T[], has: (t: T) => boolean) =>
+  all.filter(has);
+const sizeChips = present<SizeBand>(["small", "medium", "large"], (b) =>
+  available.some((p) => sizeOf(p) === b),
+);
+const shapeChips = present<Shape>(["square", "tall", "wide"], (b) =>
+  available.some((p) => shapeOf(aspectOf(p)) === b),
+);
+const priceChips = present<PriceBand>(
+  ["under-200", "200-500", "over-500"],
+  (b) => available.some((p) => priceBand(p.data.price) === b),
+);
+const chipGroups = [
+  {
+    key: "size",
+    label: "Size",
+    values: sizeChips.map((v) => [v, SIZE_LABELS[v]]),
+  },
+  {
+    key: "shape",
+    label: "Shape",
+    values: shapeChips.map((v) => [v, SHAPE_LABELS[v]]),
+  },
+  {
+    key: "price",
+    label: "Price",
+    values: priceChips.map((v) => [v, PRICE_LABELS[v]]),
+  },
+].filter((g) => g.values.length > 1);
+
+// The homepage keeps a few recent sales; the rest are a tap away.
+const soldShown =
+  view === "grid" && big && HOME_LAYOUT !== "c"
+    ? sold.slice(0, SOLD_LIMIT)
+    : sold;
+const soldBrowse = view === "grid" && big && HOME_LAYOUT === "c";
 ---
 
 {view === "featured" && featured !== undefined && (
@@ -107,74 +257,170 @@ const slotClass = (i: number): string[] => {
   </figure>
 )}
 
-{view === "grid" && (
-  <section class="collection" id="collection" aria-label="Available paintings">
-    <div class="section-head">
-      <div>
-        <p class="eyebrow">The collection</p>
-        <h2>Available works</h2>
+{view !== "featured" && (
+  <section
+    class:list={["collection", roomsHead && "rooms"]}
+    id="collection"
+    aria-label="Available paintings"
+  >
+    {roomsHead && (
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">{collectionHead.eyebrow}</p>
+          <h2>{collectionHead.title}</h2>
+        </div>
+        <p class="count">{collectionHead.count}</p>
       </div>
-      <p class="count">{workCount(available.length)} · each one of a kind</p>
-    </div>
-
-    <div class="gallery" id="gallery-static">
-      {hung.map((painting, i) => (
-        <a
-          class:list={[
-            "card",
-            tiles[i] !== "normal" && `tile-${tiles[i]}`,
-            ...slotClass(i),
-          ]}
-          href={`/paintings/${slugifyTitle(painting.data.title)}`}
-          data-astro-prefetch="hover"
-        >
-          <span
-            class="mat"
-            transition:name={`painting-${slugifyTitle(painting.data.title)}`}
+    )}
+    {sections.map((sec, si) => (
+      <div
+        class:list={["run", sec.room === true && "room"]}
+        data-browse={sec.browse !== undefined ? "" : undefined}
+        data-limit={sec.browse?.limit}
+      >
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">{sec.eyebrow}</p>
+            {sec.room === true ? <h3>{sec.title}</h3> : <h2>{sec.title}</h2>}
+          </div>
+          <p
+            class="count"
+            data-browse-count={sec.browse?.filters ? "" : undefined}
           >
-            <Image
-              src={painting.data.image}
-              alt={painting.data.alt}
-              width={1000}
-              widths={GALLERY_WIDTHS}
-              sizes={gallerySizes(tiles[i] ?? "normal", slots[i]?.span ?? 4)}
-              format="webp"
-              decoding="async"
-              loading={featured === undefined && i === 0 ? "eager" : "lazy"}
-              fetchpriority={
-                featured === undefined && i === 0 ? "high" : undefined
-              }
-            />
-            {isNewStatic(painting.data.dateAdded) && (
-              <span
-                class="badge new"
-                data-new-until={painting.data.dateAdded.getTime() + NEW_MS}
+            {sec.count}
+          </p>
+        </div>
+        {sec.browse?.filters === true && chipGroups.length > 0 && (
+          <div class="chip-bar">
+            {chipGroups.map((g) => (
+              <div
+                class="chips"
+                role="group"
+                aria-label={g.label}
+                data-filter={g.key}
               >
-                New
+                <span class="chips-label">{g.label}</span>
+                <button type="button" data-value="" aria-pressed="true">
+                  All
+                </button>
+                {g.values.map(([value, label]) => (
+                  <button type="button" data-value={value} aria-pressed="false">
+                    {label}
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+        <div
+          class="gallery stagger"
+          id={si === 0 ? "gallery-static" : undefined}
+          data-browse-grid={sec.browse !== undefined ? "" : undefined}
+        >
+          {sec.paintings.map((painting, i) => (
+            <a
+              class:list={["card", ...cardClass(si, i)]}
+              href={`/paintings/${slugifyTitle(painting.data.title)}`}
+              data-astro-prefetch="hover"
+              data-aspect={aspectOf(painting).toFixed(4)}
+              data-w={painting.data.widthIn}
+              data-h={painting.data.heightIn}
+              data-size={sizeOf(painting) ?? ""}
+              data-shape={shapeOf(aspectOf(painting))}
+              data-price={priceBand(painting.data.price)}
+              hidden={
+                sec.browse !== undefined &&
+                sec.browse.limit > 0 &&
+                i >= sec.browse.limit
+              }
+            >
+              <span
+                class="mat"
+                transition:name={`painting-${slugifyTitle(painting.data.title)}`}
+              >
+                <Image
+                  src={painting.data.image}
+                  alt={painting.data.alt}
+                  width={1000}
+                  widths={GALLERY_WIDTHS}
+                  sizes={gallerySizes(
+                    layouts[si]?.tiles[i] ?? "normal",
+                    layouts[si]?.slots[i]?.span ?? 4,
+                  )}
+                  format="webp"
+                  decoding="async"
+                  loading={
+                    (featured === undefined || view === "all") &&
+                    si === 0 &&
+                    i === 0
+                      ? "eager"
+                      : "lazy"
+                  }
+                  fetchpriority={
+                    (featured === undefined || view === "all") &&
+                    si === 0 &&
+                    i === 0
+                      ? "high"
+                      : undefined
+                  }
+                />
+                {isNewStatic(painting.data.dateAdded) && (
+                  <span
+                    class="badge new"
+                    data-new-until={painting.data.dateAdded.getTime() + NEW_MS}
+                  >
+                    New
+                  </span>
+                )}
               </span>
-            )}
-          </span>
-          <span class="caption">
-            <span class="caption-title">{painting.data.title}</span>
-            <span class="caption-sub">
-              {SHOW_PRICES ? (
-                <span class="price">{priceLabel(painting.data.price)}</span>
-              ) : (
-                <span class="ask">Ask about this piece →</span>
-              )}
-              {dimsOf(painting) !== "" && (
-                <span class="dims">{dimsOf(painting)}</span>
-              )}
-            </span>
-          </span>
-        </a>
-      ))}
-    </div>
+              <span class="caption">
+                <span class="caption-title">{painting.data.title}</span>
+                <span class="caption-sub">
+                  {SHOW_PRICES ? (
+                    <span class="price">{priceLabel(painting.data.price)}</span>
+                  ) : (
+                    <span class="ask">Ask about this piece →</span>
+                  )}
+                  {dimsOf(painting) !== "" && (
+                    <span class="dims">{dimsOf(painting)}</span>
+                  )}
+                </span>
+              </span>
+            </a>
+          ))}
+        </div>
+        {sec.browse?.filters === true && (
+          <p class="browse-empty" data-browse-empty hidden>
+            Nothing matches all of those. Try fewer filters.
+          </p>
+        )}
+        {sec.browse !== undefined && sec.browse.limit > 0 && (
+          <div class="more-row">
+            <button type="button" class="more" data-show-more>
+              Show more
+            </button>
+          </div>
+        )}
+        {sec.more !== undefined && (
+          <div class="more-row">
+            <a class="more" href={sec.more.href}>
+              {sec.more.label} →
+            </a>
+          </div>
+        )}
+      </div>
+    ))}
   </section>
 )}
 
-{view === "grid" && sold.length > 0 && (
-  <section class="collection collected" id="sold" aria-label="Sold paintings">
+{view !== "featured" && sold.length > 0 && (
+  <section
+    class="collection collected"
+    id="sold"
+    aria-label="Sold paintings"
+    data-browse={soldBrowse ? "" : undefined}
+    data-limit={soldBrowse ? SOLD_LIMIT : undefined}
+  >
     <div class="section-head">
       <div>
         <p class="eyebrow">Collected</p>
@@ -182,12 +428,16 @@ const slotClass = (i: number): string[] => {
       </div>
       <p class="count">{workCount(sold.length)} sold</p>
     </div>
-    <div class="gallery sold-grid">
-      {sold.map((painting) => (
+    <div
+      class="gallery sold-grid"
+      data-browse-grid={soldBrowse ? "" : undefined}
+    >
+      {soldShown.map((painting, i) => (
         <a
           class="card"
           href={`/paintings/${slugifyTitle(painting.data.title)}`}
           data-astro-prefetch="hover"
+          hidden={soldBrowse && i >= SOLD_LIMIT}
         >
           <span
             class="mat"
@@ -211,6 +461,20 @@ const slotClass = (i: number): string[] => {
         </a>
       ))}
     </div>
+    {soldBrowse && (
+      <div class="more-row">
+        <button type="button" class="more" data-show-more>
+          Show more
+        </button>
+      </div>
+    )}
+    {soldShown.length < sold.length && (
+      <div class="more-row">
+        <a class="more" href="/paintings#sold">
+          See all {sold.length} sold paintings →
+        </a>
+      </div>
+    )}
   </section>
 )}
 
@@ -226,6 +490,19 @@ const slotClass = (i: number): string[] => {
   }
   expireNewBadges();
   document.addEventListener("astro:page-load", expireNewBadges);
+
+  // Large collections: filters, Show more, and re-packed rows. Each
+  // section wires once per DOM (gallery-browse guards it).
+  function wireBrowseSections() {
+    const roots = document.querySelectorAll("[data-browse]");
+    if (roots.length === 0) return;
+    import("../lib/gallery-browse").then((m) => {
+      for (const root of roots)
+        if (root instanceof HTMLElement) m.wireBrowse(root);
+    });
+  }
+  wireBrowseSections();
+  document.addEventListener("astro:page-load", wireBrowseSections);
 </script>
 
 <style>
@@ -270,16 +547,131 @@ const slotClass = (i: number): string[] => {
     white-space: nowrap;
   }
 
+  /* Large collections: rooms, chips, and the See all / Show more row. */
+  .rooms > .section-head {
+    margin-bottom: 3rem;
+  }
+  .room + .room {
+    margin-top: 4.5rem;
+  }
+  .room .section-head {
+    border-bottom: 0;
+    padding-bottom: 0;
+    margin-bottom: 1.75rem;
+  }
+  .room h3 {
+    margin: 0;
+    font-family: var(--serif);
+    font-size: clamp(1.3rem, 2.2vw, 1.6rem);
+    font-weight: 500;
+  }
+  .chip-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.9rem 2rem;
+    margin: -1rem 0 2.75rem;
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  /* Phones: each group is one row that scrolls sideways, so the chips
+     never break onto a line of their own. */
+  @media (max-width: 40rem) {
+    .chip-bar {
+      flex-direction: column;
+      flex-wrap: nowrap;
+      gap: 0.5rem;
+      margin-right: -1.5rem;
+    }
+    .chips {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      padding: 2px 1.5rem 2px 2px;
+      scrollbar-width: none;
+    }
+    .chips button {
+      flex: none;
+    }
+  }
+  .chips-label {
+    margin-right: 0.35rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .chips button {
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    min-height: 2.5rem;
+    padding: 0.35rem 0.95rem;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    color: var(--ink);
+    cursor: pointer;
+    transition:
+      border-color 0.2s ease,
+      background-color 0.2s ease,
+      color 0.2s ease;
+  }
+  .chips button:hover {
+    border-color: var(--ink);
+  }
+  .chips button[aria-pressed="true"] {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .chips button:focus-visible,
+  .more:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .browse-empty {
+    margin: 0;
+    color: var(--muted);
+  }
+  .more-row {
+    display: flex;
+    justify-content: center;
+    margin-top: 3rem;
+  }
+  .more-row:has(> .more[hidden]) {
+    display: none;
+  }
+  .more {
+    display: inline-flex;
+    align-items: center;
+    min-height: 3rem;
+    padding: 0.75rem 1.7rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: border-color 0.25s ease;
+  }
+  .more:hover {
+    border-color: var(--ink);
+  }
   .gallery {
     display: grid;
     gap: 3rem 2.5rem;
     align-items: start;
   }
-  #gallery-static {
+  .stagger {
     grid-template-columns: 1fr;
   }
   @media (min-width: 40rem) {
-    #gallery-static {
+    .stagger {
       grid-template-columns: repeat(2, 1fr);
       gap: 3.5rem 2.5rem;
     }
@@ -290,46 +682,46 @@ const slotClass = (i: number): string[] => {
      with big and wide paintings at 8 beside a 4). Every row fills the
      width, so cards flow in order. */
   @media (min-width: 60rem) {
-    #gallery-static {
+    .stagger {
       grid-template-columns: repeat(12, 1fr);
     }
-    #gallery-static > .span-4 {
+    .stagger > .span-4 {
       grid-column: span 4;
     }
-    #gallery-static > .span-5 {
+    .stagger > .span-5 {
       grid-column: span 5;
     }
-    #gallery-static > .span-6 {
+    .stagger > .span-6 {
       grid-column: span 6;
     }
-    #gallery-static > .span-7 {
+    .stagger > .span-7 {
       grid-column: span 7;
     }
-    #gallery-static > .span-8 {
+    .stagger > .span-8 {
       grid-column: span 8;
     }
-    #gallery-static > .span-12 {
+    .stagger > .span-12 {
       grid-column: 1 / -1;
     }
-    #gallery-static > .start-3 {
+    .stagger > .start-3 {
       grid-column: 3 / span 8;
     }
-    #gallery-static > .start-4 {
+    .stagger > .start-4 {
       grid-column: 4 / span 6;
     }
-    #gallery-static > .lift-1 {
+    .stagger > .lift-1 {
       margin-top: 2.5rem;
     }
-    #gallery-static > .lift-2 {
+    .stagger > .lift-2 {
       margin-top: 5rem;
     }
   }
   /* Two columns: bigger paintings take both. */
   @media (min-width: 40rem) and (max-width: 59.99rem) {
-    #gallery-static {
+    .stagger {
       grid-auto-flow: dense;
     }
-    #gallery-static > .card:is(.tile-big, .tile-wide, .tile-big-wide) {
+    .stagger > .card:is(.tile-big, .tile-wide, .tile-big-wide) {
       grid-column: 1 / -1;
     }
   }
@@ -338,6 +730,9 @@ const slotClass = (i: number): string[] => {
      wide as its painting, which fills the slot unless the height cap
      stops a tall one first; then the mat hugs it instead of leaving empty
      mat beside it. The caption takes the mat's width without widening it. */
+  .card[hidden] {
+    display: none;
+  }
   .card {
     display: grid;
     grid-template-columns: minmax(0, max-content);

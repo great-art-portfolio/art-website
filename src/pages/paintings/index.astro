@@ -1,0 +1,16 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import Gallery from "../../components/Gallery.astro";
+---
+
+<Layout title="All paintings">
+  <main id="main" class="all-paintings">
+    <Gallery view="all" />
+  </main>
+</Layout>
+
+<style>
+  .all-paintings {
+    padding-top: clamp(2.5rem, 6vw, 4.5rem);
+  }
+</style>

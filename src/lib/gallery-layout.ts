@@ -176,3 +176,18 @@ export function desktopSlots(
   if (last !== undefined) last.lift = 0;
   return slots;
 }
+
+/** How many of the first `limit` paintings to show so the last desktop row
+ * is full instead of one painting centered alone, giving up at most two.
+ * Returns `limit` when no nearby cut ends a row. */
+export function fullRowCount(
+  items: readonly TileInput[],
+  limit: number,
+): number {
+  if (items.length <= limit) return items.length;
+  for (let n = limit; n >= Math.max(1, limit - 2); n -= 1) {
+    // Every row fills the width except a lone last card, which is centered.
+    if (desktopSlots(items.slice(0, n)).at(-1)?.start === null) return n;
+  }
+  return limit;
+}
