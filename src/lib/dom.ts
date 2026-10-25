@@ -7,6 +7,9 @@ export interface ElementMap {
   "collection-dev": HTMLElement;
   "collection-refresh": HTMLButtonElement;
   "edit-list": HTMLUListElement;
+  "collection-search": HTMLInputElement;
+  "collection-search-wrap": HTMLElement;
+  "collection-search-none": HTMLElement;
   "local-collection": HTMLElement;
   "row-confirm": HTMLElement;
   "row-confirm-title": HTMLElement;
@@ -57,6 +60,14 @@ export interface ElementMap {
   "de-medium": HTMLInputElement;
   "de-alt": HTMLInputElement;
   "de-desc": HTMLTextAreaElement;
+  "de-suggest": HTMLElement;
+  "de-suggest-notes": HTMLInputElement;
+  "de-suggest-go": HTMLButtonElement;
+  "de-suggest-status": HTMLElement;
+  "de-suggest-out": HTMLElement;
+  "de-suggest-titles": HTMLElement;
+  "de-suggest-desc": HTMLElement;
+  "de-suggest-use-desc": HTMLButtonElement;
   "de-save-draft": HTMLButtonElement;
   "de-publish": HTMLButtonElement;
   "de-save": HTMLButtonElement;

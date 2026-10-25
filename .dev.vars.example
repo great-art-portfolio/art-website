@@ -34,3 +34,7 @@ ARTIST_INBOX=
 VAPID_PUBLIC_KEY=
 VAPID_PRIVATE_JWK=
 VAPID_CONTACT=
+
+# Title and description helper in the painting room (Meta Model API key,
+# the same Muse key ccez-llm uses). Blank hides the helper's button.
+MUSE_API_KEY=

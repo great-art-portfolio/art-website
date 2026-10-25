@@ -7,7 +7,12 @@ import {
   parseBannerPreview,
   type BakedRow,
 } from "../lib/schemas";
-import { studioRowHtml as rowHtml, viewsLabel } from "../lib/studio-rows";
+import {
+  SEARCH_FROM,
+  matchesSearch,
+  studioRowHtml as rowHtml,
+  viewsLabel,
+} from "../lib/studio-rows";
 import {
   compareGalleryOrder,
   groupByAvailability,
@@ -286,6 +291,53 @@ async function fillRowQrs(list: Element): Promise<void> {
   }
 }
 
+/** Studio search: once the list is long, a box filters every group by
+ * title. Folds with a match open while she searches and go back to how
+ * she left them when the box is cleared. */
+function searchQuery(): string {
+  return maybe("collection-search")?.value.trim() ?? "";
+}
+
+function applySearch(list: HTMLElement): void {
+  const wrap = maybe("collection-search-wrap");
+  if (wrap === null) return;
+  const cards = list.querySelectorAll(".row-card");
+  const long = cards.length > SEARCH_FROM;
+  wrap.hidden = !long;
+  const query = long ? searchQuery() : "";
+  let shown = 0;
+  for (const card of cards) {
+    if (!(card instanceof HTMLElement)) continue;
+    const title =
+      card.querySelector(".row-del")?.getAttribute("data-title") ?? "";
+    card.hidden = query !== "" && !matchesSearch(title, query);
+    if (!card.hidden) shown += 1;
+  }
+  for (const group of list.querySelectorAll("[data-group]")) {
+    if (!(group instanceof HTMLElement)) continue;
+    const any = group.querySelector(".row-card:not([hidden])") !== null;
+    group.hidden = query !== "" && !any;
+    if (group instanceof HTMLDetailsElement) {
+      if (query !== "" && any) {
+        if (group.dataset.openBefore === undefined)
+          group.dataset.openBefore = group.open ? "1" : "0";
+        group.open = true;
+      } else if (query === "" && group.dataset.openBefore !== undefined) {
+        group.open = group.dataset.openBefore === "1";
+        delete group.dataset.openBefore;
+      }
+    }
+  }
+  $("collection-search-none").hidden = query === "" || shown > 0;
+}
+
+function wireSearch(list: HTMLElement): void {
+  const input = maybe("collection-search");
+  if (input === null || input.dataset.wired === "1") return;
+  input.dataset.wired = "1";
+  input.addEventListener("input", () => applySearch(list));
+}
+
 /** Available sits on top, with Drafts, Sold, and Trash in folds below.
  * Only Available and Sold can be dragged to reorder. */
 function renderRows(rows: LocalPainting[]): void {
@@ -296,15 +348,20 @@ function renderRows(rows: LocalPainting[]): void {
   wireReorder(list);
   wireReorderHint(list);
   wireDrawers(list, "details");
+  wireSearch(list);
   // Fill QRs before the unchanged-rows early return, or the server-rendered
   // rows would never get theirs.
   void fillRowQrs(list);
   const key = rowsKey(rows);
-  if (key === lastRowsKey) return;
+  if (key === lastRowsKey) {
+    applySearch(list);
+    return;
+  }
   lastRowsKey = key;
   if (rows.length === 0) {
     list.innerHTML =
       '<li class="list-plain">Nothing here yet — tap Add painting above.</li>';
+    applySearch(list);
     return;
   }
   // Keep each fold's open state across the swap. A fold mid-animation counts
@@ -361,6 +418,7 @@ function renderRows(rows: LocalPainting[]): void {
   list.innerHTML = html;
   void fillRowQrs(list);
   wireReorder(list);
+  applySearch(list);
   // Restore fold state without animating, since this is a re-render.
   for (const el of list.querySelectorAll("details[data-group]")) {
     if (!(el instanceof HTMLDetailsElement) || el.dataset.group === undefined)
@@ -451,6 +509,12 @@ function wireReorder(list: HTMLElement): void {
   if (reorderWired) return;
   reorderWired = true;
   list.addEventListener("dragstart", (e) => {
+    // Hidden rows sit between the visible ones, so a drop while searching
+    // would land somewhere she can't see. Reorder with the box cleared.
+    if (searchQuery() !== "") {
+      e.preventDefault();
+      return;
+    }
     const card = reorderCard(e.target);
     const slug = card === null ? null : reorderSlug(card);
     if (card === null || slug === null) {
