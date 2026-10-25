@@ -498,7 +498,7 @@ const eyebrow =
             <p class="price">{priceLabel}</p>
           ) : (
             <p class="price-note">
-              Price on request — send a note below and the artist will reply.
+              Price on request — send a note below to ask.
             </p>
           )}
           {data.meta !== "" && <p class="art-meta">{data.meta}</p>}
@@ -564,18 +564,21 @@ const eyebrow =
       {!studio && !data.sold && data.modelGlb !== "" && (
         <div id="ar-mount">
           <h2>Try it on your wall</h2>
-          <p class="hint">
-            About true size — on your phone, point it at the wall where it would
-            hang.
+          {/* One line per screen: phones get the how-to here, computers
+              get it once, beside the QR code below. */}
+          <p class="hint ar-intro-touch">
+            Shown about true size. Tap <strong>View on your wall</strong>, then
+            point your phone where it would hang.
           </p>
+          <p class="hint ar-intro-desk">Shown about true size.</p>
           <div id="ar-stage">
             <div class="ar-skeleton" aria-hidden="true" />
           </div>
           <div class="ar-scan">
             <span class="ar-qr" set:html={qrSvg(paintingPageUrl(data.slug))} />
             <p class="hint">
-              On a computer? Scan this with your phone's camera to open this
-              painting there, then tap <strong>View on your wall</strong>.
+              To see it on your wall, scan this with your phone's camera, then
+              tap <strong>View on your wall</strong>.
             </p>
           </div>
         </div>
@@ -816,7 +819,7 @@ const eyebrow =
               say(
                 status,
                 result === "sent"
-                  ? "Thanks! The artist will reply by email."
+                  ? "Thanks — your note has been sent to the artist."
                   : result === "queued"
                     ? "Saved — it will send automatically when you're back online."
                     : result === "check"
@@ -1385,11 +1388,19 @@ const eyebrow =
     white-space: nowrap;
     cursor: pointer;
   }
-  /* Desktop only: a QR code takes the page to a phone, where AR works. */
-  .ar-scan {
+  /* Desktop only: a QR code takes the page to a phone, where AR works.
+     The intro line swaps with it, so the how-to is said once. */
+  .ar-scan,
+  .ar-intro-desk {
     display: none;
   }
   @media (hover: hover) and (pointer: fine) {
+    .ar-intro-touch {
+      display: none;
+    }
+    .ar-intro-desk {
+      display: block;
+    }
     .ar-scan {
       display: flex;
       align-items: center;
@@ -1428,11 +1439,12 @@ const eyebrow =
     }
   }
   /* The viewer is focusable for keyboard orbit. Show the accent ring for
-     keyboard focus only. */
-  #ar-stage model-viewer:focus {
+     keyboard focus only. Script-built, so it needs :global(): scoped,
+     these never matched and the browser's blue ring showed on a click. */
+  :global(#ar-stage model-viewer:focus) {
     outline: none;
   }
-  #ar-stage model-viewer:focus-visible {
+  :global(#ar-stage model-viewer:focus-visible) {
     outline: 2px solid var(--accent);
     outline-offset: 3px;
   }
