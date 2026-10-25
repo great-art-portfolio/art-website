@@ -24,6 +24,20 @@
 - [ ] "Recently sold" section + a few words from buyers (social proof for new visitors)
   - Sold paintings already carry `sold: true`; the gallery groups them. Needs a buyer-quote field she can fill in from the painting room, shown with permission only.
 
+## Studio helpers
+
+- [x] Writing helper in the painting room (2026-10-25): Muse Spark looks at the photo and suggests three titles, a description, and alt text. Go-live: set the `MUSE_API_KEY` Pages secret (Meta Model API key); the button stays hidden until then.
+- [x] "Find a painting" search on the studio list past 12 paintings (2026-10-25).
+
+## When there are a lot of paintings
+
+Tested 2026-10-25 with `pnpm seed:gallery 120`: the build stays fast (about 11 s locally with placeholders), but the homepage becomes very long (about 39,000 px on desktop, 55,000 px on a phone, 456 KB of HTML) because it shows every painting plus the whole sold archive. Plan, once she passes about 30 available paintings (a visual change, so show the owner options first):
+
+- [ ] Homepage keeps the hero and her first 12 paintings, then "See all 87 paintings" to a `/paintings` page with the same stagger.
+- [ ] `/paintings` gets plain filter chips (size: small / medium / large; price bands; shape: square / tall / wide) and a sort (her order, newest, price), all in the page with no server.
+- [ ] The sold archive moves to `/sold`; the homepage shows the six most recent with a link.
+- Limits that are far off: Pages allows 20,000 files per deploy (about 1,300 paintings at ~15 files each), and the repo grows about 1 MB per painting photo.
+
 ## Wow (impress visitors)
 
 - [x] **AR "view on your wall"**: photo → true-scale framed GLB (Android)
