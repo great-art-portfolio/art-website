@@ -124,4 +124,4 @@ export function metaDescription(body: string, fallback: string): string {
 }
 
 /** How the homepage handles a large collection (collection-filters). */
-export const HOME_LAYOUT: "a" | "b" | "c" = "a";
+export const HOME_LAYOUT: "a" | "b" | "c" = "b";
