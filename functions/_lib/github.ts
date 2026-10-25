@@ -37,6 +37,23 @@ export function gitConfig(env: AppEnv): GitHubConfig | null {
 
 const apiBase = "https://api.github.com";
 
+/** GitHub refused the site's key: expired, revoked, or without access to
+ * the repo. Saving can't work until it's renewed. */
+export class GitHubKeyError extends Error {}
+
+/** What she reads when the key is refused. Plain words, and who to ask. */
+export const KEY_REFUSED =
+  "Saving is paused: the site's GitHub key has run out. Ask Chris to renew it — nothing you've saved is lost.";
+
+let keyExpiry: string | null = null;
+
+/** The key's expiry day ("YYYY-MM-DD") from GitHub's last answer, or null
+ * when the key never expires or nothing has been asked yet. GitHub sends
+ * it on every call made with a fine-grained or expiring token. */
+export function githubKeyExpiry(): string | null {
+  return keyExpiry;
+}
+
 async function gh(
   config: GitHubConfig,
   path: string,
@@ -52,8 +69,19 @@ async function gh(
       ...(init?.headers ?? {}),
     },
   });
+  const expires = res.headers.get("github-authentication-token-expiration");
+  if (expires !== null && /^\d{4}-\d{2}-\d{2}/.test(expires))
+    keyExpiry = expires.slice(0, 10);
   if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`GitHub API ${res.status}: ${await res.text()}`);
+  if (!res.ok) {
+    const text = await res.text();
+    // 403 is also a rate limit, which passes on its own.
+    if (res.status === 401 || (res.status === 403 && !/rate limit/i.test(text)))
+      throw new GitHubKeyError(
+        `GitHub refused the key (${res.status}): ${text}`,
+      );
+    throw new Error(`GitHub API ${res.status}: ${text}`);
+  }
   if (res.status === 204) return null;
   return (await res.json()) as unknown;
 }

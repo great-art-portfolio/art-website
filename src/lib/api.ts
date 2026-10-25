@@ -127,6 +127,14 @@ async function blobToBase64(blob: Blob): Promise<string> {
   return bytesToBase64(new Uint8Array(await blob.arrayBuffer()));
 }
 
+let keyExpires: string | null = null;
+
+/** The site's GitHub key's last day, from the latest collection listing,
+ * or null when it never expires or hasn't been asked yet. */
+export function publishingKeyExpiry(): string | null {
+  return keyExpires;
+}
+
 export const api = {
   /** Reads the banner text from the repo. */
   async getBanner(): Promise<string> {
@@ -169,6 +177,7 @@ export const api = {
       method: "PUT",
       headers: adminHeaders(),
     });
+    keyExpires = data.keyExpires ?? null;
     return data.files;
   },
   /**

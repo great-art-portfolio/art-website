@@ -234,6 +234,7 @@ function stubServices(fileMd) {
     const ok = (data) => ({
       ok: true,
       status: 200,
+      headers: new Headers(),
       json: async () => data,
       text: async () => "",
     });

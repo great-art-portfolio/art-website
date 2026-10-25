@@ -85,6 +85,7 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
         Retry
       </button>
     </h2>
+    <p class="key-note" id="key-note" role="status" hidden></p>
     <div class="collection-search" id="collection-search-wrap" hidden>
       <input
         id="collection-search"
@@ -171,6 +172,16 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
      components/studio.css. */
   /* Dev-only note under the heading, in small muted text. Hidden in
      production. */
+  /* The heads-up before the GitHub key runs out: accent words, no box. */
+  .key-note {
+    max-width: 40rem;
+    margin: 0 0 1.5rem;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .key-note[hidden] {
+    display: none;
+  }
   .collection-search {
     max-width: 24rem;
     margin: 0 0 1.5rem;

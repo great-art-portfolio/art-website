@@ -11,6 +11,8 @@ import { buildShareCaption } from "../lib/share-caption";
 import {
   appendSlugHistory,
   buildMarkdown,
+  formatAlerts,
+  parseAlerts,
   normalizePublishOn,
   parsePainting,
   patchPainting,
@@ -21,6 +23,7 @@ import {
 } from "../lib/painting-edit";
 import { loadArTooling, loadModelViewer } from "../lib/vendor-loader";
 import { readBackup } from "../lib/autosave";
+import { sendPublishAlerts } from "../lib/alerts";
 import { $, maybe, maybeButton, studioMode } from "../lib/dom";
 import { errorMessage } from "../lib/errors";
 import {
@@ -506,36 +509,25 @@ function goAdmin(flash: string): void {
 /** Notifies the checked channels after a publish. Drafts and plain saves
  * don't notify. Failures are reported in the confirmation text rather than
  * failing the publish. */
+/** The "On publish, also tell" boxes. */
+function alertChoice(): { push: boolean; email: boolean } {
+  return {
+    push: maybe("de-notify-push")?.checked ?? false,
+    email: maybe("de-notify-email")?.checked ?? false,
+  };
+}
+
+/** How a scheduled save describes the alerts waiting for its day. */
+function alertsLater(choice: { push: boolean; email: boolean }): string {
+  if (choice.email && choice.push)
+    return " Your email list and browser subscribers hear about it that day.";
+  if (choice.email) return " Your email list hears about it that day.";
+  if (choice.push) return " Browser subscribers hear about it that day.";
+  return "";
+}
+
 async function publishAlerts(): Promise<string> {
-  const push = maybe("de-notify-push")?.checked ?? false;
-  const email = maybe("de-notify-email")?.checked ?? false;
-  if (!push && !email) return "";
-  try {
-    // One Worker call only reaches about 40 browsers, so pushes are paged
-    // by cursor. The email goes out once, with the first batch.
-    const r = await api.notifyCollectors({ push, email });
-    let sent = r.sent;
-    let cursor = r.nextCursor;
-    while (push && cursor !== null && cursor !== undefined) {
-      const next = await api.notifyCollectors({ push, email: false, cursor });
-      sent += next.sent;
-      cursor = next.nextCursor;
-    }
-    const bits: string[] = [];
-    if (push) bits.push(`Notified ${sent} of ${r.total} subscribers.`);
-    if (email) {
-      bits.push(
-        r.emailTotal === 0
-          ? "Email list is empty."
-          : r.emailed
-            ? `Emailed ${r.emailTotal}.`
-            : "Email not sent (mail isn't set up).",
-      );
-    }
-    return ` ${bits.join(" ")}`;
-  } catch (err) {
-    return ` Couldn't send the alerts: ${errorMessage(err)}`;
-  }
+  return await sendPublishAlerts(alertChoice());
 }
 
 interface FieldSet {
@@ -821,6 +813,8 @@ async function saveNew(draft: boolean): Promise<void> {
           // Publishing goes live now. A date only applies to drafts, as
           // the scheduled publish date.
           publishOn: draft ? fields.publishOn : "",
+          // Ticked alerts wait for the scheduled day.
+          alertOnPublish: draft ? formatAlerts(alertChoice()) : "",
           modelGlb: models === null ? "" : `/models/${slug}.glb`,
           modelUsdz: models === null ? "" : `/models/${slug}.usdz`,
         }),
@@ -843,7 +837,7 @@ async function saveNew(draft: boolean): Promise<void> {
     const scheduled = draft && fields.publishOn !== "";
     goAdmin(
       scheduled
-        ? `Draft "${fields.title}" saved — goes live ${fields.publishOn}.`
+        ? `Draft "${fields.title}" saved — goes live ${fields.publishOn}.${alertsLater(alertChoice())}`
         : draft
           ? `Draft "${fields.title}" saved — publish it from the studio when ready.`
           : `Published "${fields.title}" (${formatPriceCAD(priceCents)}) — live in a few minutes.${alerts}`,
@@ -951,6 +945,8 @@ async function saveEdit(
       draft,
       sold: fields.sold,
       publishOn: fields.publishOn,
+      // A scheduled draft keeps her alert ticks for its day.
+      alertOnPublish: draft ? formatAlerts(alertChoice()) : "",
       slugHistory: renamedHistory(base.parsed, slug, fields.title),
     };
     if (photoReplaced && preparedBlob !== null) {
@@ -1006,7 +1002,11 @@ async function saveEdit(
     }
     await api.commitFiles(`Edit painting: ${fields.title}`, files);
     buzz();
-    goAdmin(`Saved "${fields.title}" — live in a few minutes.`);
+    goAdmin(
+      draft && fields.publishOn !== ""
+        ? `Saved "${fields.title}" — goes live ${fields.publishOn}.${alertsLater(alertChoice())}`
+        : `Saved "${fields.title}" — live in a few minutes.`,
+    );
   } catch (err) {
     setStatus(errorMessage(err), true);
   }
@@ -1310,6 +1310,14 @@ function initStudio(): void {
   // dev practice, the buttons are disabled.
   const basePromise = loadEditBase(mdPath);
   void basePromise.then((base) => {
+    // A scheduled draft shows the alerts it will send on its day.
+    if (base !== null && draft) {
+      const saved = parseAlerts(base.parsed.alertOnPublish);
+      const push = maybe("de-notify-push");
+      const email = maybe("de-notify-email");
+      if (push !== null) push.checked = saved.push;
+      if (email !== null) email.checked = saved.email;
+    }
     if (base === null && !isLocalPreview()) {
       setStatus("Couldn't load this painting's file.", true);
       // `as const` lets maybe() resolve each id to HTMLButtonElement.

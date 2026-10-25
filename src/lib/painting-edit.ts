@@ -14,6 +14,9 @@ export interface ParsedPainting {
   sold: boolean;
   /** Scheduled publish date ("YYYY-MM-DD", "" when none). */
   publishOn: string;
+  /** Alerts to send when a scheduled painting goes live: "push", "email",
+   * "push,email", or "" (see formatAlerts). */
+  alertOnPublish: string;
   /** Previous slugs that still resolve after a rename ("a, b", "" when
    * none). */
   slugHistory: string;
@@ -52,6 +55,9 @@ export interface PaintingEdits {
   sold: boolean;
   /** A date sets the schedule, "" clears it, and undefined leaves it. */
   publishOn?: string;
+  /** Alerts for the scheduled day (formatAlerts), "" clears them, and
+   * undefined leaves them. Clearing the schedule clears them too. */
+  alertOnPublish?: string;
   /** A history string sets the previous slugs, and "" clears them. */
   slugHistory?: string | undefined;
   /** Set after an AR rebuild. When omitted, existing refs are kept. */
@@ -94,6 +100,7 @@ export function parsePainting(md: string): ParsedPainting | null {
     draft: (data["draft"] ?? "false").trim() === "true",
     sold: (data["sold"] ?? "false").trim() === "true",
     publishOn: normalizePublishOn(data["publishOn"] ?? ""),
+    alertOnPublish: formatAlerts(parseAlerts(data["alertOnPublish"] ?? "")),
     slugHistory: formatSlugHistory(parseSlugHistory(data["slugHistory"] ?? "")),
     trash: (data["trash"] ?? "false").trim() === "true",
     trashedAt: (data["trashedAt"] ?? "").trim(),
@@ -190,11 +197,32 @@ export function appendSlugHistory(current: string, oldSlug: string): string {
   return formatSlugHistory([oldSlug, ...parseSlugHistory(current)]);
 }
 
-/** Publishes a due draft and removes its schedule. Runs when the studio
- * loads, and nightly from scripts/publish-due.mjs. */
+/** Which alerts a scheduled painting sends on its day. */
+export interface AlertChoice {
+  push: boolean;
+  email: boolean;
+}
+
+export function parseAlerts(raw: string): AlertChoice {
+  const bits = raw.split(",").map((b) => b.trim());
+  return { push: bits.includes("push"), email: bits.includes("email") };
+}
+
+export function formatAlerts(choice: AlertChoice): string {
+  return [choice.push ? "push" : "", choice.email ? "email" : ""]
+    .filter((b) => b !== "")
+    .join(",");
+}
+
+/** Publishes a due draft and removes its schedule and remembered alerts
+ * (read them first with parsePainting). Runs when the studio loads, and
+ * nightly from scripts/publish-due.mjs; whichever publishes it sends the
+ * alerts. */
 export function publishDue(md: string): string {
   const next = md.replace(/^draft:.*$/m, "draft: false");
-  return next.replace(/^publishOn:.*(\r?\n?)/m, "");
+  return next
+    .replace(/^publishOn:.*(\r?\n?)/m, "")
+    .replace(/^alertOnPublish:.*(\r?\n?)/m, "");
 }
 
 /** Sets the trash flag. Trashing records today's date, and restoring
@@ -251,9 +279,18 @@ export function patchPainting(md: string, edits: PaintingEdits): string {
     const due = normalizePublishOn(edits.publishOn);
     if (due === "") {
       next = next.replace(/^publishOn:.*(\r?\n?)/m, "");
+      // Alerts only wait for a scheduled day.
+      next = next.replace(/^alertOnPublish:.*(\r?\n?)/m, "");
     } else {
       next = patchKey(next, "publishOn", yamlQuote(due));
     }
+  }
+  if (edits.alertOnPublish !== undefined && /^publishOn:/m.test(next)) {
+    const alerts = formatAlerts(parseAlerts(edits.alertOnPublish));
+    next =
+      alerts === ""
+        ? next.replace(/^alertOnPublish:.*(\r?\n?)/m, "")
+        : patchKey(next, "alertOnPublish", yamlQuote(alerts));
   }
   // Same set-or-clear handling as publishOn.
   if (edits.slugHistory !== undefined) {
@@ -315,6 +352,8 @@ export function buildMarkdown(input: {
   draft: boolean;
   /** Scheduled publish date, "" when none. */
   publishOn: string;
+  /** Alerts for the scheduled day (formatAlerts). Kept only with a date. */
+  alertOnPublish?: string;
   modelGlb: string;
   modelUsdz: string;
 }): string {
@@ -331,6 +370,9 @@ export function buildMarkdown(input: {
   ];
   const due = normalizePublishOn(input.publishOn ?? "");
   if (due !== "") lines.push(`publishOn: ${yamlQuote(due)}`);
+  const alerts = formatAlerts(parseAlerts(input.alertOnPublish ?? ""));
+  if (due !== "" && alerts !== "")
+    lines.push(`alertOnPublish: ${yamlQuote(alerts)}`);
   if (input.widthIn !== null) lines.push(`widthIn: ${input.widthIn}`);
   if (input.heightIn !== null) lines.push(`heightIn: ${input.heightIn}`);
   if (input.depthIn !== null) lines.push(`depthIn: ${input.depthIn}`);

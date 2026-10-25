@@ -1,4 +1,5 @@
 import { accessEmail } from "./access";
+import { GitHubKeyError, KEY_REFUSED } from "./github";
 import type { AppEnv } from "./env";
 
 export function json(data: unknown, init?: ResponseInit): Response {
@@ -54,4 +55,14 @@ export async function requireAdmin(
   if ((await accessEmail(request, env)) !== null) return null;
   if (expected === "" && isLocalRequest(request)) return null;
   return json({ error: "Unauthorized" }, { status: 401 });
+}
+
+/** A failed GitHub call, in her words: a refused key says so (503, so the
+ * studio shows it instead of blaming her connection), anything else is
+ * the fallback 500. */
+export function githubFailure(err: unknown, fallback?: string): Response {
+  console.error(err);
+  if (err instanceof GitHubKeyError)
+    return json({ error: KEY_REFUSED, code: "github-key" }, { status: 503 });
+  return serverError(fallback);
 }

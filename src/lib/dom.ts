@@ -8,6 +8,7 @@ export interface ElementMap {
   "collection-refresh": HTMLButtonElement;
   "edit-list": HTMLUListElement;
   "collection-search": HTMLInputElement;
+  "key-note": HTMLElement;
   "collection-search-wrap": HTMLElement;
   "collection-search-none": HTMLElement;
   "local-collection": HTMLElement;

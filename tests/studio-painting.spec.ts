@@ -609,6 +609,8 @@ test("draft save carries its publish-on date", async ({ browser }) => {
     .locator("#de-photo")
     .setInputFiles("src/content/paintings/1943x1967.jpg");
   await page.locator("#de-publish-on").fill("2999-06-01");
+  // The email box waits for that day instead of being dropped.
+  await page.locator("#de-notify-email").check();
   await page.locator("#de-save-draft").click();
   await expect.poll(() => posted, { timeout: 15_000 }).not.toBe(null);
   const md = Buffer.from(
@@ -617,6 +619,7 @@ test("draft save carries its publish-on date", async ({ browser }) => {
   ).toString("utf8");
   expect(md).toMatch(/^draft: true$/m);
   expect(md).toMatch(/^publishOn: "2999-06-01"$/m);
+  expect(md).toMatch(/^alertOnPublish: "email"$/m);
   await authed.close();
 });
 
