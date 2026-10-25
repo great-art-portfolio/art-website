@@ -75,13 +75,13 @@ function init(): void {
         total === 0 ? "No views in the past 30 days — yet." : "";
     })
     .catch((err: unknown) => {
-      // Explain a missing token. Other errors are covered by the
+      // The day-long sign-in ran out. Other errors are covered by the
       // unconfigured branch above.
       if (err instanceof ApiError && err.status === 401) {
         const note = $("stats-note");
         note.innerHTML =
-          `This needs your API token — enter it on the ` +
-          `<a href="/admin/guide">Guide page</a>, then come back here.`;
+          `Your sign-in has run out. ` +
+          `<a href="/admin/metrics">Reload the page</a> to sign in again.`;
       }
     });
 }

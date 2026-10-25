@@ -11,7 +11,7 @@ import { publishNewPainting } from "../_lib/social";
 /** Admin: one-click social post. Returns 501 until enabled. The share
  * helper works without it. */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
-  const denied = requireAdmin(context.request, context.env);
+  const denied = await requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
   let body: Record<string, unknown>;
   try {

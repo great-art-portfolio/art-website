@@ -253,7 +253,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
 
 /** Admin: list size. In mock mode, the mock table's confirmed rows. */
 export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
-  const denied = requireAdmin(context.request, context.env);
+  const denied = await requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
   try {
     if (mockList(context.env, context.request)) {

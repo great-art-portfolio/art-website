@@ -8,6 +8,10 @@ export interface AppEnv {
   /** Canonical site URL for links in collector emails. */
   SITE_URL?: string;
   ADMIN_API_TOKEN?: string;
+  /** Cloudflare Access team host and the /admin app's audience tag. With
+   * both set, her Access sign-in authorizes the admin API (lib/access). */
+  ACCESS_TEAM_DOMAIN?: string;
+  ACCESS_AUD?: string;
   GITHUB_TOKEN?: string;
   GITHUB_REPO?: string;
   GITHUB_BRANCH?: string;

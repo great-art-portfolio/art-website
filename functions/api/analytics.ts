@@ -17,7 +17,7 @@ interface RumRow {
 }
 
 export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
-  const denied = requireAdmin(context.request, context.env);
+  const denied = await requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
   const account = context.env.CF_ACCOUNT_ID ?? "";
   const token = context.env.CF_ANALYTICS_TOKEN ?? "";

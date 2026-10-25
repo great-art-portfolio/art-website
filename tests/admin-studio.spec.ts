@@ -1111,7 +1111,7 @@ test("errors toast over the page wherever she is scrolled", async ({
   }
 });
 
-test("collection names the missing API token when the API refuses", async ({
+test("collection asks her to sign in again when the API refuses", async ({
   page,
 }) => {
   await page.route(
@@ -1124,7 +1124,11 @@ test("collection names the missing API token when the API refuses", async ({
       }),
   );
   await page.goto("/admin");
-  await expect(page.locator("#edit-list")).toContainText("API token");
+  // Plain words, no token talk: her email sign-in ran out.
+  await expect(page.locator("#edit-list")).toContainText(
+    "Your sign-in has run out",
+  );
+  await expect(page.locator("#edit-list")).not.toContainText("token");
   await expect(page.locator("#collection-refresh")).toBeVisible();
 });
 

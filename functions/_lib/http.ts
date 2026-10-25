@@ -1,3 +1,4 @@
+import { accessEmail } from "./access";
 import type { AppEnv } from "./env";
 
 export function json(data: unknown, init?: ResponseInit): Response {
@@ -38,17 +39,19 @@ export function isLocalRequest(request: Request): boolean {
   return host === "localhost" || host === "127.0.0.1" || host === "[::1]";
 }
 
-/** Admin check. Cloudflare Access protects production, and the token is
- * a second layer and the local dev gate. With no token configured only
+/** Admin check. Cloudflare Access signs her in on /admin with an email
+ * code, and a valid Access sign-in lets the studio's API calls through
+ * (lib/access), so she never handles a token. The token is the backup and
+ * the local dev gate. With no token configured and no Access sign-in only
  * localhost is let in, so a missing secret never opens the live API. */
-export function requireAdmin(request: Request, env: AppEnv): Response | null {
-  const expected = env.ADMIN_API_TOKEN;
-  if (expected === undefined || expected === "") {
-    return isLocalRequest(request)
-      ? null
-      : json({ error: "Unauthorized" }, { status: 401 });
-  }
+export async function requireAdmin(
+  request: Request,
+  env: AppEnv,
+): Promise<Response | null> {
+  const expected = env.ADMIN_API_TOKEN ?? "";
   const header = request.headers.get("authorization");
-  if (header === `Bearer ${expected}`) return null;
+  if (expected !== "" && header === `Bearer ${expected}`) return null;
+  if ((await accessEmail(request, env)) !== null) return null;
+  if (expected === "" && isLocalRequest(request)) return null;
   return json({ error: "Unauthorized" }, { status: 401 });
 }

@@ -25,7 +25,11 @@ TURNSTILE_SITE_KEY = "0x4AAAAAAEruWk1A_Or1b_Jx"
 CF_ACCOUNT_ID = "ee6937662d7aeda01d2a6f1f49a1168a" # feeds /admin "Most viewed"
 CF_ANALYTICS_SITE = "ddd0b31f86c24e31a4fbabd86185e210" # beacon token doubles as the site tag
 # CF_ANALYTICS_TOKEN = API token, Account Analytics: Read
-# ADMIN_API_TOKEN = what the admin gets on sign in
+# ADMIN_API_TOKEN = backup admin token (the Guide page); her Access sign-in
+# is enough on its own: the admin API checks the CF_Authorization cookie
+# against this team and the /admin* Access app's audience tag.
+ACCESS_TEAM_DOMAIN = "silent-bread-ade3.cloudflareaccess.com"
+ACCESS_AUD = "7e4a5fe0570fd9c263d002b34dbcb9dcb20ffed6a516a54066a171ad19d3bff9"
 
 [[d1_databases]]
 binding = "DB"

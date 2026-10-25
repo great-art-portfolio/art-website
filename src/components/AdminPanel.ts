@@ -1149,7 +1149,7 @@ async function refreshCollection(): Promise<void> {
     const retry = $("collection-refresh");
     if (err instanceof ApiError && err.status === 401) {
       list.innerHTML =
-        '<li>This needs your API token — enter it on the <a href="/admin/guide">Guide page</a>, then tap Retry.</li>';
+        '<li>Your sign-in has run out. <a href="/admin">Reload the page</a> to sign in again with the code from your email.</li>';
       retry.hidden = false;
       return;
     }

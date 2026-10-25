@@ -17,7 +17,7 @@ import {
  * Body: { action: "rates", to: {...}, weightLb } or { action: "buy", rateId }.
  */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
-  const denied = requireAdmin(context.request, context.env);
+  const denied = await requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
   let body: Record<string, unknown>;
   try {

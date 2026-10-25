@@ -18,7 +18,7 @@ const IMAGE_TYPE: Record<string, string> = {
 };
 
 export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
-  const denied = requireAdmin(context.request, context.env);
+  const denied = await requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
   const token = context.env.GITHUB_TOKEN ?? "";
   const repo = context.env.GITHUB_REPO ?? "";

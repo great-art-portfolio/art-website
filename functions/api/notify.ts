@@ -26,7 +26,7 @@ import {
  * paged by cursor ({ push: { cursor } } for pings, { push: true, cursor }
  * for publish alerts) until nextCursor is null. */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
-  const denied = requireAdmin(context.request, context.env);
+  const denied = await requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
   let body: Record<string, unknown>;
   try {
@@ -153,7 +153,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
 /** Admin: push subscriber count plus the email a send would deliver, for
  * the Email page preview. */
 export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
-  const denied = requireAdmin(context.request, context.env);
+  const denied = await requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
   try {
     const site = context.env.SITE_URL ?? "https://barbart.ca";
