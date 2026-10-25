@@ -9,8 +9,13 @@ import {
   onRequestPost as collectorsPost,
 } from "../functions/api/collectors.ts";
 import {
+  onRequestGet as suggestGet,
+  onRequestPost as suggestPost,
+} from "../functions/api/suggest.ts";
+import {
   collectorsEnv,
   createCollectorsDb,
+  readDevVars,
   siteOriginFor,
 } from "./studio-collectors.mjs";
 
@@ -82,6 +87,19 @@ const server = createServer((req, res) => {
         }
         if (path === "/api/notify" || path === "/api/notify/") {
           return pushMock.handleNotify(request);
+        }
+        if (path === "/api/suggest" || path === "/api/suggest/") {
+          // The real handler, with only the helper's settings from
+          // .dev.vars (no admin token: the dev studio has none).
+          const vars = readDevVars(process.cwd());
+          const ctx = {
+            request,
+            env: {
+              MUSE_API_KEY: vars.MUSE_API_KEY,
+              MUSE_MODEL: vars.MUSE_MODEL,
+            },
+          };
+          return request.method === "GET" ? suggestGet(ctx) : suggestPost(ctx);
         }
         if (path === "/api/collectors" || path === "/api/collectors/") {
           const ctx = await toCollectorsContext(req, chunks);

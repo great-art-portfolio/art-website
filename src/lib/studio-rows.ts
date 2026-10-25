@@ -84,3 +84,21 @@ export function studioRowHtml(r: StudioRowInput): string {
     `<span class="row-actions">${actions}</span></span></li>`
   );
 }
+
+/** The studio list shows its search box past this many paintings. */
+export const SEARCH_FROM = 12;
+
+/** True when a title matches what she typed: every word, anywhere, with
+ * case and accents ignored ("riviere" finds "Rivière"). */
+export function matchesSearch(title: string, query: string): boolean {
+  const fold = (s: string): string =>
+    s
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+  const haystack = fold(title);
+  return fold(query)
+    .split(/\s+/)
+    .filter((w) => w !== "")
+    .every((w) => haystack.includes(w));
+}

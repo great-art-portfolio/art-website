@@ -702,3 +702,61 @@ test("saving the photo toasts from the top, never murmurs inline", async ({
   const position = await status.evaluate((el) => getComputedStyle(el).position);
   expect(position).toBe("fixed");
 });
+
+test("writing helper stays hidden until the server has its key", async ({
+  page,
+}) => {
+  await page.route("**/api/suggest", (route) =>
+    route.fulfill({ json: { enabled: false } }),
+  );
+  await page.goto("/admin/paintings/indigo-tide");
+  await expect(page.locator("#de-title")).toBeVisible();
+  await expect(page.locator("#de-suggest")).toBeHidden();
+});
+
+test("writing helper offers titles and a description she picks from", async ({
+  page,
+}) => {
+  let sent: Record<string, unknown> = {};
+  await page.route("**/api/suggest", async (route) => {
+    if (route.request().method() === "GET")
+      return route.fulfill({ json: { enabled: true } });
+    sent = route.request().postDataJSON() as Record<string, unknown>;
+    return route.fulfill({
+      json: {
+        titles: ["Night Water", "Winter Hold", "Blue Hollow"],
+        description: "Deep indigo moves like night water.",
+        alt: "Abstract painting in dark blue.",
+      },
+    });
+  });
+  await page.goto("/admin/paintings/indigo-tide");
+  await expect(page.locator("#de-suggest")).toBeVisible();
+  const desc = await page.locator("#de-desc").inputValue();
+  await page.locator("#de-alt").fill("");
+  await page.locator("#de-suggest-notes").fill("painted in winter");
+  await page.locator("#de-suggest-go").click();
+  await expect(page.locator("#de-suggest-titles button")).toHaveText([
+    "Night Water",
+    "Winter Hold",
+    "Blue Hollow",
+  ]);
+  // The saved photo went along, shrunk, with her notes and the size.
+  expect(String(sent["image"])).toMatch(/^data:image\/jpeg;base64,/);
+  expect(sent["notes"]).toBe("painted in winter");
+  expect(sent["widthIn"]).toBe(12);
+  // Only the empty alt text fills itself; titles and words wait for a tap.
+  await expect(page.locator("#de-alt")).toHaveValue(
+    "Abstract painting in dark blue.",
+  );
+  await expect(page.locator("#de-desc")).toHaveValue(desc);
+  await page
+    .locator("#de-suggest-titles button", { hasText: "Winter Hold" })
+    .click();
+  await expect(page.locator("#de-title")).toHaveValue("Winter Hold");
+  await expect(page.locator("#pv-title")).toHaveText("Winter Hold");
+  await page.locator("#de-suggest-use-desc").click();
+  await expect(page.locator("#de-desc")).toHaveValue(
+    "Deep indigo moves like night water.",
+  );
+});
