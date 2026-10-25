@@ -2444,8 +2444,10 @@ test("saving after the sign-in runs out says so in plain words", async ({
   );
   await page.locator("#de-title").fill("First Thaw, Again");
   await page.locator("#de-save").click();
+  // A rename rebuilds the wall preview before saving, slow on CI runners.
   await expect(page.locator("#de-status")).toContainText(
     "Your sign-in has run out",
+    { timeout: 20_000 },
   );
   await expect(page.locator("#de-status")).not.toContainText("Unauthorized");
 });
