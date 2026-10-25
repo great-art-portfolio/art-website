@@ -46,6 +46,11 @@ export interface AppEnv {
   STRIPE_TAX?: string;
   ENABLE_SHIPPO?: string;
   SHIPPO_API_TOKEN?: string;
+  /** Meta Model API key for the studio's title and description helper
+   * (Muse Spark). Without it the helper's button stays hidden. */
+  MUSE_API_KEY?: string;
+  /** Overrides the helper's model, e.g. muse-spark-1.3. */
+  MUSE_MODEL?: string;
   ENABLE_SOCIAL_POST?: string;
   AYRSHARE_API_KEY?: string;
 }
