@@ -166,8 +166,29 @@ export const statusSchema = z.object({
   turnstileSiteKey: z.string().optional(),
 });
 
+/** The Metrics page: visits over time and where they come from. */
+export const metricsSchema = z.object({
+  days: z.array(
+    z.object({ date: z.string(), visits: z.number(), views: z.number() }),
+  ),
+  visits: z.number(),
+  views: z.number(),
+  visitsBefore: z.number(),
+  paintings: z.array(z.object({ slug: z.string(), views: z.number() })),
+  sources: z.array(z.object({ name: z.string(), visits: z.number() })),
+  places: z.array(z.object({ code: z.string(), visits: z.number() })),
+  devices: z.array(
+    z.object({
+      kind: z.enum(["phone", "computer", "tablet"]),
+      visits: z.number(),
+    }),
+  ),
+});
+export type SiteMetrics = z.infer<typeof metricsSchema>;
+
 export const viewsSchema = z.object({
   views: z.array(z.object({ slug: z.string(), views: z.number() })),
+  metrics: metricsSchema.optional(),
   unconfigured: z.boolean().optional(),
 });
 

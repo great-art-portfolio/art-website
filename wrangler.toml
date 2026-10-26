@@ -20,7 +20,7 @@ ARTIST_SENDER = "Gallery <hello@barbart.ca>" # What the buyer sees
 TURNSTILE_SITE_KEY = "0x4AAAAAAEruWk1A_Or1b_Jx"
 
 CF_ACCOUNT_ID = "ee6937662d7aeda01d2a6f1f49a1168a" # feeds /admin "Most viewed"
-CF_ANALYTICS_SITE = "ddd0b31f86c24e31a4fbabd86185e210" # beacon token doubles as the site tag
+CF_ANALYTICS_SITE = "384c5be08e0b49fb990f8edf7d19e43d" # Web Analytics site tag (not the beacon token)
 # CF_ANALYTICS_TOKEN = API token, Account Analytics: Read
 # ADMIN_API_TOKEN = backup admin token (the Guide page); her Access sign-in
 # is enough on its own: the admin API checks the CF_Authorization cookie

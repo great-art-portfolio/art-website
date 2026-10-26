@@ -1209,18 +1209,63 @@ test("metrics page ranks every painting, most watched first", async ({
     });
   });
   await page.goto("/admin/metrics");
-  // The most viewed painting ranks first, with the total above the rows.
+  // The most viewed painting ranks first.
   const rows = page.locator("#stats-body .metric-row");
   await expect(rows.first()).toContainText("First Thaw");
   await expect(rows.first()).toContainText("10 views");
   await expect(rows.nth(1)).toContainText("Prairie Moon");
   await expect(rows.first().locator(".metric-thumb")).toBeVisible();
-  await expect(page.locator("#stats-total")).toHaveText("17");
   // Every published painting has a row with its status. Drafts are
   // excluded.
   await expect(page.locator("#stats-body")).toContainText("Sold");
   await expect(page.locator("#stats-body")).not.toContainText("Draft");
   await expect(page.locator("#stats-note")).toBeEmpty();
+});
+
+test("metrics page shows visits by day and where they come from", async ({
+  page,
+}) => {
+  const days = Array.from({ length: 31 }, (_, i) => ({
+    date: `2026-10-${String(i + 1).padStart(2, "0")}`,
+    visits: i === 20 ? 50 : i % 7 === 0 ? 10 : 0,
+    views: 0,
+  }));
+  const metrics = {
+    days,
+    visits: 100,
+    views: 140,
+    visitsBefore: 40,
+    paintings: [{ slug: "first-thaw", views: 30 }],
+    sources: [
+      { name: "Typed in, bookmarks, apps and email", visits: 80 },
+      { name: "Instagram", visits: 20 },
+    ],
+    places: [{ code: "CA", visits: 90 }],
+    devices: [
+      { kind: "phone", visits: 75 },
+      { kind: "computer", visits: 25 },
+    ],
+  };
+  await page.route("**/api/analytics*", (route) =>
+    route.fulfill({ json: { views: metrics.paintings, metrics } }),
+  );
+  await page.goto("/admin/metrics");
+  await expect(page.locator("#stats-total")).toHaveText("100");
+  await expect(page.locator("#stats-trend")).toHaveText(
+    "Up from about 40 the month before.",
+  );
+  await expect(page.locator("#stats-chart")).toBeVisible();
+  await expect(page.locator("#stats-bars .hit")).toHaveCount(31);
+  await page.locator("#stats-bars .hit").nth(20).hover();
+  await expect(page.locator("#stats-chart-label")).toHaveText(
+    "Oct 21: about 50 visits",
+  );
+  await expect(page.locator("#stats-sources")).toContainText("Instagram");
+  await expect(page.locator("#stats-places")).toContainText("Canada");
+  await expect(page.locator("#stats-devices li").first()).toContainText(
+    "Phones",
+  );
+  await expect(page.locator("#stats-devices li").first()).toContainText("75%");
 });
 
 test("metric titles answer only their own words", async ({ page }) => {

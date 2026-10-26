@@ -165,7 +165,7 @@ const currentSection = adminSection(selfPath);
     <meta name="generator" content={Astro.generator} />
     <title>{pageTitle(title, wordmark === "admin")}</title>
     <ClientRouter />
-    <Analytics />
+    <Analytics studio={wordmark === "admin"} />
   </head>
   <body>
     <script>
