@@ -22,15 +22,9 @@ export interface AppEnv {
   GITHUB_TOKEN?: string;
   GITHUB_REPO?: string;
   GITHUB_BRANCH?: string;
-  VAPID_PUBLIC_KEY?: string;
-  VAPID_PRIVATE_JWK?: string;
-  VAPID_CONTACT?: string;
   /** Enables the dev mock email list, which returns confirm links instead
    * of sending mail. Only honored on localhost. Set it in .dev.vars. */
   COLLECTORS_MOCK?: string;
-  /** Ping cooldown in seconds. Defaults to five minutes. .dev.vars sets 20
-   * to keep dev fast. */
-  PUSH_COOLDOWN_S?: string;
   TURNSTILE_SITE_KEY?: string;
   TURNSTILE_SECRET_KEY?: string;
   CF_ACCOUNT_ID?: string;

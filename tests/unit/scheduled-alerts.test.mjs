@@ -42,8 +42,9 @@ describe("alerts in the painting file", () => {
       publishOn: "2026-11-01",
       alertOnPublish: "push,email",
     });
-    assert.match(scheduled, /^alertOnPublish: "push,email"$/m);
-    assert.equal(parsePainting(scheduled)?.alertOnPublish, "push,email");
+    // "push" (browser alerts, since removed) is dropped; email stays.
+    assert.match(scheduled, /^alertOnPublish: "email"$/m);
+    assert.equal(parsePainting(scheduled)?.alertOnPublish, "email");
     const noDate = buildMarkdown({
       ...base,
       publishOn: "",
@@ -90,20 +91,16 @@ describe("the workflow's alerts key", () => {
 
   it("sends the standard publish alert", async () => {
     // No DB or mail configured: the call gets past auth and reports zeros.
-    const res = await call({ push: false, email: true });
+    const res = await call({ email: true });
     assert.equal(res.status, 200);
   });
 
-  it("can't send custom text or a Ping", async () => {
-    assert.equal((await call({ push: { body: "hi" } })).status, 403);
-    assert.equal(
-      (await call({ push: false, email: { subject: "x" } })).status,
-      403,
-    );
+  it("can't send custom text", async () => {
+    assert.equal((await call({ email: { subject: "x" } })).status, 403);
   });
 
   it("is refused when it doesn't match", async () => {
-    assert.equal((await call({ push: true }, "guess")).status, 401);
+    assert.equal((await call({ email: true }, "guess")).status, 401);
   });
 });
 
@@ -119,35 +116,21 @@ describe("send-scheduled-alerts", () => {
     assert.equal(await waitForPage("https://x/p", 5, 1), false);
   });
 
-  it("pages the push list and sends the email once", async () => {
+  it("emails the list once with the standard alert", async () => {
     const bodies = [];
     globalThis.fetch = async (url, init) => {
       assert.equal(String(url), "https://barbart.ca/api/notify");
       assert.equal(init.headers.Authorization, "Bearer nightly");
-      const body = JSON.parse(init.body);
-      bodies.push(body);
-      return Response.json(
-        bodies.length === 1
-          ? { sent: 40, total: 55, nextCursor: 40, emailTotal: 12 }
-          : { sent: 15, total: 55, nextCursor: null },
-      );
+      bodies.push(JSON.parse(init.body));
+      return Response.json({ emailed: true, emailTotal: 12 });
     };
-    const r = await sendAlerts("https://barbart.ca", "nightly", {
-      push: true,
-      email: true,
-    });
-    assert.deepEqual(r, { pushed: 55, total: 55, emailed: 12 });
-    assert.deepEqual(bodies, [
-      { push: true, email: true },
-      { push: true, email: false, cursor: 40 },
-    ]);
+    const r = await sendAlerts("https://barbart.ca", "nightly");
+    assert.deepEqual(r, { emailed: 12 });
+    assert.deepEqual(bodies, [{ email: true }]);
   });
 
   it("fails loudly when the site refuses", async () => {
     globalThis.fetch = async () => new Response("no", { status: 401 });
-    await assert.rejects(
-      sendAlerts("https://barbart.ca", "nightly", { push: true, email: false }),
-      /401/,
-    );
+    await assert.rejects(sendAlerts("https://barbart.ca", "nightly"), /401/);
   });
 });

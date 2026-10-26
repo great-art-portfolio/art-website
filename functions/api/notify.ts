@@ -6,28 +6,13 @@ import {
   segmentBroadcastEmail,
   sendCollectorBroadcast,
 } from "../_lib/notify";
-import {
-  countSubscriptions,
-  listSubscriptions,
-  pushCooldownMs,
-  readLastPushAt,
-  removeSubscription,
-  savePushMessage,
-  sendTickle,
-  stampPushAt,
-  TICKLE_BATCH,
-} from "../_lib/push";
 
-/** Admin: notifies collectors. Both channels default on, and
- * { push: false } or { email: false } sends only one. { push: { body } }
- * replaces the standard ping text. Repeat pings within the cooldown get a
- * 429. Publish alerts and pings that reach no one don't start the
- * cooldown. Unconfigured channels are skipped. Both kinds of push are
- * paged by cursor ({ push: { cursor } } for pings, { push: true, cursor }
- * for publish alerts) until nextCursor is null. */
+/** Admin: emails her list. { email: true } sends the standard new-painting
+ * note (a publish alert); { email: { subject, body } } comes from the Email
+ * page. An unconfigured list is skipped. */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   // The nightly scheduled-publish workflow has its own key, good for the
-  // standard publish alert only: no custom text, no Ping.
+  // standard publish alert only: no custom text.
   const alertsKey = context.env.ALERTS_TOKEN ?? "";
   const viaAlertsKey =
     alertsKey !== "" &&
@@ -42,132 +27,33 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   } catch {
     body = {};
   }
-  if (
-    viaAlertsKey &&
-    (typeof body["push"] === "object" || typeof body["email"] === "object")
-  )
+  const emailOpt = body["email"];
+  const emailCopy =
+    typeof emailOpt === "object" && emailOpt !== null
+      ? (emailOpt as Record<string, unknown>)
+      : null;
+  if (viaAlertsKey && emailCopy !== null)
     return json(
       { error: "This key only sends the standard publish alert." },
       { status: 403 },
     );
-  const wantPush = body["push"] !== false;
-  const wantEmail = body["email"] !== false;
+  if (emailOpt === false) return json({ emailed: false, emailTotal: 0 });
   try {
-    let sent = 0;
-    let gone = 0;
-    let failed = 0;
-    let total = 0;
-    let nextCursor: number | null = null;
-    if (wantPush) {
-      const pushOpt = body["push"];
-      // An object comes from the Ping button. A boolean is a publish alert,
-      // which skips the cooldown.
-      const tickle =
-        typeof pushOpt === "object" && pushOpt !== null
-          ? (pushOpt as Record<string, unknown>)
-          : null;
-      // A Worker call allows about 50 subrequests, so large lists are paged
-      // by cursor until nextCursor is null. Pings carry it inside `push`,
-      // publish alerts at the top level.
-      const cursor = Math.max(
-        0,
-        Math.floor(Number((tickle ?? body)["cursor"] ?? 0)) || 0,
-      );
-      total = await countSubscriptions(context.env);
-      if (tickle !== null) {
-        // Only the first batch stores the text and starts the cooldown.
-        if (cursor === 0) {
-          const line = String(tickle["body"] ?? "")
-            .trim()
-            .slice(0, 180);
-          const title = String(tickle["title"] ?? "")
-            .trim()
-            .slice(0, 80);
-          // If the table is missing because the DB isn't migrated, still
-          // send the ping.
-          await savePushMessage(context.env, line, title).catch(
-            (err: unknown) => console.error("push message store failed", err),
-          );
-          if (total > 0) {
-            const cooldown = pushCooldownMs(context.env);
-            const since = Date.now() - (await readLastPushAt(context.env));
-            if (since < cooldown) {
-              const wait =
-                cooldown < 60 * 1000 ? "a few seconds" : "a few minutes";
-              return json(
-                {
-                  error: `Just pinged — give it ${wait} before the next one.`,
-                },
-                { status: 429 },
-              );
-            }
-            // Stamp before sending so a double tap can't send twice.
-            await stampPushAt(context.env);
-          }
-        }
-      } else if (cursor === 0) {
-        // A publish alert shows the standard text, so clear any custom ping
-        // text the service worker would otherwise fetch. No cooldown.
-        await savePushMessage(context.env, "", "").catch((err: unknown) =>
-          console.error("push message reset failed", err),
-        );
-      }
-      const subs = await listSubscriptions(context.env, TICKLE_BATCH, cursor);
-      await Promise.all(
-        subs.map(async (sub) => {
-          const result = await sendTickle(context.env, sub);
-          if (result === "sent") sent += 1;
-          else if (result === "gone") {
-            gone += 1;
-            await removeSubscription(context.env, sub.endpoint);
-          } else if (result === "retry") failed += 1;
-          // "unconfigured" is unexpected here since the button is hidden.
-          // Count it as failed.
-          else failed += 1;
-        }),
-      );
-      // Expired rows were deleted, which shifts the rest of the list back
-      // by that many, so the next batch starts that much earlier.
-      const next = cursor + subs.length - gone;
-      nextCursor = subs.length > 0 && next < total - gone ? next : null;
-    }
-    let emailed = false;
-    let emailTotal = 0;
-    if (wantEmail) {
-      const site = context.env.SITE_URL ?? "https://barbart.ca";
-      // An object comes from the Email page with a custom subject and body.
-      // A boolean sends the standard text.
-      const emailOpt = body["email"];
-      const emailCopy =
-        typeof emailOpt === "object" && emailOpt !== null
-          ? (emailOpt as Record<string, unknown>)
-          : null;
-      const result = await sendCollectorBroadcast(
-        context.env,
-        site,
-        emailCopy === null ? "" : cleanBroadcastSubject(emailCopy["subject"]),
-        emailCopy === null ? "" : cleanBroadcastBody(emailCopy["body"]),
-      ).catch(() => ({ sent: 0, total: 0 }));
-      emailed = result.sent > 0;
-      emailTotal = result.total;
-    }
-    return json({
-      sent,
-      gone,
-      failed,
-      total,
-      nextCursor,
-      emailed,
-      emailTotal,
-    });
+    const site = context.env.SITE_URL ?? "https://barbart.ca";
+    const result = await sendCollectorBroadcast(
+      context.env,
+      site,
+      emailCopy === null ? "" : cleanBroadcastSubject(emailCopy["subject"]),
+      emailCopy === null ? "" : cleanBroadcastBody(emailCopy["body"]),
+    ).catch(() => ({ sent: 0, total: 0 }));
+    return json({ emailed: result.sent > 0, emailTotal: result.total });
   } catch (err) {
     console.error(err);
     return serverError();
   }
 };
 
-/** Admin: push subscriber count plus the email a send would deliver, for
- * the Email page preview. */
+/** Admin: the email a send would deliver, for the Email page preview. */
 export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
   const denied = await requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
@@ -180,12 +66,7 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
       cleanBroadcastSubject(params.get("subject")),
       cleanBroadcastBody(params.get("body")),
     );
-    return json({
-      total: await countSubscriptions(context.env),
-      emailSubject: subject,
-      emailText: text,
-      emailHtml: html,
-    });
+    return json({ emailSubject: subject, emailText: text, emailHtml: html });
   } catch (err) {
     console.error(err);
     return serverError();

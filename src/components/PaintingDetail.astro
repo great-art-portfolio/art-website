@@ -422,12 +422,9 @@ const eyebrow =
             </span>
             {mode === "draft" || data.draft ? (
               <span class="de-notify-group">
-                <span class="de-notify-label">On publish, also tell:</span>
                 <label class="de-check">
-                  <input id="de-notify-push" type="checkbox" /> Browsers
-                </label>
-                <label class="de-check">
-                  <input id="de-notify-email" type="checkbox" /> Email list
+                  <input id="de-notify-email" type="checkbox" /> On publish,
+                  email my list
                 </label>
               </span>
             ) : null}

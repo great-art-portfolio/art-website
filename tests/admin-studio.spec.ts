@@ -215,13 +215,12 @@ async function seedSoldOverlay(page: Page): Promise<void> {
 test("studio header links home, never to visitor funnels", async ({ page }) => {
   await mockCommitApi(page);
   await page.goto("/admin");
-  // Seven sections, Leave Admin, and Add painting. Leave Admin also clears
+  // Six sections, Leave Admin, and Add painting. Leave Admin also clears
   // the token.
-  await expect(page.locator(".site-nav .nav-links a")).toHaveCount(9);
+  await expect(page.locator(".site-nav .nav-links a")).toHaveCount(8);
   for (const label of [
     "Collection",
     "Banner",
-    "Ping",
     "Email",
     "Metrics",
     "QR codes",
@@ -1479,223 +1478,6 @@ test("banner lifetimes are 1/3/7/14 days plus no end date", async ({
   }
 });
 
-test("tickle button pings browsers without email", async ({ page }) => {
-  await page.goto("/admin/ping");
-  const btn = page.locator("#tickle-send");
-  await expect(btn).toBeVisible();
-  // Left-aligned, not full width.
-  const btnBox = await btn.boundingBox();
-  const secBox = await page.locator("#sec-tickle").boundingBox();
-  expect(btnBox !== null && secBox !== null).toBe(true);
-  if (btnBox !== null && secBox !== null) {
-    expect(btnBox.width).toBeLessThan(secBox.width / 2);
-  }
-  // Without keys there are no subscribers. The confirmation comes first,
-  // then the empty result fades in.
-  const asked: string[] = [];
-  page.on("dialog", async (dialog) => {
-    asked.push(dialog.message());
-    await dialog.accept();
-  });
-  await btn.click();
-  const status = page.locator("#tickle-status");
-  await expect(status).toContainText("Nobody to ping yet");
-  await expect(status).toHaveClass(/fade-in/);
-  await expect(btn).toBeEnabled();
-  expect(asked).toEqual([
-    "Nobody to ping yet — no browsers subscribed. Send anyway?",
-  ]);
-  // Custom text is sent and stored for the ping.
-  await page.locator("#tickle-body").fill("New seascape just listed");
-  await btn.click();
-  // Each tap clears the previous result, so wait for this tap's own cycle.
-  await expect(status).toContainText("Pinging");
-  await expect(status).toContainText("Nobody to ping yet");
-  const stored = await page.request.get("/api/push-message");
-  expect(await stored.json()).toEqual({
-    body: "New seascape just listed",
-    title: "",
-  });
-});
-
-test("ping preview wears the notification shape live", async ({ page }) => {
-  await page.goto("/admin/ping");
-  const preview = page.locator("#tickle-preview");
-  await expect(preview).toBeVisible();
-  // Site icon, standard title, and standard note while blank.
-  await expect(preview.locator("img")).toHaveAttribute("src", "/favicon.png");
-  await expect(preview.locator("strong")).toHaveText(
-    "Something new in the gallery",
-  );
-  await expect(preview.locator("#tickle-preview-body")).toHaveText(
-    "Tap to see it.",
-  );
-  // Typed text replaces the standard note.
-  await page.locator("#tickle-body").fill("New seascape just listed");
-  await expect(preview.locator("#tickle-preview-body")).toHaveText(
-    "New seascape just listed",
-  );
-  await page.locator("#tickle-body").fill("");
-  await expect(preview.locator("#tickle-preview-body")).toHaveText(
-    "Tap to see it.",
-  );
-  // The title works the same way. Blank keeps the standard one.
-  await page.locator("#tickle-title").fill("Fresh today");
-  await expect(preview.locator("#tickle-preview-title")).toHaveText(
-    "Fresh today",
-  );
-  await page.locator("#tickle-title").fill("");
-  await expect(preview.locator("#tickle-preview-title")).toHaveText(
-    "Something new in the gallery",
-  );
-});
-
-test("device preview sends a local ping, never a broadcast", async ({
-  page,
-}) => {
-  // Stub the Notification API to record what would be shown.
-  await page.addInitScript(() => {
-    const seen: Array<{ title: string; opts: unknown }> = [];
-    class FakeNotification {
-      static permission = "granted";
-      static requestPermission(): Promise<string> {
-        return Promise.resolve("granted");
-      }
-      onclick: (() => void) | null = null;
-      constructor(title: string, opts: unknown) {
-        seen.push({ title, opts });
-      }
-      close(): void {}
-    }
-    (window as unknown as Record<string, unknown>)["Notification"] =
-      FakeNotification;
-    (window as unknown as Record<string, unknown>)["__notes"] = seen;
-  });
-  await page.goto("/admin/ping");
-  await page.locator("#tickle-title").fill("Fresh today");
-  await page.locator("#tickle-body").fill("New seascape just listed");
-  await page.locator("#tickle-preview-send").click();
-  // The page says the preview was sent to this browser only.
-  await expect(page.locator("#tickle-status")).toContainText("Preview sent");
-  // It uses the custom title, custom text, and site icon.
-  const shown = await page.evaluate(
-    () => (window as unknown as Record<string, unknown>)["__notes"],
-  );
-  expect(shown).toEqual([
-    {
-      title: "Fresh today",
-      opts: {
-        body: "New seascape just listed",
-        icon: "/favicon.png",
-        badge: "/favicon.png",
-        tag: "gallery-preview",
-      },
-    },
-  ]);
-});
-
-test("tickle button names its reach and asks first", async ({ page }) => {
-  await page.goto("/admin/ping");
-  // The placeholder shows the default note.
-  await expect(page.locator("#tickle-body")).toHaveAttribute(
-    "placeholder",
-    "Blank: Something new in the gallery — tap to see it",
-  );
-  // With five subscribers, the button asks before pinging.
-  await page.route("**/api/notify", async (route) => {
-    if (route.request().method() === "GET") {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ total: 5 }),
-      });
-    } else {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          sent: 5,
-          total: 5,
-          gone: 0,
-          failed: 0,
-          emailed: false,
-          emailTotal: 0,
-        }),
-      });
-    }
-  });
-  const btn = page.locator("#tickle-send");
-  const status = page.locator("#tickle-status");
-  const asked: string[] = [];
-  page.on("dialog", async (dialog) => {
-    asked.push(dialog.message());
-    // First say no, then yes.
-    if (asked.length === 1) await dialog.dismiss();
-    else await dialog.accept();
-  });
-  // Declining sends nothing and re-enables the button.
-  await btn.click();
-  await expect.poll(() => asked.length).toBe(1);
-  expect(asked[0]).toBe("This will ping 5 browsers. Are you sure?");
-  await expect(status).toBeEmpty();
-  await expect(btn).toBeEnabled();
-  // Confirming pings all five.
-  await btn.click();
-  await expect.poll(() => asked.length).toBe(2);
-  await expect(status).toContainText("Pinged 5 of 5 browsers.");
-  await expect(btn).toBeEnabled();
-});
-
-test("tickle walks big lists in batches", async ({ page }) => {
-  await page.goto("/admin/ping");
-  // 65 subscribers is more than one Worker call can ping.
-  await page.route("**/api/notify", async (route) => {
-    if (route.request().method() === "GET") {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ total: 65 }),
-      });
-      return;
-    }
-    const sent = await route.request().postDataJSON();
-    const cursor = Number(sent?.push?.cursor ?? 0) || 0;
-    const batch = 40;
-    const done = Math.min(batch, 65 - cursor);
-    const next = cursor + done < 65 ? cursor + done : null;
-    posts.push(cursor);
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        sent: done,
-        total: 65,
-        gone: 0,
-        failed: 0,
-        emailed: false,
-        emailTotal: 0,
-        nextCursor: next,
-      }),
-    });
-  });
-  const posts: number[] = [];
-  const asked: string[] = [];
-  page.on("dialog", async (dialog) => {
-    asked.push(dialog.message());
-    await dialog.accept();
-  });
-  const btn = page.locator("#tickle-send");
-  const status = page.locator("#tickle-status");
-  await btn.click();
-  await expect.poll(() => asked.length).toBe(1);
-  expect(asked[0]).toBe("This will ping 65 browsers. Are you sure?");
-  // Two requests (40 then 25) and one result on screen.
-  await expect.poll(() => posts.length).toBe(2);
-  expect(posts).toEqual([0, 40]);
-  await expect(status).toContainText("Pinged 65 of 65 browsers.");
-  await expect(btn).toBeEnabled();
-});
-
 test("send email button confirms the list before broadcasting", async ({
   page,
 }) => {
@@ -1857,10 +1639,9 @@ test("email page previews the exact email buyers get", async ({ page }) => {
   });
   await page.locator("#email-send").click();
   await expect(page.locator("#email-status")).toContainText(
-    "Emailed 1 subscribers.",
+    "Emailed 1 subscriber.",
   );
   expect(posted).toEqual({
-    push: false,
     email: {
       subject: "New painting at Barbara Straka's studio",
       body: "Fresh off the easel",

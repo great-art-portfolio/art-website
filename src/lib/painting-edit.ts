@@ -197,21 +197,19 @@ export function appendSlugHistory(current: string, oldSlug: string): string {
   return formatSlugHistory([oldSlug, ...parseSlugHistory(current)]);
 }
 
-/** Which alerts a scheduled painting sends on its day. */
+/** Which alerts a scheduled painting sends on its day. Older files may
+ * also say "push" (browser alerts, since removed); it's ignored. */
 export interface AlertChoice {
-  push: boolean;
   email: boolean;
 }
 
 export function parseAlerts(raw: string): AlertChoice {
   const bits = raw.split(",").map((b) => b.trim());
-  return { push: bits.includes("push"), email: bits.includes("email") };
+  return { email: bits.includes("email") };
 }
 
 export function formatAlerts(choice: AlertChoice): string {
-  return [choice.push ? "push" : "", choice.email ? "email" : ""]
-    .filter((b) => b !== "")
-    .join(",");
+  return choice.email ? "email" : "";
 }
 
 /** Publishes a due draft and removes its schedule and remembered alerts

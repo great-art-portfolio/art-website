@@ -172,22 +172,15 @@ export const viewsSchema = z.object({
 });
 
 export const notifySchema = z.object({
-  sent: z.number(),
-  total: z.number(),
-  gone: z.number().optional(),
-  failed: z.number().optional(),
-  // Large lists are paged by cursor. Null or missing means done.
-  nextCursor: z.number().nullable().optional(),
   emailed: z.boolean(),
   emailTotal: z.number(),
 });
 
-/** Admin: how many browsers would a ping reach. */
-export const pushCountSchema = z.object({ total: z.number() });
+/** Admin: how many people are on the email list. */
+export const countSchema = z.object({ total: z.number() });
 
-/** Admin: ping reach plus the email a send would deliver. */
+/** Admin: the email a send would deliver. */
 export const notifyStatusSchema = z.object({
-  total: z.number(),
   emailSubject: z.string(),
   emailText: z.string(),
   emailHtml: z.string(),
