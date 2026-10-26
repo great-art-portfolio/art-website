@@ -125,6 +125,14 @@ see.
   on switch — without it `/api/status` hands out no site key, so local runs
   and CI never render the widget, and only the honeypot guards the forms.
 
+## Licence
+
+The code is MIT, so other artists are welcome to fork it for their own
+work. Barbara's paintings, photos, models and words (`src/content/`,
+`public/models/`) are © Barbara Straka, all rights reserved. See
+[LICENSE](LICENSE). A fork starts by replacing `src/content/paintings/`
+with its own paintings.
+
 ## Docs
 
 - [docs/DECISIONS.md](docs/DECISIONS.md) — why Access, D1/R2, Resend, ntfy
