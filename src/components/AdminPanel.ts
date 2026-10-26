@@ -947,6 +947,8 @@ async function publishDueRows(rows: LocalPainting[]): Promise<LocalPainting[]> {
   const flipped = new Map<string, string>();
   // Alerts she ticked when scheduling, sent once for the whole batch.
   const alerts = { email: false };
+  // The email shows the first painting that asked for one.
+  let alertFile = "";
   for (const r of due) {
     const content = await api.getPaintingFile(r.mdPath);
     if (content === null) continue;
@@ -956,6 +958,7 @@ async function publishDueRows(rows: LocalPainting[]): Promise<LocalPainting[]> {
     flipped.set(r.mdPath, publishDue(content));
     const wanted = parseAlerts(parsed.alertOnPublish);
     alerts.email ||= wanted.email;
+    if (wanted.email && alertFile === "") alertFile = r.mdPath;
   }
   if (flipped.size > 0) {
     const names = due
@@ -968,7 +971,7 @@ async function publishDueRows(rows: LocalPainting[]): Promise<LocalPainting[]> {
         : `Publish ${flipped.size} scheduled paintings: ${names}`,
       [...flipped].map(([path, blob]) => ({ path, blob })),
     );
-    const sent = await sendPublishAlerts(alerts);
+    const sent = await sendPublishAlerts(alerts, alertFile);
     setStatus(
       flipped.size === 1
         ? `Published ${names} — live in a few minutes.${sent}`

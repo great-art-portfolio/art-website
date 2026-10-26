@@ -554,8 +554,8 @@ function alertsLater(choice: AlertChoice): string {
 /** Emails the list after a publish when the box is ticked. Drafts and plain
  * saves don't notify. Failures are reported in the confirmation text rather
  * than failing the publish. */
-async function publishAlerts(): Promise<string> {
-  return await sendPublishAlerts(alertChoice());
+async function publishAlerts(file: string): Promise<string> {
+  return await sendPublishAlerts(alertChoice(), file);
 }
 
 interface FieldSet {
@@ -874,7 +874,9 @@ async function saveNew(draft: boolean): Promise<void> {
     );
     buzz();
     const priceCents = Math.round(fields.price * 100);
-    const alerts = draft ? "" : await publishAlerts();
+    const alerts = draft
+      ? ""
+      : await publishAlerts(`src/content/paintings/${slug}.md`);
     const scheduled = draft && fields.publishOn !== "";
     goAdmin(
       scheduled
@@ -1414,7 +1416,7 @@ function initStudio(): void {
         patchFlipDraft(mdPath, base, slug, !draft, fields)
           .then(async () => {
             buzz();
-            const alerts = draft ? await publishAlerts() : "";
+            const alerts = draft ? await publishAlerts(mdPath) : "";
             goAdmin(
               draft
                 ? `Published "${fields.title}" — live in a few minutes.${alerts}`

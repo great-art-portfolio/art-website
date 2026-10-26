@@ -1,15 +1,74 @@
 import type { AppEnv } from "../_lib/env";
+import { PAINTING_FILE } from "../_lib/gallery-paths";
+import { gitConfig, readTextFile } from "../_lib/github";
 import { json, requireAdmin, serverError } from "../_lib/http";
 import {
   cleanBroadcastBody,
   cleanBroadcastSubject,
+  paintingAlertEmail,
   segmentBroadcastEmail,
   sendCollectorBroadcast,
+  type BroadcastOptions,
+  type PaintingAlert,
 } from "../_lib/notify";
+import { parseCatalog } from "../_lib/validation";
+import { parsePainting } from "../../src/lib/painting-edit";
+import { slugifyTitle } from "../../src/lib/site";
 
-/** Admin: emails her list. { email: true } sends the standard new-painting
- * note (a publish alert); { email: { subject, body } } comes from the Email
- * page. An unconfigured list is skipped. */
+/** How long a publish alert waits for the build that puts the painting
+ * online, so the email's photo and link work when it lands. */
+export const ALERT_DELAY = "in 10 min";
+
+/** The painting a publish alert is about, read from git (her latest
+ * words), and whether its page is already live. The studio names the
+ * painting's file; the nightly job names its slug. Null when it can't be
+ * found, and the plain note goes instead. */
+async function paintingFor(
+  env: AppEnv,
+  origin: string,
+  file: string,
+  slug: string,
+): Promise<{ painting: PaintingAlert; live: boolean } | null> {
+  const config = gitConfig(env);
+  if (config === null) return null;
+  const catalogRes = await env.ASSETS.fetch(
+    new Request(`${origin}/catalog.json`),
+  ).catch(() => null);
+  const catalog =
+    catalogRes?.ok === true ? parseCatalog(await catalogRes.json()) : [];
+  const path = PAINTING_FILE.test(file)
+    ? file
+    : (catalog.find((p) => p.slug === slug)?.file ?? "");
+  if (!PAINTING_FILE.test(path)) return null;
+  const md = await readTextFile(config, path);
+  const parsed = md === null ? null : parsePainting(md);
+  if (parsed === null || parsed.title === "") return null;
+  const num = (v: string): number | null => {
+    const n = Number(v);
+    return v.trim() !== "" && Number.isFinite(n) && n > 0 ? n : null;
+  };
+  const paintingSlug = slugifyTitle(parsed.title);
+  return {
+    painting: {
+      slug: paintingSlug,
+      title: parsed.title,
+      priceCents: Math.round((num(parsed.price) ?? 0) * 100),
+      sold: parsed.sold,
+      medium: parsed.medium,
+      widthIn: num(parsed.widthIn),
+      heightIn: num(parsed.heightIn),
+      depthIn: num(parsed.depthIn),
+      description: parsed.description,
+      alt: parsed.alt,
+    },
+    live: catalog.some((p) => p.slug === paintingSlug && p.image !== ""),
+  };
+}
+
+/** Admin: emails her list. { email: true, file | slug } sends the
+ * new-painting email for that painting: its photo, words and price,
+ * held until its page is live. { email: { subject, body } } comes from the
+ * Email page. An unconfigured list is skipped. */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   // The nightly scheduled-publish workflow has its own key, good for the
   // standard publish alert only: no custom text.
@@ -40,13 +99,39 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   if (emailOpt === false) return json({ emailed: false, emailTotal: 0 });
   try {
     const site = context.env.SITE_URL ?? "https://barbart.ca";
+    const text = (v: unknown): string => (typeof v === "string" ? v : "");
+    // Only the studio may name a file; the alerts key names a slug.
+    const found =
+      emailCopy === null
+        ? await paintingFor(
+            context.env,
+            new URL(context.request.url).origin,
+            viaAlertsKey ? "" : text(body["file"]),
+            text(body["slug"]),
+          ).catch((err: unknown) => {
+            console.error("publish alert painting lookup failed", err);
+            return null;
+          })
+        : null;
+    const opts: BroadcastOptions =
+      found === null
+        ? {}
+        : {
+            mail: paintingAlertEmail(site, found.painting),
+            scheduledAt: found.live ? undefined : ALERT_DELAY,
+          };
     const result = await sendCollectorBroadcast(
       context.env,
       site,
       emailCopy === null ? "" : cleanBroadcastSubject(emailCopy["subject"]),
       emailCopy === null ? "" : cleanBroadcastBody(emailCopy["body"]),
+      opts,
     ).catch(() => ({ sent: 0, total: 0 }));
-    return json({ emailed: result.sent > 0, emailTotal: result.total });
+    return json({
+      emailed: result.sent > 0,
+      emailTotal: result.total,
+      scheduled: result.sent > 0 && opts.scheduledAt !== undefined,
+    });
   } catch (err) {
     console.error(err);
     return serverError();

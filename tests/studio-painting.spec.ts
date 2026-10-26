@@ -158,7 +158,7 @@ test("publishing a draft emails the list when ticked", async ({ browser }) => {
   await page.locator("#de-publish").click();
   await expect
     .poll(() => postedNotify, { timeout: 15_000 })
-    .toEqual({ email: true });
+    .toEqual({ email: true, file: "src/content/paintings/channel-check.md" });
   expect(postedMessage).toBe("Add painting: Channel Check");
   await expect(page).toHaveURL(/\/admin\/?$/, { timeout: 25_000 });
   await authed.close();

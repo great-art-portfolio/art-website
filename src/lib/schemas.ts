@@ -195,6 +195,8 @@ export const viewsSchema = z.object({
 export const notifySchema = z.object({
   emailed: z.boolean(),
   emailTotal: z.number(),
+  /** Held until the painting's page is live. */
+  scheduled: z.boolean().default(false),
 });
 
 /** Admin: everyone on the email list, for the studio's list page. */

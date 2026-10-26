@@ -7,6 +7,7 @@ import PaintingDetail, {
 } from "../../components/PaintingDetail.astro";
 import { formatDimensions } from "../../lib/dims";
 import { modelGlbOrEmpty } from "../../lib/model-files";
+import { SHARE_IMAGE } from "../../lib/share-image";
 import {
   ARTIST_NAME,
   isPublished,
@@ -81,14 +82,7 @@ const data: PaintingDetailData = {
   draft: false,
 };
 const pageUrl = new URL(`/paintings/${data.slug}`, SITE_URL).href;
-// Link previews get a 1200px JPEG. The original photo is near 1 MB, and
-// WhatsApp drops previews over about 300 KB.
-const share = await getImage({
-  src: painting.data.image,
-  width: 1200,
-  format: "jpeg",
-  quality: 72,
-});
+const share = await getImage({ src: painting.data.image, ...SHARE_IMAGE });
 const description = metaDescription(painting.body ?? "", painting.data.alt);
 // Search engines want the photo itself here, not the page it sits on: the
 // 1200px share copy, never the print-quality original.

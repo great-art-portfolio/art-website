@@ -307,12 +307,15 @@ export const api = {
       return { views: [], metrics: null, unconfigured: true };
     }
   },
-  /** Emails the list the standard new-painting note (a publish alert). */
-  async notifyCollectors(): Promise<{ emailed: boolean; emailTotal: number }> {
+  /** Emails the list about a painting she just published (its .md path):
+   * photo, words and price, sent once its page is live. */
+  async notifyCollectors(
+    file: string,
+  ): Promise<{ emailed: boolean; emailTotal: number; scheduled: boolean }> {
     return await request("/api/notify", notifySchema, {
       method: "POST",
       headers: { ...adminHeaders(), "Content-Type": "application/json" },
-      body: JSON.stringify({ email: true }),
+      body: JSON.stringify({ email: true, file }),
     });
   },
   /**
