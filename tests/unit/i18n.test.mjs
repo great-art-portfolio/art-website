@@ -331,3 +331,11 @@ describe("POST /api/translate", () => {
     assert.equal(res.status, 501);
   });
 });
+
+describe("banner translations", () => {
+  it("keep her whole note, past 200 characters", () => {
+    const long = "Ouvert samedi. ".repeat(20).trim();
+    const file = parseTranslationFile({ source: "x", fr: { title: long } });
+    assert.equal(file.langs.fr.title, long);
+  });
+});

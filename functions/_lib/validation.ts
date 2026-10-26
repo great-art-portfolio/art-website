@@ -122,6 +122,7 @@ const catalogItemSchema = z.object({
   /** Her description and when it was added, for the writing helper. */
   description: z.string().default(""),
   added: z.string().default(""),
+  aliases: z.array(z.string()).default([]),
 });
 
 export type CatalogItem = z.infer<typeof catalogItemSchema>;
@@ -135,6 +136,12 @@ export function parseCatalog(raw: unknown): CatalogItem[] {
     if (item.success) items.push(item.data);
   }
   return items;
+}
+
+/** The languages the build made pages for, from /catalog.json. */
+export function parseCatalogLanguages(raw: unknown): string[] {
+  const r = z.object({ languages: z.array(z.string()) }).safeParse(raw);
+  return r.success ? r.data.languages : [];
 }
 
 /** Checkout POST body from a painting page. */

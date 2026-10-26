@@ -239,6 +239,40 @@ describe("inquiries name only real paintings", async () => {
     assert.equal(mails.length, 0);
   });
 
+  it("finds a painting by an old slug after a rename", async () => {
+    catalog.paintings[0].aliases = ["thaw"];
+    const { res, mails } = await send({ slug: "thaw" });
+    delete catalog.paintings[0].aliases;
+    assert.equal(res.status, 201);
+    assert.equal(mails[0].subject, 'New message about "First Thaw"');
+  });
+
+  it("keeps the note for a retry when the catalog can't be read", async () => {
+    globalThis.fetch = async (url) =>
+      String(url).startsWith("https://challenges.cloudflare.com/")
+        ? Response.json({ success: true })
+        : Response.json({ id: "e1" });
+    const res = await inquire({
+      request: new Request("https://barbart.ca/api/inquiries", {
+        method: "POST",
+        body: JSON.stringify({
+          name: "Ada",
+          email: "ada@resend.dev",
+          slug: "first-thaw",
+          turnstileToken: "tok",
+        }),
+      }),
+      env: {
+        TURNSTILE_SECRET_KEY: "shh",
+        RESEND_API_KEY: "re_x",
+        ARTIST_INBOX: "artist@resend.dev",
+        ASSETS: { fetch: async () => new Response("down", { status: 500 }) },
+      },
+    });
+    // A 5xx: the page's outbox keeps it and sends it later.
+    assert.equal(res.status, 500);
+  });
+
   it("still takes an older page's note by its exact title", async () => {
     const { res } = await send({ paintingTitle: "First Thaw" });
     assert.equal(res.status, 201);

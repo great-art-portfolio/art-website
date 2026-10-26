@@ -3,6 +3,7 @@ import { getCollection } from "astro:content";
 import { getImage } from "astro:assets";
 import { SHARE_IMAGE } from "../lib/share-image";
 import { isPublished, slugifyTitle } from "../lib/site";
+import { ENABLED } from "../i18n";
 
 // What checkout trusts: each published painting's title, price, and sold
 // state as of this build. /api/checkout reads it through the static assets
@@ -24,9 +25,19 @@ export const GET: APIRoute = async () => {
       image: (await getImage({ src: p.data.image, ...SHARE_IMAGE })).src,
       description: (p.body ?? "").trim(),
       added: p.data.dateAdded.toISOString().slice(0, 10),
+      // Earlier slugs, so a page left open from before a rename still
+      // finds its painting.
+      aliases: (p.data.slugHistory ?? "")
+        .split(",")
+        .map((s) => s.trim().toLowerCase())
+        .filter((s) => s !== ""),
     })),
   );
-  return new Response(JSON.stringify({ paintings: items }), {
-    headers: { "content-type": "application/json" },
-  });
+  // The languages this build has pages for, so Functions only link there.
+  return new Response(
+    JSON.stringify({ paintings: items, languages: ENABLED }),
+    {
+      headers: { "content-type": "application/json" },
+    },
+  );
 };

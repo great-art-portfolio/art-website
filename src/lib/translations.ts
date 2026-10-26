@@ -27,12 +27,20 @@ export function languagesLabel(n: number): string {
 /** The translation file to commit with these words, or null when nothing
  * needs doing (or the translator is unavailable). `path` is the painting's
  * .md, or the banner's translation file. */
+/** A translation file to commit, and the `source` its file had when it
+ * was read ("" when there was none), to tell if someone wrote it since. */
+export interface TranslationFile {
+  path: string;
+  blob: string;
+  basis: string;
+}
+
 export async function translationFor(
   kind: "painting" | "banner",
   path: string,
   english: PaintingWords,
   wanted: readonly OtherLocale[] = SITE_LANGUAGES,
-): Promise<{ path: string; blob: string } | null> {
+): Promise<TranslationFile | null> {
   if (wanted.length === 0 || english.title.trim() === "") return null;
   const file = kind === "banner" ? BANNER_TRANSLATIONS : translationPath(path);
   const raw = await api.getPaintingFile(file);
@@ -56,5 +64,6 @@ export async function translationFor(
   return {
     path: file,
     blob: formatTranslationFile({ source, langs: { ...keep, ...got } }),
+    basis: raw === null ? "" : existing.source,
   };
 }

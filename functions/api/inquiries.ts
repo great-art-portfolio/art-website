@@ -33,31 +33,6 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   ) {
     return spamCheckFailed();
   }
-  // The painting's title and price come from the site's own catalog, never
-  // from the browser, so nobody can put words of their choosing into her
-  // inbox under the site's name. The page sends its slug; notes saved
-  // offline by older pages carry only the title, which must match.
-  const slug = typeof body["slug"] === "string" ? body["slug"] : "";
-  const sentTitle =
-    typeof body["paintingTitle"] === "string"
-      ? body["paintingTitle"].trim()
-      : "";
-  let catalog: ReturnType<typeof parseCatalog> = [];
-  try {
-    const res = await context.env.ASSETS.fetch(
-      new Request(`${new URL(context.request.url).origin}/catalog.json`),
-    );
-    if (res.ok) catalog = parseCatalog(await res.json());
-  } catch {
-    // No catalog to check against: refused below.
-  }
-  const painting =
-    catalog.find((p) => slug !== "" && p.slug === slug) ??
-    catalog.find((p) => sentTitle !== "" && p.title === sentTitle);
-  if (painting === undefined)
-    return badRequest("That painting isn't on the site any more.");
-  const paintingTitle = painting.title;
-  const priceCents = painting.sold ? 0 : painting.priceCents;
   const buyerName =
     typeof body["name"] === "string" ? body["name"].trim().slice(0, 120) : "";
   const buyerEmail =
@@ -69,6 +44,35 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   if (buyerName === "" || !EMAIL_RE.test(buyerEmail)) {
     return badRequest("Name, a valid email, and a painting are required");
   }
+  // The painting's title and price come from the site's own catalog, never
+  // from the browser, so nobody can put words of their choosing into her
+  // inbox under the site's name. The page sends its slug; notes saved
+  // offline by older pages carry only the title, which must match.
+  const slug = typeof body["slug"] === "string" ? body["slug"] : "";
+  const sentTitle =
+    typeof body["paintingTitle"] === "string"
+      ? body["paintingTitle"].trim()
+      : "";
+  let catalog: ReturnType<typeof parseCatalog> | null = null;
+  try {
+    const res = await context.env.ASSETS.fetch(
+      new Request(`${new URL(context.request.url).origin}/catalog.json`),
+    );
+    if (res.ok) catalog = parseCatalog(await res.json());
+  } catch {
+    catalog = null;
+  }
+  // A 5xx, not a 4xx: the page's outbox keeps the note and tries again.
+  if (catalog === null)
+    return serverError("Couldn't send just now — it will try again.");
+  const painting =
+    catalog.find(
+      (p) => slug !== "" && (p.slug === slug || p.aliases.includes(slug)),
+    ) ?? catalog.find((p) => sentTitle !== "" && p.title === sentTitle);
+  if (painting === undefined)
+    return badRequest("That painting isn't on the site any more.");
+  const paintingTitle = painting.title;
+  const priceCents = painting.sold ? 0 : painting.priceCents;
   try {
     // Awaited rather than waitUntil, so the buyer only sees "thanks" once a
     // channel delivered. A 5xx makes the offline outbox keep it for retry.

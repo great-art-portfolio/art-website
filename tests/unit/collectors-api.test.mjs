@@ -364,7 +364,16 @@ describe("dev mock list", () => {
   it("writes to a French visitor in French, linking the French page", async () => {
     stubFetch(() => okRes());
     const res = await onRequestPost(
-      mockPostContext({ email: "delivered+fr@resend.dev", locale: "fr" }),
+      mockPostContext(
+        { email: "delivered+fr@resend.dev", locale: "fr" },
+        {
+          // The deploy's catalog says which languages have pages.
+          ASSETS: {
+            fetch: async () =>
+              Response.json({ paintings: [], languages: ["fr"] }),
+          },
+        },
+      ),
     );
     assert.equal(res.status, 201);
     const mail = sentEmails().find((m) =>

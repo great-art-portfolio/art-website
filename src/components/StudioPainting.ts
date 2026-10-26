@@ -21,6 +21,7 @@ import {
   type AlertChoice,
   type PaintingEdits,
   type ParsedPainting,
+  DEFAULT_DESCRIPTION,
 } from "../lib/painting-edit";
 import { loadArTooling, loadModelViewer } from "../lib/vendor-loader";
 import { readBackup } from "../lib/autosave";
@@ -565,7 +566,11 @@ function startTranslation(
 ): Promise<{ path: string; blob: string } | null> {
   return translationFor("painting", path, {
     title: fields.title,
-    description: fields.description,
+    // The words the saved file will hold, so the hash matches the build's.
+    description:
+      fields.description.trim() === ""
+        ? DEFAULT_DESCRIPTION
+        : fields.description.trim(),
     alt: fields.alt,
     medium: fields.medium,
   }).catch(() => null);

@@ -39,7 +39,8 @@ const str = (v: unknown, max: number): string =>
 function words(raw: unknown): PaintingWords | null {
   if (typeof raw !== "object" || raw === null) return null;
   const r = raw as Record<string, unknown>;
-  const title = str(r["title"], 200);
+  // Long enough for the banner's whole note, which travels as its title.
+  const title = str(r["title"], 400);
   if (title === "") return null;
   return {
     title,

@@ -14,7 +14,8 @@ import {
   type BakedRow,
 } from "../lib/schemas";
 import { sendPublishAlerts } from "../lib/alerts";
-import { translationFor } from "../lib/translations";
+import { translationFor, type TranslationFile } from "../lib/translations";
+import { parseTranslationFile, translationPath } from "../i18n/painting-text";
 import { keyWarning } from "../lib/key-expiry";
 import {
   SEARCH_FROM,
@@ -864,10 +865,25 @@ async function purgeRow(
   if (parsed === null) throw new Error("Couldn't read this painting's file.");
   await api.deleteFiles(
     `Delete painting: ${parsed.title}`,
-    paintingFilePaths(mdPath, parsed),
+    await withTranslations(paintingFilePaths(mdPath, parsed), [mdPath]),
   );
   await refreshCollection();
   setStatus(`Deleted "${parsed.title}" forever.`);
+}
+
+/** Adds the paintings' translation files to a delete, where they exist
+ * (a delete of a missing path would fail the whole commit). */
+async function withTranslations(
+  paths: string[],
+  mdPaths: string[],
+): Promise<string[]> {
+  const extra: string[] = [];
+  for (const md of mdPaths) {
+    if (md === "") continue;
+    const file = translationPath(md);
+    if ((await api.getPaintingFile(file)) !== null) extra.push(file);
+  }
+  return [...paths, ...extra];
 }
 
 /** Permanently deletes every trashed painting in one commit. */
@@ -897,7 +913,13 @@ async function emptyTrash(): Promise<void> {
     if (parsed === null) continue;
     paths.push(...paintingFilePaths(r.mdPath, parsed));
   }
-  await api.deleteFiles(`Empty trash (${trashed.length} paintings)`, paths);
+  await api.deleteFiles(
+    `Empty trash (${trashed.length} paintings)`,
+    await withTranslations(
+      paths,
+      trashed.map((r) => r.mdPath),
+    ),
+  );
   await refreshCollection();
   setStatus(
     `Emptied the trash — ${trashed.length === 1 ? "1 painting" : `${trashed.length} paintings`}, gone for good.`,
@@ -921,7 +943,13 @@ async function purgeOldTrash(rows: LocalPainting[]): Promise<LocalPainting[]> {
     paths.push(...paintingFilePaths(r.mdPath, parsed));
   }
   if (paths.length > 0) {
-    await api.deleteFiles(`Clear old trash (${old.length} paintings)`, paths);
+    await api.deleteFiles(
+      `Clear old trash (${old.length} paintings)`,
+      await withTranslations(
+        paths,
+        old.map((r) => r.mdPath),
+      ),
+    );
   }
   const gone = new Set(old.map((r) => r.slug));
   setStatus(
@@ -1283,30 +1311,39 @@ function wireLanguageChoices(): void {
     const n = codes.length;
     save.disabled = true;
     setStatus("Saving languages…");
-    api
-      .commitFiles(
-        n === 0
-          ? "Site languages: English only"
-          : `Site languages: English and ${n} more`,
-        [
-          {
-            path: "src/content/languages.json",
-            blob: `${JSON.stringify({ languages: codes }, null, 2)}\n`,
-          },
-        ],
-      )
-      .then(() => {
-        setStatus(
-          n === 0
-            ? "Saved — the site goes back to English only in a few minutes."
-            : "Saved — the language pages update in a few minutes. Open the Collection page afterwards and any new language gets its translations.",
-        );
+    void useOverlayMode()
+      .then((practice) => {
+        if (!practice) return saveLanguages(codes, n);
+        setStatus("Practice mode: languages only save on the live site.");
+        return undefined;
       })
-      .catch((err: unknown) => setStatus(errorMessage(err), true))
       .finally(() => {
         save.disabled = false;
       });
   });
+}
+
+function saveLanguages(codes: string[], n: number): Promise<void> {
+  return api
+    .commitFiles(
+      n === 0
+        ? "Site languages: English only"
+        : `Site languages: English and ${n} more`,
+      [
+        {
+          path: "src/content/languages.json",
+          blob: `${JSON.stringify({ languages: codes }, null, 2)}\n`,
+        },
+      ],
+    )
+    .then(() => {
+      setStatus(
+        n === 0
+          ? "Saved — the site goes back to English only in a few minutes."
+          : "Saved — the language pages update in a few minutes. Open the Collection page afterwards and any new language gets its translations.",
+      );
+    })
+    .catch((err: unknown) => setStatus(errorMessage(err), true));
 }
 
 /** Done this session, so a dashboard revisit before the rebuild lands
@@ -1316,13 +1353,18 @@ const CAUGHT_UP_KEY = "studio-translated-v1";
 /**
  * Translates whatever the build found missing (paintings saved while the
  * translator was down, or every painting after she switches a language
- * on), then commits it all at once. Runs quietly after the list loads;
+ * on), committing a few at a time. Runs quietly after the list loads;
  * leaving the page midway just leaves the rest for next time.
  */
+let catchingUp = false;
+
 async function catchUpTranslations(rows: LocalPainting[]): Promise<void> {
+  // One run at a time: the dashboard refreshes after every action, and the
+  // module lives across page changes.
+  if (catchingUp) return;
   const el = document.getElementById("translations-behind");
   if (el === null) return;
-  let behind: { paintings: string[]; banner: string };
+  let behind: { paintings: string[]; banner: boolean };
   try {
     const raw = JSON.parse(el.textContent ?? "{}") as {
       paintings?: unknown;
@@ -1332,60 +1374,106 @@ async function catchUpTranslations(rows: LocalPainting[]): Promise<void> {
       paintings: Array.isArray(raw.paintings)
         ? raw.paintings.filter((p): p is string => typeof p === "string")
         : [],
-      banner: typeof raw.banner === "string" ? raw.banner : "",
+      banner: typeof raw.banner === "string" && raw.banner !== "",
     };
   } catch {
     return;
   }
-  let done: string[] = [];
+  const done = new Set<string>();
   try {
-    done = JSON.parse(
+    for (const d of JSON.parse(
       sessionStorage.getItem(CAUGHT_UP_KEY) ?? "[]",
-    ) as string[];
+    ) as unknown[])
+      if (typeof d === "string") done.add(d);
   } catch {
-    done = [];
+    // Nothing remembered: everything listed is tried once.
   }
+  const remember = (key: string): void => {
+    done.add(key);
+    try {
+      sessionStorage.setItem(CAUGHT_UP_KEY, JSON.stringify([...done]));
+    } catch {
+      // Storage blocked: a later visit may try it again.
+    }
+  };
   const todo = rows.filter(
     (r) =>
-      !r.trash &&
-      behind.paintings.includes(r.mdPath) &&
-      !done.includes(r.mdPath),
+      !r.trash && behind.paintings.includes(r.mdPath) && !done.has(r.mdPath),
   );
-  const bannerTodo = behind.banner !== "" && !done.includes("banner");
+  const bannerTodo = behind.banner && !done.has("banner");
   if (todo.length === 0 && !bannerTodo) return;
-  const files: Array<{ path: string; blob: string }> = [];
-  for (const r of todo) {
-    const file = await translationFor("painting", r.mdPath, {
-      title: r.title,
-      description: r.description,
-      alt: r.alt,
-      medium: r.medium,
-    }).catch(() => null);
-    if (file !== null) files.push(file);
-    done.push(r.mdPath);
-  }
-  if (bannerTodo) {
-    const file = await translationFor("banner", "", {
-      title: behind.banner,
-      description: "",
-      alt: "",
-      medium: "",
-    }).catch(() => null);
-    if (file !== null) files.push(file);
-    done.push("banner");
-  }
-  if (files.length === 0) return;
+  catchingUp = true;
   try {
-    await api.commitFiles(
-      files.length === 1
-        ? "Translate for the other-language pages"
-        : `Translate ${files.length} paintings for the other-language pages`,
-      files,
-    );
-    sessionStorage.setItem(CAUGHT_UP_KEY, JSON.stringify(done));
+    // A few at a time, so leaving the page keeps what's done.
+    let batch: TranslationFile[] = [];
+    const flush = async (): Promise<void> => {
+      const fresh = await stillCurrent(batch);
+      batch = [];
+      if (fresh.length === 0) return;
+      await api.commitFiles(
+        fresh.length === 1
+          ? "Translate for the other-language pages"
+          : `Translate ${fresh.length} paintings for the other-language pages`,
+        fresh.map(({ path, blob }) => ({ path, blob })),
+      );
+    };
+    for (const r of todo) {
+      remember(r.mdPath);
+      const file = await translationFor("painting", r.mdPath, {
+        title: r.title,
+        description: r.description,
+        alt: r.alt,
+        medium: r.medium,
+      }).catch(() => null);
+      if (file !== null) batch.push(file);
+      if (batch.length >= 3) await flush();
+    }
+    if (bannerTodo) {
+      remember("banner");
+      // Her note as it is now, not as the last build saw it.
+      const raw = await api.getBanner().catch(() => "");
+      const { parseAnnouncement } = await import("../lib/banner");
+      const text = parseAnnouncement(raw).text;
+      const file =
+        text === ""
+          ? null
+          : await translationFor("banner", "", {
+              title: text,
+              description: "",
+              alt: "",
+              medium: "",
+            }).catch(() => null);
+      if (file !== null) batch.push(file);
+    }
+    await flush();
   } catch (err: unknown) {
     console.error("translation catch-up failed", err);
+  } finally {
+    catchingUp = false;
   }
+}
+
+/** A translation file's `source`; "" for none or unreadable. */
+function sourceOf(raw: string | null): string {
+  if (raw === null) return "";
+  try {
+    return parseTranslationFile(JSON.parse(raw)).source;
+  } catch {
+    return "";
+  }
+}
+
+/** Drops translations whose file someone else rewrote while these were
+ * being made (her own save, say), so a slow catch-up never undoes it. */
+async function stillCurrent(
+  files: TranslationFile[],
+): Promise<TranslationFile[]> {
+  const out: TranslationFile[] = [];
+  for (const f of files) {
+    const raw = await api.getPaintingFile(f.path);
+    if (sourceOf(raw) === f.basis) out.push(f);
+  }
+  return out;
 }
 
 /**
