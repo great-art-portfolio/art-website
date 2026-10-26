@@ -491,7 +491,36 @@ function buzz(): void {
 }
 
 /** Stores a confirmation toast for the dashboard, then navigates there. */
+/** True once a save is heading back to the studio, so the button stays in
+ * its saving state until the page changes. */
+let leaving = false;
+
+/** Shows a tap answered at once: the button reads "Saving…" with a slim
+ * moving bar and ignores more taps until the work ends. */
+async function whileBusy(
+  id: "de-save" | "de-save-draft" | "de-publish",
+  label: string,
+  run: () => Promise<void>,
+): Promise<void> {
+  const btn = maybeButton(id);
+  if (btn === null || btn.dataset.busy !== undefined) return;
+  const idle = btn.textContent;
+  btn.dataset.busy = "";
+  btn.setAttribute("aria-busy", "true");
+  btn.textContent = label;
+  try {
+    await run();
+  } finally {
+    if (!leaving) {
+      delete btn.dataset.busy;
+      btn.removeAttribute("aria-busy");
+      btn.textContent = idle;
+    }
+  }
+}
+
 function goAdmin(flash: string): void {
+  leaving = true;
   try {
     window.sessionStorage.setItem("studio-flash", flash);
   } catch {
@@ -734,11 +763,22 @@ async function modelBlobs(): Promise<{ glb: Blob; usdz: Blob } | null> {
 }
 
 /** Page URLs come from titles, so duplicate titles are rejected. */
+/** Every painting's title, fetched when the room opens so Save doesn't wait
+ * on it. Refetched once it's a couple of minutes old. */
+let titlesCache: { at: number; titles: Promise<string[]> } | null = null;
+const TITLES_FRESH_MS = 2 * 60 * 1000;
+
+function prefetchTitles(): Promise<string[]> {
+  if (titlesCache === null || Date.now() - titlesCache.at > TITLES_FRESH_MS)
+    titlesCache = { at: Date.now(), titles: existingTitles() };
+  return titlesCache.titles;
+}
+
 async function titleClash(
   title: string,
   ownSlug: string | null,
 ): Promise<boolean> {
-  if (isTitleTaken(await existingTitles(), title, ownSlug)) {
+  if (isTitleTaken(await prefetchTitles(), title, ownSlug)) {
     setStatus(
       `Another painting is already called "${title}" — give this one its own title.`,
       true,
@@ -1283,8 +1323,15 @@ function initStudio(): void {
         }
       });
     }
-    maybe("de-save-draft")?.addEventListener("click", () => void saveNew(true));
-    maybe("de-publish")?.addEventListener("click", () => void saveNew(false));
+    void prefetchTitles();
+    maybe("de-save-draft")?.addEventListener(
+      "click",
+      () => void whileBusy("de-save-draft", "Saving…", () => saveNew(true)),
+    );
+    maybe("de-publish")?.addEventListener(
+      "click",
+      () => void whileBusy("de-publish", "Publishing…", () => saveNew(false)),
+    );
     return;
   }
 
@@ -1325,9 +1372,13 @@ function initStudio(): void {
       }
     }
   });
+  void prefetchTitles();
   maybe("de-save")?.addEventListener(
     "click",
-    () => void basePromise.then((base) => saveEdit(slug, mdPath, base, draft)),
+    () =>
+      void whileBusy("de-save", "Saving…", () =>
+        basePromise.then((base) => saveEdit(slug, mdPath, base, draft)),
+      ),
   );
   maybe("de-visibility")?.addEventListener(
     "click",
