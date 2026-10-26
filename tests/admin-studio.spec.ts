@@ -1237,7 +1237,7 @@ test("metrics page shows visits by day and where they come from", async ({
     visitsBefore: 40,
     paintings: [{ slug: "first-thaw", views: 30 }],
     sources: [
-      { name: "Typed in, bookmarks, apps and email", visits: 80 },
+      { name: "Direct", visits: 80 },
       { name: "Instagram", visits: 20 },
     ],
     places: [{ code: "CA", visits: 90 }],
@@ -2477,4 +2477,35 @@ test("a long email list gets a search box", async ({ page }) => {
   await expect(page.locator("#list-search")).toBeVisible();
   await page.locator("#list-search").fill("fan13");
   await expect(page.locator("#list-people li:visible")).toHaveCount(1);
+});
+
+test("metrics show last visit's numbers at once, then refresh", async ({
+  page,
+}) => {
+  const metrics = (visits: number) => ({
+    days: [{ date: "2026-10-01", visits, views: visits }],
+    visits,
+    views: visits,
+    visitsBefore: 0,
+    paintings: [],
+    sources: [{ name: "Direct", visits }],
+    places: [],
+    devices: [],
+  });
+  let answer = metrics(120);
+  let release: () => void = () => {};
+  let hold: Promise<void> = Promise.resolve();
+  await page.route("**/api/analytics*", async (route) => {
+    await hold;
+    await route.fulfill({ json: { views: [], metrics: answer } });
+  });
+  await page.goto("/admin/metrics");
+  await expect(page.locator("#stats-total")).toHaveText("120");
+  // Next visit: Cloudflare is slow, so the saved 120 shows meanwhile.
+  answer = metrics(130);
+  hold = new Promise((r) => (release = r));
+  await page.reload();
+  await expect(page.locator("#stats-total")).toHaveText("120");
+  release();
+  await expect(page.locator("#stats-total")).toHaveText("130");
 });
