@@ -1,6 +1,6 @@
 # [Art Portfolio](https://github.com/great-art-portfolio/art-website)
 
-https://art-website-cm4.pages.dev/
+https://barbart.ca (Pages: https://art-website-cm4.pages.dev/)
 
 [Cloudflare](https://dash.cloudflare.com/ee6937662d7aeda01d2a6f1f49a1168a/pages/view/art-website)
 
@@ -9,12 +9,15 @@ https://art-website-cm4.pages.dev/
 ## Stack (all free tier)
 
 Astro 7 (static gallery — paintings are markdown + photos in git) +
-Cloudflare Pages Functions (inquiry emails, git publishing, push fan-out)
+Cloudflare Pages Functions (inquiry and list emails, git publishing through
+a GitHub App, the writing helper and translations through Muse).
 
-- D1 (one table: push subscriptions). Admin at `/admin`, protected by
-  Cloudflare Access (email OTP). Saving publishes to git; the git-connected
-  Pages project rebuilds (live in a few minutes). Buyer inquiries email via
-  Resend, nothing stored.
+- Admin at `/admin`, protected by Cloudflare Access (email OTP). Saving
+  publishes to git; the git-connected Pages project rebuilds (live in a few
+  minutes). Buyer inquiries email via Resend, nothing stored. The email list
+  lives in a Resend segment. D1 only backs the local mock list in dev.
+- The public site is built in English plus every language ticked on the
+  studio's Guide page (`/fr`, `/ja`, …); see AGENTS.md "Languages".
 
 ## Deleting a painting
 
@@ -79,29 +82,30 @@ pnpm wrangler d1 execute art-gallery-db --file=./migrations/0001_init.sql
 pnpm wrangler d1 execute art-gallery-db --file=./migrations/0002_drop-unused-tables.sql
 ```
 
-Git publishing (so `/admin` can save paintings + banner):
+Git publishing (so `/admin` can save paintings + banner) uses a GitHub
+App, so no key ever expires: `pnpm github:app` creates it through the
+manifest flow and stores `GITHUB_APP_ID` + `GITHUB_APP_KEY` as Pages
+secrets. `GITHUB_REPO` / `GITHUB_BRANCH` are vars in `wrangler.toml`. A
+`GITHUB_TOKEN` (PAT) still works as a fallback.
 
-```sh
-# Dashboard vars/secrets, never committed:
-GITHUB_TOKEN    # classic PAT, Contents: read+write on this repo
-GITHUB_REPO     # e.g. great-art-portfolio/art-website
-GITHUB_BRANCH   # main (optional, defaults to main)
-```
-
-Secrets (dashboard, never committed): `RESEND_API_KEY`, `ARTIST_SENDER`
-(the address mail goes out from — must be on the verified sending
-domain), `ARTIST_INBOX` (her private inbox —
-buyer notes and broadcast copies land here, never shown on the site),
-`ADMIN_API_TOKEN`, `GITHUB_TOKEN` (+ repo/branch),
-optional `PUSHOVER_*`, and later `SHIPPO_API_TOKEN` / `AYRSHARE_API_KEY`
-with their `ENABLE_*` flags.
+Secrets (dashboard, never committed): `RESEND_API_KEY`, `ARTIST_INBOX`
+(where buyer notes and list replies land), `ADMIN_API_TOKEN`,
+`GITHUB_APP_ID` / `GITHUB_APP_KEY`, `MUSE_API_KEY` (writing helper and
+translations), `TURNSTILE_SECRET_KEY`, `ALERTS_TOKEN` (also a GitHub
+Actions secret, for the nightly scheduled-publish alerts), optional
+`PUSHOVER_*`, and later `STRIPE_*`, `SHIPPO_API_TOKEN` /
+`AYRSHARE_API_KEY` with their `ENABLE_*` flags. `ARTIST_SENDER` is a var
+(`Gallery <hello@barbart.ca>`).
 
 Who sees what: buyers always see the sender (`ARTIST_SENDER`, the
 gallery face). They never see the inbox on the site — inquiry mail
 is addressed to it without them on it, and replies go to the buyer
-directly. The one exception: new-painting mail carries the inbox in
-its To line (plus every reply), so it must be an address buyers may
-see.
+directly. List emails carry the inbox as their reply-to, so it must be an
+address buyers may see. Cloudflare Email Routing forwards
+`artist@barbart.ca` and `hello@barbart.ca` to her Gmail; once that's
+verified, `ARTIST_INBOX` is `artist@barbart.ca`, and Gmail's "Send mail
+as" (through Resend SMTP) sends her replies from it too, so her Gmail
+address never reaches a buyer.
 
 ## Analytics & offline
 
@@ -115,15 +119,28 @@ see.
 - AR: upload with "view on your wall" checked generates GLB + USDZ models
   (three.js, on-device) committed to `public/models`; painting pages render
   them with `<model-viewer>` (Scene Viewer on Android, Quick Look on iOS).
-- Collector push: `node scripts/gen-vapid.mjs`, set `VAPID_PUBLIC_KEY` /
-  `VAPID_CONTACT` vars + `VAPID_PRIVATE_JWK` secret; homepage bell subscribes,
-  and the "Browsers" / "Email list" boxes on a painting room fan out on
-  publish (push only, email only, or both). The subscription table is the
-  only database the site keeps (disclosed on `/privacy`).
 - Spam: Turnstile (managed widget). The public `TURNSTILE_SITE_KEY` lives
   in `wrangler.toml`; the `TURNSTILE_SECRET_KEY` secret (dashboard) is the
-  on switch — without it `/api/status` hands out no site key, so local runs
-  and CI never render the widget, and only the honeypot guards the forms.
+  on switch — without it `/api/status` hands out no site key and only
+  localhost accepts the forms (local runs and CI); a deployed copy without
+  the secret refuses them. A Cloudflare rate-limit rule caps POSTs to
+  `/api/inquiries` and `/api/collectors` at 8 per 10 seconds per visitor.
+
+## Security
+
+- Studio API: an Access-cookie request that changes something must come
+  from the site's own pages (`Sec-Fetch-Site`/`Origin`, in `requireAdmin`);
+  the Access cookie is HttpOnly and SameSite=Lax. Bearer tokens compare in
+  constant time.
+- Studio writes are limited to painting/photo/model/text file types
+  (`functions/_lib/gallery-paths.ts`). Inquiries take the painting's title
+  and price from `/catalog.json`, never the browser.
+- Headers: `public/_headers` for pages, `functions/api/_middleware.ts` for
+  API responses. Always Use HTTPS on, TLS 1.2 minimum, DMARC
+  `p=quarantine` (Resend's DKIM aligns).
+- GitHub: secret scanning with push protection; CI runs with read-only
+  repo access. The repo is public on purpose (art friends may fork it), so
+  drafts are visible in git.
 
 ## Licence
 
@@ -135,6 +152,6 @@ with its own paintings.
 
 ## Docs
 
-- [docs/DECISIONS.md](docs/DECISIONS.md) — why Access, D1/R2, Resend, ntfy
+- [docs/DECISIONS.md](docs/DECISIONS.md) — why git content, Access, Resend, languages
 - [docs/LEARNED.md](docs/LEARNED.md) — notes from building this
 - [docs/RESOURCES.md](docs/RESOURCES.md) — inspiration links

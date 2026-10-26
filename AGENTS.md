@@ -30,9 +30,7 @@ tests and review use 4331.)
 on :4333 (`scripts/studio-dev-server.mjs`), which the dev-only Vite
 proxy answers `/api/*` from. Same contract as the Pages Functions, but
 backed by the working tree: banner, painting, photo, and model writes
-land as uncommitted files. Push subscribe + Ping run a dev-only loop
-instead (own VAPID key, in-memory subscribers, real push service — no
-cooldown, no email). The email list runs the REAL collectors handler with
+land as uncommitted files. The email list runs the REAL collectors handler with
 a file-backed mock table: the loop completes locally, and `*@resend.dev`
 addresses additionally ride the true API when `.dev.vars` holds a key.
 Never test publish flows in prod.
