@@ -2,7 +2,7 @@
 /** One painting in buy, edit, or draft mode. All three share one layout so
  * the editor matches the buyer page. The inline script skips any part whose
  * elements are absent. */
-import { Image } from "astro:assets";
+import { Picture } from "astro:assets";
 import type { ImageMetadata } from "astro";
 import { formatPriceCAD } from "../lib/money";
 import { paintingPageUrl, qrSvg } from "../lib/qr";
@@ -166,13 +166,14 @@ const eyebrow =
             transition:name={`painting-${data.slug}`}
           >
             {data.image !== undefined && (
-              <Image
+              <Picture
                 src={data.image}
                 alt={data.alt}
                 width={1200}
                 widths={PHOTO_WIDTHS}
                 sizes={photoSizes()}
-                format="webp"
+                formats={["avif", "webp"]}
+                fallbackFormat="webp"
                 loading="eager"
                 fetchpriority="high"
                 decoding="async"
@@ -255,16 +256,19 @@ const eyebrow =
         </section>
       )}
     </div>
-    <div
-      id="lightbox"
-      hidden
-      tabindex="-1"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Painting fullscreen view"
-    >
+    <dialog id="lightbox" tabindex="-1" aria-label="Painting fullscreen view">
+      <button type="button" id="lightbox-close" aria-label="Close fullscreen">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+          <path
+            d="M6 6l12 12M18 6L6 18"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          ></path>
+        </svg>
+      </button>
       <img id="lightbox-img" alt="" />
-    </div>
+    </dialog>
     <div class="info">
       <p class="eyebrow">{eyebrow}</p>
       {studio ? (
@@ -621,7 +625,10 @@ const eyebrow =
     );
   }
 
+  // The spam check is ~800 KB, so it loads only once someone opens the
+  // form (or a note saved offline needs a token), never on a plain view.
   async function inquiryToken() {
+    loadTurnstile();
     const { takeTurnstileToken } = await import("../lib/turnstile-widget");
     return await takeTurnstileToken("#turnstile-mount");
   }
@@ -635,8 +642,9 @@ const eyebrow =
     mount.dataset.wiredSrc = glb;
     const stage = document.getElementById("ar-stage");
     if (stage === null) return;
-    // Load the ~1.5MB viewer and models only once the stage scrolls into
-    // view. Until then the photo stands in.
+    // Load the viewer and models only once someone is here and the stage
+    // is in view. Until then the soft pulsing placeholder holds its place
+    // (the full photo there read as a different, much bigger painting).
     const photo = document.querySelector("#photo-wrap img");
     const poster =
       photo instanceof HTMLImageElement
@@ -644,18 +652,6 @@ const eyebrow =
           ? photo.src
           : photo.currentSrc
         : "";
-    if (poster !== "") {
-      const img = document.createElement("img");
-      img.src = poster;
-      img.alt = "";
-      img.loading = "lazy";
-      img.decoding = "async";
-      img.style.width = "100%";
-      img.style.height = "20rem";
-      img.style.objectFit = "contain";
-      img.style.borderRadius = "1rem";
-      stage.replaceChildren(img);
-    }
     const build = () => {
       // Loaded with a script tag because Vite dev won't serve /public files
       // as modules.
@@ -671,7 +667,9 @@ const eyebrow =
           if (poster !== "") el.setAttribute("poster", poster);
           el.setAttribute("loading", "lazy");
           el.setAttribute("ar", "");
-          el.setAttribute("ar-modes", "webxr scene-viewer quick-look");
+          // No webxr: Scene Viewer and Quick Look cover phones, and a
+          // WebXR page can't be restored instantly on Back.
+          el.setAttribute("ar-modes", "scene-viewer quick-look");
           el.setAttribute("ar-scale", "fixed");
           el.setAttribute("ar-placement", "wall");
           el.setAttribute("camera-controls", "");
@@ -697,6 +695,24 @@ const eyebrow =
           arButton.className = "ar-button";
           arButton.textContent = "View on your wall";
           liveStage.replaceChildren(el);
+          // One focus ring: hide the inner blue one, and mark keyboard
+          // focus so the accent ring shows on the viewer instead.
+          void customElements.whenDefined("model-viewer").then(() => {
+            const inner = el.shadowRoot?.querySelector(".userInput");
+            if (inner instanceof HTMLElement) inner.style.outline = "none";
+          });
+          let viaKeys = false;
+          el.addEventListener("keydown", () => (viaKeys = true));
+          document.addEventListener("keydown", (e) => {
+            if (e.key === "Tab") viaKeys = true;
+          });
+          document.addEventListener("pointerdown", () => (viaKeys = false));
+          el.addEventListener("focusin", () => {
+            if (viaKeys) el.setAttribute("data-kbd-focus", "");
+          });
+          el.addEventListener("focusout", () =>
+            el.removeAttribute("data-kbd-focus"),
+          );
           // appendChild, since the Workers types give append() HTMLRewriter's
           // signature.
           liveStage.firstElementChild?.appendChild(arButton);
@@ -710,17 +726,39 @@ const eyebrow =
           mount.hidden = true;
         });
     };
-    if ("IntersectionObserver" in window) {
+    // The viewer and model are ~550 KB, so they wait for both: the stage in
+    // view, and a sign someone is here (a scroll, touch, key or pointer).
+    // On a big screen the stage starts in view, and a page left open
+    // untouched never downloads it.
+    const someoneHere = new Promise((resolve) => {
+      const events = [
+        "scroll",
+        "pointermove",
+        "pointerdown",
+        "keydown",
+        "touchstart",
+      ];
+      const go = () => {
+        for (const e of events) window.removeEventListener(e, go);
+        resolve(undefined);
+      };
+      for (const e of events)
+        window.addEventListener(e, go, { passive: true, once: true });
+    });
+    const inView = new Promise((resolve) => {
+      if (!("IntersectionObserver" in window)) {
+        resolve(undefined);
+        return;
+      }
       const io = new IntersectionObserver((entries, obs) => {
         if (entries.some((entry) => entry.isIntersecting)) {
           obs.disconnect();
-          build();
+          resolve(undefined);
         }
       });
       io.observe(mount);
-    } else {
-      build();
-    }
+    });
+    void Promise.all([inView, someoneHere]).then(build);
   }
 
   // View Transitions don't re-run page scripts, so initDetail() runs
@@ -765,8 +803,12 @@ const eyebrow =
   // that to finish.
   function closeLightbox() {
     const box = document.getElementById("lightbox");
-    if (box === null || box.hidden) return;
-    box.hidden = true;
+    if (box instanceof HTMLDialogElement && box.open) box.close();
+  }
+
+  // Runs when the fullscreen dialog closes, however it closed (Escape, the
+  // ✕, a tap, or leaving browser fullscreen).
+  function afterLightboxClose() {
     // The page can stay unfocusable for a while after fullscreen ends (a
     // slow machine takes many frames), so keep trying for about a second,
     // and once more when the window gets focus back.
@@ -811,7 +853,6 @@ const eyebrow =
     const form = formEl instanceof HTMLFormElement ? formEl : null;
     if (form !== null && form.dataset.wired !== "1") {
       form.dataset.wired = "1";
-      loadTurnstile();
       form.addEventListener("submit", (e) => {
         e.preventDefault();
         const data = new FormData(form);
@@ -857,6 +898,8 @@ const eyebrow =
       reveal.addEventListener("click", () => {
         form.hidden = false;
         form.classList.add("revealed");
+        // Rendered once the form shows, since it mismeasures while hidden.
+        loadTurnstile();
         reveal.hidden = true;
         const name = form.querySelector('input[name="name"]');
         if (name instanceof HTMLInputElement) name.focus();
@@ -993,7 +1036,8 @@ const eyebrow =
       const open = () => {
         full.src = photo.currentSrc === "" ? photo.src : photo.currentSrc;
         full.alt = photo.alt;
-        box.hidden = false;
+        // A modal dialog keeps keyboard focus inside it; Tab reaches the ✕.
+        if (box instanceof HTMLDialogElement && !box.open) box.showModal();
         box.focus();
         if (
           typeof box.requestFullscreen === "function" &&
@@ -1010,6 +1054,7 @@ const eyebrow =
         open();
       });
       box.addEventListener("click", closeLightbox);
+      box.addEventListener("close", afterLightboxClose);
     }
   }
 
@@ -1032,6 +1077,9 @@ const eyebrow =
     font-size: 0.92rem;
   }
   .crumbs a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
     color: var(--muted);
     text-decoration: underline transparent;
     text-underline-offset: 4px;
@@ -1129,14 +1177,16 @@ const eyebrow =
   }
   /* Stacked, the painting and its words share one centered column, so an
      upright iPad shows the painting large and the text at a readable
-     measure. Side by side from 60rem (iPad landscape and up). */
+     measure. Side by side from 60rem (iPad landscape and up), and on a
+     phone held sideways, where a stacked painting never fits the screen. */
   .crumbs,
   #admin-bar,
   .detail-grid {
     max-width: 38rem;
     margin-inline: auto;
   }
-  @media (min-width: 60rem) {
+  @media (min-width: 60rem),
+    (orientation: landscape) and (max-height: 32rem) and (min-width: 36rem) {
     .crumbs,
     #admin-bar,
     .detail-grid {
@@ -1165,6 +1215,24 @@ const eyebrow =
     display: block;
     border-radius: 0.25rem;
   }
+  /* AVIF first, WebP for older browsers; the wrapper stays out of layout. */
+  .frame :global(picture) {
+    display: contents;
+  }
+  /* Sideways on a phone, the whole painting fits the screen height, and
+     its mat hugs it. */
+  @media (orientation: landscape) and (max-height: 32rem) {
+    .frame {
+      width: fit-content;
+      max-width: 100%;
+      margin-inline: auto;
+    }
+    .frame img {
+      width: auto;
+      max-width: 100%;
+      max-height: calc(100svh - 6rem);
+    }
+  }
   .badge {
     position: absolute;
     top: 1.2rem;
@@ -1183,15 +1251,53 @@ const eyebrow =
   #lightbox {
     position: fixed;
     inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
     background: rgba(0, 0, 0, 0.94);
+    color: #fff;
     display: grid;
     place-items: center;
     z-index: 50;
     cursor: zoom-out;
     animation: lb-in 0.25s ease;
   }
-  #lightbox[hidden] {
+  #lightbox:not([open]) {
     display: none;
+  }
+  #lightbox::backdrop {
+    background: transparent;
+  }
+  /* A quiet round ✕ in the corner, clear of the painting. */
+  #lightbox-close {
+    position: absolute;
+    top: max(1rem, env(safe-area-inset-top));
+    right: max(1rem, env(safe-area-inset-right));
+    width: 2.75rem;
+    height: 2.75rem;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid rgb(255 255 255 / 0.35);
+    border-radius: 999px;
+    background: rgb(0 0 0 / 0.45);
+    color: #fff;
+    cursor: pointer;
+    transition:
+      background-color 0.2s ease,
+      border-color 0.2s ease;
+  }
+  #lightbox-close:hover {
+    background: rgb(0 0 0 / 0.7);
+    border-color: rgb(255 255 255 / 0.6);
+  }
+  #lightbox-close:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
   #lightbox:focus {
     outline: none;
@@ -1247,6 +1353,8 @@ const eyebrow =
   #lightbox img {
     max-width: 100vw;
     max-height: 100vh;
+    /* The visible height, so phone toolbars don't crop the painting. */
+    max-height: 100dvh;
     object-fit: contain;
     border-radius: 0;
   }
@@ -1460,7 +1568,10 @@ const eyebrow =
   :global(#ar-stage model-viewer:focus) {
     outline: none;
   }
-  :global(#ar-stage model-viewer:focus-visible) {
+  /* Focus lands inside the viewer's own shadow DOM, where the browser drew
+     its blue ring, so the script turns that off and the accent ring goes
+     on the viewer itself, for keyboard focus only. */
+  :global(#ar-stage model-viewer[data-kbd-focus]) {
     outline: 2px solid var(--accent);
     outline-offset: 3px;
   }

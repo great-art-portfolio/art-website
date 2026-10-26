@@ -2,8 +2,24 @@
 # downgrade attacks. No includeSubDomains, so it applies to this host only.
 /*
   Strict-Transport-Security: max-age=31536000
+  # No other site may show these pages inside a frame (clickjacking on Buy
+  # now and the inquiry form). The studio's own email preview is same-site.
+  Content-Security-Policy: frame-ancestors 'self'
+  X-Frame-Options: SAMEORIGIN
+  # Nothing here uses the camera API, microphone, location or payments in
+  # the page (Stripe checkout is its own site).
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
 
 # Build output under /_astro has a content hash in every name, so a file
 # never changes: browsers keep it a year instead of rechecking every 4 hours.
 /_astro/*
   Cache-Control: public, max-age=31536000, immutable
+
+# Wall-preview models keep their name when a size changes, so they're
+# rechecked hourly rather than kept for a year.
+/models/*
+  Cache-Control: public, max-age=3600
+
+# The vendored 3D viewer changes only with a site update.
+/js/*
+  Cache-Control: public, max-age=86400

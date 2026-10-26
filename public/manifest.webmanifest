@@ -1,6 +1,7 @@
 {
-  "name": "Art Gallery",
-  "short_name": "Gallery",
+  "id": "/",
+  "name": "Barbara Straka Paintings",
+  "short_name": "Barbara Straka",
   "description": "Original Calgary and abstract paintings from the artist's studio.",
   "start_url": "/",
   "display": "standalone",

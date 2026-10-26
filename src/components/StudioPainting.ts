@@ -287,11 +287,12 @@ function initShare(): void {
         if (!res.ok) throw new Error(`photo ${res.status}`);
         return res.blob();
       })
+      .then((blob) => import("../lib/image").then(({ asJpeg }) => asJpeg(blob)))
       .then((blob) =>
         navigator.share({
           files: [
             new File([blob], `${slug === "" ? "painting" : slug}.jpg`, {
-              type: blob.type === "" ? "image/jpeg" : blob.type,
+              type: "image/jpeg",
             }),
           ],
           title,
@@ -361,8 +362,12 @@ function showPhoto(
   }
   const frameImg = document.querySelector<HTMLImageElement>("#photo-wrap img");
   if (frameImg !== null) {
-    // The room photo is a responsive astro:image. Setting src alone leaves
-    // the old srcset candidate showing, so clear both first.
+    // The room photo is a responsive <picture>. Setting src alone leaves
+    // the old AVIF/WebP candidates showing, so drop the sources and the
+    // srcset first.
+    for (const source of frameImg.parentElement?.querySelectorAll("source") ??
+      [])
+      source.remove();
     frameImg.removeAttribute("srcset");
     frameImg.removeAttribute("sizes");
     frameImg.src = url;
@@ -463,7 +468,7 @@ function showArViewer(glbUrl: string, usdzUrl: string): void {
       el.setAttribute("src", glbUrl);
       el.setAttribute("ios-src", usdzUrl);
       el.setAttribute("ar", "");
-      el.setAttribute("ar-modes", "webxr scene-viewer quick-look");
+      el.setAttribute("ar-modes", "scene-viewer quick-look");
       el.setAttribute("ar-scale", "fixed");
       el.setAttribute("ar-placement", "wall");
       el.setAttribute("camera-controls", "");
