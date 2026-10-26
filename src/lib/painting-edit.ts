@@ -78,6 +78,9 @@ function unquote(s: string): string {
   return t;
 }
 
+/** What a painting saved without a description says on its page. */
+export const DEFAULT_DESCRIPTION = "Fresh from the studio.";
+
 export function parsePainting(md: string): ParsedPainting | null {
   const m = md.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
   if (m === null) return null;
@@ -334,7 +337,7 @@ export function patchPainting(md: string, edits: PaintingEdits): string {
   if (fenceAt >= 0) {
     const body =
       edits.description.trim() === ""
-        ? "Fresh from the studio."
+        ? DEFAULT_DESCRIPTION
         : edits.description.trim();
     next = `${next.slice(0, fenceAt)}\n---\n\n${body}\n`;
   }
@@ -388,7 +391,7 @@ export function buildMarkdown(input: {
   lines.push(
     "---",
     "",
-    input.description === "" ? "Fresh from the studio." : input.description,
+    input.description === "" ? DEFAULT_DESCRIPTION : input.description,
     "",
   );
   return lines.join("\n");
