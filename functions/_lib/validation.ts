@@ -138,6 +138,12 @@ export function parseCatalog(raw: unknown): CatalogItem[] {
   return items;
 }
 
+/** The languages the build made pages for, from /catalog.json. */
+export function parseCatalogLanguages(raw: unknown): string[] {
+  const r = z.object({ languages: z.array(z.string()) }).safeParse(raw);
+  return r.success ? r.data.languages : [];
+}
+
 /** Checkout POST body from a painting page. */
 const checkoutBodySchema = z.object({
   slug: z.string().max(200),

@@ -74,6 +74,13 @@ bundles the block and `import("../lib/x")` resolves.
 Never let a lib module import something node can't load (move
 API-dependent helpers to `lib/api.ts`).
 
+Cloudflare Pages bundles `functions/` with its own older wrangler (3.x),
+not the repo's: no import attributes (`with { type: "json" }`) or other
+new syntax anywhere Functions import, and no JSON imports at all (node
+tests can't load them without the attribute). Functions that need build
+data read it from `/catalog.json` through `env.ASSETS`. Check with
+`npx wrangler@3 pages functions build --outdir /tmp/fn` when in doubt.
+
 ## Where logic lives
 
 - Shared logic in `src/lib/`, never duplicated between islands. There is

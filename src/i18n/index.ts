@@ -1,4 +1,4 @@
-import languages from "../content/languages.json" with { type: "json" };
+import languages from "../content/languages.json";
 import { cleanLocales, type Locale, type OtherLocale } from "./locales";
 
 export { t } from "./strings";

@@ -1,5 +1,5 @@
-import { ENABLED } from "../../src/i18n/index";
-import { localePath, type Locale } from "../../src/i18n/locales";
+import { cleanLocales, localePath, type Locale } from "../../src/i18n/locales";
+import { parseCatalogLanguages } from "../_lib/validation";
 import type { AppEnv } from "../_lib/env";
 import {
   badRequest,
@@ -47,6 +47,18 @@ function confirmLink(
   return `${site}${localePath(locale, "/email/confirmed")}?email=${encodeURIComponent(email)}&token=${token}`;
 }
 
+/** The languages this deploy has pages for, from its /catalog.json. */
+async function switchedOn(env: AppEnv, request: Request): Promise<Locale[]> {
+  try {
+    const res = await env.ASSETS.fetch(
+      new Request(`${new URL(request.url).origin}/catalog.json`),
+    );
+    return res.ok ? cleanLocales(parseCatalogLanguages(await res.json())) : [];
+  } catch {
+    return [];
+  }
+}
+
 function hasList(env: AppEnv): boolean {
   return (
     env.RESEND_API_KEY !== undefined &&
@@ -86,7 +98,12 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   // Only languages switched on: a page left open from before she turned
   // one off must not link to a page that's gone.
   const asked = body["locale"] ?? "";
-  const locale: Locale = ENABLED.find((code) => code === asked) ?? "en";
+  const locale: Locale =
+    asked === "" || asked === "en"
+      ? "en"
+      : ((await switchedOn(context.env, context.request)).find(
+          (code) => code === asked,
+        ) ?? "en");
   // "invite" is the studio adding someone she met: same confirm email,
   // behind her sign-in instead of the spam check, and it may say who's
   // already listed, since only she sees the answer.
