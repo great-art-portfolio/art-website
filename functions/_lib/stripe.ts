@@ -1,3 +1,4 @@
+import { formatPriceCAD } from "../../src/lib/money";
 import { flag, type AppEnv } from "./env";
 import type {
   CatalogItem,
@@ -79,6 +80,10 @@ export function checkoutParams(
     p.set(`shipping_address_collection[allowed_countries][${i}]`, c);
   });
   p.set("phone_number_collection[enabled]", "true");
+  // Cards only (Apple Pay and Google Pay ride on cards). Delayed methods
+  // like bank debits or pay-later would leave the painting buyable for
+  // days before the money cleared.
+  p.set("payment_method_types[0]", "card");
   if (opts.tax) {
     // Tax is added on top of the listed price. An original painting is
     // plain tangible goods in Stripe's codes (there is no artwork code).
@@ -114,6 +119,50 @@ export async function createCheckoutSession(
   if (!res.ok || typeof data.url !== "string")
     throw new Error(`Stripe error ${res.status}: ${JSON.stringify(data)}`);
   return data.url;
+}
+
+/**
+ * Closes every other open checkout for the same painting once it sells,
+ * so a second buyer still on Stripe's page can't pay for it too. Never
+ * throws: a failure is logged, and the sale itself already stands.
+ */
+export async function expireOtherSessions(
+  env: AppEnv,
+  slug: string,
+  keep: string,
+): Promise<number> {
+  if (slug === "") return 0;
+  const auth = { Authorization: `Bearer ${env.STRIPE_SECRET_KEY ?? ""}` };
+  try {
+    const res = await fetch(
+      "https://api.stripe.com/v1/checkout/sessions?status=open&limit=100",
+      { headers: auth },
+    );
+    if (!res.ok) throw new Error(`Stripe list ${res.status}`);
+    const data = (await res.json()) as {
+      data?: Array<{ id?: unknown; metadata?: Record<string, unknown> }>;
+    };
+    const others = (data.data ?? []).filter(
+      (s) =>
+        typeof s.id === "string" &&
+        s.id !== keep &&
+        s.metadata?.["painting_slug"] === slug,
+    );
+    await Promise.all(
+      others.map((s) =>
+        fetch(
+          `https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(String(s.id))}/expire`,
+          { method: "POST", headers: auth },
+        ).then((r) => {
+          if (!r.ok) console.error("could not expire session", s.id, r.status);
+        }),
+      ),
+    );
+    return others.length;
+  } catch (err) {
+    console.error("expiring other checkouts failed", err);
+    return 0;
+  }
 }
 
 /** Five minutes, Stripe's default replay tolerance. */
@@ -182,9 +231,8 @@ export function isPaidSale(event: StripeEvent): boolean {
   );
 }
 
-function money(cents: number | null | undefined): string {
-  return `$${((cents ?? 0) / 100).toFixed(2)} CAD`;
-}
+const money = (cents: number | null | undefined): string =>
+  formatPriceCAD(cents ?? 0);
 
 function addressLines(a: StripeAddress): string[] {
   if (a === null || a === undefined) return ["(no address)"];
@@ -199,7 +247,7 @@ function addressLines(a: StripeAddress): string[] {
 /** The artist's sale email: who bought what, and where to ship it. */
 export function saleEmail(
   event: StripeEvent,
-  opts: { alreadySold: boolean },
+  opts: { alreadySold: boolean; marked: boolean },
 ): { subject: string; text: string } {
   const s = event.data.object;
   const title = s.metadata?.["painting_title"] ?? "a painting";
@@ -221,7 +269,9 @@ export function saleEmail(
     "",
     opts.alreadySold
       ? "WARNING: this painting was already marked sold. If someone else bought it first, refund this buyer in the Stripe dashboard."
-      : "The painting is now marked sold on the website. Reply to this email to reach the buyer.",
+      : opts.marked
+        ? "The painting is now marked sold on the website. Reply to this email to reach the buyer."
+        : "The website couldn't mark it sold by itself — open it in the studio and tick Sold, so nobody else buys it. Reply to this email to reach the buyer.",
     s.livemode === true ? "" : "(Stripe test mode: no real money moved.)",
   ];
   return {

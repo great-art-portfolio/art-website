@@ -91,7 +91,9 @@ describe("checkoutParams", () => {
       "https://barbart.ca/paintings/night-reeds",
     );
     assert.equal(p.get("automatic_tax[enabled]"), null);
-    assert.equal(p.get("payment_method_types[0]"), null);
+    // Cards only: delayed methods would leave it buyable for days.
+    assert.equal(p.get("payment_method_types[0]"), "card");
+    assert.equal(p.get("payment_method_types[1]"), null);
   });
   it("adds Stripe Tax on top of the price when switched on", () => {
     const p = checkoutParams(item, "https://barbart.ca", {
@@ -204,19 +206,30 @@ describe("sale events", () => {
   it("emails who bought what and where to ship it", () => {
     const { subject, text } = saleEmail(parseStripeEvent(paidEvent()), {
       alreadySold: false,
+      marked: true,
     });
     assert.equal(subject, 'Sold: "Night Reeds"');
     assert.match(text, /Ada Buyer \(ada@resend\.dev\) bought "Night Reeds"/);
-    assert.match(text, /Paid: \$147\.00 CAD \(includes \$7\.00 CAD tax\)/);
+    assert.match(text, /Paid: \$147 CAD \(includes \$7 CAD tax\)/);
+    assert.match(text, /now marked sold/);
     assert.match(text, /1 Main St\nCalgary AB T2P 1J9\nCA/);
     assert.match(text, /test mode/);
   });
   it("warns when the painting was already sold", () => {
     const { subject, text } = saleEmail(parseStripeEvent(paidEvent()), {
       alreadySold: true,
+      marked: false,
     });
     assert.equal(subject, 'Check this sale: "Night Reeds"');
     assert.match(text, /refund this buyer/);
+  });
+  it("tells her to mark it sold when the site couldn't", () => {
+    const { text } = saleEmail(parseStripeEvent(paidEvent()), {
+      alreadySold: false,
+      marked: false,
+    });
+    assert.match(text, /tick Sold/);
+    assert.doesNotMatch(text, /now marked sold/);
   });
 });
 
@@ -226,8 +239,8 @@ afterEach(() => {
 });
 
 /** GitHub + Resend stub. Records commits and emails. */
-function stubServices(fileMd) {
-  const calls = { blobs: [], trees: [], emails: [] };
+function stubServices(fileMd, opts = {}) {
+  const calls = { blobs: [], trees: [], emails: [], expired: [] };
   globalThis.fetch = async (url, init = {}) => {
     const u = String(url);
     const body = init.body ? JSON.parse(init.body) : null;
@@ -257,7 +270,23 @@ function stubServices(fileMd) {
     if (u.includes("/git/refs/heads/")) return ok({});
     if (u === "https://api.resend.com/emails") {
       calls.emails.push(body);
+      if (opts.emailDown === true)
+        return { ...ok({}), ok: false, status: 500, text: async () => "down" };
       return ok({ id: "e1" });
+    }
+    // Other buyers still on Stripe's page: one for this painting, one not.
+    if (u.startsWith("https://api.stripe.com/v1/checkout/sessions?status=open"))
+      return ok({
+        data: [
+          { id: "cs_test_1", metadata: { painting_slug: "night-reeds" } },
+          { id: "cs_other", metadata: { painting_slug: "night-reeds" } },
+          { id: "cs_else", metadata: { painting_slug: "shoreline" } },
+        ],
+      });
+    const expire = u.match(/checkout\/sessions\/([^/]+)\/expire$/);
+    if (expire !== null) {
+      calls.expired.push(expire[1]);
+      return ok({});
     }
     throw new Error(`unexpected fetch ${u}`);
   };
@@ -297,6 +326,35 @@ describe("POST /api/stripe-webhook", () => {
     assert.equal(calls.trees[0].tree[0].path, item.file);
     assert.equal(calls.emails[0].to[0], "artist@resend.dev");
     assert.equal(calls.emails[0].reply_to, "ada@resend.dev");
+    // Nobody else still on Stripe's page can pay for it now.
+    assert.deepEqual(calls.expired, ["cs_other"]);
+  });
+  it("answers 500 when the sale email fails, so Stripe tries again", async () => {
+    const calls = stubServices(md, { emailDown: true });
+    const res = await webhook({ request: webhookRequest(paidEvent()), env });
+    assert.equal(res.status, 500);
+    assert.equal(calls.commitMessage, "Sold online: Night Reeds");
+  });
+  it("keeps an unreadable checkout event for a retry", async () => {
+    stubServices(md);
+    const res = await webhook({
+      request: webhookRequest({
+        id: "evt_2",
+        type: "checkout.session.completed",
+        data: { object: { surprise: true } },
+      }),
+      env,
+    });
+    assert.equal(res.status, 500);
+  });
+  it("still says when it couldn't mark the painting sold", async () => {
+    const calls = stubServices(md);
+    const res = await webhook({
+      request: webhookRequest(paidEvent()),
+      env: { ...env, GITHUB_REPO: "" },
+    });
+    assert.equal(res.status, 200);
+    assert.match(calls.emails[0].text, /tick Sold/);
   });
   it("doesn't commit twice, and flags the double sale", async () => {
     const calls = stubServices(markSold(md));
@@ -305,12 +363,14 @@ describe("POST /api/stripe-webhook", () => {
     assert.equal(calls.trees.length, 0);
     assert.match(calls.emails[0].subject, /^Check this sale/);
   });
-  it("acknowledges a repeat delivery of the same sale quietly", async () => {
+  it("answers a repeat delivery with the sale email, not a warning", async () => {
+    // Stripe only repeats a delivery that got an error, like a failed email.
     const calls = stubServices(markSold(md, "cs_test_1"));
     const res = await webhook({ request: webhookRequest(paidEvent()), env });
     assert.deepEqual(await res.json(), { ok: true, duplicate: true });
     assert.equal(calls.trees.length, 0);
-    assert.equal(calls.emails.length, 0);
+    assert.equal(calls.emails.length, 1);
+    assert.match(calls.emails[0].subject, /^Sold: /);
   });
   it("rejects unsigned requests", async () => {
     const calls = stubServices(md);
@@ -389,6 +449,20 @@ describe("POST /api/checkout", () => {
       priceCents: 1,
     });
     assert.equal(res.status, 409);
+  });
+  it("refuses a painting taken down or repriced since the build", async () => {
+    stubServices(md.replace("price: 140", "price: 160"));
+    const repriced = await post(
+      { slug: "night-reeds", title: "Night Reeds", priceCents: 14000 },
+      { GITHUB_TOKEN: "t", GITHUB_REPO: "o/r" },
+    );
+    assert.equal(repriced.status, 409);
+    stubServices(md.replace("sold: false", "sold: false\ndraft: true"));
+    const drafted = await post(
+      { slug: "night-reeds", title: "Night Reeds", priceCents: 14000 },
+      { GITHUB_TOKEN: "t", GITHUB_REPO: "o/r" },
+    );
+    assert.equal(drafted.status, 404);
   });
   it("refuses a painting git already marks sold", async () => {
     stubServices(markSold(md));
