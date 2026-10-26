@@ -1,4 +1,5 @@
-import { isLocale, localePath, type Locale } from "../../src/i18n/locales";
+import { ENABLED } from "../../src/i18n/index";
+import { localePath, type Locale } from "../../src/i18n/locales";
 import type { AppEnv } from "../_lib/env";
 import {
   badRequest,
@@ -82,7 +83,10 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   const params = new URL(context.request.url).searchParams;
   const action = body["action"] ?? "";
   // Their emails and pages come in the language they read the site in.
-  const locale: Locale = isLocale(body["locale"]) ? body["locale"] : "en";
+  // Only languages switched on: a page left open from before she turned
+  // one off must not link to a page that's gone.
+  const asked = body["locale"] ?? "";
+  const locale: Locale = ENABLED.find((code) => code === asked) ?? "en";
   // "invite" is the studio adding someone she met: same confirm email,
   // behind her sign-in instead of the spam check, and it may say who's
   // already listed, since only she sees the answer.

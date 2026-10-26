@@ -51,9 +51,11 @@ interface Props {
   /** The page's English path when it exists in every language: it names
    * the other versions for search engines and the language menu. */
   alternates?: string | undefined;
+  /** Off for pages that only exist in English (the offline page). */
+  languageMenu?: boolean;
 }
 
-const { locale = "en", alternates } = Astro.props;
+const { locale = "en", alternates, languageMenu = true } = Astro.props;
 const s = t(locale);
 const {
   title = locale === "en" ? siteTitle() : s.meta.siteTitle,
@@ -165,7 +167,9 @@ const offers = Object.fromEntries(
     )}
     <meta
       property="og:locale"
-      content={localeInfo(locale).lang.replace("-", "_")}
+      content={
+        locale === "zh" ? "zh_CN" : localeInfo(locale).lang.replace("-", "_")
+      }
     />
     <meta property="og:site_name" content={ARTIST_NAME ?? siteTitle()} />
     <meta property="og:title" content={title} />
@@ -338,7 +342,7 @@ const offers = Object.fromEntries(
         © {year} {artistLabel} ·{" "}
         <a href={here("/credits")}>{s.layout.credits}</a>
       </p>
-      {wordmark === "signature" && versions.length > 1 && (
+      {wordmark === "signature" && languageMenu && versions.length > 1 && (
         <nav class="lang-menu" aria-label={s.layout.language}>
           <ul>
             {versions.map((v) => (
@@ -359,7 +363,7 @@ const offers = Object.fromEntries(
         </nav>
       )}
     </footer>
-    {wordmark === "signature" && versions.length > 1 && (
+    {wordmark === "signature" && languageMenu && versions.length > 1 && (
       <aside
         id="lang-offer"
         hidden

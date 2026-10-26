@@ -99,3 +99,11 @@ test("the sign-up box speaks the page's language", async ({ page }) => {
   );
   await expect(page.locator("#notify-status")).not.toHaveText("");
 });
+
+test("the English-only offline page offers no other languages", async ({
+  page,
+}) => {
+  await page.goto("/offline");
+  await expect(page.locator(".lang-menu")).toHaveCount(0);
+  await expect(page.locator("#lang-offer")).toHaveCount(0);
+});
