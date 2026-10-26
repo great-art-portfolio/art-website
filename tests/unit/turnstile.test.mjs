@@ -35,6 +35,32 @@ describe("turnstileOk", () => {
     assert.equal(await turnstileOk({}, "", null), true);
   });
 
+  it("refuses without a secret once deployed, but not on this machine", async () => {
+    const at = (url) => new Request(url, { method: "POST" });
+    assert.equal(
+      await turnstileOk({}, "", null, at("https://barbart.ca/api/inquiries")),
+      false,
+    );
+    assert.equal(
+      await turnstileOk(
+        {},
+        "",
+        null,
+        at("https://branch.art-website-cm4.pages.dev/api/inquiries"),
+      ),
+      false,
+    );
+    assert.equal(
+      await turnstileOk(
+        {},
+        "",
+        null,
+        at("http://127.0.0.1:4331/api/inquiries"),
+      ),
+      true,
+    );
+  });
+
   it("rejects empty and oversize tokens before calling siteverify", async () => {
     let called = 0;
     globalThis.fetch = async () => {
