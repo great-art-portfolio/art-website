@@ -1,0 +1,452 @@
+---
+import { getImage } from "astro:assets";
+import Layout from "../layouts/Layout.astro";
+import Gallery from "../components/Gallery.astro";
+import { ARTIST_LOCATION, ARTIST_NAME, TAGLINE } from "../lib/site";
+import { isExpired, localToday, parseAnnouncement } from "../lib/banner";
+import { publicPaintings } from "../lib/collection";
+import bannerRaw from "../content/announcement.txt?raw";
+import { t } from "../i18n";
+import { bannerIn } from "../i18n/content";
+import type { Locale } from "../i18n/locales";
+import { SHARE_IMAGE } from "../lib/share-image";
+
+interface Props {
+  locale?: Locale | undefined;
+}
+const { locale = "en" } = Astro.props;
+const s = t(locale);
+
+// The header wordmark already carries the artist's name, so the hero
+// headline stays generic instead of repeating "by …".
+const headlineHtml = s.home.headline;
+
+// The studio note, set from /admin. Empty means hidden. Notes expired at
+// build time aren't rendered, and the script below hides notes that expire
+// between deploys.
+const banner = parseAnnouncement(bannerRaw);
+// In other languages, the studio's translation once it has one.
+const announcement = isExpired(banner.expires, localToday())
+  ? ""
+  : bannerIn(locale, banner.text);
+// The note is signed with her first name.
+const sign = ARTIST_NAME === null ? "" : `— ${ARTIST_NAME.split(" ")[0] ?? ""}`;
+// The newest painting hangs beside the headline, with the note taped to its
+// corner. With no paintings the note stands on its own in that column.
+const { featured } = await publicPaintings();
+// Link previews show the newest painting, not the 180px app icon.
+const share =
+  featured === undefined
+    ? undefined
+    : await getImage({ src: featured.data.image, ...SHARE_IMAGE });
+---
+
+<Layout image={share?.src} locale={locale} alternates="/">
+  <main id="main">
+    <section class="hero" data-sign={sign}>
+      <div class="hero-main">
+        <p class="eyebrow">
+          {locale === "en" ? TAGLINE : s.home.tagline} ·{" "}
+          {locale === "en" ? ARTIST_LOCATION : s.location}
+        </p>
+        <h1 set:html={headlineHtml} />
+        <p class="lede">{s.home.lede}</p>
+        <div class="hero-ctas">
+          <a href="#collection" class="btn-primary">
+            {s.home.browse}
+          </a>
+          <button type="button" class="btn-ghost" id="notify-hero">
+            {s.home.getNotified}
+          </button>
+        </div>
+      </div>
+      {featured !== undefined ? (
+        <Gallery view="featured" locale={locale}>
+          {announcement !== "" && (
+            <aside
+              class="announce"
+              data-expires={banner.expires ?? ""}
+              data-sign={sign}
+            >
+              {announcement}
+            </aside>
+          )}
+        </Gallery>
+      ) : (
+        announcement !== "" && (
+          <aside
+            class="announce"
+            data-expires={banner.expires ?? ""}
+            data-sign={sign}
+          >
+            {announcement}
+          </aside>
+        )
+      )}
+      <dl class="hero-meta">
+        {
+          s.home.points.map(([term, detail]) => (
+            <div>
+              <dt>{term}</dt>
+              <dd>{detail}</dd>
+            </div>
+          ))
+        }
+      </dl>
+    </section>
+
+    <Gallery locale={locale} />
+
+    <section class="about" id="about">
+      <div class="about-inner">
+        <div class="about-head">
+          <p class="eyebrow">{s.home.aboutEyebrow}</p>
+          <h2>
+            {s.home.aboutTitle(locale === "en" ? ARTIST_LOCATION : s.location)}
+          </h2>
+        </div>
+        <div class="about-body">
+          {s.home.about.map((para) => <p set:html={para} />)}
+        </div>
+      </div>
+    </section>
+  </main>
+</Layout>
+
+<script>
+  // Hide studio notes past their end date so they don't linger until the
+  // next deploy. In dev the baked note and the preview can both be present.
+  const notes = document.querySelectorAll(".announce[data-expires]");
+  const now = new Date();
+  const today =
+    now.getFullYear() +
+    "-" +
+    String(now.getMonth() + 1).padStart(2, "0") +
+    "-" +
+    String(now.getDate()).padStart(2, "0");
+  for (const note of notes) {
+    const end = note.getAttribute("data-expires");
+    if (end !== null && end !== "" && today > end) note.remove();
+  }
+  // Dev-only banner preview. Without a publishing backend the studio
+  // stores the banner in this browser, and it renders here in the same
+  // card as the real note.
+  try {
+    const raw = window.localStorage.getItem("studio-banner-preview-v1");
+    if (raw !== null) {
+      const preview = JSON.parse(raw);
+      const text =
+        preview !== null && typeof preview === "object"
+          ? String(preview.text ?? "")
+          : "";
+      const expires =
+        preview !== null && typeof preview === "object"
+          ? String(preview.expires ?? "")
+          : "";
+      const now = new Date();
+      const today =
+        now.getFullYear() +
+        "-" +
+        String(now.getMonth() + 1).padStart(2, "0") +
+        "-" +
+        String(now.getDate()).padStart(2, "0");
+      if (text.trim() !== "" && (expires === "" || today <= expires)) {
+        let el = document.querySelector(".announce");
+        if (el === null) {
+          // Same spot as the real note: on the newest painting's corner,
+          // or beside the headline when there's no painting.
+          const hero = document.querySelector("#main .hero");
+          const feature = document.querySelector("#main .hero .feature");
+          const main = document.querySelector("#main .hero-main");
+          if (hero instanceof HTMLElement && main !== null) {
+            el = document.createElement("aside");
+            el.className = "announce";
+            el.setAttribute("data-sign", hero.dataset.sign ?? "");
+            if (feature !== null)
+              feature.insertAdjacentElement("beforeend", el);
+            else main.insertAdjacentElement("afterend", el);
+          }
+        }
+        if (el !== null) {
+          el.textContent = text.trim().slice(0, 280);
+          if (expires !== "") el.setAttribute("data-expires", expires);
+          else el.removeAttribute("data-expires");
+        }
+      }
+    }
+  } catch {
+    // No stored preview, so the baked note stays.
+  }
+</script>
+
+<style>
+  .hero {
+    max-width: 76rem;
+    margin: 0 auto;
+    padding: clamp(3.5rem, 8vw, 6.5rem) 1.5rem 3rem;
+  }
+  /* Text on the left, the newest painting on the right from 60rem; both
+     columns start at the same height. Stacked below that. */
+  .hero {
+    display: grid;
+    gap: 2.5rem;
+    align-content: start;
+  }
+  @media (min-width: 60rem) {
+    .hero {
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 0 3.5rem;
+      align-items: start;
+    }
+    .hero .hero-meta {
+      grid-column: 1 / -1;
+      margin-top: 3rem;
+    }
+  }
+  /* The studio note: cream paper, one angled strip of tape, a slight
+     tilt, and her first name at the bottom. It stays cream in every color
+     scheme. :global so the script-built preview matches. Keep in sync with
+     the studio preview (admin/banner.astro). */
+  :global(.announce) {
+    position: relative;
+    margin: 0;
+    max-width: 19rem;
+    box-sizing: border-box;
+    justify-self: center;
+    rotate: -2deg;
+    border-radius: 2px;
+    background: linear-gradient(180deg, #fffdf7, #fbf1df);
+    padding: 1.6rem 1.4rem 1.1rem;
+    color: #23201b;
+    font-family: "Caveat", "Segoe Print", cursive;
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.35;
+    box-shadow:
+      0 2px 3px rgb(35 32 27 / 0.14),
+      0 22px 34px -18px rgb(35 32 27 / 0.55);
+  }
+  :global(.announce)::before {
+    content: "";
+    position: absolute;
+    top: -0.75rem;
+    left: 50%;
+    width: 5.5rem;
+    height: 1.5rem;
+    translate: -50% 0;
+    rotate: -5deg;
+    background: linear-gradient(
+      180deg,
+      rgb(233 220 196 / 0.9),
+      rgb(226 210 182 / 0.75)
+    );
+    box-shadow: 0 1px 2px rgb(35 32 27 / 0.14);
+  }
+  :global(.announce[data-sign])::after {
+    content: attr(data-sign);
+    display: block;
+    margin-top: 0.4rem;
+    text-align: right;
+    font-size: 0.82em;
+    color: #6b5d4f;
+  }
+  /* Stacked (phones, tablets), the newest painting stays a modest size
+     instead of filling a tablet's width. */
+  @media (max-width: 59.99rem) {
+    .hero :global(.feature) {
+      max-width: 30rem;
+    }
+  }
+  /* Taped to the newest painting's top corner, small enough to leave the
+     painting in view. */
+  :global(.feature > .announce) {
+    position: absolute;
+    z-index: 2;
+    top: 2.5rem;
+    right: -0.75rem;
+    max-width: 13rem;
+    padding: 1.3rem 1.1rem 0.9rem;
+    font-size: 1.2rem;
+    rotate: 3deg;
+  }
+  @media (max-width: 40rem) {
+    :global(.feature > .announce) {
+      top: 2rem;
+      right: -0.4rem;
+      max-width: 11rem;
+      font-size: 1.05rem;
+    }
+  }
+  .eyebrow {
+    margin: 0 0 1rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .hero h1 {
+    margin: 0 0 1.25rem;
+    font-weight: 500;
+    font-size: clamp(2.4rem, 6vw, 4.25rem);
+    max-width: 16ch;
+    text-wrap: balance;
+  }
+  .hero h1 .nobr {
+    white-space: nowrap;
+  }
+  .lede {
+    margin: 0 0 2rem;
+    font-size: 1.15rem;
+    color: var(--muted);
+    max-width: 38rem;
+  }
+  .hero-ctas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.9rem;
+  }
+  .btn-primary,
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    text-align: center;
+    min-height: 3rem;
+    border-radius: 0.75rem;
+    padding: 0.75rem 1.7rem;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition:
+      background-color 0.25s ease,
+      border-color 0.25s ease,
+      color 0.25s ease,
+      transform 0.2s ease;
+  }
+  /* Lift only with a hover-capable pointer. On touch it sticks after a
+     tap. */
+  @media (hover: hover) {
+    .btn-primary:hover,
+    .btn-ghost:hover {
+      transform: translateY(-1px);
+    }
+  }
+  /* Reduced motion removes the button lifts. Color fades still run. */
+  @media (prefers-reduced-motion: reduce) {
+    .btn-primary:hover,
+    .btn-ghost:hover {
+      transform: none;
+    }
+  }
+  .btn-primary:active,
+  .btn-ghost:active {
+    transform: none;
+  }
+  .btn-primary:hover {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+    color: var(--primary-ink);
+  }
+  .btn-ghost:hover {
+    border-color: var(--ink);
+  }
+  .btn-primary:focus-visible,
+  .btn-ghost:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .btn-primary {
+    background: var(--primary);
+    color: var(--primary-ink);
+    border: 1px solid var(--primary);
+  }
+  .btn-ghost {
+    border: 1px solid var(--line);
+    color: var(--ink);
+    background: transparent;
+  }
+  button.btn-primary,
+  button.btn-ghost {
+    font: inherit;
+    font-weight: 600;
+  }
+  .hero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 2.5rem;
+    margin: 0;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+  }
+  .hero-meta div {
+    display: flex;
+    gap: 0.5rem;
+    align-items: baseline;
+    margin: 0;
+  }
+  /* Narrow screens list the points one under another. */
+  @media (max-width: 40rem) {
+    .hero-meta {
+      display: grid;
+      gap: 1rem;
+    }
+    /* Each point stacks: the term, then its words. */
+    .hero-meta div {
+      display: grid;
+      gap: 0.15rem;
+    }
+    .hero-meta dd {
+      text-wrap: pretty;
+    }
+  }
+  .hero-meta dt {
+    font-weight: 700;
+    font-size: 0.9rem;
+  }
+  .hero-meta dd {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+
+  .about {
+    max-width: 76rem;
+    margin: 1rem auto 0;
+    padding: 0 1.5rem 3rem;
+    scroll-margin-top: 5rem;
+  }
+  .about-inner {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 1rem;
+    padding: clamp(1.75rem, 4vw, 3rem);
+    max-width: 44rem;
+  }
+  /* Desktop: the card spans the page like the grid above it, heading on
+     the left and the words in a readable column on the right. */
+  @media (min-width: 60rem) {
+    .about-inner {
+      max-width: none;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 38rem);
+      gap: 3rem;
+    }
+  }
+  .about-inner h2 {
+    margin: 0 0 1rem;
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-weight: 500;
+  }
+  .about-inner p {
+    margin: 0 0 1rem;
+    color: var(--muted);
+  }
+  .about-body p:last-child {
+    margin-bottom: 0;
+  }
+  .about-inner strong {
+    color: var(--ink);
+  }
+</style>
