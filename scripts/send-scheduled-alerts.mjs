@@ -27,39 +27,26 @@ export async function waitForPage(url, waitMs = WAIT_MS, pollMs = POLL_MS) {
   }
 }
 
-/** Posts the publish alert, paging the push list. Returns what was sent. */
-export async function sendAlerts(site, token, alerts) {
-  const post = async (body) => {
-    const res = await fetch(`${site}/api/notify`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok)
-      throw new Error(`notify answered ${res.status}: ${await res.text()}`);
-    return await res.json();
-  };
-  const first = await post({ push: alerts.push, email: alerts.email });
-  let sent = first.sent ?? 0;
-  let cursor = first.nextCursor;
-  while (alerts.push && cursor !== null && cursor !== undefined) {
-    const next = await post({ push: true, email: false, cursor });
-    sent += next.sent ?? 0;
-    cursor = next.nextCursor;
-  }
-  return {
-    pushed: sent,
-    total: first.total ?? 0,
-    emailed: first.emailTotal ?? 0,
-  };
+/** Asks the site to email the list the standard publish alert. Returns
+ * how many addresses it went to. */
+export async function sendAlerts(site, token) {
+  const res = await fetch(`${site}/api/notify`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email: true }),
+  });
+  if (!res.ok)
+    throw new Error(`notify answered ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  return { emailed: data.emailTotal ?? 0 };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   const alerts = JSON.parse(await readFile(process.argv[2] ?? "", "utf8"));
-  if (!alerts.push && !alerts.email) {
+  if (!alerts.email) {
     console.log("No alerts were ticked.");
     process.exit(0);
   }
@@ -72,8 +59,6 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   }
   const live = await waitForPage(`${SITE}/paintings/${alerts.slug}`);
   if (!live) console.log("The page isn't live yet; sending anyway.");
-  const r = await sendAlerts(SITE, token, alerts);
-  console.log(
-    `Alerts sent: ${alerts.push ? `${r.pushed} of ${r.total} browsers` : "no browsers"}, ${alerts.email ? `email to ${r.emailed}` : "no email"}.`,
-  );
+  const r = await sendAlerts(SITE, token);
+  console.log(`Publish email sent to ${r.emailed}.`);
 }

@@ -1,7 +1,7 @@
 /* Gallery service worker: offline shell, cached artwork, and outbox replay.
  * Bump the cache version whenever behavior changes.
  */
-const VERSION = "gallery-v1";
+const VERSION = "gallery-v2";
 const STATIC_CACHE = `${VERSION}-static`;
 const IMAGE_CACHE = `${VERSION}-images`;
 const PRECACHE = ["/", "/offline", "/manifest.webmanifest", "/favicon.png"];
@@ -149,49 +149,4 @@ async function replayOutbox() {
 
 self.addEventListener("sync", (event) => {
   if (event.tag === "gallery-outbox") event.waitUntil(replayOutbox());
-});
-
-// Pushes arrive without a body, so fetch the custom text. Blank means the
-// standard note. Tapping the notification opens the site's homepage.
-self.addEventListener("push", (event) => {
-  event.waitUntil(
-    fetch("/api/push-message")
-      .then((res) => (res.ok ? res.json() : {}))
-      .catch(() => ({}))
-      .then((msg) => {
-        const line = msg && typeof msg.body === "string" ? msg.body.trim() : "";
-        const heading =
-          msg && typeof msg.title === "string" ? msg.title.trim() : "";
-        return self.registration.showNotification(
-          heading === "" ? "Something new in the gallery" : heading,
-          {
-            body: line === "" ? "Tap to see it." : line,
-            icon: "/favicon.png",
-            badge: "/favicon.png",
-            tag: "new-painting",
-            data: { url: "/" },
-          },
-        );
-      }),
-  );
-});
-
-self.addEventListener("notificationclick", (event) => {
-  event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || "/";
-  event.waitUntil(
-    self.clients
-      .matchAll({ type: "window", includeUncontrolled: true })
-      .then((wins) => {
-        for (const w of wins) {
-          if (
-            new URL(w.url).pathname ===
-            new URL(url, self.location.origin).pathname
-          ) {
-            return w.focus();
-          }
-        }
-        return self.clients.openWindow(url);
-      }),
-  );
 });

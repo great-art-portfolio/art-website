@@ -72,7 +72,6 @@ function adminSection(path: string): string | null {
   const clean = path.length > 1 ? path.replace(/\/$/, "") : path;
   if (clean === "/admin") return "collection";
   if (clean.startsWith("/admin/banner")) return "banner";
-  if (clean.startsWith("/admin/ping")) return "ping";
   if (clean.startsWith("/admin/email")) return "email";
   if (clean.startsWith("/admin/metrics")) return "metrics";
   if (clean.startsWith("/admin/guide")) return "guide";
@@ -163,7 +162,6 @@ const currentSection = adminSection(selfPath);
                 [
                   ["collection", "/admin", "Collection"],
                   ["banner", "/admin/banner", "Banner"],
-                  ["ping", "/admin/ping", "Ping"],
                   ["email", "/admin/email", "Email"],
                   ["metrics", "/admin/metrics", "Metrics"],
                   ["qr", "/admin/qr-codes", "QR codes"],
@@ -285,9 +283,6 @@ const currentSection = adminSection(selfPath);
             Join the list <span aria-hidden="true">📬</span>
           </button>
           <div class="notify-more">
-            <button type="button" id="notify-btn" class="text-btn" hidden>
-              Or get alerts in this browser
-            </button>
             <button type="button" id="notify-email-leave" class="text-btn">
               Leave the list
             </button>
@@ -344,10 +339,6 @@ const currentSection = adminSection(selfPath);
       // View Transitions keep this script alive across navigations, so
       // elements are looked up on each use. Wiring runs immediately and on
       // astro:page-load, guarded against wiring the same DOM twice.
-      function notifyPush() {
-        return import("../lib/push");
-      }
-
       // Spam check, shared with the inquiry form via lib/turnstile-widget.
       // Tokens are single-use, so Join and Leave each take their own.
       function loadNotifyTurnstile() {
@@ -414,9 +405,7 @@ const currentSection = adminSection(selfPath);
           if (typeof dlg.showModal === "function") dlg.showModal();
           else dlg.setAttribute("open", "");
         }
-        // Reset on each open so a push failure from earlier gets retried.
-        pushDeadThisVisit = false;
-        void paintNotify();
+        wireNotifyEmail();
         // Render Turnstile on open, since it mismeasures inside a hidden
         // modal. Repeat calls do nothing.
         loadNotifyTurnstile();
@@ -436,6 +425,10 @@ const currentSection = adminSection(selfPath);
         if (form === null || input === null || hint === null) return;
         if (form.dataset.wired === "1") return;
         form.dataset.wired = "1";
+        // Marks the box as answering, for tests and anything waiting on it.
+        document
+          .getElementById("notify-dialog")
+          ?.setAttribute("data-ready", "");
         form.addEventListener("submit", (e) => {
           e.preventDefault();
           const email = input.value.trim();
@@ -551,31 +544,6 @@ const currentSection = adminSection(selfPath);
         }
       }
 
-      // Opening the modal repaints while an earlier paint may still be
-      // waiting on push state, so only the latest run writes. Browser
-      // alerts are a quiet second line under the email form, offered only
-      // where they can work: unsupported, blocked, or a push service that
-      // failed this visit hides the line, and email covers everyone. A
-      // reopen offers it again. data-push marks the paint as settled.
-      let paintSeq = 0;
-      let pushDeadThisVisit = false;
-      async function paintNotify() {
-        const btnEl = document.getElementById("notify-btn");
-        const btn = btnEl instanceof HTMLButtonElement ? btnEl : null;
-        const dlg = document.getElementById("notify-dialog");
-        if (btn === null || dlg === null) return;
-        wireNotifyEmail();
-        const run = ++paintSeq;
-        const s = await notifyPush().then((api) => api.pushState());
-        if (run !== paintSeq) return;
-        btn.hidden = s === "unsupported" || s === "denied" || pushDeadThisVisit;
-        btn.textContent =
-          s === "subscribed"
-            ? "This browser alerts you · turn off"
-            : "Or get alerts in this browser";
-        dlg.dataset.push = s;
-      }
-
       // Toast for the signup card, used for copy confirmations so they
       // don't overwrite the status line.
       let notifyToastTimer = 0;
@@ -649,64 +617,9 @@ const currentSection = adminSection(selfPath);
               copyNotifyStatus(hint);
             });
           }
-          const btnEl = document.getElementById("notify-btn");
-          const btn = btnEl instanceof HTMLButtonElement ? btnEl : null;
-          if (btn !== null) {
-            btn.addEventListener("click", () => {
-              const hint = document.getElementById("notify-status");
-              void notifyPush().then((api) =>
-                api.pushState().then((state) => {
-                  if (state === "subscribed") {
-                    void api.unsubscribePush().then(() => void paintNotify());
-                  } else {
-                    // Sticky because the permission prompt can stay open
-                    // past the normal fade. The result replaces it.
-                    if (hint !== null)
-                      notifySay(hint, "Waiting for your browser…", true);
-                    // Repaint before reporting. The repaint clears the
-                    // "Waiting…" line, and the result is written last.
-                    void api.subscribePush().then(async (result) => {
-                      if (result === "nopushservice") pushDeadThisVisit = true;
-                      await paintNotify();
-                      if (hint === null) return;
-                      if (result === "nopushservice") {
-                        notifySay(
-                          hint,
-                          "This browser can't do alerts — email works everywhere.",
-                        );
-                      } else if (result === "subscribed") {
-                        notifySay(
-                          hint,
-                          "You're on the list — this browser will alert you.",
-                        );
-                      } else if (result === "cancelled") {
-                        notifySay(hint, "Request cancelled.");
-                      } else if (result === "blocked") {
-                        notifySay(
-                          hint,
-                          "Your browser blocked alerts — email works everywhere.",
-                        );
-                      } else if (result === "unavailable") {
-                        notifySay(
-                          hint,
-                          "Browser alerts need the live site — this preview can't register this browser.",
-                        );
-                      } else {
-                        notifySay(
-                          hint,
-                          "That didn't work — push alerts aren't set up on the server yet.",
-                        );
-                      }
-                    });
-                  }
-                }),
-              );
-            });
-          }
         }
-        // Paint now so the box opens settled. The push module is small;
         // Cloudflare's spam check waits for the box to open.
-        if (dlg !== null) void paintNotify();
+        if (dlg !== null) wireNotifyEmail();
       }
 
       initNotify();

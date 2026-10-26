@@ -107,21 +107,18 @@ test("draft rooms offer publish alerts, unchecked by default", async ({
   page,
 }) => {
   await page.goto("/admin/paintings/new");
-  await expect(page.locator("#de-notify-push")).toBeVisible();
   await expect(page.locator("#de-notify-email")).toBeVisible();
-  await expect(page.locator("#de-notify-push")).not.toBeChecked();
   await expect(page.locator("#de-notify-email")).not.toBeChecked();
+  // Browser alerts are gone: email is the one channel.
+  await expect(page.locator("#de-notify-push")).toHaveCount(0);
 });
 
 test("published rooms offer no alerts", async ({ page }) => {
   await page.goto("/admin/paintings/first-thaw");
-  await expect(page.locator("#de-notify-push")).toHaveCount(0);
   await expect(page.locator("#de-notify-email")).toHaveCount(0);
 });
 
-test("publishing a draft fires only the checked channels", async ({
-  browser,
-}) => {
+test("publishing a draft emails the list when ticked", async ({ browser }) => {
   // Use the new-painting room, which is always built. Per-painting rooms
   // need their file in the tree, and a clean checkout has no draft fixtures.
   const authed = await browser.newContext();
@@ -129,7 +126,7 @@ test("publishing a draft fires only the checked channels", async ({
     sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
   );
   const page = await authed.newPage();
-  let postedNotify: { push?: boolean; email?: boolean } | null = null;
+  let postedNotify: { email?: boolean } | null = null;
   let postedMessage: string | null = null;
   await page.route("**/api/commit*", async (route) => {
     if (route.request().method() === "POST") {
@@ -144,7 +141,7 @@ test("publishing a draft fires only the checked channels", async ({
   await page.route("**/api/notify", async (route) => {
     postedNotify = route.request().postDataJSON();
     await route.fulfill({
-      json: { sent: 1, total: 1, emailed: false, emailTotal: 0 },
+      json: { emailed: true, emailTotal: 3 },
     });
   });
   await page.goto("/admin/paintings/new");
@@ -153,16 +150,15 @@ test("publishing a draft fires only the checked channels", async ({
   await page
     .locator("#de-photo")
     .setInputFiles("src/content/paintings/1943x1967.jpg");
-  await page.locator("#de-notify-push").check();
+  await page.locator("#de-notify-email").check();
   page.on("dialog", async (dialog) => {
     expect(dialog.message()).toContain('Publish "Channel Check" now?');
     await dialog.accept();
   });
   await page.locator("#de-publish").click();
-  // Only Browsers was checked, so nothing goes to the email list.
   await expect
     .poll(() => postedNotify, { timeout: 15_000 })
-    .toEqual({ push: true, email: false });
+    .toEqual({ email: true });
   expect(postedMessage).toBe("Add painting: Channel Check");
   await expect(page).toHaveURL(/\/admin\/?$/, { timeout: 25_000 });
   await authed.close();

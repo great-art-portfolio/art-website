@@ -3,7 +3,7 @@
 import { createServer } from "node:http";
 import { join } from "node:path";
 import { createStudioDevApi } from "./studio-dev-api.mjs";
-import { createStudioPushMock } from "./studio-push-mock.mjs";
+import { segmentBroadcastEmail } from "../functions/_lib/notify.ts";
 import {
   onRequestGet as collectorsGet,
   onRequestPost as collectorsPost,
@@ -22,17 +22,35 @@ import {
 export const STUDIO_DEV_API_PORT = 4333;
 
 const api = createStudioDevApi(process.cwd());
-// Dev push mock with its own VAPID keypair and in-memory subscribers. It
-// serves the same /api/push, /api/push-message, and /api/notify shapes as
-// the Pages Functions.
-const pushMock = createStudioPushMock(
-  join(process.cwd(), "node_modules", ".cache"),
-);
 // Email list requests go to the real collectors handler, with the mock
 // forced on, mail settings from .dev.vars, and a file-backed mock table.
 const collectorsDb = createCollectorsDb(
   join(process.cwd(), "node_modules", ".cache"),
 );
+
+/** /api/notify in dev: the Email page preview from the live template;
+ * sends are mocked and reach no one. */
+function handleNotify(req) {
+  if (req.method === "GET") {
+    const params = new URL(req.url).searchParams;
+    const { subject, text, html } = segmentBroadcastEmail(
+      "https://barbart.ca",
+      params.get("subject"),
+      params.get("body"),
+    );
+    return new Response(
+      JSON.stringify({
+        emailSubject: subject,
+        emailText: text,
+        emailHtml: html,
+      }),
+      { headers: { "content-type": "application/json" } },
+    );
+  }
+  return new Response(JSON.stringify({ emailed: false, emailTotal: 0 }), {
+    headers: { "content-type": "application/json" },
+  });
+}
 
 function json404() {
   return new Response(JSON.stringify({ error: "Not found" }), {
@@ -79,14 +97,8 @@ const server = createServer((req, res) => {
         if (path === "/api/studio-dev" || path === "/api/studio-dev/") {
           return api.handleProbe();
         }
-        if (path === "/api/push" || path === "/api/push/") {
-          return pushMock.handlePush(request);
-        }
-        if (path === "/api/push-message" || path === "/api/push-message/") {
-          return pushMock.handlePushMessage(request);
-        }
         if (path === "/api/notify" || path === "/api/notify/") {
-          return pushMock.handleNotify(request);
+          return handleNotify(request);
         }
         if (path === "/api/suggest" || path === "/api/suggest/") {
           // The real handler, with only the helper's settings from

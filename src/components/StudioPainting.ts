@@ -18,6 +18,7 @@ import {
   patchPainting,
   setTrash,
   todayKey,
+  type AlertChoice,
   type PaintingEdits,
   type ParsedPainting,
 } from "../lib/painting-edit";
@@ -506,26 +507,19 @@ function goAdmin(flash: string): void {
   window.location.href = "/admin";
 }
 
-/** Notifies the checked channels after a publish. Drafts and plain saves
- * don't notify. Failures are reported in the confirmation text rather than
- * failing the publish. */
-/** The "On publish, also tell" boxes. */
-function alertChoice(): { push: boolean; email: boolean } {
-  return {
-    push: maybe("de-notify-push")?.checked ?? false,
-    email: maybe("de-notify-email")?.checked ?? false,
-  };
+/** The "On publish, also email my list" box. */
+function alertChoice(): AlertChoice {
+  return { email: maybe("de-notify-email")?.checked ?? false };
 }
 
 /** How a scheduled save describes the alerts waiting for its day. */
-function alertsLater(choice: { push: boolean; email: boolean }): string {
-  if (choice.email && choice.push)
-    return " Your email list and browser subscribers hear about it that day.";
-  if (choice.email) return " Your email list hears about it that day.";
-  if (choice.push) return " Browser subscribers hear about it that day.";
-  return "";
+function alertsLater(choice: AlertChoice): string {
+  return choice.email ? " Your email list hears about it that day." : "";
 }
 
+/** Emails the list after a publish when the box is ticked. Drafts and plain
+ * saves don't notify. Failures are reported in the confirmation text rather
+ * than failing the publish. */
 async function publishAlerts(): Promise<string> {
   return await sendPublishAlerts(alertChoice());
 }
@@ -1319,9 +1313,7 @@ function initStudio(): void {
     // A scheduled draft shows the alerts it will send on its day.
     if (base !== null && draft) {
       const saved = parseAlerts(base.parsed.alertOnPublish);
-      const push = maybe("de-notify-push");
       const email = maybe("de-notify-email");
-      if (push !== null) push.checked = saved.push;
       if (email !== null) email.checked = saved.email;
     }
     if (base === null && !isLocalPreview()) {

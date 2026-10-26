@@ -112,8 +112,8 @@ test("notify box validates before sending", async ({ page }) => {
   await page.locator("#notify-nav").click();
   // Wait for the async push check to settle before validating.
   await expect(page.locator("#notify-dialog")).toHaveAttribute(
-    "data-push",
-    /./,
+    "data-ready",
+    "",
   );
   // "missing@tld" passes the browser's email check but fails the site's
   // stricter one, so the message comes from the page script.

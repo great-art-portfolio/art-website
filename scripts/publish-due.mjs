@@ -37,7 +37,7 @@ export function dueContent(md, today) {
  * and, merged across them, the alerts to send once they're live. */
 export async function publishDueFiles(dir, today) {
   const titles = [];
-  const alerts = { push: false, email: false, slug: "" };
+  const alerts = { email: false, slug: "" };
   for (const name of (await readdir(dir)).sort()) {
     if (!name.endsWith(".md")) continue;
     const path = join(dir, name);
@@ -45,9 +45,8 @@ export async function publishDueFiles(dir, today) {
     if (due === null) continue;
     await writeFile(path, due.content);
     titles.push(due.title);
-    if (due.alerts.push || due.alerts.email) {
-      alerts.push ||= due.alerts.push;
-      alerts.email ||= due.alerts.email;
+    if (due.alerts.email) {
+      alerts.email = true;
       // The page the alert step waits for before sending.
       if (alerts.slug === "") alerts.slug = slugifyTitle(due.title);
     }

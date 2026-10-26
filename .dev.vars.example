@@ -18,7 +18,7 @@ CF_ACCOUNT_ID=
 CF_ANALYTICS_TOKEN=
 CF_ANALYTICS_SITE=
 
-# Mail + push (optional; blank keeps the buttons quiet).
+# Mail (optional; blank keeps the buttons quiet).
 # With a real key, subscribing a *@resend.dev test address (e.g.
 # delivered+join@resend.dev) also fires the true Resend confirm — check the
 # dashboard, then finish the loop with the local link. Any other address
@@ -31,9 +31,6 @@ RESEND_SEGMENT_ID=
 ARTIST_SENDER=
 # The artist's inbox: buyer notes land here, broadcast replies return here.
 ARTIST_INBOX=
-VAPID_PUBLIC_KEY=
-VAPID_PRIVATE_JWK=
-VAPID_CONTACT=
 
 # Title and description helper in the painting room (Meta Model API key,
 # the same Muse key ccez-llm uses). Blank hides the helper's button.

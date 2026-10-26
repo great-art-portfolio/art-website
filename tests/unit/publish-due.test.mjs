@@ -42,7 +42,7 @@ describe("nightly publish", () => {
       }
       const { titles, alerts } = await publishDueFiles(dir, "2026-10-03");
       assert.deepEqual(titles, ["Due", "Overdue"]);
-      assert.deepEqual(alerts, { push: false, email: false, slug: "" });
+      assert.deepEqual(alerts, { email: false, slug: "" });
       for (const name of ["due.md", "overdue.md"]) {
         const text = await readFile(join(dir, name), "utf8");
         assert.match(text, /^draft: false$/m);
@@ -83,16 +83,13 @@ describe("scheduled alerts", () => {
         ),
       );
       const { alerts } = await publishDueFiles(dir, "2026-10-03");
-      assert.deepEqual(alerts, {
-        push: true,
-        email: true,
-        slug: "night-reeds",
-      });
+      // b.md's "push" (browser alerts, since removed) is ignored.
+      assert.deepEqual(alerts, { email: true, slug: "night-reeds" });
       const text = await readFile(join(dir, "a.md"), "utf8");
       assert.doesNotMatch(text, /^alertOnPublish:/m);
       // Published already, so a rerun sends nothing.
       const again = await publishDueFiles(dir, "2026-10-03");
-      assert.deepEqual(again.alerts, { push: false, email: false, slug: "" });
+      assert.deepEqual(again.alerts, { email: false, slug: "" });
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

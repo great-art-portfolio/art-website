@@ -6,7 +6,7 @@ import {
   localBackendSchema,
   notifySchema,
   notifyStatusSchema,
-  pushCountSchema,
+  countSchema,
   paintingFileSchema,
   paintingFilesSchema,
   statusSchema,
@@ -298,49 +298,13 @@ export const api = {
       return { views: [], unconfigured: true };
     }
   },
-  /**
-   * Notifies subscribers about a new painting. Both channels are on by
-   * default. Pass { push: false } or { email: false } to send only one.
-   * For push, `title` and `body` override the standard text when nonblank,
-   * and `cursor` continues a large list where the last batch stopped.
-   * Publish alerts (`push: true`) page the same way with the top-level
-   * `cursor`.
-   */
-  async notifyCollectors(channels?: {
-    push?: boolean | { title?: string; body?: string; cursor?: number };
-    email?: boolean;
-    cursor?: number;
-  }): Promise<{
-    sent: number;
-    total: number;
-    nextCursor?: number | null | undefined;
-    emailed: boolean;
-    emailTotal: number;
-  }> {
-    const data = await request("/api/notify", notifySchema, {
+  /** Emails the list the standard new-painting note (a publish alert). */
+  async notifyCollectors(): Promise<{ emailed: boolean; emailTotal: number }> {
+    return await request("/api/notify", notifySchema, {
       method: "POST",
       headers: { ...adminHeaders(), "Content-Type": "application/json" },
-      body: JSON.stringify({
-        push: channels?.push ?? true,
-        email: channels?.email ?? true,
-        ...(channels?.cursor === undefined ? {} : { cursor: channels.cursor }),
-      }),
+      body: JSON.stringify({ email: true }),
     });
-    return data;
-  },
-  /**
-   * How many browsers a ping would reach. Returns null instead of throwing
-   * when the count can't load.
-   */
-  async pushSubscriberCount(): Promise<number | null> {
-    try {
-      const data = await request("/api/notify", pushCountSchema, {
-        headers: adminHeaders(),
-      });
-      return data.total;
-    } catch {
-      return null;
-    }
   },
   /**
    * Emails the whole list. Blank fields use the standard text. The server
@@ -354,7 +318,6 @@ export const api = {
       method: "POST",
       headers: { ...adminHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({
-        push: false,
         email: { subject: copy.subject, body: copy.body },
       }),
     });
@@ -386,7 +349,7 @@ export const api = {
   },
   async emailSubscriberCount(): Promise<number | null> {
     try {
-      const data = await request("/api/collectors", pushCountSchema, {
+      const data = await request("/api/collectors", countSchema, {
         headers: adminHeaders(),
       });
       return data.total;

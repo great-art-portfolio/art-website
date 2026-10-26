@@ -946,7 +946,7 @@ async function publishDueRows(rows: LocalPainting[]): Promise<LocalPainting[]> {
   if (due.length === 0) return rows;
   const flipped = new Map<string, string>();
   // Alerts she ticked when scheduling, sent once for the whole batch.
-  const alerts = { push: false, email: false };
+  const alerts = { email: false };
   for (const r of due) {
     const content = await api.getPaintingFile(r.mdPath);
     if (content === null) continue;
@@ -955,7 +955,6 @@ async function publishDueRows(rows: LocalPainting[]): Promise<LocalPainting[]> {
     if (!isPublishDue(parsed.publishOn, today)) continue;
     flipped.set(r.mdPath, publishDue(content));
     const wanted = parseAlerts(parsed.alertOnPublish);
-    alerts.push ||= wanted.push;
     alerts.email ||= wanted.email;
   }
   if (flipped.size > 0) {
@@ -1387,11 +1386,8 @@ function init(): void {
   const onBanner = document.getElementById("f-announce") !== null;
   const onGuide = document.getElementById("admin-token") !== null;
   const onEmail = document.getElementById("sec-email") !== null;
-  const onPing = document.getElementById("sec-tickle") !== null;
   const onQr = document.getElementById("qr-print") !== null;
-  if (!onCollection && !onBanner && !onGuide && !onEmail && !onPing && !onQr)
-    return;
-  wireTickle();
+  if (!onCollection && !onBanner && !onGuide && !onEmail && !onQr) return;
   wireBroadcast();
   wireEmailPreview();
   // QR codes page. The print CSS lives with the page.
@@ -1659,185 +1655,6 @@ function init(): void {
   }
 }
 
-/** Ping page fields, trimmed. Blanks mean the standard title or note. */
-function readTickleTitle(): string {
-  const el = document.getElementById("tickle-title");
-  return el instanceof HTMLInputElement ? el.value.trim().slice(0, 80) : "";
-}
-
-function readTickleLine(): string {
-  const el = document.getElementById("tickle-body");
-  return el instanceof HTMLInputElement ? el.value.trim().slice(0, 180) : "";
-}
-
-function wireTickle(): void {
-  // The preview updates as she types. Blank fields show the standard title
-  // and note that subscribers would get.
-  const syncTicklePreview = (): void => {
-    const title = document.getElementById("tickle-preview-title");
-    const body = document.getElementById("tickle-preview-body");
-    if (title === null || body === null) return;
-    title.textContent = readTickleTitle() || "Something new in the gallery";
-    const line = readTickleLine();
-    body.textContent = line === "" ? "Tap to see it." : line;
-  };
-  for (const id of ["tickle-title", "tickle-body"]) {
-    const fieldEl = document.getElementById(id);
-    if (
-      fieldEl instanceof HTMLInputElement &&
-      fieldEl.dataset.previewWired !== "1"
-    ) {
-      fieldEl.dataset.previewWired = "1";
-      fieldEl.addEventListener("input", syncTicklePreview);
-    }
-  }
-  syncTicklePreview();
-  // The device preview is a local notification shown on this browser only,
-  // rendered the same way as a real ping. It needs notification permission,
-  // and a denied permission is reported instead of failing silently.
-  const previewBtn = document.getElementById("tickle-preview-send");
-  if (previewBtn instanceof HTMLButtonElement) {
-    previewBtn.addEventListener("click", () => {
-      const status = document.getElementById("tickle-status");
-      if (status === null) return;
-      if (!("Notification" in window)) {
-        status.textContent =
-          "This browser can't show ping previews — the card above still shows the words.";
-        fadeIn(status);
-        return;
-      }
-      const line = readTickleLine();
-      const heading = readTickleTitle();
-      const show = (): void => {
-        try {
-          const note = new Notification(
-            heading === "" ? "Something new in the gallery" : heading,
-            {
-              body: line === "" ? "Tap to see it." : line,
-              icon: "/favicon.png",
-              badge: "/favicon.png",
-              tag: "gallery-preview",
-            },
-          );
-          // Tapping the preview opens the homepage, like a real ping.
-          note.onclick = () => {
-            window.open("/", "_blank");
-            note.close();
-          };
-          status.textContent = "Preview sent — look for the ping.";
-          fadeIn(status);
-        } catch {
-          status.textContent =
-            "This browser blocked the preview — the card above still shows the words.";
-          fadeIn(status);
-        }
-      };
-      if (Notification.permission === "granted") {
-        show();
-        return;
-      }
-      if (Notification.permission === "denied") {
-        status.textContent =
-          "Ping previews are blocked — allow notifications for this site in the browser, then try again.";
-        fadeIn(status);
-        return;
-      }
-      void Notification.requestPermission().then((answer) => {
-        if (answer === "granted") {
-          show();
-          return;
-        }
-        status.textContent =
-          "Ping previews need the browser's okay — the card above still shows the words.";
-        fadeIn(status);
-      });
-    });
-  }
-  // Browser push ping, without email. The button is disabled while sending
-  // so a double tap can't send twice. A blank note sends the standard one.
-  const tickleBtn = document.getElementById("tickle-send");
-  if (tickleBtn instanceof HTMLButtonElement) {
-    tickleBtn.addEventListener("click", () => {
-      const status = document.getElementById("tickle-status");
-      if (status === null) return;
-      // Respond immediately while the count loads, and clear the previous
-      // result so it isn't mistaken for this one.
-      status.textContent = "Pinging…";
-      fadeIn(status);
-      // Confirm with the subscriber count first, since a ping can't be
-      // unsent. Cancelling leaves the status line unchanged.
-      void api.pushSubscriberCount().then((total) => {
-        const ask =
-          total === null
-            ? "Couldn't check the list — send the ping anyway?"
-            : total > 0
-              ? `This will ping ${total} browsers. Are you sure?`
-              : "Nobody to ping yet — no browsers subscribed. Send anyway?";
-        if (!window.confirm(ask)) {
-          status.textContent = "";
-          return;
-        }
-        sendTickle();
-      });
-    });
-    function sendTickle(): void {
-      const btn = tickleBtn instanceof HTMLButtonElement ? tickleBtn : null;
-      const status = document.getElementById("tickle-status");
-      if (btn === null || status === null) return;
-      const title = readTickleTitle();
-      const line = readTickleLine();
-      btn.disabled = true;
-      status.textContent = "Pinging…";
-      fadeIn(status);
-      // One Worker call only reaches about 40 browsers, so large lists are
-      // paged by cursor. Counts are summed into one result.
-      let cursor: number | undefined;
-      let pinged = 0;
-      const pingBatch = (): void => {
-        const push =
-          cursor === undefined
-            ? { title, body: line }
-            : { title, body: line, cursor };
-        api
-          .notifyCollectors({ push, email: false })
-          .then((r) => {
-            pinged += r.sent;
-            if (r.nextCursor !== null && r.nextCursor !== undefined) {
-              cursor = r.nextCursor;
-              status.textContent = `Pinging… ${Math.min(cursor, r.total)} of ${r.total} browsers.`;
-              fadeIn(status);
-              pingBatch();
-              return;
-            }
-            status.textContent =
-              r.total === 0
-                ? "Nobody to ping yet — no browsers subscribed."
-                : `Pinged ${pinged} of ${r.total} browsers.`;
-            fadeIn(status);
-            // Keep the button disabled until the last page is sent.
-            btn.disabled = false;
-          })
-          .catch((err: unknown) => {
-            // Translate common failures. Others show the raw message.
-            if (err instanceof ApiError && err.status === 404) {
-              status.textContent =
-                "Ping isn't available in this preview — it works on the live site.";
-            } else if (err instanceof ApiError && err.status === 429) {
-              // The server's cooldown message is already user-facing, so
-              // show it without a prefix.
-              status.textContent = errorMessage(err);
-            } else {
-              status.textContent = `Couldn't ping: ${errorMessage(err)}`;
-            }
-            fadeIn(status);
-            btn.disabled = false;
-          });
-      };
-      pingBatch();
-    }
-  }
-}
-
 // Email broadcast to the whole list. The server fans out the send. The
 // subscriber count is confirmed first, and cancelling leaves the status
 // line unchanged.
@@ -1871,7 +1688,7 @@ function wireBroadcast(): void {
             status.textContent =
               "Nobody to email yet — no addresses subscribed.";
           } else if (r.emailed) {
-            status.textContent = `Emailed ${r.emailTotal} subscribers.`;
+            status.textContent = `Emailed ${r.emailTotal === 1 ? "1 subscriber" : `${r.emailTotal} subscribers`}.`;
           } else {
             status.textContent =
               "The email list isn't set up yet — try again later.";
