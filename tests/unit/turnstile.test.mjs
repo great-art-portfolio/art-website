@@ -180,3 +180,67 @@ describe("status hands out the site key", async () => {
     );
   });
 });
+
+describe("inquiries name only real paintings", async () => {
+  const { onRequestPost: inquire } =
+    await import("../../functions/api/inquiries.ts");
+  const catalog = {
+    paintings: [
+      {
+        slug: "first-thaw",
+        title: "First Thaw",
+        priceCents: 12500,
+        sold: false,
+        file: "src/content/paintings/1943x1967.md",
+      },
+    ],
+  };
+  const send = (body) => {
+    const mails = [];
+    globalThis.fetch = async (url, init) => {
+      if (String(url).startsWith("https://challenges.cloudflare.com/"))
+        return Response.json({ success: true });
+      mails.push(JSON.parse(init.body));
+      return Response.json({ id: "e1" });
+    };
+    return inquire({
+      request: new Request("https://barbart.ca/api/inquiries", {
+        method: "POST",
+        body: JSON.stringify({
+          name: "Ada",
+          email: "ada@resend.dev",
+          turnstileToken: "tok",
+          ...body,
+        }),
+      }),
+      env: {
+        TURNSTILE_SECRET_KEY: "shh",
+        RESEND_API_KEY: "re_x",
+        ARTIST_INBOX: "artist@resend.dev",
+        ASSETS: { fetch: async () => Response.json(catalog) },
+      },
+    }).then(async (res) => ({ res, mails }));
+  };
+
+  it("takes the title and price from the catalog, not the browser", async () => {
+    const { res, mails } = await send({
+      slug: "first-thaw",
+      paintingTitle: "URGENT: verify your bank",
+      priceCents: 1,
+    });
+    assert.equal(res.status, 201);
+    assert.equal(mails[0].subject, 'New message about "First Thaw"');
+    assert.match(mails[0].text, /\$125 CAD/);
+  });
+
+  it("refuses a painting that isn't on the site", async () => {
+    const { res, mails } = await send({ paintingTitle: "Made Up" });
+    assert.equal(res.status, 400);
+    assert.equal(mails.length, 0);
+  });
+
+  it("still takes an older page's note by its exact title", async () => {
+    const { res } = await send({ paintingTitle: "First Thaw" });
+    assert.equal(res.status, 201);
+  });
+});

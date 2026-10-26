@@ -3,14 +3,14 @@ import type { AppEnv } from "../_lib/env";
 import { badRequest, json, serverError, spamCheckFailed } from "../_lib/http";
 import { sendInquiryNotifications } from "../_lib/notify";
 import { turnstileOk } from "../_lib/turnstile";
+import { parseCatalog } from "../_lib/validation";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * Public: a visitor asks about a painting. Nothing is stored. The note is
  * emailed to the artist through Resend with the buyer as reply-to, plus an
- * optional Pushover alert. Paintings live in git, so the page sends the
- * title and price itself.
+ * optional Pushover alert.
  */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   let body: Record<string, unknown>;
@@ -33,16 +33,31 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   ) {
     return spamCheckFailed();
   }
-  const paintingTitle =
+  // The painting's title and price come from the site's own catalog, never
+  // from the browser, so nobody can put words of their choosing into her
+  // inbox under the site's name. The page sends its slug; notes saved
+  // offline by older pages carry only the title, which must match.
+  const slug = typeof body["slug"] === "string" ? body["slug"] : "";
+  const sentTitle =
     typeof body["paintingTitle"] === "string"
-      ? body["paintingTitle"].trim().slice(0, 120)
+      ? body["paintingTitle"].trim()
       : "";
-  const priceCents =
-    typeof body["priceCents"] === "number" &&
-    Number.isFinite(body["priceCents"]) &&
-    body["priceCents"] > 0
-      ? Math.round(body["priceCents"])
-      : 0;
+  let catalog: ReturnType<typeof parseCatalog> = [];
+  try {
+    const res = await context.env.ASSETS.fetch(
+      new Request(`${new URL(context.request.url).origin}/catalog.json`),
+    );
+    if (res.ok) catalog = parseCatalog(await res.json());
+  } catch {
+    // No catalog to check against: refused below.
+  }
+  const painting =
+    catalog.find((p) => slug !== "" && p.slug === slug) ??
+    catalog.find((p) => sentTitle !== "" && p.title === sentTitle);
+  if (painting === undefined)
+    return badRequest("That painting isn't on the site any more.");
+  const paintingTitle = painting.title;
+  const priceCents = painting.sold ? 0 : painting.priceCents;
   const buyerName =
     typeof body["name"] === "string" ? body["name"].trim().slice(0, 120) : "";
   const buyerEmail =
@@ -51,7 +66,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     typeof body["message"] === "string"
       ? body["message"].trim().slice(0, 2000)
       : "";
-  if (paintingTitle === "" || buyerName === "" || !EMAIL_RE.test(buyerEmail)) {
+  if (buyerName === "" || !EMAIL_RE.test(buyerEmail)) {
     return badRequest("Name, a valid email, and a painting are required");
   }
   try {
