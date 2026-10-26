@@ -29,7 +29,9 @@ const seedJson = JSON.stringify(seed).replace(/</g, "\\u003c");
         studio aren't counted, and the numbers are estimates, rounded to tens.
       </p>
       <p class="metrics-total">
-        <strong id="stats-total">—</strong>
+        <strong id="stats-total" data-loading>
+          …
+        </strong>
         <span>visits in the past 30 days</span>
       </p>
       <p class="hint" id="stats-trend"></p>
@@ -64,6 +66,10 @@ const seedJson = JSON.stringify(seed).replace(/</g, "\\u003c");
       <div class="breakdowns">
         <section aria-labelledby="stats-sources-title">
           <h3 id="stats-sources-title">Where visitors come from</h3>
+          <p class="hint breakdown-hint">
+            Direct means they came straight to your site: typing the address, a
+            bookmark, one of your QR codes, or a link in a text, email or app.
+          </p>
           <ul class="breakdown" id="stats-sources"></ul>
         </section>
         <section aria-labelledby="stats-places-title">
@@ -177,6 +183,9 @@ const seedJson = JSON.stringify(seed).replace(/</g, "\\u003c");
     gap: 0 2rem;
     grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
   }
+  .breakdown-hint {
+    margin: -0.5rem 0 1rem;
+  }
   .breakdown {
     list-style: none;
     margin: 0;
@@ -220,6 +229,20 @@ const seedJson = JSON.stringify(seed).replace(/</g, "\\u003c");
     font-size: 2.6rem;
     line-height: 1;
     font-variant-numeric: tabular-nums;
+  }
+  /* Waiting for the first numbers: a soft breathing ellipsis, never a dash
+     that reads as "none". */
+  .metrics-total strong[data-loading] {
+    color: var(--muted);
+    animation: total-wait 1.2s ease-in-out infinite alternate;
+  }
+  @keyframes total-wait {
+    from {
+      opacity: 0.35;
+    }
+    to {
+      opacity: 1;
+    }
   }
   .metrics-total span {
     color: var(--muted);

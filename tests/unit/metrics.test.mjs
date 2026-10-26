@@ -71,7 +71,7 @@ describe("buildMetrics", () => {
   it("names sources plainly and drops the site itself and test copies", () => {
     assert.deepEqual(
       m.sources.map((s) => s.name),
-      ["Typed in, bookmarks, apps and email", "Google", "Instagram"],
+      ["Direct", "Google search", "Instagram"],
     );
   });
 

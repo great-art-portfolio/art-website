@@ -56,16 +56,17 @@ export const METRICS_QUERY = `query Metrics($account: String!, $site: String!, $
   }
 }`;
 
-/** A referring site in words she'd use. "" is someone who typed the
- * address, used a bookmark, or tapped a link in an app or email. */
+/** A referring site in words she'd use. "" is "Direct": someone who typed
+ * the address, used a bookmark or QR code, or tapped a link in a text,
+ * email or app (apps hide where a visitor came from). */
 export function sourceName(host: string, ownHost: string): string | null {
   const h = host.toLowerCase().replace(/^www\./, "");
   if (h === ownHost || h === "127.0.0.1" || h === "localhost") return null;
-  if (h === "") return "Typed in, bookmarks, apps and email";
+  if (h === "") return "Direct";
   const known: Array<[RegExp, string]> = [
-    [/(^|\.)google\./, "Google"],
-    [/(^|\.)bing\.com$/, "Bing"],
-    [/(^|\.)duckduckgo\.com$/, "DuckDuckGo"],
+    [/(^|\.)google\./, "Google search"],
+    [/(^|\.)bing\.com$/, "Bing search"],
+    [/(^|\.)duckduckgo\.com$/, "DuckDuckGo search"],
     [/(^|\.)instagram\.com$/, "Instagram"],
     [/(^|\.)(facebook\.com|fb\.com|fb\.me)$/, "Facebook"],
     [/(^|\.)pinterest\./, "Pinterest"],
