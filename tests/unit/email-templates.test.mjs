@@ -15,9 +15,12 @@ describe("inquiryEmail", () => {
       buyerEmail: "jo@example.com",
       message: "Is it still available?",
     });
-    assert.equal(subject, 'New inquiry: "First Thaw"');
-    assert.match(text, /Jo \(jo@example\.com\) wants "First Thaw"\./);
-    assert.match(text, /Price: \$125\.00 CAD/);
+    assert.equal(subject, 'New message about "First Thaw"');
+    assert.match(
+      text,
+      /Jo \(jo@example\.com\) sent a message about "First Thaw"\./,
+    );
+    assert.match(text, /Price: \$125 CAD/);
     assert.match(text, /Is it still available\?/);
   });
 

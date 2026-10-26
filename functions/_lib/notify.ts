@@ -1,3 +1,4 @@
+import { formatPriceCAD } from "../../src/lib/money";
 import type { AppEnv } from "./env";
 
 /**
@@ -44,10 +45,14 @@ export function inquiryEmail(alert: InquiryAlert): {
   text: string;
 } {
   return {
-    subject: `New inquiry: "${alert.paintingTitle}"`,
+    // A note can be any question, so it says "sent a message", never
+    // "wants".
+    subject: `New message about "${alert.paintingTitle}"`,
     text: [
-      `${alert.buyerName} (${alert.buyerEmail}) wants "${alert.paintingTitle}".`,
-      `Price: $${(alert.priceCents / 100).toFixed(2)} CAD`,
+      `${alert.buyerName} (${alert.buyerEmail}) sent a message about "${alert.paintingTitle}".`,
+      ...(alert.priceCents > 0
+        ? [`Price: ${formatPriceCAD(alert.priceCents)}`]
+        : []),
       "",
       alert.message === "" ? "(No message)" : alert.message,
     ].join("\n"),
