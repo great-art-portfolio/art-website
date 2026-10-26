@@ -4,6 +4,7 @@ import {
   githubKeyExpiry,
   listDir,
   readTextFile,
+  type RepoFile,
 } from "../_lib/github";
 import type { AppEnv } from "../_lib/env";
 import { badRequest, githubFailure, json, requireAdmin } from "../_lib/http";
@@ -13,6 +14,13 @@ import { parseCommitBody } from "../_lib/validation";
 export const BANNER_PATH = "src/content/announcement.txt";
 
 import { GALLERY_PATH, PAINTING_FILE } from "../_lib/gallery-paths";
+
+/** Text files go inline in the commit; everything else is one upload each,
+ * which Workers' subrequest limit caps. */
+const TEXT_FILE = /\.(md|txt)$/i;
+const MAX_FILES = 100;
+const MAX_BINARIES = 12;
+const BASE64 = /^[A-Za-z0-9+/]*={0,2}$/;
 
 /** Admin: reads the banner text, or one painting file with ?path=. */
 export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
@@ -66,18 +74,20 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     }
     deletePaths.push(d);
   }
+  const binaries = inputs.filter(
+    (f) => typeof f.path === "string" && !TEXT_FILE.test(f.path),
+  ).length;
   if (
     message === "" ||
     inputs.length + deletePaths.length === 0 ||
-    inputs.length + deletePaths.length > 12
+    inputs.length + deletePaths.length > MAX_FILES ||
+    binaries > MAX_BINARIES
   ) {
-    return badRequest("A message and 1–12 files are required");
+    return badRequest(
+      `A message and 1–${MAX_FILES} files (at most ${MAX_BINARIES} photos or models) are required`,
+    );
   }
-  const files: Array<{
-    path: string;
-    content: ArrayBuffer;
-    deleted?: boolean;
-  }> = [];
+  const files: RepoFile[] = [];
   for (const input of inputs) {
     if (
       typeof input.path !== "string" ||
@@ -91,18 +101,21 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     if (input.contentBase64.length > 24_000_000) {
       return badRequest(`${input.path} is too large (24MB base64 cap)`);
     }
-    try {
-      const bin = atob(input.contentBase64);
-      const bytes = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
-      files.push({ path: input.path, content: bytes.buffer });
-    } catch {
+    if (!BASE64.test(input.contentBase64)) {
       return badRequest(`${input.path} is not valid base64`);
     }
+    if (TEXT_FILE.test(input.path)) {
+      // Small text: decoded here and written inline, no upload needed.
+      const bin = atob(input.contentBase64);
+      const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+      files.push({ path: input.path, text: new TextDecoder().decode(bytes) });
+    } else {
+      // Photos and models pass through as base64: decoding megabytes would
+      // spend the Worker's CPU budget for nothing.
+      files.push({ path: input.path, base64: input.contentBase64 });
+    }
   }
-  for (const path of deletePaths) {
-    files.push({ path, content: new ArrayBuffer(0), deleted: true });
-  }
+  for (const path of deletePaths) files.push({ path, deleted: true });
   try {
     const sha = await commitFiles(config, message, files);
     return json({ ok: true, commit: sha }, { status: 201 });

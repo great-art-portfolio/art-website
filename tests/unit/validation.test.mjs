@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import {
   parseCommitBody,
   parseGitHubDir,
-  parseGitHubFile,
   parseJwk,
   parsePushSubscribe,
   parsePushUnsubscribe,
@@ -30,20 +29,6 @@ describe("parseCommitBody", () => {
   it("rejects a non-object body", () => {
     assert.equal(parseCommitBody(null), null);
     assert.equal(parseCommitBody("hi"), null);
-  });
-});
-
-describe("parseGitHubFile", () => {
-  it("accepts a contents answer", () => {
-    assert.deepEqual(parseGitHubFile({ content: "eA==", encoding: "base64" }), {
-      content: "eA==",
-      encoding: "base64",
-    });
-  });
-
-  it("rejects garbage", () => {
-    assert.equal(parseGitHubFile(null), null);
-    assert.equal(parseGitHubFile(42), null);
   });
 });
 

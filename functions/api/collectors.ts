@@ -181,10 +181,12 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
           "The email list isn't set up yet — try again later.",
         );
       }
-      // Delete then create, so rejoining after unsubscribing in Resend
-      // actually resubscribes.
-      await syncContactRemoved(context.env, email).catch(() => false);
-      await syncContactSubscribed(context.env, email).catch(() => false);
+      // Never delete first: a failed re-add would drop a subscriber. And
+      // say so when Resend refused, so they can tap the link again.
+      if (!(await syncContactSubscribed(context.env, email).catch(() => false)))
+        return serverError(
+          "We couldn't add you just now — tap the link again in a minute.",
+        );
       return json({ ok: true });
     } catch (err) {
       console.error(err);

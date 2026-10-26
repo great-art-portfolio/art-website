@@ -81,7 +81,7 @@ describe("checkoutParams", () => {
       p.get("shipping_address_collection[allowed_countries][1]"),
       "US",
     );
-    assert.equal(p.get("expires_at"), String(1000 + 30 * 60));
+    assert.equal(p.get("expires_at"), String(1000 + 31 * 60));
     assert.equal(
       p.get("success_url"),
       "https://barbart.ca/thanks?painting=night-reeds",
@@ -227,7 +227,7 @@ afterEach(() => {
 
 /** GitHub + Resend stub. Records commits and emails. */
 function stubServices(fileMd) {
-  const calls = { trees: [], emails: [] };
+  const calls = { blobs: [], trees: [], emails: [] };
   globalThis.fetch = async (url, init = {}) => {
     const u = String(url);
     const body = init.body ? JSON.parse(init.body) : null;
@@ -238,13 +238,14 @@ function stubServices(fileMd) {
       json: async () => data,
       text: async () => "",
     });
-    if (u.includes("/contents/"))
-      return ok({
-        content: Buffer.from(fileMd).toString("base64"),
-        encoding: "base64",
-      });
+    // Files are read with GitHub's raw media type.
+    if (u.includes("/contents/")) return new Response(fileMd);
     if (u.includes("/git/ref/heads/")) return ok({ object: { sha: "base" } });
     if (u.includes("/git/commits/base")) return ok({ tree: { sha: "tree0" } });
+    if (u.endsWith("/git/blobs")) {
+      calls.blobs.push(body);
+      return ok({ sha: `blob${calls.blobs.length}` });
+    }
     if (u.endsWith("/git/trees")) {
       calls.trees.push(body);
       return ok({ sha: "tree1" });
@@ -288,10 +289,9 @@ describe("POST /api/stripe-webhook", () => {
     const res = await webhook({ request: webhookRequest(paidEvent()), env });
     assert.equal(res.status, 200);
     assert.equal(calls.commitMessage, "Sold online: Night Reeds");
-    const written = Buffer.from(
-      calls.trees[0].tree[0].content,
-      "base64",
-    ).toString();
+    // Text goes inline in the tree, as literal text: no blob upload.
+    assert.equal(calls.blobs.length, 0);
+    const written = calls.trees[0].tree[0].content;
     assert.match(written, /^sold: true$/m);
     assert.match(written, /^soldSession: "cs_test_1"$/m);
     assert.equal(calls.trees[0].tree[0].path, item.file);

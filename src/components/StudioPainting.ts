@@ -547,7 +547,12 @@ interface FieldSet {
 function readFields(): FieldSet | null {
   const title = $("de-title").value.trim();
   const price = Number($("de-price").value);
-  if (title === "" || !(Number.isFinite(price) && price > 0)) {
+  // At least a cent: the price is saved to two decimals, and $0.00 fails
+  // the content schema and the build.
+  if (
+    title === "" ||
+    !(Number.isFinite(price) && Math.round(price * 100) >= 1)
+  ) {
     setStatus("Title and a valid price are required.", true);
     return null;
   }
@@ -760,10 +765,7 @@ async function saveNew(draft: boolean): Promise<void> {
   if (await titleClash(fields.title, null)) return;
   if (!draft && !confirmPublish(fields.title)) return;
   if (await useOverlayMode()) {
-    const slug =
-      slugifyTitle(fields.title) === ""
-        ? "untitled"
-        : slugifyTitle(fields.title);
+    const slug = slugifyTitle(fields.title);
     const practice: PracticePainting = {
       slug,
       title: fields.title,
@@ -929,6 +931,7 @@ async function saveEdit(
   }
   if (await titleClash(fields.title, slug)) return;
   setStatus("Saving… (live in a few minutes)");
+  let previewNote: string | null = null;
   try {
     const imageFile =
       base.parsed.image === "" ? `${slug}.jpg` : base.parsed.image;
@@ -995,17 +998,20 @@ async function saveEdit(
         { path: mdPath, blob: patchPainting(base.content, fix.edits) },
         ...fix.files,
       );
-      if (fix.note !== null) {
-        setStatus(`Saved "${fields.title}" — but ${fix.note}`, true);
-        return;
-      }
+      // A failed wall-preview rebuild never costs her the edit: the words
+      // still save, and the note says what didn't update.
+      previewNote = fix.note;
     }
     await api.commitFiles(`Edit painting: ${fields.title}`, files);
     buzz();
-    goAdmin(
+    const saved =
       draft && fields.publishOn !== ""
         ? `Saved "${fields.title}" — goes live ${fields.publishOn}.${alertsLater(alertChoice())}`
-        : `Saved "${fields.title}" — live in a few minutes.`,
+        : `Saved "${fields.title}" — live in a few minutes.`;
+    goAdmin(
+      previewNote === null
+        ? saved
+        : `${saved} The wall preview wasn't updated: ${previewNote}`,
     );
   } catch (err) {
     setStatus(errorMessage(err), true);
