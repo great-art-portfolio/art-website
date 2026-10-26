@@ -518,10 +518,23 @@ const eyebrow =
               <p id="buy-status" role="status" />
             </div>
           )}
-          <button type="button" id="inquiry-reveal" class="btn-primary" hidden>
+          {/* The page arrives folded (button shown, form hidden), so a
+              refresh never flashes the form before the script runs. Without
+              JavaScript, the noscript rule opens the form instead. */}
+          <noscript>
+            <style is:inline>
+              #inquiry-form[hidden] {
+                display: grid !important;
+              }
+              #inquiry-reveal {
+                display: none !important;
+              }
+            </style>
+          </noscript>
+          <button type="button" id="inquiry-reveal" class="btn-primary">
             Interested?
           </button>
-          <form id="inquiry-form">
+          <form id="inquiry-form" hidden>
             <h2>Ask about this painting</h2>
             <p class="ship-note">
               Shipping arranged with the artist after purchase.
@@ -829,7 +842,8 @@ const eyebrow =
       });
     }
 
-    // "Interested?" reveals the form. Without JS the form is already open.
+    // "Interested?" reveals the form. The markup arrives folded; without
+    // JS a noscript rule opens it.
     const reveal = document.getElementById("inquiry-reveal");
     if (reveal !== null && form !== null && reveal.dataset.wired !== "1") {
       reveal.dataset.wired = "1";

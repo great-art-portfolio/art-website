@@ -64,6 +64,14 @@ test("admin mode toolbar appears only with a stored token", async ({
   await authed.close();
 });
 
+test("the inquiry form arrives folded, so a refresh never flashes it", async ({
+  request,
+}) => {
+  const html = await (await request.get("/paintings/night-reeds")).text();
+  expect(html).toMatch(/<form id="inquiry-form"[^>]*\shidden/);
+  expect(html).not.toMatch(/<button[^>]*id="inquiry-reveal"[^>]*\shidden/);
+});
+
 test("without JS the inquiry form stays open (progressive enhancement)", async ({
   browser,
 }) => {
