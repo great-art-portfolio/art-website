@@ -151,6 +151,6 @@ const paintingJsonLd = {
   <script
     type="application/ld+json"
     is:inline
-    set:html={JSON.stringify(paintingJsonLd)}
+    set:html={JSON.stringify(paintingJsonLd).replace(/</g, "\\u003c")}
   ></script>
 </Layout>

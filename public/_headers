@@ -4,8 +4,12 @@
   Strict-Transport-Security: max-age=31536000
   # No other site may show these pages inside a frame (clickjacking on Buy
   # now and the inquiry form). The studio's own email preview is same-site.
-  Content-Security-Policy: frame-ancestors 'self'
+  # No plugins, and no <base> tag can point the page's links elsewhere.
+  Content-Security-Policy: frame-ancestors 'self'; object-src 'none'; base-uri 'self'
   X-Frame-Options: SAMEORIGIN
+  # Files are only ever what their type says (an uploaded file can't be
+  # read as a script).
+  X-Content-Type-Options: nosniff
   # Nothing here uses the camera API, microphone, location or payments in
   # the page (Stripe checkout is its own site).
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()

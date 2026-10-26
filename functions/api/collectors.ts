@@ -96,6 +96,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
         context.env,
         body["turnstileToken"],
         context.request.headers.get("cf-connecting-ip"),
+        context.request,
       ))
     ) {
       return spamCheckFailed();
@@ -268,6 +269,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
           context.env,
           body["turnstileToken"],
           context.request.headers.get("cf-connecting-ip"),
+          context.request,
         ))
       ) {
         return spamCheckFailed();

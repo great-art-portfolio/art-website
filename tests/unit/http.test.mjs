@@ -130,6 +130,66 @@ describe("Access sign-in", () => {
     assert.equal(await requireAdmin(viaHeader, env), null);
   });
 
+  it("refuses a change another site's page starts with her cookie", async () => {
+    await serveCerts();
+    const token = await sign(keys, good());
+    const post = (headers) =>
+      new Request("https://barbart.ca/api/notify", {
+        method: "POST",
+        headers: { cookie: `CF_Authorization=${token}`, ...headers },
+        body: "{}",
+      });
+    const evil = await requireAdmin(
+      post({ "sec-fetch-site": "cross-site", origin: "https://evil.example" }),
+      env,
+    );
+    assert.equal(evil?.status, 403);
+    const oldBrowser = await requireAdmin(
+      post({ origin: "https://evil.example" }),
+      env,
+    );
+    assert.equal(oldBrowser?.status, 403);
+    // The studio's own pages pass.
+    assert.equal(
+      await requireAdmin(
+        post({ "sec-fetch-site": "same-origin", origin: "https://barbart.ca" }),
+        env,
+      ),
+      null,
+    );
+    assert.equal(
+      await requireAdmin(post({ origin: "https://barbart.ca" }), env),
+      null,
+    );
+    // Reads stay open: another site can't see the answer anyway.
+    assert.equal(
+      await requireAdmin(
+        new Request("https://barbart.ca/api/collectors?list=1", {
+          headers: {
+            cookie: `CF_Authorization=${token}`,
+            "sec-fetch-site": "cross-site",
+          },
+        }),
+        env,
+      ),
+      null,
+    );
+  });
+
+  it("lets the token through from anywhere: it isn't sent by itself", async () => {
+    const res = await requireAdmin(
+      new Request("https://barbart.ca/api/notify", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer s3cret",
+          "sec-fetch-site": "cross-site",
+        },
+      }),
+      env,
+    );
+    assert.equal(res, null);
+  });
+
   it("fetches the signing keys once, not per request", async () => {
     await serveCerts();
     certsCalls = 0;

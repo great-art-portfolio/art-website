@@ -17,6 +17,9 @@ afterEach(() => {
 
 function stubFetch(handler) {
   globalThis.fetch = async (url, init) => {
+    // The spam check passes; the deployed site always has one.
+    if (String(url).startsWith("https://challenges.cloudflare.com/"))
+      return Response.json({ success: true, hostname: "barbart.ca" });
     calls.push({ url: String(url), init });
     return handler(String(url), init);
   };
@@ -33,6 +36,7 @@ const failRes = () => ({ ok: false, status: 400, text: async () => "bad" });
 const goneRes = () => ({ ok: false, status: 404, text: async () => "gone" });
 
 const env = {
+  TURNSTILE_SECRET_KEY: "ts_test",
   RESEND_API_KEY: "re_test",
   RESEND_SEGMENT_ID: "seg_123",
   ARTIST_INBOX: "studio@example.com",
@@ -46,7 +50,7 @@ function postContext(body, envOverride = {}) {
     request: new Request("https://barbart.ca/api/collectors", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ turnstileToken: "tok", ...body }),
     }),
     env: { ...env, ...envOverride },
   };

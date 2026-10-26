@@ -152,6 +152,8 @@ describe("mock endpoint", () => {
       }),
       env: { ...FLAG, DB: stubDb() },
     });
-    assert.equal(res.status, 500);
+    // A deployed site with no spam-check secret refuses before anything
+    // else, mock or not.
+    assert.equal(res.status, 403);
   });
 });
