@@ -37,7 +37,7 @@ describe("GitHub key", () => {
     assert.equal(res.status, 503);
     const data = await res.json();
     assert.equal(data.code, "github-key");
-    assert.match(data.error, /GitHub key has run out\. Ask Chris/);
+    assert.match(data.error, /GitHub turned the site away\. Ask Chris/);
   });
 
   it("treats a rate limit as a passing hiccup, not a dead key", async () => {

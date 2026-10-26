@@ -15,6 +15,10 @@ export interface AppEnv {
   /** The scheduled-publish workflow's key for /api/notify: the standard
    * publish alert only. Same value as the repo's ALERTS_TOKEN secret. */
   ALERTS_TOKEN?: string;
+  /** The site's GitHub App (scripts/github-app-setup.mjs): its id and
+   * PKCS#8 private key. Preferred over GITHUB_TOKEN, which expires. */
+  GITHUB_APP_ID?: string;
+  GITHUB_APP_KEY?: string;
   GITHUB_TOKEN?: string;
   GITHUB_REPO?: string;
   GITHUB_BRANCH?: string;
