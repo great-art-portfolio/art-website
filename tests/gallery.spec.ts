@@ -215,8 +215,13 @@ for (const p of published) {
     const jsonLd = await page
       .locator('script[type="application/ld+json"]')
       .textContent();
-    expect(jsonLd).toContain('"@type":"Product"');
-    expect(jsonLd).toContain(p.title);
+    // A product that's also an artwork, by the artist, pictured by the
+    // 1200px share copy rather than the print-quality original.
+    const data = JSON.parse(jsonLd ?? "{}");
+    expect(data["@type"]).toEqual(["Product", "VisualArtwork"]);
+    expect(data.name).toBe(p.title);
+    expect(data.creator?.["@type"]).toBe("Person");
+    expect(String(data.image)).toMatch(/\.jpe?g$/);
     // The artist's address must not appear in public markup.
     await expect(page.locator('a[href^="mailto:"]')).toHaveCount(0);
 
@@ -253,12 +258,13 @@ for (const p of published) {
           "data-glb",
           p.modelGlb,
         );
-        // The stage shows content right away: the poster, or the viewer if the
-        // observer fires during load.
-        await expect(
-          page.locator("#ar-stage img, #ar-stage model-viewer"),
-        ).toBeVisible();
-        // The viewer library is loaded once the section is scrolled into view.
+        // The stage holds its place with a soft placeholder, and the ~550 KB
+        // viewer waits for someone to be here: nothing loads untouched.
+        await expect(page.locator("#ar-stage .ar-skeleton")).toBeVisible();
+        await page.waitForTimeout(300);
+        await expect(page.locator("#ar-stage model-viewer")).toHaveCount(0);
+        // A pointer move plus the stage in view loads it.
+        await page.mouse.move(200, 200);
         await page.locator("#ar-mount").scrollIntoViewIfNeeded();
         const viewer = page.locator("#ar-stage model-viewer");
         await expect(viewer).toBeAttached({ timeout: 15_000 });
@@ -745,4 +751,30 @@ test("every gallery painting fills its mat, edge to edge", async ({
     for (const gap of gaps) expect(gap, `${width}px`).toBeLessThanOrEqual(2);
     await context.close();
   }
+});
+
+test("fullscreen view keeps focus inside and closes from its ✕", async ({
+  page,
+}) => {
+  await page.goto(`/paintings/${available[0]?.slug ?? ""}`);
+  await page.locator("#photo-wrap").click();
+  const box = page.locator("#lightbox");
+  await expect(box).toBeVisible();
+  // Tab can't wander into the page behind: it reaches the ✕ and stays.
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#lightbox-close")).toBeFocused();
+  // Past the ✕ focus may go to the browser's own toolbar, but never to a
+  // link or button on the page behind, which the dialog locks.
+  await page.keyboard.press("Tab");
+  const behind = await page.evaluate(() => {
+    const el = document.activeElement;
+    return (
+      el !== null &&
+      el !== document.body &&
+      !document.getElementById("lightbox")?.contains(el)
+    );
+  });
+  expect(behind).toBe(false);
+  await page.locator("#lightbox-close").click();
+  await expect(box).toBeHidden();
 });

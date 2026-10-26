@@ -482,6 +482,20 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
   :global(#edit-list .ico) {
     flex-shrink: 0;
   }
+  /* On a touch screen each action is a full finger's height (44px), and
+     they spread a little further apart, so Delete is hard to hit by
+     mistake. The look stays the same: the extra height is empty. */
+  @media (pointer: coarse) {
+    :global(#edit-list .row-actions) {
+      column-gap: 1.25rem;
+    }
+    :global(#edit-list .row-edit),
+    :global(#edit-list .row-qr),
+    :global(#edit-list .row-del),
+    :global(#edit-list .row-restore) {
+      min-height: 2.75rem;
+    }
+  }
   /* Fade-in for deferred reveals. Opacity-only, so reduced motion keeps it. */
   .fade-in {
     animation: fade-in 0.4s ease;

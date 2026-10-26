@@ -1,5 +1,5 @@
 ---
-import { Image } from "astro:assets";
+import { Picture } from "astro:assets";
 import { publicPaintings, type Painting } from "../lib/collection";
 import { formatDimensions } from "../lib/dims";
 import { desktopSlots, galleryTiles } from "../lib/gallery-layout";
@@ -71,16 +71,18 @@ const slotClass = (i: number): string[] => {
         class="mat"
         transition:name={`painting-${slugifyTitle(featured.data.title)}`}
       >
-        <Image
+        <Picture
           src={featured.data.image}
           alt={featured.data.alt}
           width={1000}
           widths={GALLERY_WIDTHS}
           sizes={featuredSizes()}
-          format="webp"
+          formats={["avif", "webp"]}
+          fallbackFormat="webp"
           decoding="async"
           loading="eager"
           fetchpriority="high"
+          style={`--ar: ${(featured.data.image.width / featured.data.image.height).toFixed(4)}`}
         />
       </span>
       {/* "Newest painting" sits under the painting's bottom-right corner,
@@ -132,13 +134,14 @@ const slotClass = (i: number): string[] => {
             class="mat"
             transition:name={`painting-${slugifyTitle(painting.data.title)}`}
           >
-            <Image
+            <Picture
               src={painting.data.image}
               alt={painting.data.alt}
               width={1000}
               widths={GALLERY_WIDTHS}
               sizes={gallerySizes(tiles[i] ?? "normal", slots[i]?.span ?? 4)}
-              format="webp"
+              formats={["avif", "webp"]}
+              fallbackFormat="webp"
               decoding="async"
               loading={featured === undefined && i === 0 ? "eager" : "lazy"}
               fetchpriority={
@@ -193,14 +196,15 @@ const slotClass = (i: number): string[] => {
             class="mat"
             transition:name={`painting-${slugifyTitle(painting.data.title)}`}
           >
-            <Image
+            <Picture
               src={painting.data.image}
               alt={painting.data.alt}
               width={700}
               widths={SOLD_WIDTHS}
               loading="lazy"
               sizes={soldSizes()}
-              format="webp"
+              formats={["avif", "webp"]}
+              fallbackFormat="webp"
               decoding="async"
             />
             <span class="badge sold">Sold</span>
@@ -395,6 +399,32 @@ const slotClass = (i: number): string[] => {
     .card:hover .mat {
       transform: translateY(-4px);
     }
+  }
+  /* The newest painting holds its size before the photo arrives, so the
+     page below doesn't jump when it loads. The width is the one the
+     browser would draw anyway: its sizes slot (featuredSizes), or less
+     when 80vh of height caps it. */
+  .feature {
+    --slot: 92vw;
+  }
+  @media (min-width: 60rem) {
+    .feature {
+      --slot: 44vw;
+    }
+  }
+  @media (min-width: 76rem) {
+    .feature {
+      --slot: 530px;
+    }
+  }
+  /* AVIF first, WebP for older browsers: the <picture> wrapper stays out of
+     layout so the img is still the mat's own child. */
+  .mat :global(picture) {
+    display: contents;
+  }
+  .feature .mat img {
+    width: min(var(--slot), calc(80vh * var(--ar)));
+    aspect-ratio: var(--ar);
   }
   .mat img {
     /* Size the box to the photo rather than the column. With both max

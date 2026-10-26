@@ -101,3 +101,27 @@ export async function smallJpegDataUrl(
   bitmap.close();
   return canvas.toDataURL("image/jpeg", 0.8);
 }
+
+/** The same picture as a JPEG file, for sharing: Instagram and others can
+ * refuse the AVIF and WebP the site shows. A JPEG passes through as is. */
+export async function asJpeg(src: Blob): Promise<Blob> {
+  if (src.type === "image/jpeg") return src;
+  const bitmap = await createImageBitmap(src);
+  const canvas = document.createElement("canvas");
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  const ctx = canvas.getContext("2d");
+  if (ctx === null) throw new Error("Could not read that photo");
+  ctx.drawImage(bitmap, 0, 0);
+  bitmap.close();
+  return await new Promise((resolve, reject) =>
+    canvas.toBlob(
+      (b) =>
+        b === null
+          ? reject(new Error("Could not read that photo"))
+          : resolve(b),
+      "image/jpeg",
+      0.9,
+    ),
+  );
+}

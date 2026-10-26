@@ -1,11 +1,17 @@
 /* Gallery service worker: offline shell, cached artwork, and outbox replay.
  * Bump the cache version whenever behavior changes.
  */
-const VERSION = "gallery-v2";
+const VERSION = "gallery-v3";
 const STATIC_CACHE = `${VERSION}-static`;
+const PAGE_CACHE = `${VERSION}-pages`;
+const CODE_CACHE = `${VERSION}-code`;
 const IMAGE_CACHE = `${VERSION}-images`;
 const PRECACHE = ["/", "/offline", "/manifest.webmanifest", "/favicon.png"];
 const IMAGE_LIMIT = 60;
+const PAGE_LIMIT = 40;
+// Stylesheets, scripts and fonts: few, and an offline page needs them, so
+// they never compete with artwork for room.
+const CODE_FILE = /\.(css|js|mjs|woff2?)$/;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -31,13 +37,12 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-async function trimImages() {
-  const cache = await caches.open(IMAGE_CACHE);
+/** Drops the oldest entries until the cache is back under its limit. */
+async function trim(name, limit) {
+  const cache = await caches.open(name);
   const keys = await cache.keys();
-  if (keys.length > IMAGE_LIMIT) {
-    await cache.delete(keys[0]);
-    await trimImages();
-  }
+  for (const key of keys.slice(0, Math.max(0, keys.length - limit)))
+    await cache.delete(key);
 }
 
 self.addEventListener("fetch", (event) => {
@@ -57,17 +62,22 @@ self.addEventListener("fetch", (event) => {
   // Built _astro/ assets such as artwork are cache-first, so the gallery
   // works with a weak signal.
   if (url.pathname.startsWith("/_astro/")) {
+    const code = CODE_FILE.test(url.pathname);
     event.respondWith(
       caches.match(request).then(
         (hit) =>
           hit ??
           fetch(request).then((res) => {
+            // Never keep an error page in place of the real file.
+            if (!res.ok) return res;
             const copy = res.clone();
             event.waitUntil(
               caches
-                .open(IMAGE_CACHE)
+                .open(code ? CODE_CACHE : IMAGE_CACHE)
                 .then((cache) => cache.put(request, copy))
-                .then(trimImages),
+                .then(() =>
+                  code ? undefined : trim(IMAGE_CACHE, IMAGE_LIMIT),
+                ),
             );
             return res;
           }),
@@ -81,9 +91,13 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((res) => {
+          if (!res.ok) return res;
           const copy = res.clone();
           event.waitUntil(
-            caches.open(STATIC_CACHE).then((cache) => cache.put(request, copy)),
+            caches
+              .open(PAGE_CACHE)
+              .then((cache) => cache.put(request, copy))
+              .then(() => trim(PAGE_CACHE, PAGE_LIMIT)),
           );
           return res;
         })

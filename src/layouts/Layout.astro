@@ -7,6 +7,9 @@ import "@fontsource/caveat/600.css";
 // axis gives display sizes their high-contrast cut; only the Latin files
 // a page uses are downloaded.
 import "@fontsource-variable/fraunces/opsz.css";
+// Fetched first, so headings don't draw in Georgia and then grow (a layout
+// shift on phones). Only the Latin file: the others load when needed.
+import frauncesLatin from "@fontsource-variable/fraunces/files/fraunces-latin-opsz-normal.woff2?url";
 import Analytics from "../components/Analytics.astro";
 import Signature from "../components/Signature.astro";
 import AdminWordmark from "../components/AdminWordmark.astro";
@@ -33,6 +36,12 @@ interface Props {
   noindex?: boolean;
   /** Canonical path for alias pages served under old slugs. */
   canonical?: string;
+  /** Pages that shouldn't name a canonical URL at all (the 404). */
+  noCanonical?: boolean;
+  /** What the share image shows, for screen readers in link previews. */
+  imageAlt?: string;
+  /** "product" on painting pages, with their price. */
+  product?: { price: number; sold: boolean };
   /** Background wash for studio pages. Other pages use "warm". */
   backdrop?: "warm" | "collection" | "banner" | "metrics" | "guide";
 }
@@ -40,9 +49,12 @@ interface Props {
 const {
   title = siteTitle(),
   description = "Original nature and abstract paintings, direct from the artist's studio.",
-  image = "/apple-touch-icon.png",
+  image,
+  imageAlt,
+  product,
   wordmark = "signature",
   noindex = false,
+  noCanonical = false,
   canonical: canonicalOverride,
   backdrop = "warm",
 } = Astro.props;
@@ -101,13 +113,52 @@ const currentSection = adminSection(selfPath);
     />
     <meta name="description" content={description} />
     {noindex && <meta name="robots" content="noindex" />}
-    <link rel="canonical" href={new URL(canonical, SITE_URL).href} />
+    {!noCanonical && (
+      <link rel="canonical" href={new URL(canonical, SITE_URL).href} />
+    )}
+    <meta property="og:site_name" content={ARTIST_NAME ?? siteTitle()} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content={new URL(canonical, SITE_URL).href} />
-    <meta property="og:image" content={new URL(image, SITE_URL).href} />
-    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      property="og:type"
+      content={product === undefined ? "website" : "product"}
+    />
+    {product !== undefined && (
+      <>
+        <meta
+          property="product:price:amount"
+          content={product.price.toFixed(2)}
+        />
+        <meta property="product:price:currency" content="CAD" />
+        <meta
+          property="product:availability"
+          content={product.sold ? "out of stock" : "in stock"}
+        />
+      </>
+    )}
+    {!noCanonical && (
+      <meta property="og:url" content={new URL(canonical, SITE_URL).href} />
+    )}
+    {/* A page with its own picture gets the big preview card; the rest show
+        the small icon card, since a 180px icon blown up looks blurry. */}
+    <meta
+      property="og:image"
+      content={new URL(image ?? "/apple-touch-icon.png", SITE_URL).href}
+    />
+    {imageAlt !== undefined && imageAlt !== "" && (
+      <meta property="og:image:alt" content={imageAlt} />
+    )}
+    <meta
+      name="twitter:card"
+      content={image === undefined ? "summary" : "summary_large_image"}
+    />
+    <link
+      rel="preload"
+      href={frauncesLatin}
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png" />
@@ -742,6 +793,8 @@ const currentSection = adminSection(selfPath);
   }
   .skip:focus-visible {
     top: 0.75rem;
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
 
   /* Sticky gallery-style header */
@@ -793,6 +846,18 @@ const currentSection = adminSection(selfPath);
     display: inline-flex;
     color: var(--ink);
     margin-left: -0.25rem;
+  }
+  /* A full finger's height on touch screens; the logo itself is unchanged. */
+  @media (pointer: coarse) {
+    #signature {
+      min-height: 2.75rem;
+      align-items: center;
+    }
+  }
+  #signature:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+    border-radius: 0.25rem;
   }
   /* Logo sizing is in Signature.astro, since scoped CSS here can't reach it. */
   .nav-links {

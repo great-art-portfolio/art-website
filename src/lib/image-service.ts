@@ -101,7 +101,11 @@ const service: LocalImageService = {
       return { data: inputBuffer, format: outputFormat };
     } else if (outputFormat === "webp") pipeline.webp(encoderOptions);
     else if (outputFormat === "png") pipeline.png(encoderOptions);
-    else if (outputFormat === "avif") pipeline.avif(encoderOptions);
+    // Effort 2 encodes about six times faster than the default 4 for files
+    // about a fifth larger, still far under WebP: the build stays quick as
+    // the collection grows.
+    else if (outputFormat === "avif")
+      pipeline.avif({ ...encoderOptions, effort: 2 });
     else if (outputFormat === "jpeg" || outputFormat === "jpg")
       pipeline.jpeg(encoderOptions);
     else {

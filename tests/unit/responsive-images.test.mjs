@@ -13,7 +13,7 @@ import { MAX_SIDE, scaleFor } from "../../src/lib/image.ts";
 
 describe("responsive-images contracts", () => {
   it("gallery widths stay ascending and phone-friendly", () => {
-    assert.deepEqual(GALLERY_WIDTHS, [400, 700, 1000, 1400]);
+    assert.deepEqual(GALLERY_WIDTHS, [400, 700, 1000, 1200, 1400]);
   });
 
   it("sold widths are a subset of gallery widths", () => {

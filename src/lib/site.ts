@@ -49,6 +49,9 @@ export function slugifyTitle(title: string): string {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+  // /paintings/create and /paintings/edit are old studio links that
+  // redirect, so a painting can't take those addresses.
+  if (slug === "create" || slug === "edit") return `${slug}-painting`;
   if (slug !== "") return slug;
   // FNV-1a over the code points: the same title always gets the same URL.
   let hash = 0x811c9dc5;

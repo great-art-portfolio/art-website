@@ -15,17 +15,19 @@ const out = join(root, "public", "icons");
 mkdirSync(out, { recursive: true });
 
 const art = sharp(join(root, "public", "apple-touch-icon.png"));
+// A palette PNG looks the same at these sizes and weighs about a third.
+const PNG = { palette: true, quality: 90, effort: 10 };
 
 // Standard icons: the artwork fills the icon edge to edge.
 await art
   .clone()
   .resize(192, 192, { fit: "cover" })
-  .png()
+  .png(PNG)
   .toFile(join(out, "icon-192.png"));
 await art
   .clone()
   .resize(512, 512, { fit: "cover" })
-  .png()
+  .png(PNG)
   .toFile(join(out, "icon-512.png"));
 
 // Maskable: artwork at about 80%, centered on the background, so launcher
@@ -35,7 +37,7 @@ await sharp({
   create: { width: 512, height: 512, channels: 4, background: "#faf7f1" },
 })
   .composite([{ input: padded, left: 51, top: 51 }])
-  .png()
+  .png(PNG)
   .toFile(join(out, "maskable-512.png"));
 
 console.log("icons written to public/icons/");
