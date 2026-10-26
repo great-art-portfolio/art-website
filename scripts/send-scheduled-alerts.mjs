@@ -1,7 +1,7 @@
 /** Sends the alerts she ticked for paintings the nightly workflow just
  * published (publish-due.mjs --alerts-file). Waits until the painting's
- * page is live, so the email's link shows it, then asks the site to send
- * the standard alerts with ALERTS_TOKEN, which /api/notify accepts for
+ * page is live, so the email's photo and link work, then asks the site to
+ * send the painting's email with ALERTS_TOKEN, which /api/notify accepts for
  * exactly that and nothing else. Exits non-zero on failure, so a missed
  * alert shows as a red run.
  *
@@ -27,16 +27,16 @@ export async function waitForPage(url, waitMs = WAIT_MS, pollMs = POLL_MS) {
   }
 }
 
-/** Asks the site to email the list the standard publish alert. Returns
+/** Asks the site to email the list about the painting at `slug`. Returns
  * how many addresses it went to. */
-export async function sendAlerts(site, token) {
+export async function sendAlerts(site, token, slug = "") {
   const res = await fetch(`${site}/api/notify`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ email: true }),
+    body: JSON.stringify({ email: true, slug }),
   });
   if (!res.ok)
     throw new Error(`notify answered ${res.status}: ${await res.text()}`);
@@ -59,6 +59,6 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   }
   const live = await waitForPage(`${SITE}/paintings/${alerts.slug}`);
   if (!live) console.log("The page isn't live yet; sending anyway.");
-  const r = await sendAlerts(SITE, token);
+  const r = await sendAlerts(SITE, token, alerts.slug);
   console.log(`Publish email sent to ${r.emailed}.`);
 }

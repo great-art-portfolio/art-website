@@ -5,7 +5,9 @@ import {
   artistSender,
   broadcastDefaults,
   isConfirmedContact,
+  emailDescription,
   listSegmentContacts,
+  paintingAlertEmail,
   resolveBroadcastCopy,
   segmentBroadcastEmail,
   segmentId,
@@ -150,6 +152,74 @@ describe("segmentBroadcastEmail", () => {
     assert.ok(text.includes("— Barbara"));
     assert.ok(text.includes("{{{RESEND_UNSUBSCRIBE_URL}}}"));
     assert.ok(html.includes("— Barbara"));
+  });
+});
+
+describe("paintingAlertEmail", () => {
+  const painting = {
+    slug: "prairie-moon",
+    title: "Prairie <Moon>",
+    priceCents: 14000,
+    sold: false,
+    medium: "Acrylic on canvas",
+    widthIn: 24,
+    heightIn: 36,
+    depthIn: null,
+    description: "A pale moon.\n\nWarm and grounded.",
+    alt: "",
+  };
+
+  it("shows the photo, title, price, size and her words", () => {
+    const { subject, text, html } = paintingAlertEmail(
+      "https://barbart.ca",
+      painting,
+    );
+    assert.equal(subject, "New painting: Prairie <Moon>");
+    assert.ok(text.includes("$140 CAD · Acrylic on canvas · 24 × 36 in"));
+    assert.ok(
+      text.includes("See it: https://barbart.ca/paintings/prairie-moon"),
+    );
+    assert.ok(text.includes("{{{RESEND_UNSUBSCRIBE_URL}}}"));
+    assert.ok(
+      html.includes(
+        'src="https://barbart.ca/api/painting-image?slug=prairie-moon"',
+      ),
+    );
+    assert.ok(html.includes("Prairie &lt;Moon&gt;"));
+    assert.ok(
+      html.includes(
+        '<p style="font-size:16px;line-height:1.6;margin:0 0 16px;">Warm and grounded.</p>',
+      ),
+    );
+    assert.ok(html.includes("See it on the site"));
+  });
+
+  it("says Sold instead of a price", () => {
+    const { text } = paintingAlertEmail("https://barbart.ca", {
+      ...painting,
+      sold: true,
+    });
+    assert.ok(text.includes("Sold · Acrylic"));
+    assert.ok(!text.includes("$140"));
+  });
+});
+
+describe("emailDescription", () => {
+  it("keeps short words whole", () => {
+    assert.deepEqual(emailDescription("One.\n\nTwo."), ["One.", "Two."]);
+  });
+
+  it("cuts a long description at a sentence", () => {
+    const long = `${"Word ".repeat(30).trim()}. ${"More ".repeat(200)}`;
+    const out = emailDescription(long, 200);
+    assert.equal(out.length, 1);
+    assert.ok(out[0].endsWith("Word."));
+  });
+
+  it("trims one long sentence with an ellipsis", () => {
+    const out = emailDescription("a ".repeat(400), 50);
+    assert.ok(out[0].endsWith("…"));
+    assert.ok(out[0].length <= 51);
   });
 });
 
