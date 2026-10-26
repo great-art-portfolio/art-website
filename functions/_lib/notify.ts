@@ -1,5 +1,7 @@
 import { formatDimensions } from "../../src/lib/dims";
 import { formatPriceCAD } from "../../src/lib/money";
+import { t } from "../../src/i18n/strings";
+import { localeInfo, type Locale } from "../../src/i18n/locales";
 import type { AppEnv } from "./env";
 
 /**
@@ -17,6 +19,8 @@ export interface InquiryAlert {
   buyerName: string;
   buyerEmail: string;
   message: string;
+  /** The language they read the painting page in. */
+  locale?: Locale | undefined;
 }
 
 export interface NotifyResult {
@@ -54,58 +58,43 @@ export function inquiryEmail(alert: InquiryAlert): {
       ...(alert.priceCents > 0
         ? [`Price: ${formatPriceCAD(alert.priceCents)}`]
         : []),
+      // So she can answer in their language, or knows to expect it.
+      ...(alert.locale !== undefined && alert.locale !== "en"
+        ? [`They read your site in ${localeInfo(alert.locale).english}.`]
+        : []),
       "",
       alert.message === "" ? "(No message)" : alert.message,
     ].join("\n"),
   };
 }
 
-export function confirmEmail(confirmUrl: string): {
+export function confirmEmail(
+  confirmUrl: string,
+  locale: Locale = "en",
+): {
   subject: string;
   text: string;
 } {
-  return {
-    subject: "Confirm your studio alerts",
-    text: [
-      "Someone (hopefully you) asked for new paintings and events",
-      "by email from Barbara Straka's studio.",
-      "",
-      "Confirm here:",
-      confirmUrl,
-      "",
-      "If that wasn't you, ignore this — nothing joins the list",
-      "without the tap.",
-    ].join("\n"),
-  };
+  const e = t(locale).emails;
+  return { subject: e.confirmSubject, text: e.confirm(confirmUrl) };
 }
 
 /** Sent when an address already on the list joins again. The page answers
  * "check your inbox" either way, so it never says who is subscribed. */
-export function alreadyEmail(): { subject: string; text: string } {
-  return {
-    subject: "You're already on the studio list",
-    text: [
-      "Someone (hopefully you) asked to join Barbara Straka's",
-      "new-painting emails, and this address is already on the list.",
-      "Nothing to do — new paintings and events will keep arriving.",
-      "",
-      "If that wasn't you, ignore this.",
-      "",
-      "— Barbara",
-    ].join("\n"),
-  };
+export function alreadyEmail(locale: Locale = "en"): {
+  subject: string;
+  text: string;
+} {
+  const e = t(locale).emails;
+  return { subject: e.alreadySubject, text: e.already };
 }
 
-export function goodbyeEmail(): { subject: string; text: string } {
-  return {
-    subject: "Removed from the new-painting list",
-    text: [
-      "You've been removed — no more emails from the studio.",
-      "Rejoin any time from any Notify me box.",
-      "",
-      "— Barbara",
-    ].join("\n"),
-  };
+export function goodbyeEmail(locale: Locale = "en"): {
+  subject: string;
+  text: string;
+} {
+  const e = t(locale).emails;
+  return { subject: e.goodbyeSubject, text: e.goodbye };
 }
 
 export async function sendInquiryNotifications(

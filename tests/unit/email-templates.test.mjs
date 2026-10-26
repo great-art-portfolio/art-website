@@ -53,3 +53,37 @@ describe("goodbyeEmail", () => {
     assert.match(text, /no more emails/);
   });
 });
+
+describe("emails in the visitor's language", () => {
+  it("tells her which language a buyer read the site in", () => {
+    const { text } = inquiryEmail({
+      paintingTitle: "Prairie Moon",
+      priceCents: 65000,
+      buyerName: "Camille",
+      buyerEmail: "camille@resend.dev",
+      message: "Bonjour",
+      locale: "fr",
+    });
+    assert.match(text, /They read your site in French\./);
+    const en = inquiryEmail({
+      paintingTitle: "Prairie Moon",
+      priceCents: 65000,
+      buyerName: "Ada",
+      buyerEmail: "ada@resend.dev",
+      message: "Hi",
+    });
+    assert.doesNotMatch(en.text, /read your site in/);
+  });
+
+  it("confirms, greets and says goodbye in every language", async () => {
+    const { confirmEmail, alreadyEmail, goodbyeEmail } =
+      await import("../../functions/_lib/notify.ts");
+    for (const code of ["fr", "ja", "pa"]) {
+      const c = confirmEmail("https://barbart.ca/x?token=1", code);
+      assert.match(c.text, /https:\/\/barbart\.ca\/x\?token=1/);
+      assert.notEqual(c.subject, "Confirm your studio alerts");
+      assert.notEqual(alreadyEmail(code).subject, alreadyEmail().subject);
+      assert.match(goodbyeEmail(code).text, /— Barbara$/);
+    }
+  });
+});

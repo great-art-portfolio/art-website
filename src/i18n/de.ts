@@ -225,4 +225,35 @@ export const de: Strings = {
     goodbyeFailed:
       "Dieser Link hat nicht funktioniert — wahrscheinlich sind Sie bereits ausgetragen.",
   },
+  emails: {
+    confirmSubject: "Bitte bestätigen Sie Ihre Atelier-Benachrichtigungen",
+    confirm: (url: string) =>
+      [
+        "Jemand (hoffentlich Sie) möchte per E-Mail von neuen Bildern",
+        "und Veranstaltungen aus dem Atelier von Barbara Straka erfahren.",
+        "",
+        "Hier bestätigen:",
+        url,
+        "",
+        "Falls Sie das nicht waren, ignorieren Sie diese E-Mail — ohne den Klick",
+        "wird niemand eingetragen.",
+      ].join("\n"),
+    alreadySubject: "Sie stehen bereits auf der Atelier-Liste",
+    already: [
+      "Jemand (hoffentlich Sie) möchte die E-Mails von Barbara Straka",
+      "zu neuen Bildern erhalten, und diese Adresse steht bereits auf der Liste.",
+      "Sie müssen nichts tun — neue Bilder und Veranstaltungen kommen weiterhin.",
+      "",
+      "Falls Sie das nicht waren, ignorieren Sie diese E-Mail.",
+      "",
+      "— Barbara",
+    ].join("\n"),
+    goodbyeSubject: "Von der Liste für neue Bilder entfernt",
+    goodbye: [
+      "Erledigt — Sie erhalten keine E-Mails mehr aus dem Atelier.",
+      "Sie können sich jederzeit wieder auf der Website eintragen.",
+      "",
+      "— Barbara",
+    ].join("\n"),
+  },
 };

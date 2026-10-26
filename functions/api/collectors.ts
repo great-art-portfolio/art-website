@@ -1,3 +1,4 @@
+import { isLocale, localePath, type Locale } from "../../src/i18n/locales";
 import type { AppEnv } from "../_lib/env";
 import {
   badRequest,
@@ -35,8 +36,14 @@ import {
 } from "../_lib/notify";
 import { turnstileOk } from "../_lib/turnstile";
 
-function confirmLink(site: string, email: string, token: string): string {
-  return `${site}/email/confirmed?email=${encodeURIComponent(email)}&token=${token}`;
+/** The confirm page in the language they joined from. */
+function confirmLink(
+  site: string,
+  email: string,
+  token: string,
+  locale: Locale = "en",
+): string {
+  return `${site}${localePath(locale, "/email/confirmed")}?email=${encodeURIComponent(email)}&token=${token}`;
 }
 
 function hasList(env: AppEnv): boolean {
@@ -74,6 +81,8 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   const site = context.env.SITE_URL ?? "https://barbart.ca";
   const params = new URL(context.request.url).searchParams;
   const action = body["action"] ?? "";
+  // Their emails and pages come in the language they read the site in.
+  const locale: Locale = isLocale(body["locale"]) ? body["locale"] : "en";
   // "invite" is the studio adding someone she met: same confirm email,
   // behind her sign-in instead of the spam check, and it may say who's
   // already listed, since only she sees the answer.
@@ -122,14 +131,17 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
         emailed = await sendSiteEmail(context.env, {
           to: [email],
           replyTo: artistInbox(context.env),
-          ...confirmEmail(confirmLink(origin, email, sub.token)),
+          ...confirmEmail(
+            confirmLink(origin, email, sub.token, locale),
+            locale,
+          ),
         }).catch(() => false);
       }
       return json(
         {
           ok: true,
           emailed,
-          devConfirmUrl: confirmLink(origin, email, sub.token),
+          devConfirmUrl: confirmLink(origin, email, sub.token, locale),
         },
         { status: 201 },
       );
@@ -147,7 +159,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
         const emailed = await sendSiteEmail(context.env, {
           to: [email],
           replyTo: artistInbox(context.env),
-          ...alreadyEmail(),
+          ...alreadyEmail(locale),
         }).catch(() => false);
         return json({ ok: true, emailed }, { status: 201 });
       }
@@ -156,7 +168,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       const emailed = await sendSiteEmail(context.env, {
         to: [email],
         replyTo: artistInbox(context.env),
-        ...confirmEmail(confirmLink(site, email, token)),
+        ...confirmEmail(confirmLink(site, email, token, locale), locale),
       }).catch(() => false);
       return json({ ok: true, emailed }, { status: 201 });
     } catch (err) {
@@ -278,7 +290,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
         await sendSiteEmail(context.env, {
           to: [email],
           replyTo: artistInbox(context.env),
-          ...goodbyeEmail(),
+          ...goodbyeEmail(locale),
         }).catch(() => false);
       }
       return json({ ok: true });

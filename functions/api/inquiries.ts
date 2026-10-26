@@ -1,3 +1,4 @@
+import { isLocale } from "../../src/i18n/locales";
 import type { AppEnv } from "../_lib/env";
 import { badRequest, json, serverError, spamCheckFailed } from "../_lib/http";
 import { sendInquiryNotifications } from "../_lib/notify";
@@ -62,6 +63,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       buyerName,
       buyerEmail,
       message,
+      locale: isLocale(body["locale"]) ? body["locale"] : "en",
     });
     if (!result.emailed && !result.pushed) {
       return serverError("Notifications are not configured — try again later.");
