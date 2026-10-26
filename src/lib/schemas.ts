@@ -176,6 +176,29 @@ export const notifySchema = z.object({
   emailTotal: z.number(),
 });
 
+/** Admin: everyone on the email list, for the studio's list page. */
+export const contactsSchema = z.object({
+  total: z.number(),
+  contacts: z.array(
+    z.object({
+      email: z.string(),
+      unsubscribed: z.boolean(),
+      createdAt: z.string(),
+    }),
+  ),
+});
+
+/** A plain { ok } answer. */
+export const okSchema = z.object({ ok: z.boolean() });
+
+/** Admin: the list page's invite answer. */
+export const inviteSchema = z.object({
+  ok: z.boolean(),
+  emailed: z.boolean().optional(),
+  already: z.boolean().optional(),
+  devConfirmUrl: z.string().optional(),
+});
+
 /** Admin: how many people are on the email list. */
 export const countSchema = z.object({ total: z.number() });
 

@@ -276,9 +276,47 @@ describe("listSegmentContacts", () => {
       }),
     }));
     assert.deepEqual(await listSegmentContacts(fullEnv), [
-      { email: "a@example.com", unsubscribed: false },
-      { email: "b@example.com", unsubscribed: true },
+      { email: "a@example.com", unsubscribed: false, createdAt: "" },
+      { email: "b@example.com", unsubscribed: true, createdAt: "" },
     ]);
+  });
+
+  it("pages past 100 people with Resend's cursor", async () => {
+    stubFetch((url) => {
+      const after = new URL(String(url)).searchParams.get("after");
+      return {
+        ok: true,
+        status: 200,
+        text: async () => "",
+        json: async () =>
+          after === null
+            ? {
+                data: [
+                  { id: "c1", email: "a@example.com", unsubscribed: false },
+                ],
+                has_more: true,
+              }
+            : {
+                data: [
+                  {
+                    id: "c2",
+                    email: "b@example.com",
+                    unsubscribed: false,
+                    created_at: "2026-10-01 10:00:00",
+                  },
+                ],
+                has_more: false,
+              },
+      };
+    });
+    const all = await listSegmentContacts(fullEnv);
+    assert.deepEqual(
+      all.map((c) => c.email),
+      ["a@example.com", "b@example.com"],
+    );
+    assert.match(calls[0].url, /limit=100$/);
+    assert.match(calls[1].url, /limit=100&after=c1$/);
+    assert.equal(all[1].createdAt, "2026-10-01 10:00:00");
   });
 
   it("is empty when unconfigured or rejected", async () => {

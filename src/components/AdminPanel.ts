@@ -1389,6 +1389,7 @@ function init(): void {
   const onQr = document.getElementById("qr-print") !== null;
   if (!onCollection && !onBanner && !onGuide && !onEmail && !onQr) return;
   wireBroadcast();
+  wireList();
   wireEmailPreview();
   // QR codes page. The print CSS lives with the page.
   if (onQr) {
@@ -1653,6 +1654,193 @@ function init(): void {
     void refreshCollection();
     void refreshRowViews();
   }
+}
+
+/** "Oct 1, 2026" from Resend's "2026-10-01 10:00:00.123+00", or "". */
+function joinedLabel(raw: string): string {
+  // Browsers want "+00:00" where Resend writes "+00".
+  const t = Date.parse(raw.replace(" ", "T").replace(/([+-]\d{2})$/, "$1:00"));
+  if (!Number.isFinite(t)) return "";
+  return new Date(t).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+// The Email page's list: everyone who gets her emails, a way to add someone
+// she met (they get the confirm email), and a quiet Remove on each line.
+function wireList(): void {
+  const people = document.getElementById("list-people");
+  const summary = document.getElementById("list-summary");
+  const status = document.getElementById("list-status");
+  const formEl = document.getElementById("list-add");
+  const form = formEl instanceof HTMLFormElement ? formEl : null;
+  const inputEl = document.getElementById("list-add-email");
+  const input = inputEl instanceof HTMLInputElement ? inputEl : null;
+  const searchEl = document.getElementById("list-search");
+  const search = searchEl instanceof HTMLInputElement ? searchEl : null;
+  const searchWrap = document.getElementById("list-search-wrap");
+  if (
+    people === null ||
+    summary === null ||
+    status === null ||
+    form === null ||
+    input === null ||
+    people.dataset.wired === "1"
+  )
+    return;
+  people.dataset.wired = "1";
+  const say = (msg: string): void => {
+    status.textContent = msg;
+    fadeIn(status);
+  };
+
+  // A list can grow to hundreds: newest first, 10 to a page, with plain
+  // Newer / Older controls and where she is ("26–50 of 820"). Search looks
+  // through everyone, not just the page drawn.
+  const PAGE = 10;
+  let all: Awaited<ReturnType<typeof api.listContacts>>["contacts"] = [];
+  let page = 0;
+  const pager = document.getElementById("list-pager");
+  const range = document.getElementById("list-range");
+  const newerEl = document.getElementById("list-newer");
+  const newer = newerEl instanceof HTMLButtonElement ? newerEl : null;
+  const olderEl = document.getElementById("list-older");
+  const older = olderEl instanceof HTMLButtonElement ? olderEl : null;
+
+  const row = (c: (typeof all)[number]): HTMLLIElement => {
+    const li = document.createElement("li");
+    li.dataset.email = c.email;
+    li.classList.toggle("off", c.unsubscribed);
+    // Addresses stay blurred for privacy (a visitor, a shared screen)
+    // until she hovers, tabs to one, or taps it; a second tap hides it.
+    const who = document.createElement("button");
+    who.type = "button";
+    who.className = "who";
+    who.textContent = c.email;
+    who.title = "Show this address";
+    who.addEventListener("click", () => {
+      const shown = li.classList.toggle("shown");
+      who.title = shown ? "Hide this address" : "Show this address";
+    });
+    const when = document.createElement("span");
+    when.className = "when";
+    const joined = joinedLabel(c.createdAt);
+    when.textContent = c.unsubscribed
+      ? "unsubscribed"
+      : joined === ""
+        ? ""
+        : `joined ${joined}`;
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "list-remove";
+    remove.textContent = "Remove";
+    remove.addEventListener("click", () => {
+      if (!window.confirm(`Take ${c.email} off your list?`)) return;
+      remove.disabled = true;
+      api
+        .removeContact(c.email)
+        .then(() => {
+          say(`Removed ${c.email}.`);
+          all = all.filter((x) => x.email !== c.email);
+          draw();
+          void load();
+        })
+        .catch((err: unknown) => {
+          remove.disabled = false;
+          say(`Couldn't remove them: ${errorMessage(err)}`);
+        });
+    });
+    li.appendChild(who);
+    li.appendChild(when);
+    li.appendChild(remove);
+    return li;
+  };
+
+  const draw = (): void => {
+    const q = search?.value ?? "";
+    const matches = all.filter((c) => matchesSearch(c.email, q));
+    const pages = Math.max(1, Math.ceil(matches.length / PAGE));
+    page = Math.min(page, pages - 1);
+    const start = page * PAGE;
+    const slice = matches.slice(start, start + PAGE);
+    people.replaceChildren(...slice.map(row));
+    if (pager !== null) pager.hidden = matches.length <= PAGE;
+    if (range !== null)
+      range.textContent = `${start + 1}–${start + slice.length} of ${matches.length}`;
+    if (newer !== null) newer.disabled = page === 0;
+    if (older !== null) older.disabled = page >= pages - 1;
+    if (q !== "" && matches.length === 0)
+      say(`Nobody on your list matches "${q}".`);
+  };
+  const turn = (by: number): void => {
+    page += by;
+    draw();
+    // Keep her place: the top of the list, not wherever the button was.
+    people.scrollIntoView({ block: "nearest" });
+  };
+  search?.addEventListener("input", () => {
+    page = 0;
+    draw();
+  });
+  newer?.addEventListener("click", () => turn(-1));
+  older?.addEventListener("click", () => turn(1));
+
+  const load = async (): Promise<void> => {
+    let data: Awaited<ReturnType<typeof api.listContacts>>;
+    try {
+      data = await api.listContacts();
+    } catch (err) {
+      summary.textContent = `Couldn't load the list: ${errorMessage(err)}`;
+      return;
+    }
+    const off = data.contacts.length - data.total;
+    summary.textContent =
+      data.total === 0 && off === 0
+        ? "Nobody yet. People join from the Notify me box on the site, or you can add someone below."
+        : `${data.total === 1 ? "1 person gets" : `${data.total} people get`} your emails` +
+          (off > 0 ? `, and ${off} unsubscribed.` : ".") +
+          (data.total >= 900 ? " You're close to the free plan's 1,000." : "");
+    // Newest first; Resend's dates sort as text.
+    all = [...data.contacts].sort((x, y) =>
+      y.createdAt.localeCompare(x.createdAt),
+    );
+    if (searchWrap !== null) searchWrap.hidden = all.length < SEARCH_FROM;
+    draw();
+  };
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const email = input.value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      say("That email doesn't look right — check it and try again.");
+      input.focus();
+      return;
+    }
+    const btnEl = document.getElementById("list-add-send");
+    const btn = btnEl instanceof HTMLButtonElement ? btnEl : null;
+    if (btn !== null) btn.disabled = true;
+    say("Sending…");
+    api
+      .inviteContact(email)
+      .then((r) => {
+        input.value = "";
+        say(
+          r.already
+            ? `${email} is already on your list.`
+            : `Sent. ${email} joins when they tap the link in that email.`,
+        );
+      })
+      .catch((err: unknown) => {
+        say(`Couldn't send it: ${errorMessage(err)}`);
+      })
+      .finally(() => {
+        if (btn !== null) btn.disabled = false;
+      });
+  });
+
+  void load();
 }
 
 // Email broadcast to the whole list. The server fans out the send. The

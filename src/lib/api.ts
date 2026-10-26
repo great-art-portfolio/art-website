@@ -3,10 +3,13 @@ import { z } from "zod";
 import {
   announcementSchema,
   commitSchema,
+  contactsSchema,
   localBackendSchema,
   notifySchema,
   notifyStatusSchema,
+  okSchema,
   countSchema,
+  inviteSchema,
   paintingFileSchema,
   paintingFilesSchema,
   statusSchema,
@@ -346,6 +349,42 @@ export const api = {
     } catch {
       return null;
     }
+  },
+  /** Everyone on the list, with whether they've unsubscribed. */
+  async listContacts(): Promise<{
+    total: number;
+    contacts: Array<{
+      email: string;
+      unsubscribed: boolean;
+      createdAt: string;
+    }>;
+  }> {
+    return await request("/api/collectors?list=1", contactsSchema, {
+      headers: adminHeaders(),
+    });
+  },
+  /** Sends someone the confirm email; they join when they tap it. */
+  async inviteContact(email: string): Promise<{
+    already: boolean;
+    devConfirmUrl: string;
+  }> {
+    const r = await request("/api/collectors", inviteSchema, {
+      method: "POST",
+      headers: { ...adminHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "invite", email }),
+    });
+    return {
+      already: r.already === true,
+      devConfirmUrl: r.devConfirmUrl ?? "",
+    };
+  },
+  /** Takes someone off the list, with no goodbye email. */
+  async removeContact(email: string): Promise<void> {
+    await request("/api/collectors", okSchema, {
+      method: "POST",
+      headers: { ...adminHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "remove", email }),
+    });
   },
   async emailSubscriberCount(): Promise<number | null> {
     try {
