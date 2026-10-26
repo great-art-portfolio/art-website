@@ -45,9 +45,7 @@ const codes = cards.map((p) => {
               {c.sold ? " (sold)" : ""}
             </p>
             <p class="qr-scan">
-              {c.sold
-                ? "Scan with your phone camera to see it on the site."
-                : "Scan with your phone camera for the price and to try it on your wall."}
+              Scan with your phone camera to open this painting's page.
             </p>
             <p class="qr-url">{c.url}</p>
             <button type="button" class="qr-print-one" data-slug={c.slug}>
