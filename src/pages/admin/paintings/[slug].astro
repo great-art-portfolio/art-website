@@ -46,7 +46,10 @@ const data: PaintingDetailData = {
   image: painting.data.image,
   modelGlb: painting.data.modelGlb ?? "",
   modelUsdz: painting.data.modelUsdz ?? "",
-  mdPath: `src/content/paintings/${painting.id.endsWith(".md") ? painting.id : `${painting.id}.md`}`,
+  // The real file path: the entry id is lowercased and dashed.
+  mdPath:
+    painting.filePath ??
+    `src/content/paintings/${painting.id.endsWith(".md") ? painting.id : `${painting.id}.md`}`,
   slug: slugifyTitle(painting.data.title),
   draft: painting.data.draft === true,
 };

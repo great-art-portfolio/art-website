@@ -7,6 +7,7 @@ import {
   isTitleTaken,
   metaDescription,
   pageTitle,
+  slugifyTitle,
 } from "../../src/lib/site.ts";
 
 describe("pageTitle", () => {
@@ -146,7 +147,22 @@ describe("isTitleTaken", () => {
     assert.equal(isTitleTaken(taken, "Night Reeds", "prairie-moon"), true);
   });
 
-  it("treats two link-less titles as the same link", () => {
-    assert.equal(isTitleTaken(["!!!"], "???", null), true);
+  it("gives titles without plain letters their own links", () => {
+    assert.equal(isTitleTaken(["!!!"], "???", null), false);
+    assert.equal(isTitleTaken(["🌸"], "🌸", null), true);
+  });
+});
+
+describe("slugifyTitle", () => {
+  it("dashes plain titles", () => {
+    assert.equal(slugifyTitle("Night Reeds"), "night-reeds");
+    assert.equal(slugifyTitle("Café du Lac"), "cafe-du-lac");
+  });
+
+  it("gives letterless titles a stable, non-empty link", () => {
+    const a = slugifyTitle("🌸");
+    assert.match(a, /^painting-[0-9a-z]+$/);
+    assert.equal(slugifyTitle("🌸"), a);
+    assert.notEqual(slugifyTitle("夜"), a);
   });
 });

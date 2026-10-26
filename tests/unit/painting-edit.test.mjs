@@ -481,3 +481,33 @@ describe("rename history", () => {
     assert.equal(formatSlugHistory([]), "");
   });
 });
+
+describe("patchPainting never writes a file the build rejects", () => {
+  const edits = {
+    title: "Night Reeds",
+    price: "140.00",
+    alt: "Moody teal abstract",
+    description: "Rain over dark water.",
+    widthIn: "24",
+    heightIn: "24",
+    depthIn: "",
+    medium: "",
+    draft: false,
+    sold: false,
+  };
+
+  it("keeps $ sequences in her words literal", () => {
+    const next = patchPainting(SAMPLE, {
+      ...edits,
+      title: "Worth $' and $& and $$",
+    });
+    const title = next.match(/^title: (.*)$/m)?.[1];
+    assert.equal(JSON.parse(title), "Worth $' and $& and $$");
+    assert.equal(next.match(/^---$/gm)?.length, 2);
+  });
+
+  it("skips a size that rounds to zero", () => {
+    const next = patchPainting(SAMPLE, { ...edits, widthIn: "0.04" });
+    assert.doesNotMatch(next, /^widthIn: 0$/m);
+  });
+});
