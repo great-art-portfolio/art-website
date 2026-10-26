@@ -33,4 +33,14 @@ test-results/
 # jetbrains setting folder
 .idea/
 
-NEXT_PROMPT.md*.csv
+NEXT_PROMPT.md
+
+# Exports (subscriber lists, analytics) and anything secret: this repo is
+# public, so these must never be committed.
+*.csv
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
+*.pem
+*.key
