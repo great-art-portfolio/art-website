@@ -24,6 +24,12 @@ export const GET: APIRoute = async () => {
       image: (await getImage({ src: p.data.image, ...SHARE_IMAGE })).src,
       description: (p.body ?? "").trim(),
       added: p.data.dateAdded.toISOString().slice(0, 10),
+      // Earlier slugs, so a page left open from before a rename still
+      // finds its painting.
+      aliases: (p.data.slugHistory ?? "")
+        .split(",")
+        .map((s) => s.trim().toLowerCase())
+        .filter((s) => s !== ""),
     })),
   );
   return new Response(JSON.stringify({ paintings: items }), {

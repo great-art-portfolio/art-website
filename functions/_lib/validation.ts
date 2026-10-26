@@ -122,6 +122,7 @@ const catalogItemSchema = z.object({
   /** Her description and when it was added, for the writing helper. */
   description: z.string().default(""),
   added: z.string().default(""),
+  aliases: z.array(z.string()).default([]),
 });
 
 export type CatalogItem = z.infer<typeof catalogItemSchema>;
