@@ -124,9 +124,9 @@ describe("send-scheduled-alerts", () => {
       bodies.push(JSON.parse(init.body));
       return Response.json({ emailed: true, emailTotal: 12 });
     };
-    const r = await sendAlerts("https://barbart.ca", "nightly");
+    const r = await sendAlerts("https://barbart.ca", "nightly", "first-thaw");
     assert.deepEqual(r, { emailed: 12 });
-    assert.deepEqual(bodies, [{ email: true }]);
+    assert.deepEqual(bodies, [{ email: true, slug: "first-thaw" }]);
   });
 
   it("fails loudly when the site refuses", async () => {

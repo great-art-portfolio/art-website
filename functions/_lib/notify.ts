@@ -1,3 +1,4 @@
+import { formatDimensions } from "../../src/lib/dims";
 import { formatPriceCAD } from "../../src/lib/money";
 import type { AppEnv } from "./env";
 
@@ -363,6 +364,116 @@ export function segmentBroadcastEmail(
   return { subject: copy.subject, text, html };
 }
 
+/** One painting, as the new-painting email shows it. */
+export interface PaintingAlert {
+  slug: string;
+  title: string;
+  priceCents: number;
+  sold: boolean;
+  medium: string;
+  widthIn: number | null;
+  heightIn: number | null;
+  depthIn: number | null;
+  /** Her description, as written on the painting page. */
+  description: string;
+  alt: string;
+}
+
+export interface BroadcastMail {
+  subject: string;
+  text: string;
+  html: string;
+}
+
+/** Her description for the email: paragraphs kept, cut at a sentence
+ * once it runs past `max` characters. */
+export function emailDescription(text: string, max = 600): string[] {
+  const paras = text
+    .split(/\n\s*\n/)
+    .map((p) => p.replace(/\s+/g, " ").trim())
+    .filter((p) => p !== "");
+  const out: string[] = [];
+  let used = 0;
+  for (const p of paras) {
+    if (used + p.length <= max) {
+      out.push(p);
+      used += p.length;
+      continue;
+    }
+    const room = max - used;
+    const cut = p.slice(0, room).match(/^.*[.!?…](?=\s|$)/);
+    if (cut !== null) out.push(cut[0]);
+    else if (out.length === 0) out.push(`${p.slice(0, room).trimEnd()}…`);
+    break;
+  }
+  return out;
+}
+
+/** The email for a newly hung painting: its photo, title, price and size,
+ * her description, and a button to its page. The photo comes from
+ * /api/painting-image, a fixed address that serves the painting's share
+ * copy once the build that publishes it is live. */
+export function paintingAlertEmail(
+  site: string,
+  p: PaintingAlert,
+): BroadcastMail {
+  const page = `${site}/paintings/${p.slug}`;
+  const image = `${site}/api/painting-image?slug=${encodeURIComponent(p.slug)}`;
+  const facts = [
+    p.sold ? "Sold" : formatPriceCAD(p.priceCents),
+    p.medium,
+    formatDimensions(p.widthIn, p.heightIn, p.depthIn),
+  ].filter((s) => s !== "");
+  const words = emailDescription(p.description);
+  const subject = `New painting: ${p.title}`;
+  const text = [
+    `A new painting is hung in the gallery: ${p.title}`,
+    facts.join(" · "),
+    "",
+    ...words.flatMap((w) => [w, ""]),
+    `See it: ${page}`,
+    "",
+    "— Barbara",
+    "",
+    "Tired of these? Unsubscribe here:",
+    "",
+    "{{{RESEND_UNSUBSCRIBE_URL}}}",
+  ].join("\n");
+  const serif = "font-family:Georgia,'Times New Roman',serif;";
+  const sans =
+    "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;";
+  const html = [
+    '<!doctype html><html><body style="margin:0;padding:0;background-color:#f4eee1;">',
+    `<div style="max-width:560px;margin:0 auto;padding:32px 20px;${sans}color:#2b2721;">`,
+    `<p style="font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#a44a24;margin:0 0 12px;font-weight:bold;">New in the gallery</p>`,
+    `<a href="${escapeHtml(page)}" style="display:block;text-decoration:none;">`,
+    `<img src="${escapeHtml(image)}" width="520" alt="${escapeHtml(p.alt === "" ? p.title : p.alt)}" style="display:block;width:100%;max-width:520px;height:auto;border:0;background-color:#e9e0cf;" />`,
+    "</a>",
+    `<h1 style="${serif}font-size:28px;font-weight:normal;line-height:1.2;margin:20px 0 6px;">${escapeHtml(p.title)}</h1>`,
+    `<p style="font-size:15px;margin:0 0 16px;color:#6b6257;"><strong style="color:#a44a24;">${escapeHtml(facts[0] ?? "")}</strong>${facts
+      .slice(1)
+      .map((f) => ` · ${escapeHtml(f)}`)
+      .join("")}</p>`,
+    ...words.map(
+      (w) =>
+        `<p style="font-size:16px;line-height:1.6;margin:0 0 16px;">${escapeHtml(w)}</p>`,
+    ),
+    `<p style="margin:24px 0;"><a href="${escapeHtml(page)}" style="display:inline-block;background-color:#a44a24;color:#ffffff;text-decoration:none;font-size:16px;font-weight:bold;padding:12px 22px;border-radius:6px;">See it on the site</a></p>`,
+    '<p style="font-size:16px;margin:0 0 24px;">— Barbara</p>',
+    '<hr style="border:none;border-top:1px solid #d8cdb8;margin:0 0 16px;" />',
+    '<p style="font-size:13px;color:#6b6257;margin:0;">Tired of these? <a href="{{{RESEND_UNSUBSCRIBE_URL}}}" style="color:#a44a24;">Unsubscribe here</a></p>',
+    "</div></body></html>",
+  ].join("");
+  return { subject, text, html };
+}
+
+/** A ready-made email in place of the composed one, and a send time
+ * (Resend takes "in 10 min" or an ISO date). */
+export interface BroadcastOptions {
+  mail?: BroadcastMail | undefined;
+  scheduledAt?: string | undefined;
+}
+
 /** Broadcasts to the whole segment in one call. Returns false when
  * unconfigured. Blank fields fall back to the standard text. */
 export async function sendSegmentBroadcast(
@@ -370,6 +481,7 @@ export async function sendSegmentBroadcast(
   site: string,
   subject: unknown = "",
   body: unknown = "",
+  opts: BroadcastOptions = {},
 ): Promise<boolean> {
   const seg = segmentId(env);
   if (env.RESEND_API_KEY === undefined || env.RESEND_API_KEY === "") {
@@ -382,7 +494,7 @@ export async function sendSegmentBroadcast(
     subject: cleanSubject,
     text,
     html,
-  } = segmentBroadcastEmail(site, subject, body);
+  } = opts.mail ?? segmentBroadcastEmail(site, subject, body);
   try {
     const res = await fetch("https://api.resend.com/broadcasts", {
       method: "POST",
@@ -395,6 +507,9 @@ export async function sendSegmentBroadcast(
         text,
         html,
         send: true,
+        ...(opts.scheduledAt === undefined
+          ? {}
+          : { scheduled_at: opts.scheduledAt }),
       }),
     });
     if (!res.ok) console.error("resend broadcast error", await res.text());
@@ -477,6 +592,7 @@ export async function sendCollectorBroadcast(
   site: string,
   subject: unknown = "",
   body: unknown = "",
+  opts: BroadcastOptions = {},
 ): Promise<{ sent: number; total: number }> {
   const total = await countSegmentContacts(env).catch(() => 0);
   const inbox = artistInbox(env);
@@ -484,7 +600,7 @@ export async function sendCollectorBroadcast(
     return { sent: 0, total };
   }
   if (inbox === "" || total === 0) return { sent: 0, total };
-  const ok = await sendSegmentBroadcast(env, site, subject, body).catch(
+  const ok = await sendSegmentBroadcast(env, site, subject, body, opts).catch(
     () => false,
   );
   return { sent: ok ? total : 0, total };
