@@ -107,3 +107,15 @@ test("the English-only offline page offers no other languages", async ({
   await expect(page.locator(".lang-menu")).toHaveCount(0);
   await expect(page.locator("#lang-offer")).toHaveCount(0);
 });
+
+test("the studio's language ticks are small boxes beside each name", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/admin/guide");
+  const box = await page.locator("#lang-choices input").first().boundingBox();
+  expect(box?.width ?? 0).toBeLessThan(30);
+  // A name never wraps a character to a line.
+  const ja = await page.locator("#lang-choices span[lang='ja']").boundingBox();
+  expect(ja?.height ?? 99).toBeLessThan(40);
+});

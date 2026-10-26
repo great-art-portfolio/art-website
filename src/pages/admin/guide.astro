@@ -177,7 +177,7 @@ const offered = LOCALES.filter((l) => l.code !== "en");
     padding: 0;
     margin: 0.75rem 0 0;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
     gap: 0.25rem 1rem;
   }
   .langs legend {
@@ -185,14 +185,25 @@ const offered = LOCALES.filter((l) => l.code !== "en");
     margin-bottom: 0.5rem;
     font-weight: 600;
   }
+  /* One language per row: the box, its own name, then the English name
+     in grey. Never broken mid-name. */
   .langs label {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    justify-content: flex-start;
+    gap: 0.6rem;
     min-height: 2.75rem;
+    margin: 0;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .langs label span {
+    white-space: nowrap;
   }
   .langs .hint {
     font-size: 0.8rem;
+    font-weight: 400;
+    margin: 0;
   }
   #sec-info ul {
     list-style: none;
