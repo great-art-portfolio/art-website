@@ -767,16 +767,21 @@ const eyebrow =
     const box = document.getElementById("lightbox");
     if (box === null || box.hidden) return;
     box.hidden = true;
-    // The page stays unfocusable for a frame or two after fullscreen ends,
-    // so keep trying briefly.
-    const back = (tries = 10) => {
+    // The page can stay unfocusable for a while after fullscreen ends (a
+    // slow machine takes many frames), so keep trying for about a second,
+    // and once more when the window gets focus back.
+    const focusPhoto = () => {
+      const photo = document.getElementById("photo-wrap");
+      if (photo === null) return true;
+      photo.focus();
+      return document.activeElement === photo;
+    };
+    const back = (tries = 60) => {
       requestAnimationFrame(() => {
-        const photo = document.getElementById("photo-wrap");
-        if (photo === null) return;
-        photo.focus();
-        if (document.activeElement !== photo && tries > 0) back(tries - 1);
+        if (!focusPhoto() && tries > 0) back(tries - 1);
       });
     };
+    window.addEventListener("focus", () => void focusPhoto(), { once: true });
     void fullscreenRequest.then(() => {
       if (document.fullscreenElement !== null) {
         document.addEventListener("fullscreenchange", () => back(), {
