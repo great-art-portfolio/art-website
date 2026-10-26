@@ -48,7 +48,7 @@ export const METRICS_QUERY = `query Metrics($account: String!, $site: String!, $
     accounts(filter: { accountTag: $account }) {
       days: rumPageloadEventsAdaptiveGroups(limit: 40, filter: { datetime_geq: $from, datetime_leq: $to, ${FILTER} }, orderBy: [date_ASC]) { count dimensions { date } sum { visits } }
       before: rumPageloadEventsAdaptiveGroups(limit: 1, filter: { datetime_geq: $before, datetime_lt: $from, ${FILTER} }) { count sum { visits } }
-      pages: rumPageloadEventsAdaptiveGroups(limit: 100, filter: { datetime_geq: $from, datetime_leq: $to, ${FILTER}, requestPath_like: "/paintings/%" }, orderBy: [count_DESC]) { count dimensions { requestPath } }
+      pages: rumPageloadEventsAdaptiveGroups(limit: 100, filter: { datetime_geq: $from, datetime_leq: $to, ${FILTER}, requestPath_like: "%/paintings/%" }, orderBy: [count_DESC]) { count dimensions { requestPath } }
       sources: rumPageloadEventsAdaptiveGroups(limit: 50, filter: { datetime_geq: $from, datetime_leq: $to, ${FILTER} }, orderBy: [sum_visits_DESC]) { dimensions { refererHost } sum { visits } }
       places: rumPageloadEventsAdaptiveGroups(limit: 10, filter: { datetime_geq: $from, datetime_leq: $to, ${FILTER} }, orderBy: [sum_visits_DESC]) { dimensions { countryName } sum { visits } }
       devices: rumPageloadEventsAdaptiveGroups(limit: 5, filter: { datetime_geq: $from, datetime_leq: $to, ${FILTER} }, orderBy: [sum_visits_DESC]) { dimensions { deviceType } sum { visits } }
@@ -104,8 +104,9 @@ export function buildMetrics(
   // /paintings/x and /paintings/x/ are the same page.
   const paintingViews = new Map<string, number>();
   for (const p of rows.pages) {
+    // Every language's copy counts for the same painting.
     const slug = p.dimensions.requestPath
-      .replace(/^\/paintings\//, "")
+      .replace(/^(\/[a-z]{2})?\/paintings\//, "")
       .replace(/\/+$/, "");
     if (slug === "" || slug.includes("/")) continue;
     paintingViews.set(slug, (paintingViews.get(slug) ?? 0) + p.count);

@@ -1,23 +1,29 @@
 ---
 import Layout from "../layouts/Layout.astro";
+import { t } from "../i18n";
+import { localePath, type Locale } from "../i18n/locales";
+
+interface Props {
+  locale?: Locale | undefined;
+}
+const { locale = "en" } = Astro.props;
+const s = t(locale).notFound;
 ---
 
 <Layout
-  title="Not found — Barbara Straka Original Paintings"
-  description="This page doesn't exist. Browse the collection of original paintings instead."
+  title={s.title}
+  description={s.description}
   noindex
   noCanonical
+  locale={locale}
 >
   <main class="missing" id="main">
-    <p class="eyebrow">Off the wall — 404</p>
-    <h1>That wall is empty.</h1>
+    <p class="eyebrow">{s.eyebrow}</p>
+    <h1>{s.heading}</h1>
+    <p>{s.body}</p>
     <p>
-      The page you're looking for isn't here — it may have moved. The collection
-      is this way:
-    </p>
-    <p>
-      <a href="/#collection" class="btn-primary">
-        Browse the collection
+      <a href={localePath(locale, "/#collection")} class="btn-primary">
+        {s.browse}
       </a>
     </p>
   </main>

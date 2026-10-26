@@ -1,15 +1,28 @@
 ---
-import Layout from "../../layouts/Layout.astro";
+import Layout from "../layouts/Layout.astro";
+import { t } from "../i18n";
+import { localePath, type Locale } from "../i18n/locales";
+
+interface Props {
+  locale?: Locale | undefined;
+}
+const { locale = "en" } = Astro.props;
+const s = t(locale).emailPages;
+const msgs = {
+  needsLink: s.confirmNeedsLink,
+  ok: s.confirmed,
+  bad: s.confirmFailed,
+};
 ---
 
-<Layout title="You're on the list — Barbara Straka" noindex>
-  <main class="email-page" id="main">
-    <h1>New-painting alerts</h1>
+<Layout title={s.confirmedTitle} noindex locale={locale}>
+  <main class="email-page" id="main" data-msgs={JSON.stringify(msgs)}>
+    <h1>{s.heading}</h1>
     <p id="email-token-say" role="status">
-      Working…
+      {s.working}
     </p>
     <p>
-      <a href="/">Back to the gallery</a>
+      <a href={localePath(locale, "/")}>{s.back}</a>
     </p>
   </main>
 </Layout>
@@ -30,17 +43,20 @@ import Layout from "../../layouts/Layout.astro";
   const email = params.get("email") || "";
   const token = params.get("token") || "";
   const el = say instanceof HTMLParagraphElement ? say : null;
+  // The page's words, in its language.
+  let msgs = { needsLink: "", ok: "", bad: "" };
+  try {
+    msgs = JSON.parse(document.getElementById("main")?.dataset.msgs ?? "");
+  } catch {
+    // Keeps the blanks; the heading still says where they are.
+  }
   if (el !== null) {
     if (token === "" || email === "") {
-      el.textContent =
-        "This page needs its link — join from any Notify me box and tap the email we send.";
+      el.textContent = msgs.needsLink;
     } else {
-      void import("../../lib/email-token").then(function (lib) {
+      void import("../lib/email-token").then(function (lib) {
         lib.settleToken("confirm", email, token).then(function (verdict) {
-          el.textContent =
-            verdict === "ok"
-              ? "You're on the list — new paintings and events."
-              : "That link didn't work — it may be older than a week. Join again from any Notify me box.";
+          el.textContent = verdict === "ok" ? msgs.ok : msgs.bad;
         });
       });
     }

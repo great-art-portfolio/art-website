@@ -3,6 +3,14 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import Layout from "../layouts/Layout.astro";
 import { CREDITS } from "../lib/credits";
+import { t } from "../i18n";
+import type { Locale } from "../i18n/locales";
+
+interface Props {
+  locale?: Locale | undefined;
+}
+const { locale = "en" } = Astro.props;
+const s = t(locale);
 
 // Full licence texts from the installed packages, read once at build.
 // Direct dependencies sit at node_modules/<name>, pnpm included.
@@ -18,16 +26,15 @@ const credits = CREDITS.map((c) => ({
 ---
 
 <Layout
-  title="Credits"
-  description="The open-source software and fonts this gallery is built with, and their licences."
+  title={s.credits.title}
+  description={s.credits.description}
+  locale={locale}
+  alternates="/credits"
 >
   <main class="credits" id="main">
-    <h1>Credits</h1>
-    <p>
-      This gallery is built with free, open-source software and fonts. Their
-      makers ask that their licences travel with them, so here they are, with
-      thanks.
-    </p>
+    <h1>{s.credits.title}</h1>
+    <p>{s.credits.intro}</p>
+    {locale !== "en" && <p class="note">{s.credits.licenceNote}</p>}
     <ul>
       {credits.map((c) => (
         <li>
@@ -36,10 +43,10 @@ const credits = CREDITS.map((c) => ({
               {c.name}
             </a>
           </h2>
-          <p>{c.use}</p>
+          <p>{s.credits.uses[c.key]}</p>
           <details>
             <summary>{c.licence}</summary>
-            <pre>{c.text}</pre>
+            <pre lang="en">{c.text}</pre>
           </details>
         </li>
       ))}
@@ -68,6 +75,10 @@ const credits = CREDITS.map((c) => ({
     color: inherit;
     text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
     text-underline-offset: 0.2em;
+  }
+  .note {
+    color: var(--muted);
+    font-size: 0.9rem;
   }
   li p {
     margin: 0 0 0.35rem;

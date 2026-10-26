@@ -1,0 +1,9 @@
+---
+import Thanks from "../../views/Thanks.astro";
+import { localeParams } from "../../i18n";
+
+export const getStaticPaths = localeParams;
+const { locale } = Astro.params;
+---
+
+<Thanks locale={locale} />

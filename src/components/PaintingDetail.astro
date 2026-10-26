@@ -8,6 +8,8 @@ import { formatPriceCAD } from "../lib/money";
 import { paintingPageUrl, qrSvg } from "../lib/qr";
 import { PHOTO_WIDTHS, photoSizes } from "../lib/responsive-images";
 import { SHOW_PAGE_SHARE, SHOW_PRICES } from "../lib/site";
+import { t } from "../i18n";
+import type { Locale } from "../i18n/locales";
 
 export interface PaintingDetailData {
   title: string;
@@ -42,6 +44,13 @@ interface Props {
   editHref?: string;
   /** Preview route: the buyer layout with the inquiry form disabled. */
   preview?: boolean;
+  /** The buyer page's language. The studio rooms are always English. */
+  locale?: Locale | undefined;
+  /** The title and description shown are a translation of hers. */
+  translated?: boolean | undefined;
+  /** Her English title, which inquiries and checkout carry, when the
+   * page shows a translation. */
+  titleEn?: string | undefined;
 }
 
 const {
@@ -51,7 +60,11 @@ const {
   backLabel,
   editHref = "",
   preview = false,
+  locale = "en",
+  translated = false,
+  titleEn = data.title,
 } = Astro.props;
+const s = t(locale);
 const studio = mode !== "buy";
 const priceLabel = formatPriceCAD(Math.round(data.price * 100));
 const eyebrow =
@@ -60,14 +73,16 @@ const eyebrow =
       "EDITING · ONLY YOU CAN SEE THIS"
     : data.draft
       ? "Draft · only you can see this"
-      : "Original painting · one of a kind";
+      : s.painting.eyebrow;
 ---
 
 <main
   class="detail"
   id="main"
   data-mode={mode}
-  data-title={data.title}
+  data-title={titleEn}
+  data-locale={locale}
+  data-msgs={mode === "buy" ? JSON.stringify(s.paintingClient) : undefined}
   data-price-cents={Math.round(data.price * 100)}
   data-glb={data.modelGlb}
   data-usdz={data.modelUsdz}
@@ -84,7 +99,7 @@ const eyebrow =
         type="button"
         id="pg-share"
         class="crumbs-share"
-        aria-label="Share this painting"
+        aria-label={s.paintingClient.share}
         hidden
       >
         <svg
@@ -159,10 +174,10 @@ const eyebrow =
           <div
             class="frame"
             id="photo-wrap"
-            title="Tap to view fullscreen"
+            title={s.painting.tapFullscreen}
             role="button"
             tabindex="0"
-            aria-label={`View ${data.title} fullscreen`}
+            aria-label={s.painting.fullscreen(data.title)}
             transition:name={`painting-${data.slug}`}
           >
             {data.image !== undefined && (
@@ -179,7 +194,7 @@ const eyebrow =
                 decoding="async"
               />
             )}
-            {data.sold && <span class="badge sold">Sold</span>}
+            {data.sold && <span class="badge sold">{s.gallery.sold}</span>}
           </div>
           {studio && (
             <div class="tile-row">
@@ -256,8 +271,12 @@ const eyebrow =
         </section>
       )}
     </div>
-    <dialog id="lightbox" tabindex="-1" aria-label="Painting fullscreen view">
-      <button type="button" id="lightbox-close" aria-label="Close fullscreen">
+    <dialog id="lightbox" tabindex="-1" aria-label={s.painting.lightbox}>
+      <button
+        type="button"
+        id="lightbox-close"
+        aria-label={s.painting.closeFullscreen}
+      >
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
           <path
             d="M6 6l12 12M18 6L6 18"
@@ -494,18 +513,17 @@ const eyebrow =
         <>
           <h1>{data.title}</h1>
           {data.sold ? (
-            <p class="sold-note">This piece has found a home.</p>
+            <p class="sold-note">{s.painting.soldNote}</p>
           ) : SHOW_PRICES ? (
             <p class="price">{priceLabel}</p>
           ) : (
-            <p class="price-note">
-              Price on request — send a note below to ask.
-            </p>
+            <p class="price-note">{s.painting.priceOnRequest}</p>
           )}
           {data.meta !== "" && <p class="art-meta">{data.meta}</p>}
           <div class="desc">
             <slot />
           </div>
+          {translated && <p class="machine-note">{s.painting.machineNote}</p>}
         </>
       )}
       {!data.sold && !studio && !preview && (
@@ -513,12 +531,9 @@ const eyebrow =
           {SHOW_PRICES && (
             <div id="buy-box" hidden>
               <button type="button" id="buy-now" class="btn-primary">
-                Buy now · {priceLabel}
+                {s.painting.buyNow(priceLabel)}
               </button>
-              <p class="pay-note">
-                Card, Apple Pay, or Google Pay. Prefer Interac e-transfer, with
-                no card fees? Ask below and you'll get the details by email.
-              </p>
+              <p class="pay-note">{s.painting.payNote}</p>
               <p id="buy-status" role="status" />
             </div>
           )}
@@ -536,27 +551,25 @@ const eyebrow =
             </style>
           </noscript>
           <button type="button" id="inquiry-reveal" class="btn-primary">
-            Interested?
+            {s.painting.interested}
           </button>
           <form id="inquiry-form" hidden>
-            <h2>Ask about this painting</h2>
-            <p class="ship-note">
-              Shipping arranged with the artist after purchase.
-            </p>
+            <h2>{s.painting.formTitle}</h2>
+            <p class="ship-note">{s.painting.shipNote}</p>
             <label>
-              Name{" "}
+              {s.painting.name}{" "}
               <input name="name" type="text" required autocomplete="name" />
             </label>
             <label>
-              Email{" "}
+              {s.painting.email}{" "}
               <input name="email" type="email" required autocomplete="email" />
             </label>
             <label>
-              Message{" "}
+              {s.painting.message}{" "}
               <textarea
                 name="message"
                 rows="3"
-                placeholder="Hi, I love this piece…"
+                placeholder={s.painting.messagePlaceholder}
               ></textarea>
             </label>
             <input
@@ -569,7 +582,7 @@ const eyebrow =
             />
             <div id="turnstile-mount" />
             <button type="submit" class="btn-primary">
-              Send inquiry
+              {s.painting.send}
             </button>
             <p id="inquiry-status" role="status" />
           </form>
@@ -577,23 +590,17 @@ const eyebrow =
       )}
       {!studio && !data.sold && data.modelGlb !== "" && (
         <div id="ar-mount">
-          <h2>Try it on your wall</h2>
+          <h2>{s.painting.wallTitle}</h2>
           {/* One line per screen: phones get the how-to here, computers
               get it once, beside the QR code below. */}
-          <p class="hint ar-intro-touch">
-            Shown about true size. Tap <strong>View on your wall</strong>, then
-            point your phone where it would hang.
-          </p>
-          <p class="hint ar-intro-desk">Shown about true size.</p>
+          <p class="hint ar-intro-touch" set:html={s.painting.wallTouch} />
+          <p class="hint ar-intro-desk">{s.painting.wallDesk}</p>
           <div id="ar-stage">
             <div class="ar-skeleton" aria-hidden="true" />
           </div>
           <div class="ar-scan">
             <span class="ar-qr" set:html={qrSvg(paintingPageUrl(data.slug))} />
-            <p class="hint">
-              To see it on your wall, scan this with your phone's camera, then
-              tap <strong>View on your wall</strong>.
-            </p>
+            <p class="hint" set:html={s.painting.wallScan} />
           </div>
         </div>
       )}
@@ -605,6 +612,19 @@ const eyebrow =
   // Page data comes from #main data-* attributes. define:vars isn't used
   // because it skips bundling and breaks dynamic imports. View Transitions
   // keep this script alive across pages, so read dataset on each use.
+  function readMsgs() {
+    try {
+      const raw = document.getElementById("main")?.dataset.msgs ?? "{}";
+      return new Map(Object.entries(JSON.parse(raw)));
+    } catch {
+      return new Map();
+    }
+  }
+  /** The buyer page's words, in its language, from #main data-msgs. */
+  function pageMsg(key = "") {
+    const msg = readMsgs().get(key);
+    return typeof msg === "string" ? msg : "";
+  }
   function readPageData() {
     const pageData = document.getElementById("main")?.dataset;
     return {
@@ -693,7 +713,7 @@ const eyebrow =
           arButton.slot = "ar-button";
           arButton.type = "button";
           arButton.className = "ar-button";
-          arButton.textContent = "View on your wall";
+          arButton.textContent = pageMsg("viewOnWall") || "View on your wall";
           liveStage.replaceChildren(el);
           // One focus ring: hide the inner blue one, and mark keyboard
           // focus so the accent ring shows on the viewer instead.
@@ -859,7 +879,7 @@ const eyebrow =
         if ((data.get("website") ?? "") !== "") return; // honeypot
         const status = document.getElementById("inquiry-status");
         if (status === null) return;
-        say(status, "Sending…");
+        say(status, pageMsg("sending"));
         const live = readPageData();
         void Promise.all([import("../lib/queue"), inquiryToken()]).then(
           ([{ queuePost }, turnstileToken]) =>
@@ -871,16 +891,18 @@ const eyebrow =
               message: String(data.get("message") ?? ""),
               website: "",
               turnstileToken,
+              // So she knows which language they read the page in.
+              locale: document.getElementById("main")?.dataset.locale ?? "en",
             }).then((result) => {
               say(
                 status,
                 result === "sent"
-                  ? "Thanks — your note has been sent to the artist."
+                  ? pageMsg("sent")
                   : result === "queued"
-                    ? "Saved — it will send automatically when you're back online."
+                    ? pageMsg("savedOffline")
                     : result === "check"
-                      ? "One more step — finish the quick check above, then tap Send inquiry again."
-                      : "That didn't go through — check your email address and try again.",
+                      ? pageMsg("finishCheck")
+                      : pageMsg("failed"),
               );
               if (result === "sent") form.reset();
             }),
@@ -924,7 +946,7 @@ const eyebrow =
             const ask = document.getElementById("inquiry-reveal");
             if (ask !== null) {
               ask.classList.add("is-quiet");
-              ask.textContent = "Ask a question";
+              ask.textContent = pageMsg("askQuestion");
             }
             // Back from Stripe restores the page from the cache with the
             // button still disabled.
@@ -935,7 +957,7 @@ const eyebrow =
             btn.addEventListener("click", () => {
               const live = readPageData();
               btn.disabled = true;
-              say(status, "Opening secure checkout…");
+              say(status, pageMsg("openingCheckout"));
               void startCheckout({
                 slug: live.slug,
                 title: live.title,
@@ -965,8 +987,7 @@ const eyebrow =
         typeof navigator.share === "function" &&
         (typeof navigator.canShare !== "function" ||
           navigator.canShare({ url: window.location.href }));
-      if (!nativeShare)
-        btn.setAttribute("aria-label", "Copy the link to this painting");
+      if (!nativeShare) btn.setAttribute("aria-label", pageMsg("copyLink"));
       btn.hidden = false;
       btn.addEventListener("click", () => {
         const live = readPageData();
@@ -984,9 +1005,8 @@ const eyebrow =
               if (idle === null || tick === null) return;
               idle.classList.add("is-parked");
               tick.classList.remove("is-parked");
-              const back =
-                btn.getAttribute("aria-label") ?? "Share this painting";
-              btn.setAttribute("aria-label", "Copied.");
+              const back = btn.getAttribute("aria-label") ?? pageMsg("share");
+              btn.setAttribute("aria-label", pageMsg("copied"));
               window.setTimeout(() => {
                 if (!document.contains(btn)) return;
                 idle.classList.remove("is-parked");
@@ -996,9 +1016,7 @@ const eyebrow =
             } else if (result === "failed") {
               btn.setAttribute(
                 "aria-label",
-                nativeShare
-                  ? "Couldn't share — try again."
-                  : "Couldn't copy — hold the address bar to copy it.",
+                nativeShare ? pageMsg("shareFailed") : pageMsg("copyFailed"),
               );
             }
           }),
@@ -1628,6 +1646,11 @@ const eyebrow =
   }
   form[hidden] {
     display: none;
+  }
+  .machine-note {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin: 0.5rem 0 0;
   }
   /* Fade in when "Interested?" reveals the form. */
   #inquiry-form.revealed {

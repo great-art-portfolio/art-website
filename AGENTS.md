@@ -87,6 +87,17 @@ API-dependent helpers to `lib/api.ts`).
   hides a painting from gallery, buyer pages, and static paths until
   published. Saving commits .md + photo (+ AR models); Pages rebuilds —
   live in a few minutes.
+- Languages: the public site is built in English at the root and in each
+  language she ticks on the Guide page (`src/content/languages.json`)
+  under `/<code>/`. Every buyer-facing word lives in `src/i18n/en.ts`;
+  the other language files have its exact shape (a missing line is a type
+  error). Pages are views in `src/views/` rendered by `src/pages/*` (English)
+  and `src/pages/[locale]/*`. Her painting and banner words are translated
+  by Muse when she saves (`/api/translate`, never on localhost unless
+  `TRANSLATE_LOCAL=true`) into `src/content/translations/<md stem>.json`,
+  keyed by a hash of the English; a stale or missing translation shows her
+  English, and the dashboard catches it up. Inquiries and checkout always
+  carry her English title. The studio stays English.
 - `/admin/*` is behind Cloudflare Access (email OTP) in production;
   `ADMIN_API_TOKEN` is local backup, remembered per browser.
 - Dev practice: on localhost without a token, studio saves go to a

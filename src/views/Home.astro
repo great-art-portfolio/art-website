@@ -84,14 +84,12 @@ const share =
         )
       )}
       <dl class="hero-meta">
-        {
-          s.home.points.map(([term, detail]) => (
-            <div>
-              <dt>{term}</dt>
-              <dd>{detail}</dd>
-            </div>
-          ))
-        }
+        {s.home.points.map(([term, detail]) => (
+          <div>
+            <dt>{term}</dt>
+            <dd>{detail}</dd>
+          </div>
+        ))}
       </dl>
     </section>
 
@@ -106,7 +104,9 @@ const share =
           </h2>
         </div>
         <div class="about-body">
-          {s.home.about.map((para) => <p set:html={para} />)}
+          {s.home.about.map((para) => (
+            <p set:html={para} />
+          ))}
         </div>
       </div>
     </section>
