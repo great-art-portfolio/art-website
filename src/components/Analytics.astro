@@ -3,16 +3,28 @@
 // page HTML, so it's kept here as a fallback. PUBLIC_CF_BEACON_TOKEN in the
 // Pages build environment overrides it. The beacon uses no cookies or
 // fingerprinting, so no consent banner is needed (see /privacy).
+// It never runs in the studio (her own visits aren't buyers) or on any
+// copy other than the live site (previews, tests, local builds).
+interface Props {
+  studio?: boolean;
+}
+const { studio = false } = Astro.props;
 const token =
   (import.meta.env.PUBLIC_CF_BEACON_TOKEN as string | undefined) ||
   "ddd0b31f86c24e31a4fbabd86185e210";
+const beacon = JSON.stringify({ token });
 ---
 
-{token !== undefined && token !== "" && (
-  <script
-    is:inline
-    defer
-    src="https://static.cloudflareinsights.com/beacon.min.js"
-    data-cf-beacon={`{"token": "${token}"}`}
-  ></script>
-)}
+{!studio && token !== "" && <script is:inline data-beacon={beacon}>
+  (function () {
+    if (location.hostname !== "barbart.ca") return;
+    const s = document.createElement("script");
+    s.defer = true;
+    s.src = "https://static.cloudflareinsights.com/beacon.min.js";
+    s.setAttribute(
+      "data-cf-beacon",
+      document.currentScript.getAttribute("data-beacon"),
+    );
+    document.head.appendChild(s);
+  })();
+</script>}

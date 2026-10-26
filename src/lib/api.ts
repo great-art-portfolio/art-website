@@ -18,6 +18,7 @@ import {
   viewsSchema,
 } from "./schemas";
 import { commitBatches } from "./commit-batches";
+import type { SiteMetrics } from "./schemas";
 import { parsePainting } from "./painting-edit";
 import { slugifyTitle } from "./site";
 
@@ -288,17 +289,22 @@ export const api = {
   },
   async paintingViews(): Promise<{
     views: Array<{ slug: string; views: number }>;
+    metrics: SiteMetrics | null;
     unconfigured: boolean;
   }> {
     try {
       const data = await request("/api/analytics", viewsSchema, {
         headers: adminHeaders(),
       });
-      return { views: data.views, unconfigured: data.unconfigured === true };
+      return {
+        views: data.views,
+        metrics: data.metrics ?? null,
+        unconfigured: data.unconfigured === true,
+      };
     } catch (err) {
       // A 401 means a bad token. Callers treat other errors as unconfigured.
       if (err instanceof ApiError && err.status === 401) throw err;
-      return { views: [], unconfigured: true };
+      return { views: [], metrics: null, unconfigured: true };
     }
   },
   /** Emails the list the standard new-painting note (a publish alert). */

@@ -25,14 +25,68 @@ const seedJson = JSON.stringify(seed).replace(/</g, "\\u003c");
     <section id="sec-views" class="prose">
       <h2>Metrics</h2>
       <p>
-        Most viewed first — the past 30 days. Ties favor what's still for sale.
+        Visits to your public site over the past 30 days. Your own visits to the
+        studio aren't counted, and the numbers are estimates, rounded to tens.
       </p>
       <p class="metrics-total">
         <strong id="stats-total">—</strong>
-        <span>views in the past 30 days</span>
+        <span>visits in the past 30 days</span>
       </p>
+      <p class="hint" id="stats-trend"></p>
+      <figure id="stats-chart" hidden>
+        <svg
+          id="stats-bars"
+          viewBox="0 0 300 80"
+          preserveAspectRatio="none"
+          role="img"
+          aria-labelledby="stats-chart-label"
+        ></svg>
+        <div class="chart-axis" aria-hidden="true">
+          <span id="stats-first-day"></span>
+          <span>Today</span>
+        </div>
+        <figcaption id="stats-chart-label">
+          Tap or hover over a day to see its visits.
+        </figcaption>
+        <table class="visually-hidden" id="stats-table">
+          <caption>Visits per day</caption>
+          <thead>
+            <tr>
+              <th>Day</th>
+              <th>Visits</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </figure>
+      <h3>Most viewed paintings</h3>
       <ul id="stats-body"></ul>
+      <div class="breakdowns">
+        <section aria-labelledby="stats-sources-title">
+          <h3 id="stats-sources-title">Where visitors come from</h3>
+          <ul class="breakdown" id="stats-sources"></ul>
+        </section>
+        <section aria-labelledby="stats-places-title">
+          <h3 id="stats-places-title">Where they are</h3>
+          <ul class="breakdown" id="stats-places"></ul>
+        </section>
+        <section aria-labelledby="stats-devices-title">
+          <h3 id="stats-devices-title">Phone or computer</h3>
+          <ul class="breakdown" id="stats-devices"></ul>
+        </section>
+      </div>
       <p class="hint" id="stats-note"></p>
+      <p class="hint">
+        From{" "}
+        <a
+          href="https://www.cloudflare.com/web-analytics/"
+          target="_blank"
+          rel="noopener"
+        >
+          Cloudflare Web Analytics
+        </a>{" "}
+        — free, with no cookies and nothing that follows people around.
+      </p>
       <script
         is:inline
         type="application/json"
@@ -46,8 +100,112 @@ const seedJson = JSON.stringify(seed).replace(/</g, "\\u003c");
 <script src="../../components/StatsPanel.ts"></script>
 
 <style>
-  #stats-note:empty {
+  #stats-note:empty,
+  #stats-trend:empty,
+  #stats-chart[hidden] {
     display: none;
+  }
+  #stats-trend {
+    margin: -1.25rem 0 1.5rem;
+  }
+  /* Daily visits: thin accent bars on a quiet baseline, no grid. */
+  #stats-chart {
+    margin: 0 0 2.5rem;
+    --bar: var(--accent);
+  }
+  @media (prefers-color-scheme: dark) {
+    :global(:root:not([data-theme="light"])) #stats-chart {
+      --bar: #c47650;
+    }
+  }
+  :global(:root[data-theme="dark"]) #stats-chart {
+    --bar: #c47650;
+  }
+  #stats-bars {
+    display: block;
+    width: 100%;
+    height: 7rem;
+    overflow: visible;
+  }
+  #stats-bars :global(.bar) {
+    fill: var(--bar);
+    transition: opacity 0.2s ease;
+  }
+  #stats-bars :global(.hit) {
+    fill: transparent;
+    cursor: pointer;
+  }
+  #stats-bars :global(.base) {
+    stroke: var(--line);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
+  #stats-bars:has(:global(.hit:hover)) :global(.bar),
+  #stats-bars:global(.picking) :global(.bar) {
+    opacity: 0.45;
+  }
+  #stats-bars :global(.bar.on) {
+    opacity: 1 !important;
+  }
+  .chart-axis {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.4rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  #stats-chart figcaption {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  h3 {
+    margin: 2.5rem 0 1rem;
+  }
+  /* Three short lists side by side on a wide screen, stacked on a phone. */
+  .breakdowns {
+    display: grid;
+    gap: 0 2rem;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  }
+  .breakdown {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.8rem;
+  }
+  .breakdown :global(li) {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-bottom: 0.45rem;
+  }
+  .breakdown :global(.n) {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+  .breakdown :global(.share) {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--accent);
+    opacity: 0.55;
+  }
+  .breakdown :global(.empty) {
+    color: var(--muted);
   }
   /* The total is the main figure, so it's large and full ink. */
   .metrics-total {
