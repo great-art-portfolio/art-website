@@ -11,7 +11,7 @@
 
 import type { Tile } from "./gallery-layout";
 
-export const GALLERY_WIDTHS = [400, 700, 1000, 1400];
+export const GALLERY_WIDTHS = [400, 700, 1000, 1200, 1400];
 export const SOLD_WIDTHS = [400, 700];
 export const PHOTO_WIDTHS = [640, 960, 1280, 1600];
 
