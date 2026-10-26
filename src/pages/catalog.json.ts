@@ -8,7 +8,8 @@ import { isPublished, slugifyTitle } from "../lib/site";
 // state as of this build. /api/checkout reads it through the static assets
 // binding, so a browser can't name its own price. `file` is the .md the
 // payment webhook marks sold. `image` is the share copy the new-painting
-// email shows, through /api/painting-image.
+// email shows, through /api/painting-image. Descriptions and dates teach
+// the writing helper her voice (they're on the public pages anyway).
 export const GET: APIRoute = async () => {
   const paintings = (await getCollection("paintings")).filter((p) =>
     isPublished(p.data),
@@ -21,6 +22,8 @@ export const GET: APIRoute = async () => {
       sold: p.data.sold,
       file: p.filePath ?? "",
       image: (await getImage({ src: p.data.image, ...SHARE_IMAGE })).src,
+      description: (p.body ?? "").trim(),
+      added: p.data.dateAdded.toISOString().slice(0, 10),
     })),
   );
   return new Response(JSON.stringify({ paintings: items }), {
