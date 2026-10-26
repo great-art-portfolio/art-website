@@ -149,13 +149,8 @@ describe("confirm", () => {
     );
     assert.equal(res.status, 200);
     assert.deepEqual(await res.json(), { ok: true });
-    assert.ok(
-      calls.some(
-        (c) =>
-          c.url === "https://api.resend.com/contacts/fan%40example.com" &&
-          c.init.method === "DELETE",
-      ),
-    );
+    // Never deleted first: a failed re-add would drop a subscriber.
+    assert.ok(!calls.some((c) => c.init?.method === "DELETE"));
     assert.ok(
       calls.some(
         (c) =>
@@ -163,6 +158,18 @@ describe("confirm", () => {
           c.init.method === "POST",
       ),
     );
+  });
+
+  it("says so when Resend won't add them, so they can retry", async () => {
+    stubEmptyList();
+    await onRequestPost(postContext({ email: "fan@example.com" }));
+    const { email, token } = confirmLinkOf("fan@example.com");
+    stubFetch(() => failRes());
+    const res = await onRequestPost(
+      postContext({ action: "confirm", email, token }),
+    );
+    assert.equal(res.status, 500);
+    assert.match((await res.json()).error, /tap the link again/);
   });
 
   it("rejects tampered and expired links", async () => {
