@@ -74,7 +74,9 @@ const data: PaintingDetailData = {
   image: painting.data.image,
   modelGlb,
   modelUsdz: modelGlb === "" ? "" : (painting.data.modelUsdz ?? ""),
-  mdPath: `src/content/paintings/${painting.id.endsWith(".md") ? painting.id : `${painting.id}.md`}`,
+  mdPath:
+    painting.filePath ??
+    `src/content/paintings/${painting.id.endsWith(".md") ? painting.id : `${painting.id}.md`}`,
   slug: slugifyTitle(painting.data.title),
   draft: false,
 };
@@ -88,17 +90,35 @@ const share = await getImage({
   quality: 72,
 });
 const description = metaDescription(painting.body ?? "", painting.data.alt);
-// Search engines want the photo itself here, not the page it sits on.
+// Search engines want the photo itself here, not the page it sits on: the
+// 1200px share copy, never the print-quality original.
+const inches = (v: number | undefined) =>
+  v === undefined
+    ? undefined
+    : { "@type": "QuantitativeValue", value: v, unitCode: "INH" };
 const paintingJsonLd = {
   "@context": "https://schema.org",
-  "@type": "Product",
+  "@type": ["Product", "VisualArtwork"],
   name: painting.data.title,
   url: pageUrl,
-  image: new URL(painting.data.image.src, SITE_URL).href,
+  image: new URL(share.src, SITE_URL).href,
   description,
+  artform: "Painting",
+  ...(painting.data.medium === undefined || painting.data.medium === ""
+    ? {}
+    : { artMedium: painting.data.medium }),
+  ...(painting.data.widthIn === undefined
+    ? {}
+    : { width: inches(painting.data.widthIn) }),
+  ...(painting.data.heightIn === undefined
+    ? {}
+    : { height: inches(painting.data.heightIn) }),
   ...(ARTIST_NAME === null
     ? {}
-    : { brand: { "@type": "Brand", name: ARTIST_NAME } }),
+    : {
+        brand: { "@type": "Brand", name: ARTIST_NAME },
+        creator: { "@type": "Person", name: ARTIST_NAME },
+      }),
   offers: {
     "@type": "Offer",
     url: pageUrl,
@@ -116,6 +136,8 @@ const paintingJsonLd = {
   description={description}
   canonical={`/paintings/${data.slug}`}
   image={share.src}
+  imageAlt={painting.data.alt === "" ? painting.data.title : painting.data.alt}
+  product={{ price: painting.data.price, sold: painting.data.sold }}
 >
   <PaintingDetail
     mode="buy"

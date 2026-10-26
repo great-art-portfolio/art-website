@@ -159,6 +159,11 @@ describe("slugifyTitle", () => {
     assert.equal(slugifyTitle("Café du Lac"), "cafe-du-lac");
   });
 
+  it("never takes the old studio link addresses", () => {
+    assert.equal(slugifyTitle("Create"), "create-painting");
+    assert.equal(slugifyTitle("Edit"), "edit-painting");
+  });
+
   it("gives letterless titles a stable, non-empty link", () => {
     const a = slugifyTitle("🌸");
     assert.match(a, /^painting-[0-9a-z]+$/);
