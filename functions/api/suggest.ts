@@ -1,10 +1,26 @@
 import type { AppEnv } from "../_lib/env";
 import { badRequest, json, notEnabled, requireAdmin } from "../_lib/http";
 import {
+  NO_VOICE,
   parseSuggestInput,
   suggestEnabled,
   suggestWords,
+  voiceFrom,
+  type Voice,
 } from "../_lib/suggest";
+import { parseCatalog } from "../_lib/validation";
+
+/** Her gallery's titles and descriptions, so ideas sound like her. None
+ * when the catalog can't be read (the dev studio has no build). */
+async function galleryVoice(env: AppEnv, request: Request): Promise<Voice> {
+  try {
+    const origin = new URL(request.url).origin;
+    const res = await env.ASSETS.fetch(new Request(`${origin}/catalog.json`));
+    return res.ok ? voiceFrom(parseCatalog(await res.json())) : NO_VOICE;
+  } catch {
+    return NO_VOICE;
+  }
+}
 
 /** Admin: whether the title and description helper is set up, so the
  * studio only shows its button when it can work. */
@@ -30,7 +46,8 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   const input = parseSuggestInput(raw);
   if (input === null) return badRequest("Add a photo first");
   try {
-    return json(await suggestWords(context.env, input));
+    const voice = await galleryVoice(context.env, context.request);
+    return json(await suggestWords(context.env, input, voice));
   } catch (err) {
     console.error(err);
     return json(

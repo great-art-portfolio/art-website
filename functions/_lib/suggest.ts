@@ -51,15 +51,62 @@ export function parseSuggestInput(raw: unknown): SuggestInput | null {
   };
 }
 
-export const SYSTEM_PROMPT = [
-  "You help Barbara Straka, a painter in Calgary, Alberta, name and describe her original paintings for the shop on her website.",
-  "She paints nature and abstraction: prairie light, quiet water, and colour studies between landscape and feeling.",
-  "Look closely at the photo of the painting. Write the way she talks to a buyer: plain, warm, specific words.",
-  "Canadian spelling. No hype or clichés (stunning, masterpiece, captivating, evocative, vibrant, tapestry, symphony), no emoji, no hashtags, no exclamation marks.",
-  "Don't invent facts you can't see, like place names or materials, unless her notes give them. Don't mention the price or the artist's name.",
-  "Here is one description she wrote, for her tone: “A pale moon hangs over stacked bands of white cliff, black rock, and rust-red earth — the prairies reduced to their shapes and colours. Warm, grounded, and quietly dramatic.”",
-  'Reply with JSON only, no other text: {"titles": [three different short titles, one to four words each, no quotation marks], "description": "two or three sentences, under 60 words", "alt": "one literal sentence under 140 characters describing the image for someone who can\'t see it"}',
-].join("\n");
+/** Her own words, so ideas come out in her voice: descriptions she
+ * wrote (newest first) and every title already in the gallery. */
+export interface Voice {
+  examples: Array<{ title: string; description: string }>;
+  taken: string[];
+}
+
+export const NO_VOICE: Voice = { examples: [], taken: [] };
+
+/** Used until the gallery has descriptions of its own. */
+const FALLBACK_EXAMPLE = {
+  title: "Prairie Moon",
+  description:
+    "A pale moon hangs over stacked bands of white cliff, black rock, and rust-red earth — the prairies reduced to their shapes and colours. Warm, grounded, and quietly dramatic.",
+};
+
+export function systemPrompt(voice: Voice): string {
+  const examples =
+    voice.examples.length > 0 ? voice.examples : [FALLBACK_EXAMPLE];
+  return [
+    "You help Barbara Straka, a painter in Calgary, Alberta, name and describe her original paintings for the shop on her website.",
+    "She paints nature and abstraction: prairie light, quiet water, and colour studies between landscape and feeling.",
+    "Look closely at the photo: the colours, the shapes and how they move, the marks and texture. Then say what it brings to mind, the way she would.",
+    "Her descriptions follow one pattern: a sentence on what you see (colours and shapes, concretely), a short line on the feeling, and often a closing line about the painting in a room or on a wall. Plain, warm, specific words. Canadian spelling.",
+    "Her titles are one to three words: a place, a season, water, weather, or another natural thing. Never clever or abstract-sounding.",
+    ...(voice.taken.length > 0
+      ? [
+          `Titles already in her gallery, so don't reuse or echo them: ${voice.taken.join(", ")}.`,
+        ]
+      : []),
+    "No hype or clichés (stunning, masterpiece, captivating, evocative, vibrant, tapestry, symphony), no emoji, no hashtags, no exclamation marks.",
+    "Don't invent facts you can't see, like place names or materials, unless her notes give them. Don't mention the price or the artist's name.",
+    "Descriptions she wrote, for her voice:",
+    ...examples.map((e) => `“${e.title}”: ${e.description}`),
+    'Reply with JSON only, no other text: {"titles": [three different short titles, one to three words each, no quotation marks], "description": "two or three sentences, under 60 words", "alt": "one literal sentence under 140 characters describing the image for someone who can\'t see it"}',
+  ].join("\n");
+}
+
+/** Her gallery as the build knows it, from /catalog.json: the newest
+ * eight descriptions and every title. */
+export function voiceFrom(
+  catalog: Array<{ title: string; description: string; added: string }>,
+): Voice {
+  const examples = catalog
+    .filter((p) => p.description.trim() !== "")
+    .sort((a, b) => b.added.localeCompare(a.added))
+    .slice(0, 8)
+    .map((p) => ({
+      title: p.title,
+      description: p.description.replace(/\s+/g, " ").trim().slice(0, 400),
+    }));
+  return { examples, taken: catalog.map((p) => p.title).slice(0, 80) };
+}
+
+/** The prompt with no gallery to learn from. */
+export const SYSTEM_PROMPT = systemPrompt(NO_VOICE);
 
 /** The user turn: what she already knows, then the photo. */
 export function userContent(input: SuggestInput): unknown[] {
@@ -114,6 +161,7 @@ export function suggestEnabled(env: AppEnv): boolean {
 export async function suggestWords(
   env: AppEnv,
   input: SuggestInput,
+  voice: Voice = NO_VOICE,
 ): Promise<Suggestion> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -128,7 +176,7 @@ export async function suggestWords(
         model: env.MUSE_MODEL ?? MUSE_MODEL,
         reasoning_effort: "low",
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: systemPrompt(voice) },
           { role: "user", content: userContent(input) },
         ],
       }),

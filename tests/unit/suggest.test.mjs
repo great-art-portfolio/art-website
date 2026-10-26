@@ -6,7 +6,9 @@ import {
   parseSuggestInput,
   parseSuggestion,
   suggestWords,
+  systemPrompt,
   userContent,
+  voiceFrom,
 } from "../../functions/_lib/suggest.ts";
 import { onRequestGet, onRequestPost } from "../../functions/api/suggest.ts";
 
@@ -202,5 +204,71 @@ describe("/api/suggest", () => {
     });
     assert.equal(res.status, 502);
     assert.match((await res.json()).error, /try again/);
+  });
+});
+
+describe("her voice", () => {
+  const catalog = [
+    { title: "Old One", description: "Older words.", added: "2026-01-01" },
+    { title: "No Words", description: "", added: "2026-09-01" },
+    ...Array.from({ length: 9 }, (_, i) => ({
+      title: `New ${i}`,
+      description: `Newer words ${i}.`,
+      added: `2026-10-0${i + 1}`,
+    })),
+  ];
+
+  it("learns from her newest eight descriptions and every title", () => {
+    const voice = voiceFrom(catalog);
+    assert.equal(voice.examples.length, 8);
+    assert.equal(voice.examples[0].title, "New 8");
+    assert.ok(!voice.examples.some((e) => e.title === "Old One"));
+    assert.ok(!voice.examples.some((e) => e.title === "No Words"));
+    assert.equal(voice.taken.length, catalog.length);
+  });
+
+  it("puts her words and taken titles in the prompt", () => {
+    const prompt = systemPrompt(voiceFrom(catalog));
+    assert.match(prompt, /“New 8”: Newer words 8\./);
+    assert.match(prompt, /don't reuse or echo them: Old One, No Words/);
+    // With no gallery yet, one example of hers still sets the tone.
+    assert.match(
+      systemPrompt({ examples: [], taken: [] }),
+      /“Prairie Moon”: A pale moon/,
+    );
+  });
+
+  it("reads the gallery from the build for every suggestion", async () => {
+    let system = "";
+    globalThis.fetch = async (_url, init) => {
+      system = JSON.parse(init.body).messages[0].content;
+      return Response.json({
+        choices: [{ message: { content: JSON.stringify(ideas) } }],
+      });
+    };
+    const res = await onRequestPost({
+      request: post({ image: IMAGE }),
+      env: {
+        MUSE_API_KEY: "k",
+        ASSETS: {
+          fetch: async () =>
+            Response.json({
+              paintings: [
+                {
+                  slug: "shoreline",
+                  title: "Shoreline",
+                  priceCents: 15000,
+                  sold: false,
+                  file: "src/content/paintings/x.md",
+                  description: "Pale blues curve like a shoreline.",
+                  added: "2026-09-01",
+                },
+              ],
+            }),
+        },
+      },
+    });
+    assert.equal(res.status, 200);
+    assert.match(system, /“Shoreline”: Pale blues curve like a shoreline\./);
   });
 });

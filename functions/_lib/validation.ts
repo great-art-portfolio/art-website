@@ -119,6 +119,9 @@ const catalogItemSchema = z.object({
   file: z.string(),
   /** The share copy's built path; older builds have none. */
   image: z.string().default(""),
+  /** Her description and when it was added, for the writing helper. */
+  description: z.string().default(""),
+  added: z.string().default(""),
 });
 
 export type CatalogItem = z.infer<typeof catalogItemSchema>;
