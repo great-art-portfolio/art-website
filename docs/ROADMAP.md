@@ -8,7 +8,7 @@
 
 ## Waiting on someone
 
-- [ ] Email forwarding (2026-10-26): Cloudflare Email Routing is on and sent her Gmail a verify link. Once she taps it: add rules forwarding `artist@barbart.ca` and `hello@barbart.ca` to her Gmail, then set the `ARTIST_INBOX` secret to `artist@barbart.ca` (not before, or inquiries bounce).
+- [x] Email forwarding (2026-10-26): `artist@barbart.ca` and `hello@barbart.ca` forward to her Gmail (Cloudflare Email Routing), and `ARTIST_INBOX` is `artist@barbart.ca`.
 - [ ] Then, for Chris on her Gmail (web): Settings → Accounts → "Send mail as" → add `artist@barbart.ca` via SMTP `smtp.resend.com`, port 465, user `resend`, password a Resend key with sending access to barbart.ca; confirm the code that arrives; set "Reply from the same address the message was sent to".
 - [ ] Card checkout: her Stripe sign-up (instructions sent), then the go-live steps below.
 
