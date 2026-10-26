@@ -47,9 +47,24 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     const config = gitConfig(env);
     if (config !== null && PAINTING_FILE.test(sellable.item.file)) {
       const md = await readTextFile(config, sellable.item.file);
-      if (md !== null && parsePainting(md)?.sold === true)
+      const live = md === null ? null : parsePainting(md);
+      if (live?.sold === true)
         return json(
           { error: "Sorry, this painting has just sold." },
+          { status: 409 },
+        );
+      // Taken down, or repriced, in the studio since the last build.
+      if (live !== null && (live.draft || live.trash))
+        return json(
+          { error: "That painting isn't for sale." },
+          { status: 404 },
+        );
+      if (
+        live !== null &&
+        Math.round(Number(live.price) * 100) !== sellable.item.priceCents
+      )
+        return json(
+          { error: "This page is out of date. Reload it and try again." },
           { status: 409 },
         );
     }
