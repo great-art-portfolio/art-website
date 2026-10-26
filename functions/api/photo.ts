@@ -1,4 +1,4 @@
-import { gitConfig, readBinaryFile } from "../_lib/github";
+import { fetchRawFile, gitConfig } from "../_lib/github";
 import type { AppEnv } from "../_lib/env";
 import { badRequest, githubFailure, requireAdmin } from "../_lib/http";
 
@@ -25,11 +25,11 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
   const path = new URL(context.request.url).searchParams.get("path") ?? "";
   if (!PHOTO_FILE.test(path)) return badRequest("Unknown photo");
   try {
-    const bytes = await readBinaryFile(config, path);
-    if (bytes === null) return badRequest("Unknown photo");
+    const raw = await fetchRawFile(config, path);
+    if (raw === null) return badRequest("Unknown photo");
     const ext = (path.split(".").pop() ?? "jpg").toLowerCase();
-    // Copy into an exact-length ArrayBuffer so no extra bytes are sent.
-    return new Response(bytes.slice().buffer, {
+    // Streamed straight through: no copy, no Worker CPU spent on bytes.
+    return new Response(raw.body, {
       headers: { "Content-Type": IMAGE_TYPE[ext] ?? "image/jpeg" },
     });
   } catch (err) {

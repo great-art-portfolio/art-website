@@ -2,19 +2,6 @@
  * the edge, and handlers use the inferred types instead of casts. */
 import { z } from "zod";
 
-/** GitHub `contents` response for a single file. */
-const githubFileSchema = z.object({
-  content: z.string().optional(),
-  encoding: z.string().optional(),
-});
-
-export type GitHubFile = z.infer<typeof githubFileSchema>;
-
-export function parseGitHubFile(raw: unknown): GitHubFile | null {
-  const result = githubFileSchema.safeParse(raw);
-  return result.success ? result.data : null;
-}
-
 /** GitHub `contents` response for a directory listing. */
 const githubDirEntrySchema = z.object({ name: z.string().optional() });
 
@@ -197,6 +184,10 @@ const stripeEventSchema = z.object({
             .object({ name: z.string().nullish(), address: addressSchema })
             .nullish(),
         })
+        .nullish(),
+      // Where webhooks on Stripe API versions before 2025-03-31 put it.
+      shipping_details: z
+        .object({ name: z.string().nullish(), address: addressSchema })
         .nullish(),
     }),
   }),

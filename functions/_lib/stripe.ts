@@ -86,7 +86,9 @@ export function checkoutParams(
     p.set("line_items[0][price_data][tax_behavior]", "exclusive");
     p.set("line_items[0][price_data][product_data][tax_code]", "txcd_99999999");
   }
-  p.set("expires_at", String(opts.nowSec + SESSION_MINUTES * 60));
+  // A minute over the minimum: the Worker's clock is read before the call
+  // reaches Stripe, and exactly 30 minutes would arrive as just under it.
+  p.set("expires_at", String(opts.nowSec + SESSION_MINUTES * 60 + 60));
   p.set(
     "success_url",
     `${origin}/thanks?painting=${encodeURIComponent(item.slug)}`,
@@ -202,7 +204,7 @@ export function saleEmail(
   const s = event.data.object;
   const title = s.metadata?.["painting_title"] ?? "a painting";
   const buyer = s.customer_details;
-  const ship = s.collected_information?.shipping_details;
+  const ship = s.collected_information?.shipping_details ?? s.shipping_details;
   const lines = [
     `${buyer?.name ?? "Someone"} (${buyer?.email ?? "no email"}) bought "${title}".`,
     `Paid: ${money(s.amount_total)}` +

@@ -58,7 +58,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
         alreadySold = true;
       } else {
         await commitFiles(config, `Sold online: ${title}`, [
-          { path: file, content: markSold(md, session) },
+          { path: file, text: markSold(md, session) },
         ]);
       }
     } catch (err) {

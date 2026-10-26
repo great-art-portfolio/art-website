@@ -317,15 +317,29 @@ describe("syncContactSubscribed", () => {
     assert.deepEqual(body.segments, [{ id: "seg_123" }]);
   });
 
-  it("adds the existing contact to the segment when creation fails", async () => {
+  it("switches an existing contact back on and into the segment", async () => {
     stubFetch((url) =>
       String(url) === "https://api.resend.com/contacts" ? failRes() : okRes(),
     );
     assert.equal(await syncContactSubscribed(fullEnv, "fan@example.com"), true);
-    assert.equal(calls.length, 2);
+    assert.equal(calls.length, 3);
     assert.equal(
       calls[1].url,
+      "https://api.resend.com/contacts/fan%40example.com",
+    );
+    assert.equal(calls[1].init.method, "PATCH");
+    assert.equal(JSON.parse(calls[1].init.body).unsubscribed, false);
+    assert.equal(
+      calls[2].url,
       "https://api.resend.com/contacts/fan%40example.com/segments/seg_123",
+    );
+  });
+
+  it("reports failure when Resend refuses every step", async () => {
+    stubFetch(() => failRes());
+    assert.equal(
+      await syncContactSubscribed(fullEnv, "fan@example.com"),
+      false,
     );
   });
 

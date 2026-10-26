@@ -260,8 +260,11 @@ export function soldSessionOf(md: string): string {
 /** Rewrites one frontmatter key in place, preserving the other lines. */
 function patchKey(md: string, key: string, value: string): string {
   const re = new RegExp(`^${key}:.*$`, "m");
-  if (re.test(md)) return md.replace(re, `${key}: ${value}`);
-  return md.replace(/^---\r?\n/, `---\n${key}: ${value}\n`);
+  // Replacer functions, so a "$'" or "$&" in her text stays literal instead
+  // of splicing the file into the line.
+  const line = `${key}: ${value}`;
+  if (re.test(md)) return md.replace(re, () => line);
+  return md.replace(/^---\r?\n/, () => `---\n${line}\n`);
 }
 
 /** Applies edits to a .md file. Empty dimension strings leave keys
@@ -320,9 +323,11 @@ export function patchPainting(md: string, edits: PaintingEdits): string {
     ["heightIn", edits.heightIn],
     ["depthIn", edits.depthIn],
   ] as const) {
-    const n = Number(raw);
+    // Rounded before the check: 0.04 would round to 0, which the content
+    // schema rejects and the whole build with it.
+    const n = Math.round(Number(raw) * 10) / 10;
     if (raw.trim() !== "" && Number.isFinite(n) && n > 0) {
-      next = patchKey(next, key, String(Math.round(n * 10) / 10));
+      next = patchKey(next, key, String(n));
     }
   }
   // Keep a blank line after the closing fence so saved files pass

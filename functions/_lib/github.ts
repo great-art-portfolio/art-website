@@ -13,7 +13,7 @@
 import type { AppEnv } from "./env";
 import { appToken } from "./github-app";
 import { GitHubKeyError } from "./github-key";
-import { parseGitHubDir, parseGitHubFile } from "./validation";
+import { parseGitHubDir } from "./validation";
 
 export { GitHubKeyError, KEY_REFUSED } from "./github-key";
 
@@ -26,14 +26,14 @@ export interface GitHubConfig {
   branch: string;
 }
 
-interface RepoFile {
-  path: string;
-  /** File content, text or binary (image, .glb, .usdz). Ignored when
-   * deleted. */
-  content: ArrayBuffer | string;
-  /** Removes the file by writing a tree entry with a null sha. */
-  deleted?: boolean;
-}
+export type RepoFile =
+  /** UTF-8 text (.md, banner), written inline in the tree: no upload. */
+  | { path: string; text: string }
+  /** Binary (photo, .glb, .usdz) already in base64, uploaded as a blob
+   * untouched, so the Worker never decodes it. */
+  | { path: string; base64: string }
+  /** Removes the file with a null sha. */
+  | { path: string; deleted: true };
 
 /** Repo access from the environment. Null when publishing isn't set up. */
 export function gitConfig(env: AppEnv): GitHubConfig | null {
@@ -101,17 +101,34 @@ async function gh(
   return (await res.json()) as unknown;
 }
 
-function toBase64(content: ArrayBuffer | string): string {
-  if (typeof content === "string") {
-    return btoa(String.fromCharCode(...new TextEncoder().encode(content)));
+/** A repo file's raw bytes as a response, or null when missing. The raw
+ * media type serves files up to 100MB; the JSON form drops `content` past
+ * 1MB, and decoding it costs Worker CPU. */
+export async function fetchRawFile(
+  config: GitHubConfig,
+  path: string,
+): Promise<Response | null> {
+  const res = await fetch(
+    `${apiBase}/repos/${config.repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(config.branch)}`,
+    {
+      headers: {
+        Accept: "application/vnd.github.raw",
+        Authorization: `Bearer ${await config.token()}`,
+        "User-Agent": "barbart-studio",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+    },
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const text = await res.text();
+    if (res.status === 401 || (res.status === 403 && !/rate limit/i.test(text)))
+      throw new GitHubKeyError(
+        `GitHub refused the key (${res.status}): ${text}`,
+      );
+    throw new Error(`GitHub API ${res.status}: ${text}`);
   }
-  const bytes = new Uint8Array(content);
-  let bin = "";
-  const CHUNK = 0x8000;
-  for (let i = 0; i < bytes.length; i += CHUNK) {
-    bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
-  }
-  return btoa(bin);
+  return res;
 }
 
 /** Reads a text file from the repo. Null when missing. */
@@ -119,34 +136,8 @@ export async function readTextFile(
   config: GitHubConfig,
   path: string,
 ): Promise<string | null> {
-  const data = parseGitHubFile(
-    await gh(
-      config,
-      `/repos/${config.repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(config.branch)}`,
-    ),
-  );
-  if (data === null || data.content === undefined || data.encoding !== "base64")
-    return null;
-  const bin = atob(data.content.replace(/\n/g, ""));
-  const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
-  return new TextDecoder().decode(bytes);
-}
-
-/** Reads a repo file as bytes. Null when missing. */
-export async function readBinaryFile(
-  config: GitHubConfig,
-  path: string,
-): Promise<Uint8Array | null> {
-  const data = parseGitHubFile(
-    await gh(
-      config,
-      `/repos/${config.repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(config.branch)}`,
-    ),
-  );
-  if (data === null || data.content === undefined || data.encoding !== "base64")
-    return null;
-  const bin = atob(data.content.replace(/\n/g, ""));
-  return Uint8Array.from(bin, (c) => c.charCodeAt(0));
+  const res = await fetchRawFile(config, path);
+  return res === null ? null : await res.text();
 }
 
 /** Lists filenames directly inside a repo directory. Empty when missing. */
@@ -164,10 +155,10 @@ export async function listDir(
 }
 
 /**
- * Adds, overwrites, or deletes a batch of files in a single commit. Written
- * files are uploaded as base64 blobs first, so binary content is safe (a
- * tree entry's inline `content` is stored as literal text). Deleted files
- * get a null sha.
+ * Adds, overwrites, or deletes a batch of files in a single commit. Text
+ * goes inline in the tree (GitHub stores inline `content` as literal UTF-8
+ * text); binary goes up as a base64 blob first. Deleted files get a null
+ * sha.
  */
 export async function commitFiles(
   config: GitHubConfig,
@@ -190,16 +181,14 @@ export async function commitFiles(
 
   const entries = await Promise.all(
     files.map(async (f) => {
-      if (f.deleted === true)
-        return { path: f.path, mode: "100644", type: "blob", sha: null };
+      const entry = { path: f.path, mode: "100644", type: "blob" };
+      if ("deleted" in f) return { ...entry, sha: null };
+      if ("text" in f) return { ...entry, content: f.text };
       const blob = (await gh(config, `/repos/${config.repo}/git/blobs`, {
         method: "POST",
-        body: JSON.stringify({
-          content: toBase64(f.content),
-          encoding: "base64",
-        }),
+        body: JSON.stringify({ content: f.base64, encoding: "base64" }),
       })) as { sha: string };
-      return { path: f.path, mode: "100644", type: "blob", sha: blob.sha };
+      return { ...entry, sha: blob.sha };
     }),
   );
   const tree = (await gh(config, `/repos/${config.repo}/git/trees`, {

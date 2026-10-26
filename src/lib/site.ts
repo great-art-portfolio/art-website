@@ -38,14 +38,25 @@ export function pageTitle(title: string, studio = false): string {
   return `${title} — ${ARTIST_NAME}`;
 }
 
-/** URL slug from a painting title: "Night Reeds" → "night-reeds". */
+/** URL slug from a painting title: "Night Reeds" → "night-reeds". A title
+ * with no plain letters or digits ("🌸", "夜") gets a stable
+ * "painting-…" slug from its characters, since an empty slug breaks the
+ * build. */
 export function slugifyTitle(title: string): string {
-  return title
+  const slug = title
     .toLowerCase()
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+  if (slug !== "") return slug;
+  // FNV-1a over the code points: the same title always gets the same URL.
+  let hash = 0x811c9dc5;
+  for (const ch of title.trim()) {
+    hash ^= ch.codePointAt(0) ?? 0;
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return `painting-${hash.toString(36)}`;
 }
 
 /** True when another painting already uses this title's slug. ownSlug

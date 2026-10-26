@@ -394,13 +394,23 @@ export async function syncContactSubscribed(
       }),
     });
     if (created.ok) return true;
+    // Already a contact (maybe one who unsubscribed in an email): switch
+    // them back on and make sure they're in the segment.
+    const contact = `https://api.resend.com/contacts/${encodeURIComponent(email)}`;
+    const patched = await fetch(contact, {
+      method: "PATCH",
+      headers: resendHeaders(env),
+      body: JSON.stringify({ unsubscribed: false }),
+    });
+    if (!patched.ok)
+      console.error("resend contact update failed", await patched.text());
     const added = await fetch(
-      `https://api.resend.com/contacts/${encodeURIComponent(email)}/segments/${encodeURIComponent(seg)}`,
+      `${contact}/segments/${encodeURIComponent(seg)}`,
       { method: "POST", headers: resendHeaders(env) },
     );
     if (!added.ok)
       console.error("resend contact add failed", await added.text());
-    return added.ok;
+    return patched.ok || added.ok;
   } catch (err) {
     console.error("resend contact sync failed", err);
     return false;
