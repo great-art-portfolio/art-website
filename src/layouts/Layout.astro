@@ -102,6 +102,17 @@ function adminSection(path: string): string | null {
   return null;
 }
 const currentSection = adminSection(selfPath);
+const sectionLabel = (id: string): string =>
+  (
+    ({
+      collection: "Collection",
+      banner: "Banner",
+      email: "Email",
+      metrics: "Metrics",
+      qr: "QR codes",
+      guide: "Guide",
+    }) as Record<string, string>
+  )[id] ?? "Studio";
 const here = (path: string): string => localePath(locale, path);
 // Every version of this page, for hreflang links and the language menu.
 // Pages without alternates (the studio, the 404) offer each language's
@@ -314,6 +325,13 @@ const offers = Object.fromEntries(
          only studio pages fill it. */
       wordmark === "admin" && (
         <p id="admin-status" role="status" data-tone="ok" />
+      )
+    }
+    {
+      /* Studio section pages show their name in the nav; screen readers
+         get it as the page's heading too. Painting rooms have their own. */
+      wordmark === "admin" && currentSection !== null && (
+        <h1 class="sr-only">{sectionLabel(currentSection)}</h1>
       )
     }
 
@@ -1502,6 +1520,17 @@ const offers = Object.fromEntries(
     outline: 2px solid var(--accent);
     outline-offset: 2px;
     border-radius: 0.25rem;
+  }
+  :global(.sr-only) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
   }
   /* Every language the site is in, as a quiet row of names, each in its
      own language. The current one is plain ink, not a link colour. */
