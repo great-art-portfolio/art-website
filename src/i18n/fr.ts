@@ -168,7 +168,7 @@ export const fr: Strings = {
     not: "Aucun compte, aucun traceur publicitaire, aucun suivi entre sites, aucune vente de renseignements personnels.",
     choicesTitle: "Vos choix",
     choices:
-      "Pour ne plus recevoir les alertes, touchez de nouveau le bouton « Me prévenir ». Pour toute question sur la confidentialité, écrivez à l’artiste : elle s’en occupera personnellement.",
+      "Pour ne plus recevoir les alertes, utilisez le lien de désabonnement au bas de n’importe quel courriel, ou quittez la liste depuis la boîte d’inscription de n’importe quelle page. Pour toute question sur la confidentialité, écrivez à l’artiste : elle s’en occupera personnellement.",
   },
   credits: {
     title: "Crédits",

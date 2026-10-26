@@ -1,13 +1,16 @@
 # Roadmap — future ideas, roughly ranked by payoff
 
-## Launch (do first)
+## Launched (Oct 2026)
 
-- [ ] Provision D1 (`art-gallery-db`), apply `0001_init.sql` + `0002_drop-unused-tables.sql` (push table only)
-- [ ] Set secrets: `RESEND_API_KEY`, `ARTIST_SENDER` (verified domain), `ARTIST_INBOX`, `ADMIN_API_TOKEN`, `GITHUB_TOKEN` + `GITHUB_REPO`
-- [ ] Put Cloudflare Access (email OTP) on `/admin/*`
-- [x] Painting measurements confirmed with the artist (Oct 2026)
-- [ ] Custom domain + verify it in Resend (free on Cloudflare); set `PUBLIC_CF_BEACON_TOKEN` at build time
-- [ ] Turnstile: site key in `wrangler.toml`, `TURNSTILE_SECRET_KEY` secret set (Oct 2026). Confirmed live 2026-10-06: `/api/status` serves the site key and the check renders above "Send inquiry" on painting pages (phone and desktop). Still to do: one real test inquiry reaching her inbox (owner, since it emails her)
+- [x] barbart.ca on Pages, verified in Resend, Web Analytics on
+- [x] Cloudflare Access on `/admin*`; GitHub App publishing; Turnstile live; inquiries reach her inbox
+- [x] Twelve more languages, the painting email, Credits, security hardening (see DECISIONS and README "Security")
+
+## Waiting on someone
+
+- [ ] Email forwarding (2026-10-26): Cloudflare Email Routing is on and sent her Gmail a verify link. Once she taps it: add rules forwarding `artist@barbart.ca` and `hello@barbart.ca` to her Gmail, then set the `ARTIST_INBOX` secret to `artist@barbart.ca` (not before, or inquiries bounce).
+- [ ] Then, for Chris on her Gmail (web): Settings → Accounts → "Send mail as" → add `artist@barbart.ca` via SMTP `smtp.resend.com`, port 465, user `resend`, password a Resend key with sending access to barbart.ca; confirm the code that arrives; set "Reply from the same address the message was sent to".
+- [ ] Card checkout: her Stripe sign-up (instructions sent), then the go-live steps below.
 
 ## Sell more
 

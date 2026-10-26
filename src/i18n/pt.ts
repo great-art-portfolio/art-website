@@ -165,7 +165,7 @@ export const pt: Strings = {
     not: "Sem contas, sem rastreadores de publicidade, sem rastreamento entre sites, sem venda de informações pessoais.",
     choicesTitle: "Suas escolhas",
     choices:
-      "Para parar de receber avisos, toque de novo no mesmo botão “Avise-me”. Para perguntar qualquer coisa sobre privacidade, mande um e-mail para a artista, que vai cuidar disso pessoalmente.",
+      "Para deixar de receber os avisos, use o link de cancelamento no fim de qualquer e-mail, ou saia da lista pela caixa de inscrição em qualquer página. Para qualquer dúvida sobre privacidade, escreva para a artista, que vai responder pessoalmente.",
   },
   credits: {
     title: "Créditos",

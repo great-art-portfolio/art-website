@@ -4,7 +4,8 @@
 
 One artist, a few uploads a month, sub-second builds. Saving in `/admin`
 commits a `.md` + photo (+ AR models) straight to the repo through a
-Worker-held `GITHUB_TOKEN`, and Pages rebuilds on push — live in a few
+GitHub App (Oct 2026; it replaced a personal token that expired), and
+Pages rebuilds on push — live in a few
 minutes. (The repo is git-connected in the Pages dashboard; GitHub
 Actions only runs checks, never deploys.)
 No database for content, no R2, one URL scheme (`/paintings/<title-slug>`).
@@ -29,12 +30,12 @@ Cloudflare Turnstile when configured. Her address never appears on the
 site; Resend sends from the gallery address (requires a verified sending
 domain) to her private inbox.
 
-## The one table: push subscriptions
+## No database in production
 
-"Notify me" collector alerts inherently store something, so D1 survives
-with exactly one table: `push_subscriptions` (endpoint + keys, deleted
-on unsubscribe). This is disclosed on `/privacy` — it is the only
-personal information the site keeps. Views moved to Cloudflare Web
+Browser push and the Ping page were removed (Oct 2026, owner: email only),
+so the site keeps no personal information of its own: the email list is a
+Resend segment, and D1 only backs the local mock list in dev (its old push
+tables are unused). Views moved to Cloudflare Web
 Analytics (free, hosted, per-page); statuses moved to markdown
 (`sold: true`); the homepage banner is `src/content/announcement.txt`
 in git, editable from `/admin` (commits like a painting). One banner at a
@@ -47,17 +48,32 @@ banner doesn't linger.
 
 Single artist → Cloudflare Access (email OTP) on `/admin/*`. No passwords
 to store, no OAuth app to maintain. `ADMIN_API_TOKEN` remains as
-defense-in-depth for API calls. The GitHub token is a Worker secret —
-her phone only ever talks to our own admin endpoint.
+defense-in-depth for API calls. The GitHub App key is a Pages secret —
+her phone only ever talks to our own admin endpoint. Because the Access
+cookie rides along on requests other sites start, cookie-authorized
+changes must come from the site's own pages (Oct 2026).
 
-## Email + push
+## Email
 
 Mail goes through Resend: one-to-one mail is transactional, broadcasts go
 to the `BarbartSubs` segment (`RESEND_SEGMENT_ID`) via the Broadcasts API.
 The segment is the list — nothing list-related lives in D1, and the pending
-proof travels in the links as HMAC tokens. Collector push is Web Push
-(VAPID) from `/admin`; inquiry alerts reach the artist by email, Pushover
-optional.
+proof travels in the links as HMAC tokens. She manages the list on the
+studio's Email page (paged, addresses blurred until tapped). Inquiry
+alerts reach the artist by email, Pushover optional. The new-painting
+email shows the painting and is held (Resend `scheduled_at`) until its page
+is live. Visitor emails come in the language they read the site in. Her
+address on the outside is `artist@barbart.ca` (Cloudflare Email Routing to
+her Gmail), so her personal address stays private.
+
+## Languages
+
+English plus the languages she ticks (Oct 2026: twelve). Interface words
+are hand-written per language in `src/i18n/`; her painting and banner
+words are machine-translated by Muse when she saves and marked as
+translated on the page. A painting whose English changed shows English
+until it's re-translated, never a stale translation. The studio stays
+English.
 
 ## Checkout + shipping (disabled until needed)
 
@@ -104,8 +120,8 @@ client scripts, shared logic in `src/lib/`. TypeScript 6.
 ## Analytics & privacy law
 
 Canada has no EU-style cookie-banner law. PIPEDA + Alberta PIPA require
-meaningful consent for _personal information_ — push subscriptions are
-opt-in by tapping the button (consent) and deletable with the same
-button, which is what the commissioners actually look for. Everything
+meaningful consent for _personal information_ — the email list is
+double opt-in (the confirm link) and every email carries an unsubscribe
+link, which is what the commissioners actually look for. Everything
 else (aggregate stats, emailed inquiries) collects or keeps nothing, so
 no banner. The short `/privacy` page discloses the rest.

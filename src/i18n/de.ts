@@ -169,7 +169,7 @@ export const de: Strings = {
     not: "Keine Konten, keine Werbetracker, kein seitenübergreifendes Tracking, kein Verkauf personenbezogener Daten.",
     choicesTitle: "Ihre Möglichkeiten",
     choices:
-      "Um keine Benachrichtigungen mehr zu erhalten, tippen Sie erneut auf die Schaltfläche „Benachrichtigen“. Bei Fragen zum Datenschutz schreiben Sie der Künstlerin eine E-Mail — sie kümmert sich persönlich darum.",
+      "Um keine Benachrichtigungen mehr zu erhalten, nutzen Sie den Abmeldelink unten in jeder E-Mail oder tragen Sie sich über das Anmeldefeld auf einer beliebigen Seite aus. Bei Fragen zum Datenschutz schreiben Sie der Künstlerin – sie kümmert sich persönlich darum.",
   },
   credits: {
     title: "Credits",
