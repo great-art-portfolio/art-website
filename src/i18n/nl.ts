@@ -223,4 +223,35 @@ export const nl: Strings = {
     goodbyeFailed:
       "Die link werkte niet — u staat waarschijnlijk al niet meer op de lijst.",
   },
+  emails: {
+    confirmSubject: "Bevestig uw berichten van het atelier",
+    confirm: (url: string) =>
+      [
+        "Iemand (hopelijk u) heeft gevraagd om per e-mail te horen over nieuwe schilderijen",
+        "en evenementen uit het atelier van Barbara Straka.",
+        "",
+        "Bevestig hier:",
+        url,
+        "",
+        "Was u dit niet? Negeer dan dit bericht — zonder die klik",
+        "komt niemand op de lijst.",
+      ].join("\n"),
+    alreadySubject: "U staat al op de lijst van het atelier",
+    already: [
+      "Iemand (hopelijk u) heeft gevraagd om de e-mails over nieuwe schilderijen",
+      "van Barbara Straka te ontvangen, en dit adres staat al op de lijst.",
+      "U hoeft niets te doen — nieuwe schilderijen en evenementen blijven komen.",
+      "",
+      "Was u dit niet? Negeer dan dit bericht.",
+      "",
+      "— Barbara",
+    ].join("\n"),
+    goodbyeSubject: "Verwijderd van de lijst voor nieuwe schilderijen",
+    goodbye: [
+      "Gedaan — u ontvangt geen e-mails meer van het atelier.",
+      "U kunt zich altijd opnieuw aanmelden via de website.",
+      "",
+      "— Barbara",
+    ].join("\n"),
+  },
 };

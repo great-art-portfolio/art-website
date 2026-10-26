@@ -225,4 +225,35 @@ export const fr: Strings = {
     goodbyeFailed:
       "Ce lien n’a pas fonctionné — vous n’êtes sans doute déjà plus sur la liste.",
   },
+  emails: {
+    confirmSubject: "Confirmez vos alertes de l’atelier",
+    confirm: (url: string) =>
+      [
+        "Quelqu’un (vous, espérons-le) a demandé à recevoir par courriel",
+        "les nouveaux tableaux et événements de l’atelier de Barbara Straka.",
+        "",
+        "Confirmez ici :",
+        url,
+        "",
+        "Si ce n’était pas vous, ignorez ce message — personne n’est inscrit",
+        "sans ce clic.",
+      ].join("\n"),
+    alreadySubject: "Vous êtes déjà sur la liste de l’atelier",
+    already: [
+      "Quelqu’un (vous, espérons-le) a demandé à recevoir les courriels",
+      "de Barbara Straka sur ses nouveaux tableaux, et cette adresse est déjà inscrite.",
+      "Rien à faire — les nouveaux tableaux et événements continueront d’arriver.",
+      "",
+      "Si ce n’était pas vous, ignorez ce message.",
+      "",
+      "— Barbara",
+    ].join("\n"),
+    goodbyeSubject: "Retiré de la liste des nouveaux tableaux",
+    goodbye: [
+      "C’est fait — vous ne recevrez plus de courriels de l’atelier.",
+      "Vous pouvez vous réinscrire quand vous voulez depuis le site.",
+      "",
+      "— Barbara",
+    ].join("\n"),
+  },
 };

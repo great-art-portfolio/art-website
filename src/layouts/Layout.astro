@@ -663,6 +663,7 @@ const offers = Object.fromEntries(
                     action: "unsubscribe",
                     email,
                     turnstileToken,
+                    locale: formEl?.dataset.locale ?? "en",
                   }),
                 }),
               )

@@ -230,4 +230,35 @@ export const pl: Strings = {
     goodbyeFailed:
       "Ten link nie zadziałał — prawdopodobnie nie ma Cię już na liście.",
   },
+  emails: {
+    confirmSubject: "Potwierdź powiadomienia z pracowni",
+    confirm: (url: string) =>
+      [
+        "Ktoś (mamy nadzieję, że Ty) poprosił o e-maile o nowych obrazach",
+        "i wydarzeniach z pracowni artystki Barbara Straka.",
+        "",
+        "Potwierdź tutaj:",
+        url,
+        "",
+        "Jeśli to nie Ty, zignoruj tę wiadomość — bez kliknięcia",
+        "nikt nie trafi na listę.",
+      ].join("\n"),
+    alreadySubject: "Jesteś już na liście pracowni",
+    already: [
+      "Ktoś (mamy nadzieję, że Ty) poprosił o e-maile o nowych obrazach",
+      "artystki Barbara Straka, a ten adres jest już na liście.",
+      "Nic nie musisz robić — nowe obrazy i wydarzenia będą nadal przychodzić.",
+      "",
+      "Jeśli to nie Ty, zignoruj tę wiadomość.",
+      "",
+      "— Barbara",
+    ].join("\n"),
+    goodbyeSubject: "Usunięto z listy nowych obrazów",
+    goodbye: [
+      "Gotowe — nie dostaniesz już e-maili z pracowni.",
+      "Możesz zapisać się ponownie w każdej chwili na stronie.",
+      "",
+      "— Barbara",
+    ].join("\n"),
+  },
 };

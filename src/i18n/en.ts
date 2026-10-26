@@ -228,6 +228,39 @@ export const en = {
     goodbyeFailed:
       "That link didn't work — you're probably already off the list.",
   },
+  /** Emails to visitors who join or leave her list, in the language
+   * they read the site in. Plain text, one line per item. */
+  emails: {
+    confirmSubject: "Confirm your studio alerts",
+    confirm: (url: string) =>
+      [
+        "Someone (hopefully you) asked for new paintings and events",
+        "by email from Barbara Straka's studio.",
+        "",
+        "Confirm here:",
+        url,
+        "",
+        "If that wasn't you, ignore this — nothing joins the list",
+        "without the tap.",
+      ].join("\n"),
+    alreadySubject: "You're already on the studio list",
+    already: [
+      "Someone (hopefully you) asked to join Barbara Straka's",
+      "new-painting emails, and this address is already on the list.",
+      "Nothing to do — new paintings and events will keep arriving.",
+      "",
+      "If that wasn't you, ignore this.",
+      "",
+      "— Barbara",
+    ].join("\n"),
+    goodbyeSubject: "Removed from the new-painting list",
+    goodbye: [
+      "You've been removed — no more emails from the studio.",
+      "Rejoin any time from any Notify me box.",
+      "",
+      "— Barbara",
+    ].join("\n"),
+  },
 };
 
 /** The shape every language file follows. */
