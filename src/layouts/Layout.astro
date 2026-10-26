@@ -25,6 +25,8 @@ import {
   SITE_URL,
   siteTitle,
 } from "../lib/site";
+import { SITE_LOCALES, t } from "../i18n";
+import { localeInfo, localePath, type Locale } from "../i18n/locales";
 
 interface Props {
   title?: string;
@@ -44,11 +46,18 @@ interface Props {
   product?: { price: number; sold: boolean };
   /** Background wash for studio pages. Other pages use "warm". */
   backdrop?: "warm" | "collection" | "banner" | "metrics" | "guide";
+  /** The language this page is in. Studio pages are always English. */
+  locale?: Locale;
+  /** The page's English path when it exists in every language: it names
+   * the other versions for search engines and the language menu. */
+  alternates?: string | undefined;
 }
 
+const { locale = "en", alternates } = Astro.props;
+const s = t(locale);
 const {
-  title = siteTitle(),
-  description = "Original nature and abstract paintings, direct from the artist's studio.",
+  title = locale === "en" ? siteTitle() : s.meta.siteTitle,
+  description = s.meta.description,
   image,
   imageAlt,
   product,
@@ -91,10 +100,33 @@ function adminSection(path: string): string | null {
   return null;
 }
 const currentSection = adminSection(selfPath);
+const here = (path: string): string => localePath(locale, path);
+// Every version of this page, for hreflang links and the language menu.
+// Pages without alternates (the studio, the 404) offer each language's
+// homepage instead.
+const versions = SITE_LOCALES.map((code) => ({
+  code,
+  lang: localeInfo(code).lang,
+  name: localeInfo(code).name,
+  href: localePath(code, alternates ?? "/"),
+}));
+// What the "read this site in …" offer says, in each language.
+const offers = Object.fromEntries(
+  versions
+    .filter((v) => v.code !== locale)
+    .map((v) => [
+      v.code,
+      {
+        text: t(v.code).layout.readIn,
+        no: t(v.code).layout.noThanks,
+        href: v.href,
+      },
+    ]),
+);
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang={localeInfo(locale).lang}>
   <head>
     <meta charset="UTF-8" />
     <meta
@@ -116,6 +148,25 @@ const currentSection = adminSection(selfPath);
     {!noCanonical && (
       <link rel="canonical" href={new URL(canonical, SITE_URL).href} />
     )}
+    {alternates !== undefined &&
+      versions.map((v) => (
+        <link
+          rel="alternate"
+          hreflang={v.lang}
+          href={new URL(v.href, SITE_URL).href}
+        />
+      ))}
+    {alternates !== undefined && (
+      <link
+        rel="alternate"
+        hreflang="x-default"
+        href={new URL(alternates, SITE_URL).href}
+      />
+    )}
+    <meta
+      property="og:locale"
+      content={localeInfo(locale).lang.replace("-", "_")}
+    />
     <meta property="og:site_name" content={ARTIST_NAME ?? siteTitle()} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
@@ -187,7 +238,7 @@ const currentSection = adminSection(selfPath);
       }
     </script>
     <a class="skip" href="#main">
-      Skip to content
+      {s.layout.skip}
     </a>
     <header
       class="site-header"
@@ -195,14 +246,12 @@ const currentSection = adminSection(selfPath);
     >
       <nav
         class:list={["site-nav", { studio: wordmark === "admin" }]}
-        aria-label="Main"
+        aria-label={s.layout.nav}
       >
         <a
-          href={wordmark === "admin" ? "/admin" : "/"}
+          href={wordmark === "admin" ? "/admin" : here("/")}
           id="signature"
-          aria-label={
-            wordmark === "admin" ? "Admin home" : "Home — back to the gallery"
-          }
+          aria-label={wordmark === "admin" ? "Admin home" : s.layout.home}
         >
           {wordmark === "admin" ? <AdminWordmark /> : <Signature />}
         </a>
@@ -246,10 +295,10 @@ const currentSection = adminSection(selfPath);
             </>
           ) : (
             <>
-              <a href="/#collection">Collection</a>
-              <a href="/#about">About</a>
+              <a href={here("/#collection")}>{s.layout.collection}</a>
+              <a href={here("/#about")}>{s.layout.about}</a>
               <button type="button" id="notify-nav" class="nav-cta">
-                Notify me
+                {s.layout.notifyMe}
               </button>
             </>
           )}
@@ -276,18 +325,51 @@ const currentSection = adminSection(selfPath);
 
     <footer class="site-footer">
       <p class="footer-mark">
-        {artistLabel} · {ARTIST_LOCATION}
+        {artistLabel} · {locale === "en" ? ARTIST_LOCATION : s.location}
       </p>
       <p class="footer-sub">
-        <a href="/privacy">Privacy</a> — no cookies, no trackers
+        <a href={here("/privacy")}>{s.layout.privacy}</a> —{" "}
+        {s.layout.privacyNote}
         <button type="button" id="install-app" hidden>
-          <span>Install the gallery app</span>
+          <span>{s.layout.install}</span>
         </button>
       </p>
       <p class="footer-sub">
-        © {year} {artistLabel} · <a href="/credits">Credits</a>
+        © {year} {artistLabel} ·{" "}
+        <a href={here("/credits")}>{s.layout.credits}</a>
       </p>
+      {wordmark === "signature" && versions.length > 1 && (
+        <nav class="lang-menu" aria-label={s.layout.language}>
+          <ul>
+            {versions.map((v) => (
+              <li>
+                <a
+                  href={v.href}
+                  hreflang={v.lang}
+                  lang={v.lang}
+                  data-lang={v.code}
+                  aria-current={v.code === locale ? "true" : undefined}
+                  data-astro-reload
+                >
+                  {v.name}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
     </footer>
+    {wordmark === "signature" && versions.length > 1 && (
+      <aside
+        id="lang-offer"
+        hidden
+        data-locale={locale}
+        data-offers={JSON.stringify(offers)}
+      >
+        <a id="lang-offer-go" href="/" data-astro-reload></a>
+        <button type="button" id="lang-offer-no"></button>
+      </aside>
+    )}
 
     {wordmark === "signature" && (
       <dialog
@@ -296,11 +378,7 @@ const currentSection = adminSection(selfPath);
         closedby="closerequest"
       >
         <form method="dialog" class="notify-close-row">
-          <button
-            type="submit"
-            id="notify-close"
-            aria-label="Close notifications"
-          >
+          <button type="submit" id="notify-close" aria-label={s.notify.close}>
             <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
               <path
                 d="M2 2l12 12M14 2L2 14"
@@ -311,14 +389,16 @@ const currentSection = adminSection(selfPath);
             </svg>
           </button>
         </form>
-        <h2 id="notify-dialog-title">Never miss a new painting</h2>
-        <p>
-          Get an email when a new painting is hung or an event comes up.
-          Unsubscribe any time with one click.
-        </p>
-        <form id="notify-email-form" class="email-capture">
+        <h2 id="notify-dialog-title">{s.notify.title}</h2>
+        <p>{s.notify.body}</p>
+        <form
+          id="notify-email-form"
+          class="email-capture"
+          data-msgs={JSON.stringify(s.notifyClient)}
+          data-locale={locale}
+        >
           <label>
-            Email address
+            {s.notify.email}
             <input
               type="email"
               id="notify-email"
@@ -331,11 +411,11 @@ const currentSection = adminSection(selfPath);
           </label>
           <div id="notify-turnstile-mount" />
           <button type="submit" class="btn-primary">
-            Join the list <span aria-hidden="true">📬</span>
+            {s.notify.join} <span aria-hidden="true">📬</span>
           </button>
           <div class="notify-more">
             <button type="button" id="notify-email-leave" class="text-btn">
-              Leave the list
+              {s.notify.leave}
             </button>
           </div>
         </form>
@@ -403,8 +483,20 @@ const currentSection = adminSection(selfPath);
         return await takeTurnstileToken("#notify-turnstile-mount");
       }
 
-      const NOTIFY_CHECK_MSG =
-        "One more step — finish the quick check above, then try again.";
+      // The box's words, in the page's language, from the form's
+      // data-msgs (read live: each page brings its own).
+      function readJsonMap(raw = "{}") {
+        try {
+          return new Map(Object.entries(JSON.parse(raw)));
+        } catch {
+          return new Map();
+        }
+      }
+      function notifyMsg(key = "") {
+        const form = document.getElementById("notify-email-form");
+        const msg = readJsonMap(form?.dataset.msgs).get(key);
+        return typeof msg === "string" ? msg : "";
+      }
 
       // Shows a status message that fades in and later out. The fade is
       // opacity-only so reduced motion keeps it. A counter skips a stale
@@ -484,20 +576,22 @@ const currentSection = adminSection(selfPath);
           e.preventDefault();
           const email = input.value.trim();
           if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            notifySay(
-              hint,
-              "That email doesn't look right — check it and try again.",
-            );
+            notifySay(hint, notifyMsg("badEmail"));
             input.focus();
             return;
           }
-          notifySay(hint, "Joining…");
+          notifySay(hint, notifyMsg("joining"));
           notifyToken()
             .then((turnstileToken) =>
               fetch("/api/collectors", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, turnstileToken }),
+                body: JSON.stringify({
+                  email,
+                  turnstileToken,
+                  // The confirm email and its page come in this language.
+                  locale: formEl?.dataset.locale ?? "en",
+                }),
               }),
             )
             .then((res) => {
@@ -527,29 +621,23 @@ const currentSection = adminSection(selfPath);
                       });
                       hint.appendChild(go);
                     } else {
-                      notifySay(
-                        hint,
-                        "Check your inbox — one tap confirms it.",
-                      );
+                      notifySay(hint, notifyMsg("checkInbox"));
                     }
                   })
                   .catch(() => {
-                    notifySay(hint, "Check your inbox — one tap confirms it.");
+                    notifySay(hint, notifyMsg("checkInbox"));
                   });
                 input.value = "";
               } else if (res.status === 403) {
-                notifySay(hint, NOTIFY_CHECK_MSG);
+                notifySay(hint, notifyMsg("finishCheck"));
               } else if (res.status === 400) {
-                notifySay(
-                  hint,
-                  "That email doesn't look right — check it and try again.",
-                );
+                notifySay(hint, notifyMsg("badEmail"));
               } else {
-                notifySay(hint, "That didn't work — try again in a bit.");
+                notifySay(hint, notifyMsg("failed"));
               }
             })
             .catch(() => {
-              notifySay(hint, "That didn't work — try again in a bit.");
+              notifySay(hint, notifyMsg("failed"));
             });
         });
         // Leaving by typed address needs the spam check too (an emailed
@@ -561,11 +649,11 @@ const currentSection = adminSection(selfPath);
           leave.addEventListener("click", () => {
             const email = input.value.trim();
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-              notifySay(hint, "Type the address first, then Leave the list.");
+              notifySay(hint, notifyMsg("typeFirst"));
               input.focus();
               return;
             }
-            notifySay(hint, "Leaving…");
+            notifySay(hint, notifyMsg("leaving"));
             notifyToken()
               .then((turnstileToken) =>
                 fetch("/api/collectors", {
@@ -580,16 +668,16 @@ const currentSection = adminSection(selfPath);
               )
               .then((res) => {
                 if (res.ok) {
-                  notifySay(hint, "Done — that address is off the list.");
+                  notifySay(hint, notifyMsg("left"));
                   input.value = "";
                 } else if (res.status === 403) {
-                  notifySay(hint, NOTIFY_CHECK_MSG);
+                  notifySay(hint, notifyMsg("finishCheck"));
                 } else {
-                  notifySay(hint, "That didn't work — try again in a bit.");
+                  notifySay(hint, notifyMsg("failed"));
                 }
               })
               .catch(() => {
-                notifySay(hint, "That didn't work — try again in a bit.");
+                notifySay(hint, notifyMsg("failed"));
               });
           });
         }
@@ -619,12 +707,12 @@ const currentSection = adminSection(selfPath);
           typeof navigator.clipboard === "undefined" ||
           typeof navigator.clipboard.writeText !== "function"
         ) {
-          notifyToast("Couldn't copy — select the text instead.");
+          notifyToast(notifyMsg("copyFailed"));
           return;
         }
         navigator.clipboard.writeText(text).then(
-          () => notifyToast("Copied."),
-          () => notifyToast("Couldn't copy — select the text instead."),
+          () => notifyToast(notifyMsg("copied")),
+          () => notifyToast(notifyMsg("copyFailed")),
         );
       }
 
@@ -663,7 +751,7 @@ const currentSection = adminSection(selfPath);
           const hint = hintEl instanceof HTMLElement ? hintEl : null;
           if (hint !== null && hint.dataset.copyWired !== "1") {
             hint.dataset.copyWired = "1";
-            hint.title = "Tap to copy this message";
+            hint.title = notifyMsg("tapToCopy");
             hint.addEventListener("click", () => {
               copyNotifyStatus(hint);
             });
@@ -678,6 +766,68 @@ const currentSection = adminSection(selfPath);
         window.__notifyWired = true;
         document.addEventListener("astro:page-load", initNotify);
       }
+
+      // Offers the site in the visitor's own language, once: when their
+      // browser prefers one of hers that this page isn't in. Picking a
+      // language (here or in the footer) is remembered, so the offer
+      // never comes back after "No thanks".
+      function rememberLanguage(code = "") {
+        try {
+          window.localStorage.setItem("site-lang", code);
+        } catch {
+          // Storage blocked: the offer may come back next visit.
+        }
+      }
+      function savedLanguage() {
+        try {
+          return window.localStorage.getItem("site-lang");
+        } catch {
+          return null;
+        }
+      }
+      function offerLanguage() {
+        const box = document.getElementById("lang-offer");
+        if (!(box instanceof HTMLElement) || box.dataset.wired === "1") return;
+        box.dataset.wired = "1";
+        const current = box.dataset.locale ?? "en";
+        for (const a of document.querySelectorAll(".lang-menu a[data-lang]")) {
+          if (a instanceof HTMLElement)
+            a.addEventListener("click", () =>
+              rememberLanguage(a.dataset.lang ?? ""),
+            );
+        }
+        const offers = readJsonMap(box.dataset.offers);
+        const saved = savedLanguage();
+        if (saved === current) return;
+        const wanted =
+          saved !== null
+            ? [saved]
+            : (navigator.languages ?? [navigator.language]).map(
+                (l) => String(l).toLowerCase().split("-")[0] ?? "",
+              );
+        for (const code of wanted) {
+          if (code === current) return;
+          const offer = offers.get(code) ?? null;
+          if (offer === null || typeof offer !== "object") continue;
+          const go = document.getElementById("lang-offer-go");
+          const no = document.getElementById("lang-offer-no");
+          if (!(go instanceof HTMLAnchorElement) || no === null) return;
+          go.textContent = `${offer.text} →`;
+          go.href = offer.href;
+          go.lang = code;
+          no.textContent = offer.no;
+          no.lang = code;
+          go.addEventListener("click", () => rememberLanguage(code));
+          no.addEventListener("click", () => {
+            rememberLanguage(current);
+            box.hidden = true;
+          });
+          box.hidden = false;
+          return;
+        }
+      }
+      offerLanguage();
+      document.addEventListener("astro:page-load", offerLanguage);
 
       // Public pages: the header is clear at the top of the page and the
       // translucent bar fills in with the scroll itself over the first
@@ -1347,6 +1497,100 @@ const currentSection = adminSection(selfPath);
     outline: 2px solid var(--accent);
     outline-offset: 2px;
     border-radius: 0.25rem;
+  }
+  /* Every language the site is in, as a quiet row of names, each in its
+     own language. The current one is plain ink, not a link colour. */
+  .lang-menu ul {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.15rem 0.35rem;
+    max-width: 34rem;
+    margin: 1rem auto 0;
+    padding: 0;
+    font-size: 0.85rem;
+  }
+  .lang-menu a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding: 0 0.45rem;
+    color: var(--muted);
+    text-decoration: underline transparent;
+    text-underline-offset: 3px;
+    transition:
+      color 0.12s ease,
+      text-decoration-color 0.12s ease;
+  }
+  .lang-menu a:hover {
+    color: var(--accent);
+    text-decoration-color: currentColor;
+  }
+  .lang-menu a[aria-current] {
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .lang-menu a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+  /* "Lire ce site en français": offered once to a visitor whose browser
+     prefers another of her languages. A quiet card at the foot of the
+     screen that fades in. */
+  #lang-offer {
+    position: fixed;
+    z-index: 40;
+    inset-inline: 0;
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    margin-inline: auto;
+    width: fit-content;
+    max-width: calc(100% - 2rem);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem 0.5rem;
+    padding: 0.35rem 0.5rem;
+    border-radius: 999px;
+    background: var(--card, var(--bg));
+    box-shadow: 0 8px 28px rgb(0 0 0 / 0.16);
+    font-size: 0.95rem;
+    animation: lang-offer-in 0.35s ease both;
+  }
+  #lang-offer[hidden] {
+    display: none;
+  }
+  @keyframes lang-offer-in {
+    from {
+      opacity: 0;
+    }
+  }
+  #lang-offer-go {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding: 0 0.9rem;
+    border-radius: 999px;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  #lang-offer-no {
+    min-height: 2.75rem;
+    padding: 0 0.75rem;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    font: inherit;
+    cursor: pointer;
+  }
+  #lang-offer-go:focus-visible,
+  #lang-offer-no:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
   /* Install option styled as footer text. The "· " sits outside the
      underline span so the hover underline starts at the I. compressHTML

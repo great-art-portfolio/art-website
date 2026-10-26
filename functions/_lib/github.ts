@@ -159,11 +159,46 @@ export async function listDir(
  * goes inline in the tree (GitHub stores inline `content` as literal UTF-8
  * text); binary goes up as a base64 blob first. Deleted files get a null
  * sha.
+ *
+ * `rebase` retries on top of a commit that landed meanwhile (GitHub
+ * refuses a ref update that isn't a fast-forward). The studio wants that:
+ * its background translation commits can race her saves, and they touch
+ * different files. The sale webhook doesn't: there a refusal is how a
+ * second buyer of the same painting is caught.
  */
 export async function commitFiles(
   config: GitHubConfig,
   message: string,
   files: RepoFile[],
+  opts: { rebase?: boolean } = {},
+): Promise<string> {
+  const entries = await Promise.all(
+    files.map(async (f) => {
+      const entry = { path: f.path, mode: "100644", type: "blob" };
+      if ("deleted" in f) return { ...entry, sha: null };
+      if ("text" in f) return { ...entry, content: f.text };
+      const blob = (await gh(config, `/repos/${config.repo}/git/blobs`, {
+        method: "POST",
+        body: JSON.stringify({ content: f.base64, encoding: "base64" }),
+      })) as { sha: string };
+      return { ...entry, sha: blob.sha };
+    }),
+  );
+  const tries = opts.rebase === true ? 3 : 1;
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await commitTree(config, message, entries);
+    } catch (err) {
+      const raced = err instanceof Error && /^GitHub API 422/.test(err.message);
+      if (!raced || attempt >= tries) throw err;
+    }
+  }
+}
+
+async function commitTree(
+  config: GitHubConfig,
+  message: string,
+  entries: Array<Record<string, unknown>>,
 ): Promise<string> {
   const ref = (await gh(
     config,
@@ -179,18 +214,6 @@ export async function commitFiles(
     tree: { sha: string };
   };
 
-  const entries = await Promise.all(
-    files.map(async (f) => {
-      const entry = { path: f.path, mode: "100644", type: "blob" };
-      if ("deleted" in f) return { ...entry, sha: null };
-      if ("text" in f) return { ...entry, content: f.text };
-      const blob = (await gh(config, `/repos/${config.repo}/git/blobs`, {
-        method: "POST",
-        body: JSON.stringify({ content: f.base64, encoding: "base64" }),
-      })) as { sha: string };
-      return { ...entry, sha: blob.sha };
-    }),
-  );
   const tree = (await gh(config, `/repos/${config.repo}/git/trees`, {
     method: "POST",
     body: JSON.stringify({ base_tree: baseCommit.tree.sha, tree: entries }),

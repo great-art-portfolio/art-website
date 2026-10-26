@@ -9,6 +9,16 @@ import {
 } from "../lib/site";
 import { studioRowHtml } from "../lib/studio-rows";
 import "../components/studio.css";
+import bannerRaw from "../content/announcement.txt?raw";
+import { ENABLED } from "../i18n";
+import { allTranslationFiles } from "../i18n/content";
+import {
+  missingLocales,
+  parseTranslationFile,
+  translationPath,
+  BANNER_TRANSLATIONS,
+} from "../i18n/painting-text";
+import { isExpired, localToday, parseAnnouncement } from "../lib/banner";
 
 // Astro lowercases content ids (img_5667.md), but repo paths are
 // case-sensitive (IMG_5667.md). Resolve the real filename at build time so
@@ -40,11 +50,48 @@ const localCollection = (await getCollection("paintings")).map((p) => ({
   trashedAt: p.data.trashedAt ?? "",
   image: p.data.image.src,
   order: p.data.order ?? null,
+  medium: p.data.medium ?? "",
   mdPath: `src/content/paintings/${mdFile(p.id)}`,
   // View counts load client-side. Zero matches the initial client render.
   views: 0,
 }));
 const localJson = JSON.stringify(localCollection).replace(/</g, "\\u003c");
+
+// Paintings (and the banner) whose words aren't translated into every
+// language she has switched on, as of this build. The dashboard catches
+// them up in the background, so a failed or skipped translation never
+// stays missing for long.
+const translationFiles = allTranslationFiles();
+const none = parseTranslationFile(null);
+const behindPaintings = localCollection
+  .filter((p) => !p.trash)
+  .filter(
+    (p) =>
+      missingLocales(
+        translationFiles.get(translationPath(p.mdPath)) ?? none,
+        {
+          title: p.title,
+          description: p.description ?? "",
+          alt: p.alt,
+          medium: p.medium,
+        },
+        ENABLED,
+      ).length > 0,
+  )
+  .map((p) => p.mdPath);
+const banner = parseAnnouncement(bannerRaw);
+const bannerBehind =
+  banner.text !== "" &&
+  !isExpired(banner.expires, localToday()) &&
+  missingLocales(
+    translationFiles.get(BANNER_TRANSLATIONS) ?? none,
+    { title: banner.text, description: "", alt: "", medium: "" },
+    ENABLED,
+  ).length > 0;
+const behindJson = JSON.stringify({
+  paintings: behindPaintings,
+  banner: bannerBehind ? banner.text : "",
+}).replace(/</g, "\\u003c");
 
 // Render the rows as static markup. The client script renders identical HTML
 // over them, so loading causes no layout shift.
@@ -139,6 +186,12 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
       type="application/json"
       id="local-collection"
       set:html={localJson}
+    ></script>
+    <script
+      is:inline
+      type="application/json"
+      id="translations-behind"
+      set:html={behindJson}
     ></script>
     <div id="row-confirm" hidden>
       <div

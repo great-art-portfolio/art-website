@@ -1,0 +1,25 @@
+---
+import { getCollection } from "astro:content";
+import PaintingPage from "../../../views/PaintingPage.astro";
+import { ENABLED } from "../../../i18n";
+import { isPublished, slugifyTitle } from "../../../lib/site";
+
+// Every published painting in every language she has switched on. Old
+// renamed slugs only redirect in English, where those links were shared.
+export async function getStaticPaths() {
+  const paintings = (await getCollection("paintings")).filter((p) =>
+    isPublished(p.data),
+  );
+  return ENABLED.flatMap((locale) =>
+    paintings.map((painting) => ({
+      params: { locale, id: slugifyTitle(painting.data.title) },
+      props: { painting },
+    })),
+  );
+}
+
+const { painting } = Astro.props;
+const { locale } = Astro.params;
+---
+
+<PaintingPage painting={painting} locale={locale} />

@@ -1,0 +1,9 @@
+---
+import Credits from "../../views/Credits.astro";
+import { localeParams } from "../../i18n";
+
+export const getStaticPaths = localeParams;
+const { locale } = Astro.params;
+---
+
+<Credits locale={locale} />

@@ -1,0 +1,64 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { t } from "../i18n";
+import { localePath, type Locale } from "../i18n/locales";
+
+interface Props {
+  locale?: Locale | undefined;
+}
+const { locale = "en" } = Astro.props;
+const s = t(locale).emailPages;
+const msgs = {
+  needsLink: s.confirmNeedsLink,
+  ok: s.confirmed,
+  bad: s.confirmFailed,
+};
+---
+
+<Layout title={s.confirmedTitle} noindex locale={locale}>
+  <main class="email-page" id="main" data-msgs={JSON.stringify(msgs)}>
+    <h1>{s.heading}</h1>
+    <p id="email-token-say" role="status">
+      {s.working}
+    </p>
+    <p>
+      <a href={localePath(locale, "/")}>{s.back}</a>
+    </p>
+  </main>
+</Layout>
+
+<style>
+  .email-page {
+    max-width: 44rem;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 4rem;
+  }
+</style>
+
+<script>
+  // Runs once per full page load, not on astro:page-load. The call is
+  // idempotent either way.
+  const say = document.getElementById("email-token-say");
+  const params = new URLSearchParams(window.location.search);
+  const email = params.get("email") || "";
+  const token = params.get("token") || "";
+  const el = say instanceof HTMLParagraphElement ? say : null;
+  // The page's words, in its language.
+  let msgs = { needsLink: "", ok: "", bad: "" };
+  try {
+    msgs = JSON.parse(document.getElementById("main")?.dataset.msgs ?? "");
+  } catch {
+    // Keeps the blanks; the heading still says where they are.
+  }
+  if (el !== null) {
+    if (token === "" || email === "") {
+      el.textContent = msgs.needsLink;
+    } else {
+      void import("../lib/email-token").then(function (lib) {
+        lib.settleToken("confirm", email, token).then(function (verdict) {
+          el.textContent = verdict === "ok" ? msgs.ok : msgs.bad;
+        });
+      });
+    }
+  }
+</script>

@@ -1,6 +1,10 @@
 ---
 import Layout from "../../layouts/Layout.astro";
 import "../../components/studio.css";
+import { ENABLED } from "../../i18n";
+import { LOCALES } from "../../i18n/locales";
+
+const offered = LOCALES.filter((l) => l.code !== "en");
 ---
 
 <Layout title="Admin - Guide" wordmark="admin" backdrop="guide">
@@ -91,6 +95,33 @@ import "../../components/studio.css";
         “Saving is paused” means GitHub, where the site keeps your paintings,
         turned the site away. Nothing you've saved is lost — tell Chris.
       </p>
+      <h3>Languages</h3>
+      <p>
+        Your site can also be read in the languages ticked below — buyers see a
+        language menu at the bottom of every page, and anyone whose phone is set
+        to one of them is offered it. When you save a painting or the banner,
+        its words are translated into each of these automatically. You never
+        write anything twice, and your English stays exactly as you wrote it.
+      </p>
+      <fieldset class="langs" id="lang-choices">
+        <legend>Languages besides English</legend>
+        {offered.map((l) => (
+          <label>
+            <input
+              type="checkbox"
+              value={l.code}
+              checked={(ENABLED as readonly string[]).includes(l.code)}
+            />
+            <span lang={l.lang}>{l.name}</span>
+            <span class="hint">{l.english}</span>
+          </label>
+        ))}
+      </fieldset>
+      <p>
+        <button type="button" id="lang-save">
+          Save languages
+        </button>
+      </p>
       <h3>Shipping and getting paid</h3>
       <ul>
         <li>
@@ -141,6 +172,28 @@ import "../../components/studio.css";
 <script src="../../components/AdminPanel.ts"></script>
 
 <style>
+  .langs {
+    border: 0;
+    padding: 0;
+    margin: 0.75rem 0 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+    gap: 0.25rem 1rem;
+  }
+  .langs legend {
+    padding: 0;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+  }
+  .langs label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+  }
+  .langs .hint {
+    font-size: 0.8rem;
+  }
   #sec-info ul {
     list-style: none;
     padding: 0;

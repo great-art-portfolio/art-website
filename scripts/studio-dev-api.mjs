@@ -14,13 +14,14 @@ import { dirname, resolve, sep } from "node:path";
 export const BANNER_PATH = "src/content/announcement.txt";
 const PAINTINGS_DIR = "src/content/paintings";
 
-const PAINTING_FILE =
-  /^src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9_.-]*\.md$/;
+/** Translation files and the language setting read back like paintings. */
+const READABLE_FILE =
+  /^(src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9_.-]*\.md|src\/content\/translations\/[A-Za-z0-9][A-Za-z0-9_.-]*\.json|src\/content\/languages\.json)$/;
 
 /** Repo paths the studio may write or delete. Keep in sync with
  * functions/api/commit. */
 const GALLERY_PATH =
-  /^(src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9_.-]*|src\/content\/announcement\.txt|public\/models\/[A-Za-z0-9][A-Za-z0-9_.-]*)$/;
+  /^(src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9_.-]*|src\/content\/announcement\.txt|src\/content\/languages\.json|src\/content\/translations\/[A-Za-z0-9][A-Za-z0-9_.-]*\.json|public\/models\/[A-Za-z0-9][A-Za-z0-9_.-]*)$/;
 
 const PHOTO_FILE =
   /^src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9_.-]*\.(jpg|jpeg|png|webp|heic)$/i;
@@ -61,7 +62,7 @@ export function createStudioDevApi(root) {
     const url = new URL(req.url);
     const path = url.searchParams.get("path");
     if (path !== null) {
-      if (!PAINTING_FILE.test(path))
+      if (!READABLE_FILE.test(path))
         return json({ error: "Unknown file" }, { status: 400 });
       const abs = withinRoot(root, path);
       const content = abs === null ? null : await readText(abs);

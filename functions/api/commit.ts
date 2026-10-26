@@ -13,11 +13,11 @@ import { parseCommitBody } from "../_lib/validation";
 /** Repo path of the homepage banner. An empty file hides it. */
 export const BANNER_PATH = "src/content/announcement.txt";
 
-import { GALLERY_PATH, PAINTING_FILE } from "../_lib/gallery-paths";
+import { GALLERY_PATH, isReadableFile } from "../_lib/gallery-paths";
 
 /** Text files go inline in the commit; everything else is one upload each,
  * which Workers' subrequest limit caps. */
-const TEXT_FILE = /\.(md|txt)$/i;
+const TEXT_FILE = /\.(md|txt|json)$/i;
 const MAX_FILES = 100;
 const MAX_BINARIES = 12;
 const BASE64 = /^[A-Za-z0-9+/]*={0,2}$/;
@@ -32,7 +32,7 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
   const path = url.searchParams.get("path");
   try {
     if (path !== null) {
-      if (!PAINTING_FILE.test(path)) return badRequest("Unknown file");
+      if (!isReadableFile(path)) return badRequest("Unknown file");
       const content = await readTextFile(config, path);
       if (content === null) return badRequest("Unknown file");
       return json({ content });
@@ -117,7 +117,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   }
   for (const path of deletePaths) files.push({ path, deleted: true });
   try {
-    const sha = await commitFiles(config, message, files);
+    const sha = await commitFiles(config, message, files, { rebase: true });
     return json({ ok: true, commit: sha }, { status: 201 });
   } catch (err) {
     return githubFailure(err, "Publishing failed — the commit did not land.");

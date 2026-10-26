@@ -1,0 +1,53 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { t } from "../i18n";
+import { localePath, type Locale } from "../i18n/locales";
+
+interface Props {
+  locale?: Locale | undefined;
+}
+const { locale = "en" } = Astro.props;
+const s = t(locale).thanks;
+---
+
+<Layout title={s.title} description={s.description} noindex locale={locale}>
+  <main class="thanks" id="main">
+    <p class="eyebrow">{s.eyebrow}</p>
+    <h1>{s.heading}</h1>
+    <p class="lede">{s.lede}</p>
+    <a class="back" href={localePath(locale, "/")}>
+      {s.back}
+    </a>
+  </main>
+</Layout>
+
+<style>
+  .thanks {
+    max-width: 36rem;
+    margin: 0 auto;
+    padding: 4rem 1.25rem 5rem;
+    text-align: center;
+  }
+  .eyebrow {
+    color: var(--accent);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-size: clamp(2.2rem, 6vw, 3.2rem);
+    margin: 0.4rem 0 1rem;
+  }
+  .lede {
+    font-size: 1.1rem;
+    line-height: 1.6;
+  }
+  .back {
+    display: inline-block;
+    margin-top: 2rem;
+    color: var(--accent);
+    font-weight: 600;
+  }
+</style>

@@ -1,7 +1,7 @@
 ---
 import { Picture } from "astro:assets";
 import { publicPaintings, type Painting } from "../lib/collection";
-import { formatDimensions } from "../lib/dims";
+import { sizeFor } from "../lib/dims";
 import { desktopSlots, galleryTiles } from "../lib/gallery-layout";
 import { formatPriceCAD } from "../lib/money";
 import {
@@ -11,22 +11,39 @@ import {
   gallerySizes,
   soldSizes,
 } from "../lib/responsive-images";
-import { SHOW_PRICES, slugifyTitle, workCount } from "../lib/site";
+import { SHOW_PRICES, slugifyTitle } from "../lib/site";
+import { t } from "../i18n";
+import { paintingWordsIn } from "../i18n/content";
+import { localePath, type Locale } from "../i18n/locales";
 
 interface Props {
   /** "featured" renders only the newest painting, for the homepage's top
    * section (anything slotted in, like the studio note, is pinned to it).
    * "grid" renders the collection without it, then the sold archive. */
   view?: "grid" | "featured" | undefined;
+  locale?: Locale | undefined;
 }
-const { view = "grid" } = Astro.props;
+const { view = "grid", locale = "en" } = Astro.props;
+const s = t(locale);
 
 const dimsOf = (p: Painting): string =>
-  formatDimensions(
+  sizeFor(
+    locale,
     p.data.widthIn ?? null,
     p.data.heightIn ?? null,
     p.data.depthIn ?? null,
   );
+// Her title and alt text in this language, once the studio has
+// translated them.
+const words = (p: Painting) =>
+  paintingWordsIn(locale, p.filePath ?? "", {
+    title: p.data.title,
+    description: p.body ?? "",
+    alt: p.data.alt,
+    medium: p.data.medium ?? "",
+  });
+const pageOf = (p: Painting): string =>
+  localePath(locale, `/paintings/${slugifyTitle(p.data.title)}`);
 
 const { available, sold, featured } = await publicPaintings();
 // The newest painting hangs up top, so the grid skips it.
@@ -64,7 +81,7 @@ const slotClass = (i: number): string[] => {
   <figure class="feature">
     <a
       class="card feature-card"
-      href={`/paintings/${slugifyTitle(featured.data.title)}`}
+      href={pageOf(featured)}
       data-astro-prefetch="hover"
     >
       <span
@@ -73,7 +90,7 @@ const slotClass = (i: number): string[] => {
       >
         <Picture
           src={featured.data.image}
-          alt={featured.data.alt}
+          alt={words(featured).alt}
           width={1000}
           widths={GALLERY_WIDTHS}
           sizes={featuredSizes()}
@@ -90,14 +107,14 @@ const slotClass = (i: number): string[] => {
           headline column. */}
       <span class="caption">
         <span class="caption-head">
-          <span class="caption-title">{featured.data.title}</span>
-          <span class="kicker">Newest painting</span>
+          <span class="caption-title">{words(featured).title}</span>
+          <span class="kicker">{s.gallery.newest}</span>
         </span>
         <span class="caption-sub">
           {SHOW_PRICES ? (
             <span class="price">{priceLabel(featured.data.price)}</span>
           ) : (
-            <span class="ask">Ask about this piece →</span>
+            <span class="ask">{s.gallery.ask}</span>
           )}
           {dimsOf(featured) !== "" && (
             <span class="dims">{dimsOf(featured)}</span>
@@ -110,13 +127,17 @@ const slotClass = (i: number): string[] => {
 )}
 
 {view === "grid" && (
-  <section class="collection" id="collection" aria-label="Available paintings">
+  <section
+    class="collection"
+    id="collection"
+    aria-label={s.gallery.availableLabel}
+  >
     <div class="section-head">
       <div>
-        <p class="eyebrow">The collection</p>
-        <h2>Available works</h2>
+        <p class="eyebrow">{s.gallery.eyebrow}</p>
+        <h2>{s.gallery.title}</h2>
       </div>
-      <p class="count">{workCount(available.length)} · each one of a kind</p>
+      <p class="count">{s.gallery.count(available.length)}</p>
     </div>
 
     <div class="gallery" id="gallery-static">
@@ -127,7 +148,7 @@ const slotClass = (i: number): string[] => {
             tiles[i] !== "normal" && `tile-${tiles[i]}`,
             ...slotClass(i),
           ]}
-          href={`/paintings/${slugifyTitle(painting.data.title)}`}
+          href={pageOf(painting)}
           data-astro-prefetch="hover"
         >
           <span
@@ -136,7 +157,7 @@ const slotClass = (i: number): string[] => {
           >
             <Picture
               src={painting.data.image}
-              alt={painting.data.alt}
+              alt={words(painting).alt}
               width={1000}
               widths={GALLERY_WIDTHS}
               sizes={gallerySizes(tiles[i] ?? "normal", slots[i]?.span ?? 4)}
@@ -153,17 +174,17 @@ const slotClass = (i: number): string[] => {
                 class="badge new"
                 data-new-until={painting.data.dateAdded.getTime() + NEW_MS}
               >
-                New
+                {s.gallery.new}
               </span>
             )}
           </span>
           <span class="caption">
-            <span class="caption-title">{painting.data.title}</span>
+            <span class="caption-title">{words(painting).title}</span>
             <span class="caption-sub">
               {SHOW_PRICES ? (
                 <span class="price">{priceLabel(painting.data.price)}</span>
               ) : (
-                <span class="ask">Ask about this piece →</span>
+                <span class="ask">{s.gallery.ask}</span>
               )}
               {dimsOf(painting) !== "" && (
                 <span class="dims">{dimsOf(painting)}</span>
@@ -177,28 +198,28 @@ const slotClass = (i: number): string[] => {
 )}
 
 {view === "grid" && sold.length > 0 && (
-  <section class="collection collected" id="sold" aria-label="Sold paintings">
+  <section
+    class="collection collected"
+    id="sold"
+    aria-label={s.gallery.soldLabel}
+  >
     <div class="section-head">
       <div>
-        <p class="eyebrow">Collected</p>
-        <h2>Found their homes</h2>
+        <p class="eyebrow">{s.gallery.soldEyebrow}</p>
+        <h2>{s.gallery.soldTitle}</h2>
       </div>
-      <p class="count">{workCount(sold.length)} sold</p>
+      <p class="count">{s.gallery.soldCount(sold.length)}</p>
     </div>
     <div class="gallery sold-grid">
       {sold.map((painting) => (
-        <a
-          class="card"
-          href={`/paintings/${slugifyTitle(painting.data.title)}`}
-          data-astro-prefetch="hover"
-        >
+        <a class="card" href={pageOf(painting)} data-astro-prefetch="hover">
           <span
             class="mat"
             transition:name={`painting-${slugifyTitle(painting.data.title)}`}
           >
             <Picture
               src={painting.data.image}
-              alt={painting.data.alt}
+              alt={words(painting).alt}
               width={700}
               widths={SOLD_WIDTHS}
               loading="lazy"
@@ -207,10 +228,10 @@ const slotClass = (i: number): string[] => {
               fallbackFormat="webp"
               decoding="async"
             />
-            <span class="badge sold">Sold</span>
+            <span class="badge sold">{s.gallery.sold}</span>
           </span>
           <span class="caption">
-            <span class="caption-title">{painting.data.title}</span>
+            <span class="caption-title">{words(painting).title}</span>
           </span>
         </a>
       ))}

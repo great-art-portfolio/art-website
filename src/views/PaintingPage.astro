@@ -1,0 +1,156 @@
+---
+import { render, type CollectionEntry } from "astro:content";
+import { getImage } from "astro:assets";
+import Layout from "../layouts/Layout.astro";
+import PaintingDetail, {
+  type PaintingDetailData,
+} from "../components/PaintingDetail.astro";
+import { sizeFor } from "../lib/dims";
+import { modelGlbOrEmpty } from "../lib/model-files";
+import { SHARE_IMAGE } from "../lib/share-image";
+import {
+  ARTIST_NAME,
+  metaDescription,
+  SITE_URL,
+  slugifyTitle,
+} from "../lib/site";
+import { t } from "../i18n";
+import { paintingWordsIn } from "../i18n/content";
+import { localeInfo, localePath, type Locale } from "../i18n/locales";
+
+/** A painting's buyer page, in any of the site's languages. */
+interface Props {
+  painting: CollectionEntry<"paintings">;
+  locale?: Locale | undefined;
+}
+const { painting, locale = "en" } = Astro.props;
+const s = t(locale);
+const { Content } = await render(painting);
+// Without a model file, omit the wall preview instead of showing an empty
+// viewer.
+const modelGlb = modelGlbOrEmpty(painting.data.modelGlb);
+const mdPath =
+  painting.filePath ??
+  `src/content/paintings/${painting.id.endsWith(".md") ? painting.id : `${painting.id}.md`}`;
+// Her words in this language once the studio has translated them, else
+// her English.
+const words = paintingWordsIn(locale, mdPath, {
+  title: painting.data.title,
+  description: painting.body ?? "",
+  alt: painting.data.alt,
+  medium: painting.data.medium ?? "",
+});
+const meta = [
+  words.medium,
+  sizeFor(
+    locale,
+    painting.data.widthIn ?? null,
+    painting.data.heightIn ?? null,
+    painting.data.depthIn ?? null,
+    true,
+  ),
+]
+  .filter((part) => part !== "")
+  .join(" · ");
+const data: PaintingDetailData = {
+  title: words.title,
+  price: painting.data.price,
+  sold: painting.data.sold,
+  publishOn: "",
+  medium: words.medium,
+  meta,
+  alt: words.alt,
+  description: words.description,
+  widthIn:
+    painting.data.widthIn === undefined ? "" : String(painting.data.widthIn),
+  heightIn:
+    painting.data.heightIn === undefined ? "" : String(painting.data.heightIn),
+  depthIn:
+    painting.data.depthIn === undefined ? "" : String(painting.data.depthIn),
+  image: painting.data.image,
+  modelGlb,
+  modelUsdz: modelGlb === "" ? "" : (painting.data.modelUsdz ?? ""),
+  mdPath,
+  slug: slugifyTitle(painting.data.title),
+  draft: false,
+};
+const path = `/paintings/${data.slug}`;
+const pageUrl = new URL(localePath(locale, path), SITE_URL).href;
+const share = await getImage({ src: painting.data.image, ...SHARE_IMAGE });
+const description = metaDescription(words.description, words.alt);
+// A translated description is plain paragraphs; her English is Markdown.
+const paragraphs = words.translated
+  ? words.description.split(/\n\s*\n/).filter((p) => p.trim() !== "")
+  : [];
+// Search engines want the photo itself here, not the page it sits on: the
+// 1200px share copy, never the print-quality original.
+const inches = (v: number | undefined) =>
+  v === undefined
+    ? undefined
+    : { "@type": "QuantitativeValue", value: v, unitCode: "INH" };
+const paintingJsonLd = {
+  "@context": "https://schema.org",
+  "@type": ["Product", "VisualArtwork"],
+  name: words.title,
+  url: pageUrl,
+  inLanguage: localeInfo(locale).lang,
+  image: new URL(share.src, SITE_URL).href,
+  description,
+  artform: "Painting",
+  ...(words.medium === "" ? {} : { artMedium: words.medium }),
+  ...(painting.data.widthIn === undefined
+    ? {}
+    : { width: inches(painting.data.widthIn) }),
+  ...(painting.data.heightIn === undefined
+    ? {}
+    : { height: inches(painting.data.heightIn) }),
+  ...(ARTIST_NAME === null
+    ? {}
+    : {
+        brand: { "@type": "Brand", name: ARTIST_NAME },
+        creator: { "@type": "Person", name: ARTIST_NAME },
+      }),
+  offers: {
+    "@type": "Offer",
+    url: pageUrl,
+    priceCurrency: "CAD",
+    price: painting.data.price.toFixed(2),
+    availability: painting.data.sold
+      ? "https://schema.org/SoldOut"
+      : "https://schema.org/InStock",
+  },
+};
+---
+
+<Layout
+  title={
+    locale === "en"
+      ? `${painting.data.title}${ARTIST_NAME === null ? "" : ` by ${ARTIST_NAME}`} — ${painting.data.sold ? "Sold" : "Original Painting"}`
+      : s.meta.paintingTitle(words.title, painting.data.sold)
+  }
+  description={description}
+  canonical={localePath(locale, path)}
+  locale={locale}
+  alternates={path}
+  image={share.src}
+  imageAlt={words.alt === "" ? words.title : words.alt}
+  product={{ price: painting.data.price, sold: painting.data.sold }}
+>
+  <PaintingDetail
+    mode="buy"
+    data={data}
+    backHref={localePath(locale, "/")}
+    backLabel={s.painting.back}
+    locale={locale}
+    translated={words.translated}
+    titleEn={painting.data.title}
+    editHref={`/admin/paintings/${data.slug}`}
+  >
+    {words.translated ? paragraphs.map((p) => <p>{p}</p>) : <Content />}
+  </PaintingDetail>
+  <script
+    type="application/ld+json"
+    is:inline
+    set:html={JSON.stringify(paintingJsonLd)}
+  ></script>
+</Layout>

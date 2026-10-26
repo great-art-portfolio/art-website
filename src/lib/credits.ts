@@ -4,6 +4,16 @@
  * versions. Build-only tools (sharp, esbuild, Vite) aren't listed: they
  * never leave the build. */
 export interface Credit {
+  /** Its line in the site's words (i18n `credits.uses`). */
+  key:
+    | "fraunces"
+    | "caveat"
+    | "three"
+    | "modelViewer"
+    | "lit"
+    | "astro"
+    | "zod"
+    | "qrcode";
   name: string;
   url: string;
   /** What it does on this site, in plain words. */
@@ -47,6 +57,7 @@ const bsd3 = (holder: string): string =>
 
 export const CREDITS: Credit[] = [
   {
+    key: "fraunces",
     name: "Fraunces",
     url: "https://github.com/undercasetype/Fraunces",
     use: "The typeface for headings and painting titles.",
@@ -54,6 +65,7 @@ export const CREDITS: Credit[] = [
     pkg: "@fontsource-variable/fraunces",
   },
   {
+    key: "caveat",
     name: "Caveat",
     url: "https://github.com/googlefonts/caveat",
     use: "The handwriting in the signature and the studio note.",
@@ -61,6 +73,7 @@ export const CREDITS: Credit[] = [
     pkg: "@fontsource/caveat",
   },
   {
+    key: "three",
     name: "three.js",
     url: "https://threejs.org",
     use: "Builds the 3D model behind “See it on your wall”.",
@@ -68,6 +81,7 @@ export const CREDITS: Credit[] = [
     pkg: "three",
   },
   {
+    key: "modelViewer",
     name: "<model-viewer>",
     url: "https://modelviewer.dev",
     use: "Shows the painting on your wall in augmented reality.",
@@ -75,6 +89,7 @@ export const CREDITS: Credit[] = [
     pkg: "@google/model-viewer",
   },
   {
+    key: "lit",
     name: "Lit",
     url: "https://lit.dev",
     use: "Bundled inside <model-viewer>.",
@@ -82,6 +97,7 @@ export const CREDITS: Credit[] = [
     text: bsd3("2017 Google LLC"),
   },
   {
+    key: "astro",
     name: "Astro",
     url: "https://astro.build",
     use: "Builds the site, and makes each painting grow into its page.",
@@ -89,6 +105,7 @@ export const CREDITS: Credit[] = [
     pkg: "astro",
   },
   {
+    key: "zod",
     name: "Zod",
     url: "https://zod.dev",
     use: "Checks the studio's data on its way in.",
@@ -96,6 +113,7 @@ export const CREDITS: Credit[] = [
     pkg: "zod",
   },
   {
+    key: "qrcode",
     name: "QR Code Generator",
     url: "https://github.com/kazuhikoarase/qrcode-generator",
     use: "Draws the studio's printable QR cards.",

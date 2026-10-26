@@ -1,0 +1,212 @@
+import type { Strings } from "./en";
+
+export const ko: Strings = {
+  location: "앨버타주 캘거리",
+  meta: {
+    siteTitle: "Barbara Straka — 원화 작품",
+    description: "작가의 작업실에서 직접 선보이는 자연과 추상 원화 작품입니다.",
+    paintingTitle: (title: string, sold: boolean) =>
+      `${title} (Barbara Straka 작) — ${sold ? "판매 완료" : "원화"}`,
+  },
+  layout: {
+    skip: "본문으로 건너뛰기",
+    home: "홈 — 갤러리로 돌아가기",
+    nav: "주 메뉴",
+    collection: "컬렉션",
+    about: "소개",
+    notifyMe: "알림 받기",
+    privacy: "개인정보",
+    privacyNote: "쿠키 없음, 추적 없음",
+    install: "갤러리 앱 설치",
+    credits: "크레딧",
+    language: "언어",
+    readIn: "이 사이트를 한국어로 보기",
+    noThanks: "괜찮아요",
+  },
+  notify: {
+    close: "알림 창 닫기",
+    title: "새 그림 소식을 놓치지 마세요",
+    body: "새 그림이 걸리거나 행사가 열리면 이메일로 알려 드려요. 언제든 클릭 한 번으로 구독을 취소할 수 있어요.",
+    email: "이메일 주소",
+    join: "구독하기",
+    leave: "구독 취소",
+  },
+  notifyClient: {
+    badEmail:
+      "이메일 주소가 올바르지 않은 것 같아요 — 확인하고 다시 시도해 주세요.",
+    joining: "구독하는 중…",
+    checkInbox: "받은편지함을 확인해 주세요 — 한 번만 누르면 확인돼요.",
+    finishCheck:
+      "한 단계만 더 — 위의 간단한 확인을 마친 뒤 다시 시도해 주세요.",
+    failed: "잘 되지 않았어요 — 잠시 후 다시 시도해 주세요.",
+    typeFirst: "먼저 주소를 입력한 다음 “구독 취소”를 눌러 주세요.",
+    leaving: "구독 취소하는 중…",
+    left: "완료 — 이 주소는 목록에서 빠졌어요.",
+    copied: "복사했어요.",
+    copyFailed: "복사하지 못했어요 — 텍스트를 직접 선택해 주세요.",
+    tapToCopy: "눌러서 이 메시지 복사하기",
+  },
+  home: {
+    tagline: "손으로 그린 자연과 추상 원화",
+    headline: "작업실에서 바로 온 원화",
+    lede: "손으로 그린 자연과 추상 원화를 작업실에서 직접 판매해요. 화면에 보이는 그림이 바로 실제 작품이에요 — 원화가 팔리면 프린트만 남아요.",
+    browse: "컬렉션 둘러보기",
+    getNotified: "새 작품 소식 받기",
+    points: [
+      ["원화와 프린트", "한 번 그리고, 프린트는 주문 후 제작"],
+      ["직접 판매", "작업실에서 바로, 갤러리 수수료 없음"],
+      ["정성스러운 배송", "구매 후 함께 정해요"],
+    ],
+    aboutEyebrow: "작업실에서",
+    aboutTitle: (place: string) => `${place}에서 그린 그림`,
+    about: [
+      "Barbara Straka는 캘거리 작업실에서 자연과 추상을 그려요 — 초원의 빛, 고요한 물, 그리고 풍경과 감정 사이 어딘가에 놓인 색채 습작들이에요. 이곳의 모든 작품은 원화로 시작하고, 대부분은 프린트로도 구할 수 있어요. 원화는 한 번 팔리면 다시 없지만, 프린트는 계속 남아요.",
+      "모든 작품은 작업실에서 직접 판매해요. 표시된 가격이 전체 가격이고, 배송은 구매 후 함께 정해요. 작품에 대해 묻고 싶다면 작품을 열고 <strong>관심 있으세요?</strong>를 눌러 주세요 — 메시지가 작가에게 바로 전달돼요.",
+    ],
+  },
+  gallery: {
+    newest: "최신 작품",
+    ask: "이 작품 문의하기 →",
+    availableLabel: "판매 중인 그림",
+    eyebrow: "컬렉션",
+    title: "판매 중인 작품",
+    count: (n: number) => `${n}점 · 모두 세상에 하나뿐인 작품`,
+    soldLabel: "판매된 그림",
+    soldEyebrow: "소장 완료",
+    soldTitle: "새 집을 찾은 작품들",
+    soldCount: (n: number) => `${n}점 판매 완료`,
+    new: "신작",
+    sold: "판매 완료",
+  },
+  painting: {
+    back: "← 컬렉션으로 돌아가기",
+    fullscreen: (title: string) => `${title} 전체 화면으로 보기`,
+    tapFullscreen: "눌러서 전체 화면으로 보기",
+    lightbox: "그림 전체 화면 보기",
+    closeFullscreen: "전체 화면 닫기",
+    eyebrow: "원화 · 세상에 하나뿐인 작품",
+    soldNote: "이 작품은 새 집을 찾았어요.",
+    priceOnRequest: "가격은 문의해 주세요 — 아래에 메시지를 남겨 주시면 돼요.",
+    buyNow: (price: string) => `지금 구매 · ${price}`,
+    payNote:
+      "카드, Apple Pay, Google Pay로 결제할 수 있어요. 카드 수수료가 없는 Interac e-transfer를 원하시나요? 아래로 문의하시면 이메일로 자세한 방법을 보내 드려요.",
+    interested: "관심 있으세요?",
+    formTitle: "이 그림 문의하기",
+    shipNote: "배송은 구매 후 작가와 함께 정해요.",
+    name: "이름",
+    email: "이메일",
+    message: "메시지",
+    messagePlaceholder: "안녕하세요, 이 작품이 정말 마음에 들어요…",
+    send: "문의 보내기",
+    wallTitle: "내 벽에 걸어 보기",
+    wallTouch:
+      "거의 실제 크기로 보여 드려요. <strong>내 벽에서 보기</strong>를 누른 뒤, 그림을 걸 곳에 휴대폰을 비춰 보세요.",
+    wallDesk: "거의 실제 크기로 보여 드려요.",
+    machineNote: "제목과 설명은 영어에서 자동으로 번역되었어요.",
+    wallScan:
+      "내 벽에서 보려면 휴대폰 카메라로 이 코드를 스캔한 뒤 <strong>내 벽에서 보기</strong>를 눌러 주세요.",
+  },
+  paintingClient: {
+    sending: "보내는 중…",
+    sent: "감사합니다 — 메시지가 작가에게 전달되었어요.",
+    savedOffline: "저장했어요 — 다시 인터넷에 연결되면 자동으로 보내져요.",
+    finishCheck:
+      "한 단계만 더 — 위의 간단한 확인을 마친 뒤 “문의 보내기”를 다시 눌러 주세요.",
+    failed: "전송되지 않았어요 — 이메일 주소를 확인하고 다시 시도해 주세요.",
+    askQuestion: "질문하기",
+    openingCheckout: "안전한 결제 페이지를 여는 중…",
+    checkoutUnavailable: "지금은 결제를 이용할 수 없어요. 다시 시도해 주세요.",
+    viewOnWall: "내 벽에서 보기",
+    share: "이 그림 공유하기",
+    copyLink: "이 그림의 링크 복사하기",
+    copied: "복사했어요.",
+    shareFailed: "공유하지 못했어요 — 다시 시도해 주세요.",
+    copyFailed: "복사하지 못했어요 — 주소창을 길게 눌러 복사해 주세요.",
+  },
+  privacy: {
+    title: "개인정보",
+    description: "이 갤러리가 여러분의 정보를 다루는 방법이에요.",
+    intro:
+      "이 갤러리는 앨버타주 캘거리의 작가 한 사람이 운영해요. 앨버타주 개인정보 보호법(PIPA)을 따릅니다.",
+    collectedTitle: "수집하는 정보",
+    collected: [
+      ["페이지 조회수:", "그림별 익명 집계예요(쿠키 없음, 핑거프린팅 없음)."],
+      [
+        "전체 통계:",
+        "Cloudflare Web Analytics를 사용해요. 쿠키를 남기지 않고 개인을 추적하지 않아요.",
+      ],
+      [
+        "문의:",
+        "그림 문의 양식에 입력한 이름, 이메일, 메시지예요 — 작가가 답장할 수 있도록 작가에게 바로 이메일로 전달돼요. 문의 내용은 사이트에 전혀 저장되지 않아요.",
+      ],
+      [
+        "구매:",
+        "카드, Apple Pay, Google Pay 결제는 Stripe의 안전한 페이지에서 이루어지며, 카드 정보는 이 사이트에 절대 전달되지 않아요. 그림을 보내 드릴 수 있도록 Stripe가 이름, 이메일, 전화번호, 배송 주소를 전달해요.",
+      ],
+      [
+        "구매자 알림:",
+        "이메일 목록은 사이트 데이터베이스가 아니라 메일 발송 서비스(Resend)에 보관돼요. 확인 이메일을 누른 주소만 목록에 오르고, 몰래 추가되는 일은 없어요. 새 그림이나 행사마다 이메일은 한 통뿐이에요. 모든 이메일에는 클릭 한 번으로 구독을 취소하는 링크가 있고, “알림 받기” 창에도 “구독 취소” 버튼이 있어요.",
+      ],
+      [
+        "스팸 방지:",
+        "구매 양식과 이메일 양식은 Cloudflare Turnstile로 사람인지 조용히 확인해요. 퍼즐도, 추적 쿠키도 없어요.",
+      ],
+    ],
+    notTitle: "수집하지 않는 정보",
+    not: "계정도, 광고 추적기도, 사이트 간 추적도 없고, 개인정보를 판매하지도 않아요.",
+    choicesTitle: "선택할 수 있는 것",
+    choices:
+      "구매자 알림을 그만 받으려면 같은 “알림 받기” 버튼을 다시 눌러 주세요. 개인정보에 관해 궁금한 점은 작가에게 이메일로 보내 주시면 직접 답해 드려요.",
+  },
+  credits: {
+    title: "크레딧",
+    description:
+      "이 갤러리를 만드는 데 쓰인 오픈 소스 소프트웨어와 글꼴, 그리고 그 라이선스예요.",
+    intro:
+      "이 갤러리는 무료 오픈 소스 소프트웨어와 글꼴로 만들어졌어요. 만든 분들이 라이선스를 함께 실어 달라고 부탁했기에, 감사의 마음을 담아 여기에 소개해요.",
+    licenceNote: "라이선스 원문은 작성자가 쓴 그대로 영어로 되어 있어요.",
+    uses: {
+      fraunces: "제목과 그림 이름에 쓰인 글꼴이에요.",
+      caveat: "서명과 작업실 메모에 쓰인 손글씨예요.",
+      three: "“내 벽에서 보기”에 쓰이는 3D 모델을 만들어요.",
+      modelViewer: "증강 현실로 그림을 내 벽에 보여 줘요.",
+      lit: "<model-viewer> 안에 함께 들어 있어요.",
+      astro: "사이트를 만들고, 그림이 자기 페이지로 커지며 열리게 해요.",
+      zod: "작업실 데이터가 들어올 때 확인해요.",
+      qrcode: "작업실에서 인쇄하는 QR 카드를 그려요.",
+    },
+  },
+  thanks: {
+    title: "감사합니다",
+    description: "그림이 곧 찾아갈 거예요.",
+    eyebrow: "결제 완료",
+    heading: "감사합니다!",
+    lede: "이제 이 그림은 당신의 것이에요. Stripe가 영수증을 이메일로 보냈고, 배송에 관해서는 Barbara Straka가 이메일로 연락드릴 거예요.",
+    back: "갤러리로 돌아가기",
+  },
+  notFound: {
+    title: "페이지를 찾을 수 없어요 — Barbara Straka 원화 작품",
+    description: "없는 페이지예요. 대신 원화 컬렉션을 둘러보세요.",
+    eyebrow: "벽에 걸린 게 없어요 — 404",
+    heading: "이 벽은 비어 있어요.",
+    body: "찾으시는 페이지가 여기 없어요 — 다른 곳으로 옮겨졌을 수도 있어요. 컬렉션은 이쪽이에요:",
+    browse: "컬렉션 둘러보기",
+  },
+  emailPages: {
+    heading: "새 그림 알림",
+    working: "처리하는 중…",
+    back: "갤러리로 돌아가기",
+    confirmedTitle: "구독되었어요 — Barbara Straka",
+    confirmNeedsLink:
+      "이 페이지는 링크로 열어야 해요 — 아무 “알림 받기” 창에서 구독한 뒤, 보내 드린 이메일을 눌러 주세요.",
+    confirmed: "구독되었어요 — 새 그림과 행사 소식을 보내 드릴게요.",
+    confirmFailed:
+      "링크가 작동하지 않았어요 — 일주일이 지난 링크일 수 있어요. 아무 “알림 받기” 창에서 다시 구독해 주세요.",
+    goodbyeTitle: "구독 취소됨 — Barbara Straka",
+    goodbyeNeedsLink:
+      "이 페이지는 링크로 열어야 해요 — 링크는 새 그림 알림 이메일마다 들어 있어요.",
+    goodbye: "구독이 취소되었어요 — 더 이상 이메일을 보내지 않을게요.",
+    goodbyeFailed:
+      "링크가 작동하지 않았어요 — 이미 목록에서 빠져 있을 가능성이 커요.",
+  },
+};

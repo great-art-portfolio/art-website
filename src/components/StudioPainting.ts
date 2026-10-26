@@ -25,6 +25,11 @@ import {
 import { loadArTooling, loadModelViewer } from "../lib/vendor-loader";
 import { readBackup } from "../lib/autosave";
 import { sendPublishAlerts } from "../lib/alerts";
+import {
+  languagesLabel,
+  SITE_LANGUAGES,
+  translationFor,
+} from "../lib/translations";
 import { $, maybe, maybeButton, studioMode } from "../lib/dom";
 import { errorMessage } from "../lib/errors";
 import {
@@ -551,6 +556,35 @@ function alertsLater(choice: AlertChoice): string {
   return choice.email ? " Your email list hears about it that day." : "";
 }
 
+/** Starts translating her words for the other-language pages while the
+ * save gets ready. Never fails: no translation just means the dashboard
+ * catches up later. */
+function startTranslation(
+  path: string,
+  fields: { title: string; description: string; alt: string; medium: string },
+): Promise<{ path: string; blob: string } | null> {
+  return translationFor("painting", path, {
+    title: fields.title,
+    description: fields.description,
+    alt: fields.alt,
+    medium: fields.medium,
+  }).catch(() => null);
+}
+
+/** Waits for the translation, saying so while it's still going. */
+async function finishTranslation(
+  translating: Promise<{ path: string; blob: string } | null>,
+): Promise<{ path: string; blob: string } | null> {
+  let done = false;
+  void translating.then(() => (done = true));
+  await new Promise((r) => setTimeout(r, 0));
+  if (!done)
+    setStatus(
+      `Translating ${languagesLabel(SITE_LANGUAGES.length)} for buyers abroad…`,
+    );
+  return await translating;
+}
+
 /** Emails the list after a publish when the box is ticked. Drafts and plain
  * saves don't notify. Failures are reported in the confirmation text rather
  * than failing the publish. */
@@ -835,6 +869,10 @@ async function saveNew(draft: boolean): Promise<void> {
   );
   try {
     const slug = await uniqueSlug(fields.title);
+    const translating = startTranslation(
+      `src/content/paintings/${slug}.md`,
+      fields,
+    );
     const imageFile = `${slug}.jpg`;
     const models = await modelBlobs();
     const files: Array<{ path: string; blob: Blob | string }> = [
@@ -868,6 +906,8 @@ async function saveNew(draft: boolean): Promise<void> {
         { path: `public/models/${slug}.usdz`, blob: models.usdz },
       );
     }
+    const translation = await finishTranslation(translating);
+    if (translation !== null) files.push(translation);
     await api.commitFiles(
       draft ? `Save draft: ${fields.title}` : `Add painting: ${fields.title}`,
       files,
@@ -972,6 +1012,7 @@ async function saveEdit(
   }
   if (await titleClash(fields.title, slug)) return;
   setStatus("Saving… (live in a few minutes)");
+  const translating = startTranslation(mdPath, fields);
   let previewNote: string | null = null;
   try {
     const imageFile =
@@ -1043,6 +1084,8 @@ async function saveEdit(
       // still save, and the note says what didn't update.
       previewNote = fix.note;
     }
+    const translation = await finishTranslation(translating);
+    if (translation !== null) files.push(translation);
     await api.commitFiles(`Edit painting: ${fields.title}`, files);
     buzz();
     const saved =
