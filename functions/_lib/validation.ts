@@ -117,6 +117,8 @@ const catalogItemSchema = z.object({
   priceCents: z.number().int().positive(),
   sold: z.boolean(),
   file: z.string(),
+  /** The share copy's built path; older builds have none. */
+  image: z.string().default(""),
 });
 
 export type CatalogItem = z.infer<typeof catalogItemSchema>;
