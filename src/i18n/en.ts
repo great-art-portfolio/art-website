@@ -171,7 +171,7 @@ export const en = {
     not: "No accounts, no advertising trackers, no cross-site tracking, no sale of personal information.",
     choicesTitle: "Your choices",
     choices:
-      "To stop buyer alerts, tap the same “Notify me” button again. To ask anything about privacy, email the artist and it will be handled personally.",
+      "To stop buyer alerts, use the unsubscribe link at the bottom of any of the emails, or leave the list from the sign-up box on any page. To ask anything about privacy, email the artist and it will be handled personally.",
   },
   credits: {
     title: "Credits",

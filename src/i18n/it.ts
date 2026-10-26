@@ -164,7 +164,7 @@ export const it: Strings = {
     not: "Nessun account, nessun tracciamento pubblicitario, nessun tracciamento tra siti, nessuna vendita di dati personali.",
     choicesTitle: "Le tue scelte",
     choices:
-      "Per non ricevere più gli avvisi, tocca di nuovo lo stesso pulsante «Avvisami». Per qualsiasi domanda sulla privacy, scrivi all’artista: ti risponderà personalmente.",
+      "Per non ricevere più gli avvisi, usa il link di disiscrizione in fondo a qualsiasi email, oppure lascia la lista dal riquadro di iscrizione in qualsiasi pagina. Per qualsiasi domanda sulla privacy, scrivi all’artista: se ne occuperà di persona.",
   },
   credits: {
     title: "Crediti",

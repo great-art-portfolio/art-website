@@ -173,7 +173,7 @@ export const pl: Strings = {
     not: "Żadnych kont, żadnych reklamowych narzędzi śledzących, żadnego śledzenia między stronami, żadnej sprzedaży danych osobowych.",
     choicesTitle: "Twoje wybory",
     choices:
-      "Aby zrezygnować z powiadomień, dotknij ponownie tego samego przycisku „Powiadamiaj mnie”. Pytania o prywatność wyślij e-mailem do artystki — zajmie się nimi osobiście.",
+      "Aby przestać otrzymywać powiadomienia, użyj linku do wypisania się na dole dowolnego e-maila albo opuść listę w okienku zapisu na dowolnej stronie. W sprawie prywatności napisz do artystki — zajmie się tym osobiście.",
   },
   credits: {
     title: "Podziękowania",

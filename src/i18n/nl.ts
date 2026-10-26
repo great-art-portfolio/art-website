@@ -166,7 +166,7 @@ export const nl: Strings = {
     not: "Geen accounts, geen advertentietrackers, geen tracking over sites heen, geen verkoop van persoonsgegevens.",
     choicesTitle: "Uw keuzes",
     choices:
-      "Wilt u geen meldingen meer? Tik dan nog eens op dezelfde knop “Houd me op de hoogte”. Hebt u een vraag over privacy, mail dan de kunstenaar; u krijgt een persoonlijk antwoord.",
+      "Wilt u geen berichten meer? Gebruik de afmeldlink onderaan elke e-mail, of verlaat de lijst via het aanmeldvak op elke pagina. Voor vragen over privacy kunt u de kunstenaar mailen; zij handelt het persoonlijk af.",
   },
   credits: {
     title: "Credits",
