@@ -25,9 +25,12 @@ export function isReadableFile(path: string): boolean {
   );
 }
 
-/** Paths the admin endpoint may write or delete. */
+/** Paths the admin endpoint may write or delete: painting files and
+ * photos, the banner, languages and translations, and wall-preview models.
+ * Only those file types, so nothing written can become a page or script
+ * on the site. */
 export const GALLERY_PATH =
-  /^(src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9 _.-]*|src\/content\/announcement\.txt|src\/content\/languages\.json|src\/content\/translations\/[A-Za-z0-9][A-Za-z0-9 _.-]*\.json|public\/models\/[A-Za-z0-9][A-Za-z0-9 _.-]*)$/;
+  /^(src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9 _.-]*\.(md|jpg|jpeg|png|webp|heic)|src\/content\/announcement\.txt|src\/content\/languages\.json|src\/content\/translations\/[A-Za-z0-9][A-Za-z0-9 _.-]*\.json|public\/models\/[A-Za-z0-9][A-Za-z0-9 _.-]*\.(glb|usdz))$/i;
 
 /** Painting photo bytes for AR rebuilds. */
 export const PHOTO_FILE =
