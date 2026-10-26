@@ -407,13 +407,23 @@ export async function existingTitles(): Promise<string[]> {
   } catch {
     return [];
   }
+  // Several at a time: one by one, a big collection kept her waiting on
+  // the Save button.
+  const md = files.filter((f) => f.endsWith(".md"));
   const titles: string[] = [];
-  for (const f of files) {
-    if (!f.endsWith(".md")) continue;
-    const content = await api.getPaintingFile(`src/content/paintings/${f}`);
-    const title = content === null ? "" : (parsePainting(content)?.title ?? "");
-    if (title !== "") titles.push(title);
-  }
+  let next = 0;
+  const worker = async (): Promise<void> => {
+    while (next < md.length) {
+      const f = md[next];
+      next += 1;
+      if (f === undefined) continue;
+      const content = await api.getPaintingFile(`src/content/paintings/${f}`);
+      const title =
+        content === null ? "" : (parsePainting(content)?.title ?? "");
+      if (title !== "") titles.push(title);
+    }
+  };
+  await Promise.all(Array.from({ length: 8 }, worker));
   return titles;
 }
 
