@@ -52,7 +52,13 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
         ? String((raw as { type: unknown }).type)
         : "";
     if (type.startsWith("checkout.session.")) {
-      console.error("unreadable checkout event", payload.slice(0, 500));
+      // Only the event's id: its body carries the buyer's details.
+      console.error(
+        "unreadable checkout event",
+        typeof raw === "object" && raw !== null && "id" in raw
+          ? String((raw as { id: unknown }).id)
+          : "",
+      );
       return serverError("Unreadable checkout event");
     }
     return json({ ignored: true });
