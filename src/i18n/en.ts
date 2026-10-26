@@ -184,8 +184,10 @@ export const en = {
     uses: {
       fraunces: "The typeface for headings and painting titles.",
       caveat: "The handwriting in the signature and the studio note.",
-      three: "Builds the 3D model behind “See it on your wall”.",
-      modelViewer: "Shows the painting on your wall in augmented reality.",
+      three:
+        "Builds the 3D model for “Try it on your wall”, the AR wall preview.",
+      modelViewer:
+        "Shows that wall preview, and hangs it on your real wall in AR.",
       lit: "Bundled inside <model-viewer>.",
       astro: "Builds the site, and makes each painting grow into its page.",
       zod: "Checks the studio's data on its way in.",
