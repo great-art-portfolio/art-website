@@ -1928,6 +1928,19 @@ function wireEmailPreview(): void {
       return;
     }
     subjectEl.textContent = preview.subject;
+    // The frame fits the email, with no empty band under it. Scripts stay
+    // off in the sandbox; same-origin only lets the page read its height.
+    if (bodyEl.dataset.fitWired !== "1") {
+      bodyEl.dataset.fitWired = "1";
+      bodyEl.addEventListener("load", () => {
+        const doc = bodyEl.contentDocument;
+        if (doc === null) return;
+        // A document is never measured shorter than its frame, so shrink
+        // the frame first, then fit it to what's inside.
+        bodyEl.style.height = "1px";
+        bodyEl.style.height = `${doc.documentElement.scrollHeight + 4}px`;
+      });
+    }
     // Resend replaces the unsubscribe placeholder at send time, so show a
     // readable stand-in. The iframe is sandboxed from the page.
     bodyEl.srcdoc = preview.html.replace(
