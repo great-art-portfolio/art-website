@@ -759,3 +759,41 @@ test("writing helper offers titles and a description she picks from", async ({
     "Deep indigo moves like night water.",
   );
 });
+
+test("save answers the tap at once and ignores a second tap", async ({
+  browser,
+}) => {
+  const authed = await browser.newContext();
+  await authed.addInitScript(() =>
+    sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
+  );
+  const page = await authed.newPage();
+  let commits = 0;
+  let release: () => void = () => {};
+  const held = new Promise<void>((r) => (release = r));
+  await page.route("**/api/commit*", async (route) => {
+    if (route.request().method() === "POST") {
+      commits += 1;
+      await held;
+      await route.fulfill({ json: { ok: true, commit: "test" }, status: 201 });
+    } else {
+      await route.continue();
+    }
+  });
+  await page.goto("/admin/paintings/new");
+  await page.locator("#de-title").fill("Busy Check");
+  await page.locator("#de-price").fill("50");
+  await page
+    .locator("#de-photo")
+    .setInputFiles("src/content/paintings/1943x1967.jpg");
+  const btn = page.locator("#de-save-draft");
+  await btn.click();
+  await expect(btn).toHaveText("Saving…");
+  await expect(btn).toHaveAttribute("aria-busy", "true");
+  await btn.click({ force: true });
+  await expect.poll(() => commits, { timeout: 15_000 }).toBe(1);
+  release();
+  await expect(page).toHaveURL(/\/admin\/?$/, { timeout: 25_000 });
+  expect(commits).toBe(1);
+  await authed.close();
+});
