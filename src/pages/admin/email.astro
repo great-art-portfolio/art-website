@@ -11,6 +11,69 @@ const defaults = broadcastDefaults(SITE_URL);
 
 <Layout title="Admin - Email" wordmark="admin" noindex>
   <main class="admin" id="main">
+    <section id="sec-list" class="prose">
+      <h2>Your email list</h2>
+      <p class="hint" id="list-summary" role="status">
+        Loading your list…
+      </p>
+      <form id="list-add" class="row" novalidate>
+        <label>
+          Add someone
+          <input
+            type="email"
+            id="list-add-email"
+            autocomplete="off"
+            placeholder="name@example.com"
+          />
+        </label>
+        <button type="submit" id="list-add-send">
+          Send them a confirm email
+        </button>
+      </form>
+      <p class="hint">
+        They join once they tap the link in that email. That tap is their yes,
+        which Canada's anti-spam law asks for.
+      </p>
+      <p class="hint" id="list-status" role="status"></p>
+      <label id="list-search-wrap" hidden>
+        Find someone
+        <input
+          type="search"
+          id="list-search"
+          autocomplete="off"
+          placeholder="Type part of an address"
+        />
+      </label>
+      <ul id="list-people"></ul>
+      <nav id="list-pager" aria-label="List pages" hidden>
+        <button type="button" id="list-newer">
+          ‹ Newer
+        </button>
+        <span id="list-range"></span>
+        <button type="button" id="list-older">
+          Older ›
+        </button>
+      </nav>
+      <h3>What the free plan allows</h3>
+      <p class="hint">
+        You use
+        <a href="https://resend.com" target="_blank" rel="noopener">
+          Resend
+        </a>
+        to send emails. Its free plan allows:
+      </p>
+      <ul class="limits">
+        <li>
+          New-painting emails: as many as you like, to up to 1,000 people. Past
+          1,000, sending pauses until someone is removed or the plan is upgraded
+          ($20 a month).
+        </li>
+        <li>
+          Everything else (buyer notes to you, sign-up confirmations): up to 100
+          a day and 3,000 a month.
+        </li>
+      </ul>
+    </section>
     <section id="sec-email" class="prose">
       <h2>Send email</h2>
       <p class="hint">
@@ -64,6 +127,104 @@ const defaults = broadcastDefaults(SITE_URL);
 <script src="../../components/AdminPanel.ts"></script>
 
 <style>
+  /* The list reads as lines of text: an address, when they joined, and a
+     quiet Remove. Rows are script-built, so their rules are :global(). */
+  #list-people {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0 2rem;
+    display: grid;
+    gap: 0.35rem;
+  }
+  #list-people :global(li) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.75rem;
+  }
+  #list-people :global(.who) {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  #list-people :global(.when) {
+    color: var(--muted);
+    font-size: 0.88rem;
+  }
+  #list-people :global(li.off .who) {
+    color: var(--muted);
+    font-weight: 400;
+  }
+  #list-people :global(li[hidden]) {
+    display: none;
+  }
+  #list-people :global(.list-remove) {
+    margin-left: auto;
+    min-height: 2.4rem;
+    padding: 0.3rem 0.8rem;
+    font-size: 0.85rem;
+  }
+  /* On a phone the address and its date stack, with Remove beside them. */
+  @media (max-width: 40rem) {
+    #list-people {
+      gap: 0.9rem;
+    }
+    #list-people :global(li) {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      column-gap: 0.75rem;
+      align-items: center;
+    }
+    #list-people :global(.who) {
+      grid-column: 1;
+    }
+    #list-people :global(.when) {
+      grid-column: 1;
+      grid-row: 2;
+    }
+    #list-people :global(.list-remove) {
+      grid-column: 2;
+      grid-row: 1 / span 2;
+      margin-left: 0;
+    }
+  }
+  /* The button lines up with the field, not its label. */
+  #list-add {
+    align-items: end;
+  }
+  #list-status:empty {
+    display: none;
+  }
+  #list-search-wrap[hidden],
+  #list-pager[hidden] {
+    display: none;
+  }
+  /* Newer and Older sit either side of where she is in the list. */
+  #list-pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin: -1rem 0 2rem;
+  }
+  #list-range {
+    color: var(--muted);
+    font-size: 0.9rem;
+    font-variant-numeric: tabular-nums;
+  }
+  #list-pager button:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+  #sec-list .limits {
+    padding-left: 1.1rem;
+    color: var(--muted);
+  }
+  #sec-list .limits li + li {
+    margin-top: 0.4rem;
+  }
+  #sec-list + #sec-email {
+    margin-top: 2.5rem;
+  }
   /* Left-aligned flex row that wraps on narrow phones. The result line
      below stays hidden until there's a message. */
   #sec-email .row {

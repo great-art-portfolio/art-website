@@ -186,12 +186,19 @@ export async function sendSiteEmail(
   return res.ok;
 }
 
-interface SegmentContact {
+export interface SegmentContact {
   email: string;
+  /** Unsubscribed through an email's own link; broadcasts skip them. */
   unsubscribed: boolean;
+  /** When they joined, as Resend reports it ("" when missing). */
+  createdAt: string;
 }
 
-/** All contacts on the segment. Empty when unconfigured or on failure. */
+/** Contacts per page; Resend's maximum. */
+const CONTACTS_PAGE = 100;
+
+/** All contacts on the segment, paged 100 at a time. Empty when
+ * unconfigured or on failure. */
 export async function listSegmentContacts(
   env: AppEnv,
 ): Promise<SegmentContact[]> {
@@ -200,34 +207,54 @@ export async function listSegmentContacts(
     return [];
   }
   if (seg === "") return [];
+  const out: SegmentContact[] = [];
   try {
-    const res = await fetch(
-      `https://api.resend.com/segments/${encodeURIComponent(seg)}/contacts`,
-      { headers: resendHeaders(env) },
-    );
-    if (!res.ok) {
-      console.error("resend segment list failed", await res.text());
-      return [];
+    let after = "";
+    // A Worker call allows about 50 outbound requests: 40 pages is 4,000
+    // people, four times the free plan's 1,000.
+    for (let page = 0; page < 40; page += 1) {
+      const query = `limit=${CONTACTS_PAGE}${after === "" ? "" : `&after=${encodeURIComponent(after)}`}`;
+      const res = await fetch(
+        `https://api.resend.com/segments/${encodeURIComponent(seg)}/contacts?${query}`,
+        { headers: resendHeaders(env) },
+      );
+      if (!res.ok) {
+        console.error("resend segment list failed", await res.text());
+        return out;
+      }
+      const body = (await res.json()) as {
+        data?: Array<{
+          id?: unknown;
+          email?: unknown;
+          unsubscribed?: unknown;
+          created_at?: unknown;
+        }>;
+        has_more?: unknown;
+      };
+      if (!Array.isArray(body.data)) return out;
+      for (const c of body.data) {
+        if (typeof c.email !== "string") continue;
+        out.push({
+          email: c.email,
+          unsubscribed: c.unsubscribed === true,
+          createdAt: typeof c.created_at === "string" ? c.created_at : "",
+        });
+      }
+      const last = body.data.at(-1);
+      if (body.has_more !== true || typeof last?.id !== "string") return out;
+      after = last.id;
     }
-    const body = (await res.json()) as {
-      data?: Array<{ email?: unknown; unsubscribed?: unknown }>;
-    };
-    if (!Array.isArray(body.data)) return [];
-    return body.data
-      .filter(
-        (c): c is { email: string; unsubscribed: boolean } =>
-          typeof c.email === "string" && typeof c.unsubscribed === "boolean",
-      )
-      .map((c) => ({ email: c.email, unsubscribed: c.unsubscribed }));
+    return out;
   } catch (err) {
     console.error("resend segment list failed", err);
-    return [];
+    return out;
   }
 }
 
-/** Address count for /admin. */
+/** How many people a broadcast reaches: unsubscribed contacts are
+ * skipped. */
 export async function countSegmentContacts(env: AppEnv): Promise<number> {
-  return (await listSegmentContacts(env)).length;
+  return (await listSegmentContacts(env)).filter((c) => !c.unsubscribed).length;
 }
 
 /** True when the address is already subscribed, so rejoining sends

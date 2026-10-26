@@ -294,7 +294,8 @@ describe("admin count", () => {
       return failRes();
     });
     const res = await onRequestGet(getContext("admin_test"));
-    assert.deepEqual(await res.json(), { total: 2 });
+    // Broadcasts skip the unsubscribed, so the count does too.
+    assert.deepEqual(await res.json(), { total: 1 });
   });
 
   it("refuses strangers", async () => {
@@ -386,6 +387,115 @@ describe("dev mock list", () => {
     assert.match(
       data.devConfirmUrl,
       /^http:\/\/127\.0\.0\.1:4331\/email\/confirmed\?/,
+    );
+  });
+});
+
+/** The studio's own list page: invite, remove, and see everyone. */
+function studioPost(body, token = "admin_test") {
+  return {
+    request: new Request("https://barbart.ca/api/collectors", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+    }),
+    env,
+  };
+}
+
+describe("studio list", () => {
+  it("invites by sending the confirm email, with no spam check", async () => {
+    stubEmptyList();
+    const res = await onRequestPost(
+      studioPost({ action: "invite", email: "met@example.com" }),
+    );
+    assert.equal(res.status, 201);
+    const mail = sentEmails().find((m) => m.to.includes("met@example.com"));
+    assert.ok(mail, "confirm email sent");
+    assert.match(mail.text, /\/email\/confirmed\?email=/);
+    // Nobody is added until they tap the link.
+    assert.ok(!calls.some((c) => c.url === "https://api.resend.com/contacts"));
+  });
+
+  it("tells her when they're already on the list", async () => {
+    stubFetch((url) =>
+      url.includes("/segments/")
+        ? okJson({ data: [{ email: "met@example.com", unsubscribed: false }] })
+        : okRes(),
+    );
+    const res = await onRequestPost(
+      studioPost({ action: "invite", email: "met@example.com" }),
+    );
+    assert.deepEqual(await res.json(), {
+      ok: true,
+      emailed: false,
+      already: true,
+    });
+    assert.equal(sentEmails().length, 0);
+  });
+
+  it("removes without a goodbye email", async () => {
+    stubEmptyList();
+    const res = await onRequestPost(
+      studioPost({ action: "remove", email: "fan@example.com" }),
+    );
+    assert.equal(res.status, 200);
+    assert.ok(
+      calls.some(
+        (c) =>
+          c.url === "https://api.resend.com/contacts/fan%40example.com" &&
+          c.init.method === "DELETE",
+      ),
+    );
+    assert.equal(sentEmails().length, 0);
+  });
+
+  it("needs her sign-in for invite and remove", async () => {
+    stubEmptyList();
+    for (const action of ["invite", "remove"]) {
+      const res = await onRequestPost(
+        studioPost({ action, email: "x@example.com" }, "wrong"),
+      );
+      assert.equal(res.status, 401);
+    }
+  });
+
+  it("lists everyone with their state", async () => {
+    stubFetch(() =>
+      okJson({
+        data: [
+          {
+            id: "1",
+            email: "a@example.com",
+            unsubscribed: false,
+            created_at: "2026-10-01",
+          },
+          {
+            id: "2",
+            email: "b@example.com",
+            unsubscribed: true,
+            created_at: "2026-10-02",
+          },
+        ],
+      }),
+    );
+    const res = await onRequestGet({
+      request: new Request("https://barbart.ca/api/collectors?list=1", {
+        headers: { authorization: "Bearer admin_test" },
+      }),
+      env,
+    });
+    const data = await res.json();
+    assert.equal(data.total, 1);
+    assert.deepEqual(
+      data.contacts.map((c) => [c.email, c.unsubscribed]),
+      [
+        ["a@example.com", false],
+        ["b@example.com", true],
+      ],
     );
   });
 });

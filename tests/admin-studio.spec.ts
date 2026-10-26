@@ -2274,3 +2274,122 @@ test("a refused GitHub key reads as that, not a connection problem", async ({
   await expect(page.locator("#edit-list")).not.toContainText("connection");
   await expect(page.locator("#key-note")).toBeHidden();
 });
+
+test("the email list shows everyone and adds or removes in plain words", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
+  );
+  let people = [
+    {
+      email: "ada@resend.dev",
+      unsubscribed: false,
+      createdAt: "2026-10-01 10:00:00+00",
+    },
+    {
+      email: "bo@resend.dev",
+      unsubscribed: true,
+      createdAt: "2026-10-02 10:00:00+00",
+    },
+  ];
+  const posts: Array<Record<string, string>> = [];
+  await page.route("**/api/collectors*", async (route) => {
+    const req = route.request();
+    if (req.method() === "GET") {
+      await route.fulfill({
+        json: {
+          total: people.filter((p) => !p.unsubscribed).length,
+          contacts: people,
+        },
+      });
+      return;
+    }
+    const body = req.postDataJSON() as Record<string, string>;
+    posts.push(body);
+    if (body["action"] === "remove")
+      people = people.filter((p) => p.email !== body["email"]);
+    await route.fulfill({
+      status: body["action"] === "invite" ? 201 : 200,
+      json: { ok: true, emailed: true },
+    });
+  });
+  await page.goto("/admin/email");
+  await expect(page.locator("#list-summary")).toHaveText(
+    "1 person gets your emails, and 1 unsubscribed.",
+  );
+  const rows = page.locator("#list-people li");
+  await expect(rows).toHaveCount(2);
+  // Newest first.
+  await expect(rows.nth(0)).toContainText("bo@resend.dev");
+  await expect(rows.nth(0)).toContainText("unsubscribed");
+  await expect(rows.nth(1)).toContainText("ada@resend.dev");
+  await expect(rows.nth(1)).toContainText("joined Oct 1, 2026");
+
+  await page.locator("#list-add-email").fill("new@resend.dev");
+  await page.locator("#list-add-send").click();
+  await expect(page.locator("#list-status")).toHaveText(
+    "Sent. new@resend.dev joins when they tap the link in that email.",
+  );
+  expect(posts[0]).toEqual({ action: "invite", email: "new@resend.dev" });
+
+  page.once("dialog", (d) => void d.accept());
+  await rows.nth(1).getByRole("button", { name: "Remove" }).click();
+  await expect(page.locator("#list-status")).toHaveText(
+    "Removed ada@resend.dev.",
+  );
+  await expect(rows).toHaveCount(1);
+  expect(posts[1]).toEqual({ action: "remove", email: "ada@resend.dev" });
+});
+
+test("a big email list pages 25 at a time and searches everyone", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
+  );
+  const contacts = Array.from({ length: 60 }, (_, i) => ({
+    email: `fan${i}@resend.dev`,
+    unsubscribed: false,
+    createdAt: `2026-01-01 00:00:${String(i).padStart(3, "0")}+00`,
+  }));
+  await page.route("**/api/collectors*", (route) =>
+    route.fulfill({ json: { total: contacts.length, contacts } }),
+  );
+  await page.goto("/admin/email");
+  const rows = page.locator("#list-people li");
+  await expect(rows).toHaveCount(25);
+  // Newest first.
+  await expect(rows.first()).toContainText("fan59@resend.dev");
+  const range = page.locator("#list-range");
+  await expect(range).toHaveText("1–25 of 60");
+  await expect(page.locator("#list-newer")).toBeDisabled();
+  await page.locator("#list-older").click();
+  await expect(range).toHaveText("26–50 of 60");
+  await page.locator("#list-older").click();
+  await expect(range).toHaveText("51–60 of 60");
+  await expect(rows).toHaveCount(10);
+  await expect(page.locator("#list-older")).toBeDisabled();
+  // Search reaches everyone and starts back at the first page.
+  await page.locator("#list-search").fill("fan3@");
+  await expect(rows).toHaveCount(1);
+  await expect(page.locator("#list-pager")).toBeHidden();
+});
+
+test("a long email list gets a search box", async ({ page }) => {
+  await page.addInitScript(() =>
+    sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
+  );
+  const contacts = Array.from({ length: 14 }, (_, i) => ({
+    email: `fan${i}@resend.dev`,
+    unsubscribed: false,
+    createdAt: "",
+  }));
+  await page.route("**/api/collectors*", (route) =>
+    route.fulfill({ json: { total: contacts.length, contacts } }),
+  );
+  await page.goto("/admin/email");
+  await expect(page.locator("#list-search")).toBeVisible();
+  await page.locator("#list-search").fill("fan13");
+  await expect(page.locator("#list-people li:visible")).toHaveCount(1);
+});

@@ -85,3 +85,19 @@ export async function mockCount(env: AppEnv): Promise<number> {
     .first<{ total: number }>();
   return row?.total ?? 0;
 }
+
+/** Confirmed mock addresses, newest first, for the studio's list. */
+export async function mockContacts(
+  env: AppEnv,
+): Promise<Array<{ email: string; unsubscribed: boolean; createdAt: string }>> {
+  const rows = await env.DB.prepare(
+    "SELECT email, confirmed_at FROM email_collectors WHERE confirmed_at IS NOT NULL AND confirmed_at != '' ORDER BY confirmed_at DESC",
+  )
+    .bind()
+    .all<{ email: string; confirmed_at: string }>();
+  return (rows.results ?? []).map((r) => ({
+    email: r.email,
+    unsubscribed: false,
+    createdAt: r.confirmed_at,
+  }));
+}

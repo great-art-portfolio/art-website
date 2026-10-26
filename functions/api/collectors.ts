@@ -14,6 +14,7 @@ import {
 } from "../_lib/collectors";
 import {
   mockConfirm,
+  mockContacts,
   mockCount,
   mockList,
   mockSubscribe,
@@ -27,6 +28,7 @@ import {
   goodbyeEmail,
   isConfirmedContact,
   isResendTestAddress,
+  listSegmentContacts,
   sendSiteEmail,
   syncContactRemoved,
   syncContactSubscribed,
@@ -72,8 +74,15 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   const site = context.env.SITE_URL ?? "https://barbart.ca";
   const params = new URL(context.request.url).searchParams;
   const action = body["action"] ?? "";
-  if (action === "" || action === "subscribe") {
-    if (
+  // "invite" is the studio adding someone she met: same confirm email,
+  // behind her sign-in instead of the spam check, and it may say who's
+  // already listed, since only she sees the answer.
+  const invite = action === "invite";
+  if (action === "" || action === "subscribe" || invite) {
+    if (invite) {
+      const denied = await requireAdmin(context.request, context.env);
+      if (denied !== null) return denied;
+    } else if (
       !(await turnstileOk(
         context.env,
         body["turnstileToken"],
@@ -93,7 +102,12 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       if (sub === null) return serverError();
       // Same answer as a new join, so the page never says who's listed.
       if (sub.already)
-        return json({ ok: true, emailed: true }, { status: 201 });
+        return json(
+          invite
+            ? { ok: true, emailed: false, already: true }
+            : { ok: true, emailed: true },
+          { status: 201 },
+        );
       // Return the confirm link in the response, pointing at this server,
       // so the loop can finish locally. With a key present, Resend test
       // addresses also go through the real API so the send shows in
@@ -124,6 +138,11 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       // one, and its inbox gets a note saying so. Only the person who
       // reads that inbox learns it's subscribed.
       if (await isConfirmedContact(context.env, email).catch(() => false)) {
+        if (invite)
+          return json(
+            { ok: true, emailed: false, already: true },
+            { status: 201 },
+          );
         const emailed = await sendSiteEmail(context.env, {
           to: [email],
           replyTo: artistInbox(context.env),
@@ -193,6 +212,22 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       return serverError();
     }
   }
+  // The studio removing someone: her sign-in, no goodbye email.
+  if (action === "remove") {
+    const denied = await requireAdmin(context.request, context.env);
+    if (denied !== null) return denied;
+    const email = parseCollectorEmail(body["email"] ?? "");
+    if (email === null) return badRequest("Invalid request");
+    if (mockList(context.env, context.request)) {
+      await mockUnsubscribe(context.env, email).catch(() => undefined);
+      return json({ ok: true });
+    }
+    if (!hasList(context.env))
+      return serverError("The email list isn't set up yet — try again later.");
+    if (!(await syncContactRemoved(context.env, email).catch(() => false)))
+      return serverError("Resend didn't remove them — try again in a minute.");
+    return json({ ok: true });
+  }
   if (action === "unsubscribe") {
     const email = parseCollectorEmail(
       body["email"] ?? params.get("email") ?? "",
@@ -258,8 +293,22 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
   const denied = await requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
   try {
+    // ?list=1 is the studio's list page: everyone, with their state.
+    const wantList =
+      new URL(context.request.url).searchParams.get("list") === "1";
     if (mockList(context.env, context.request)) {
+      if (wantList) {
+        const contacts = await mockContacts(context.env);
+        return json({ total: contacts.length, contacts });
+      }
       return json({ total: await mockCount(context.env) });
+    }
+    if (wantList) {
+      const contacts = await listSegmentContacts(context.env);
+      return json({
+        total: contacts.filter((c) => !c.unsubscribed).length,
+        contacts,
+      });
     }
     return json({ total: await countSegmentContacts(context.env) });
   } catch (err) {
