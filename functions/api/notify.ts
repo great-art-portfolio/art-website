@@ -1,7 +1,7 @@
 import type { AppEnv } from "../_lib/env";
 import { PAINTING_FILE } from "../_lib/gallery-paths";
 import { gitConfig, readTextFile } from "../_lib/github";
-import { json, requireAdmin, serverError } from "../_lib/http";
+import { json, requireAdmin, sameSecret, serverError } from "../_lib/http";
 import {
   cleanBroadcastBody,
   cleanBroadcastSubject,
@@ -75,7 +75,10 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   const alertsKey = context.env.ALERTS_TOKEN ?? "";
   const viaAlertsKey =
     alertsKey !== "" &&
-    context.request.headers.get("authorization") === `Bearer ${alertsKey}`;
+    sameSecret(
+      context.request.headers.get("authorization") ?? "",
+      `Bearer ${alertsKey}`,
+    );
   const denied = viaAlertsKey
     ? null
     : await requireAdmin(context.request, context.env);
@@ -113,6 +116,10 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
             return null;
           })
         : null;
+    // The nightly key only announces a real painting: with no painting to
+    // show, it sends nothing rather than a generic note to everyone.
+    if (viaAlertsKey && found === null)
+      return json({ error: "No such painting to announce." }, { status: 404 });
     const opts: BroadcastOptions =
       found === null
         ? {}
