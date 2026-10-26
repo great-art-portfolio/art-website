@@ -54,6 +54,8 @@ export interface AppEnv {
   /** Meta Model API key for the studio's title and description helper
    * (Muse Spark). Without it the helper's button stays hidden. */
   MUSE_API_KEY?: string;
+  /** "true" lets a local copy reach the translator (off for tests). */
+  TRANSLATE_LOCAL?: string;
   /** Overrides the helper's model, e.g. muse-spark-1.3. */
   MUSE_MODEL?: string;
   ENABLE_SOCIAL_POST?: string;

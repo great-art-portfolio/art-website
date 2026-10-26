@@ -1,7 +1,7 @@
 /**
  * `pnpm studio:reset`: reverts what the studio dev loop wrote. Tracked
  * gallery files are restored to HEAD, and untracked studio outputs (new
- * photos, models, drafts) are deleted. Only gallery paths are touched.
+ * photos, models, drafts, translations) are deleted. Only gallery paths are touched.
  */
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -11,10 +11,16 @@ const execGit = promisify(execFile);
 
 const TRACKED_SCOPE = [
   "src/content/announcement.txt",
+  "src/content/languages.json",
   "src/content/paintings",
+  "src/content/translations",
   "public/models",
 ];
-const UNTRACKED_SCOPE = ["src/content/paintings", "public/models"];
+const UNTRACKED_SCOPE = [
+  "src/content/paintings",
+  "src/content/translations",
+  "public/models",
+];
 
 async function main() {
   const { stdout } = await execGit("git", [

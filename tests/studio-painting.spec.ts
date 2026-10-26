@@ -797,3 +797,93 @@ test("save answers the tap at once and ignores a second tap", async ({
   expect(commits).toBe(1);
   await authed.close();
 });
+
+test("publishing commits the painting's translations with it", async ({
+  browser,
+}) => {
+  const authed = await browser.newContext();
+  await authed.addInitScript(() =>
+    sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
+  );
+  const page = await authed.newPage();
+  let committed: string[] = [];
+  let translationBody = "";
+  let asked: { locales?: string[]; words?: { title?: string } } = {};
+  await page.route("**/api/commit*", async (route) => {
+    if (route.request().method() === "POST") {
+      const body = route.request().postDataJSON() as {
+        files?: Array<{ path: string; contentBase64: string }>;
+      };
+      committed = (body.files ?? []).map((f) => f.path);
+      const tr = (body.files ?? []).find((f) => f.path.endsWith(".json"));
+      translationBody =
+        tr === undefined
+          ? ""
+          : Buffer.from(tr.contentBase64, "base64").toString();
+      await route.fulfill({ json: { ok: true, commit: "test" }, status: 201 });
+    } else {
+      await route.continue();
+    }
+  });
+  await page.route("**/api/translate", async (route) => {
+    asked = route.request().postDataJSON() as typeof asked;
+    await route.fulfill({
+      json: {
+        langs: Object.fromEntries(
+          (asked.locales ?? []).map((c) => [c, { title: `${c} title` }]),
+        ),
+      },
+    });
+  });
+  await page.goto("/admin/paintings/new");
+  await page.locator("#de-title").fill("Word Check");
+  await page.locator("#de-price").fill("50");
+  await page
+    .locator("#de-photo")
+    .setInputFiles("src/content/paintings/1943x1967.jpg");
+  page.on("dialog", (dialog) => void dialog.accept());
+  await page.locator("#de-publish").click();
+  await expect(page).toHaveURL(/\/admin\/?$/, { timeout: 25_000 });
+  expect(asked.words?.title).toBe("Word Check");
+  expect(asked.locales?.length).toBeGreaterThan(0);
+  expect(committed).toContain("src/content/translations/word-check.json");
+  expect(JSON.parse(translationBody).fr.title).toBe("fr title");
+  await authed.close();
+});
+
+test("a save still goes through when translation is down", async ({
+  browser,
+}) => {
+  const authed = await browser.newContext();
+  await authed.addInitScript(() =>
+    sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
+  );
+  const page = await authed.newPage();
+  let committed: string[] = [];
+  await page.route("**/api/commit*", async (route) => {
+    if (route.request().method() === "POST") {
+      const body = route.request().postDataJSON() as {
+        files?: Array<{ path: string }>;
+      };
+      committed = (body.files ?? []).map((f) => f.path);
+      await route.fulfill({ json: { ok: true, commit: "test" }, status: 201 });
+    } else {
+      await route.continue();
+    }
+  });
+  await page.route("**/api/translate", (route) =>
+    route.fulfill({ status: 502, json: { error: "down" } }),
+  );
+  await page.goto("/admin/paintings/new");
+  await page.locator("#de-title").fill("Quiet Check");
+  await page.locator("#de-price").fill("50");
+  await page
+    .locator("#de-photo")
+    .setInputFiles("src/content/paintings/1943x1967.jpg");
+  page.on("dialog", (dialog) => void dialog.accept());
+  await page.locator("#de-publish").click();
+  await expect(page).toHaveURL(/\/admin\/?$/, { timeout: 25_000 });
+  expect(committed).toContain("src/content/paintings/quiet-check.md");
+  expect(committed.some((p) => p.includes("translations"))).toBe(false);
+  await authed.close();
+});

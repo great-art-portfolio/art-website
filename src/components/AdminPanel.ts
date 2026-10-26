@@ -14,6 +14,7 @@ import {
   type BakedRow,
 } from "../lib/schemas";
 import { sendPublishAlerts } from "../lib/alerts";
+import { translationFor } from "../lib/translations";
 import { keyWarning } from "../lib/key-expiry";
 import {
   SEARCH_FROM,
@@ -1263,6 +1264,128 @@ async function refreshCollection(): Promise<void> {
     setStatus(errorMessage(err), true);
   }
   renderRows(live);
+  void catchUpTranslations(live);
+}
+
+/** The Guide's language ticks: saving commits the list the next build
+ * makes pages for. New languages are translated on her next visit to the
+ * Collection page (catchUpTranslations). */
+function wireLanguageChoices(): void {
+  const box = document.getElementById("lang-choices");
+  const save = maybeButton("lang-save");
+  if (box === null || save === null || save.dataset.wired === "1") return;
+  save.dataset.wired = "1";
+  save.addEventListener("click", () => {
+    const codes = [...box.querySelectorAll("input[type=checkbox]")]
+      .filter((i): i is HTMLInputElement => i instanceof HTMLInputElement)
+      .filter((i) => i.checked)
+      .map((i) => i.value);
+    const n = codes.length;
+    save.disabled = true;
+    setStatus("Saving languages…");
+    api
+      .commitFiles(
+        n === 0
+          ? "Site languages: English only"
+          : `Site languages: English and ${n} more`,
+        [
+          {
+            path: "src/content/languages.json",
+            blob: `${JSON.stringify({ languages: codes }, null, 2)}\n`,
+          },
+        ],
+      )
+      .then(() => {
+        setStatus(
+          n === 0
+            ? "Saved — the site goes back to English only in a few minutes."
+            : "Saved — the language pages update in a few minutes. Open the Collection page afterwards and any new language gets its translations.",
+        );
+      })
+      .catch((err: unknown) => setStatus(errorMessage(err), true))
+      .finally(() => {
+        save.disabled = false;
+      });
+  });
+}
+
+/** Done this session, so a dashboard revisit before the rebuild lands
+ * doesn't translate the same words again. */
+const CAUGHT_UP_KEY = "studio-translated-v1";
+
+/**
+ * Translates whatever the build found missing (paintings saved while the
+ * translator was down, or every painting after she switches a language
+ * on), then commits it all at once. Runs quietly after the list loads;
+ * leaving the page midway just leaves the rest for next time.
+ */
+async function catchUpTranslations(rows: LocalPainting[]): Promise<void> {
+  const el = document.getElementById("translations-behind");
+  if (el === null) return;
+  let behind: { paintings: string[]; banner: string };
+  try {
+    const raw = JSON.parse(el.textContent ?? "{}") as {
+      paintings?: unknown;
+      banner?: unknown;
+    };
+    behind = {
+      paintings: Array.isArray(raw.paintings)
+        ? raw.paintings.filter((p): p is string => typeof p === "string")
+        : [],
+      banner: typeof raw.banner === "string" ? raw.banner : "",
+    };
+  } catch {
+    return;
+  }
+  let done: string[] = [];
+  try {
+    done = JSON.parse(
+      sessionStorage.getItem(CAUGHT_UP_KEY) ?? "[]",
+    ) as string[];
+  } catch {
+    done = [];
+  }
+  const todo = rows.filter(
+    (r) =>
+      !r.trash &&
+      behind.paintings.includes(r.mdPath) &&
+      !done.includes(r.mdPath),
+  );
+  const bannerTodo = behind.banner !== "" && !done.includes("banner");
+  if (todo.length === 0 && !bannerTodo) return;
+  const files: Array<{ path: string; blob: string }> = [];
+  for (const r of todo) {
+    const file = await translationFor("painting", r.mdPath, {
+      title: r.title,
+      description: r.description,
+      alt: r.alt,
+      medium: r.medium,
+    }).catch(() => null);
+    if (file !== null) files.push(file);
+    done.push(r.mdPath);
+  }
+  if (bannerTodo) {
+    const file = await translationFor("banner", "", {
+      title: behind.banner,
+      description: "",
+      alt: "",
+      medium: "",
+    }).catch(() => null);
+    if (file !== null) files.push(file);
+    done.push("banner");
+  }
+  if (files.length === 0) return;
+  try {
+    await api.commitFiles(
+      files.length === 1
+        ? "Translate for the other-language pages"
+        : `Translate ${files.length} paintings for the other-language pages`,
+      files,
+    );
+    sessionStorage.setItem(CAUGHT_UP_KEY, JSON.stringify(done));
+  } catch (err: unknown) {
+    console.error("translation catch-up failed", err);
+  }
 }
 
 /**
@@ -1574,10 +1697,25 @@ function init(): void {
             ? null
             : bannerMod.expiryForDuration(days),
         );
-        api
-          .commitFiles("Update homepage banner", [
-            { path: "src/content/announcement.txt", blob: body },
-          ])
+        // The note goes up with its translations for the other-language
+        // homepages; if the translator can't answer it goes up alone.
+        const said = bannerMod.parseAnnouncement(body).text;
+        const translating =
+          said === ""
+            ? Promise.resolve(null)
+            : translationFor("banner", "", {
+                title: said,
+                description: "",
+                alt: "",
+                medium: "",
+              }).catch(() => null);
+        translating
+          .then((translation) =>
+            api.commitFiles("Update homepage banner", [
+              { path: "src/content/announcement.txt", blob: body },
+              ...(translation === null ? [] : [translation]),
+            ]),
+          )
           .then(() => {
             clearBannerPreview();
             setBannerRemovable(body !== "");
@@ -1616,6 +1754,7 @@ function init(): void {
 
   // Guide page: API token, backend status, and browser capabilities.
   if (onGuide) {
+    wireLanguageChoices();
     // Animate the Advanced drawer in script for consistent easing.
     wireDrawers(document, "#sec-info details");
     const tokenInput = $("admin-token");

@@ -21,6 +21,15 @@ import { commitBatches } from "./commit-batches";
 import type { SiteMetrics } from "./schemas";
 import { parsePainting } from "./painting-edit";
 import { slugifyTitle } from "./site";
+import type { OtherLocale } from "../i18n/locales";
+import {
+  parseTranslationFile,
+  type PaintingWords,
+} from "../i18n/painting-text";
+
+const translationSchema = z.object({
+  langs: z.record(z.string(), z.unknown()),
+});
 
 /** Studio API token stored in this browser, or "" when unavailable. */
 export function getApiToken(): string {
@@ -271,6 +280,20 @@ export const api = {
       headers: { "Content-Type": "application/json", ...adminHeaders() },
       body: JSON.stringify(input),
     });
+  },
+  /** Her words in other languages (see functions/api/translate). Every
+   * language it managed; throws when it couldn't answer at all. */
+  async translate(input: {
+    kind: "painting" | "banner";
+    words: PaintingWords;
+    locales: OtherLocale[];
+  }): Promise<Partial<Record<OtherLocale, PaintingWords>>> {
+    const data = await request("/api/translate", translationSchema, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...adminHeaders() },
+      body: JSON.stringify(input),
+    });
+    return parseTranslationFile(data.langs).langs;
   },
   /** True when the local studio content API responds. Checked per action,
    * not polled. */
