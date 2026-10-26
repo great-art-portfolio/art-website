@@ -1574,10 +1574,16 @@ const offers = Object.fromEntries(
     min-height: 2.75rem;
     padding: 0 0.9rem;
     border-radius: 999px;
-    background: var(--accent);
-    color: #fff;
+    /* The site's primary button: orange with white in light, cream with
+       ink in dark, and a step darker or brighter on hover. */
+    background: var(--primary);
+    color: var(--primary-ink);
     font-weight: 600;
     text-decoration: none;
+    transition: background-color 0.15s ease;
+  }
+  #lang-offer-go:hover {
+    background: var(--primary-hover);
   }
   #lang-offer-no {
     min-height: 2.75rem;
