@@ -14,6 +14,7 @@ import {
   suggestionSchema,
   viewsSchema,
 } from "./schemas";
+import { commitBatches } from "./commit-batches";
 import { parsePainting } from "./painting-edit";
 import { slugifyTitle } from "./site";
 
@@ -119,6 +120,11 @@ function bytesToBase64(view: Uint8Array): string {
   return btoa(bin);
 }
 
+/** "Reorder gallery (2 of 3)" when a big save spans several commits. */
+function partMessage(message: string, i: number, count: number): string {
+  return count === 1 ? message : `${message} (${i + 1} of ${count})`;
+}
+
 function textToBase64(text: string): string {
   return bytesToBase64(new TextEncoder().encode(text));
 }
@@ -188,29 +194,42 @@ export const api = {
     message: string,
     files: Array<{ path: string; blob: Blob | string }>,
   ): Promise<void> {
-    const encoded = await Promise.all(
-      files.map(async (f) => ({
-        path: f.path,
-        contentBase64:
-          typeof f.blob === "string"
-            ? textToBase64(f.blob)
-            : await blobToBase64(f.blob),
-      })),
-    );
-    await request("/api/commit", commitSchema, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...adminHeaders() },
-      body: JSON.stringify({ message, files: encoded }),
-    });
+    const batches = commitBatches(files);
+    for (const [i, batch] of batches.entries()) {
+      const encoded = await Promise.all(
+        batch.files.map(async (f) => ({
+          path: f.path,
+          contentBase64:
+            typeof f.blob === "string"
+              ? textToBase64(f.blob)
+              : await blobToBase64(f.blob),
+        })),
+      );
+      await request("/api/commit", commitSchema, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...adminHeaders() },
+        body: JSON.stringify({
+          message: partMessage(message, i, batches.length),
+          files: encoded,
+        }),
+      });
+    }
   },
-  /** Permanently deletes files in one commit. Recoverable deletes go
-   * through trash instead. */
+  /** Permanently deletes files. Recoverable deletes go through trash
+   * instead. */
   async deleteFiles(message: string, paths: string[]): Promise<void> {
-    await request("/api/commit", commitSchema, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...adminHeaders() },
-      body: JSON.stringify({ message, files: [], delete: paths }),
-    });
+    const batches = commitBatches([], paths);
+    for (const [i, batch] of batches.entries()) {
+      await request("/api/commit", commitSchema, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...adminHeaders() },
+        body: JSON.stringify({
+          message: partMessage(message, i, batches.length),
+          files: [],
+          delete: batch.deletes,
+        }),
+      });
+    }
   },
   async status(): Promise<{
     stripe: boolean;
@@ -398,7 +417,7 @@ export async function existingTitles(): Promise<string[]> {
 
 /** Unique slug for a new painting, checking the repo's paintings folder. */
 export async function uniqueSlug(title: string): Promise<string> {
-  const base = slugifyTitle(title) === "" ? "untitled" : slugifyTitle(title);
+  const base = slugifyTitle(title);
   let files: string[] = [];
   try {
     files = await api.listPaintingFiles();
