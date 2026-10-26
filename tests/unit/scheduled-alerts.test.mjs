@@ -89,10 +89,10 @@ describe("the workflow's alerts key", () => {
       env,
     });
 
-  it("sends the standard publish alert", async () => {
-    // No DB or mail configured: the call gets past auth and reports zeros.
+  it("gets past auth, but announces nothing without a real painting", async () => {
+    // No painting to show: no generic note goes to the whole list.
     const res = await call({ email: true });
-    assert.equal(res.status, 200);
+    assert.equal(res.status, 404);
   });
 
   it("can't send custom text", async () => {

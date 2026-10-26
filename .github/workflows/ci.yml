@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+# The job only reads the code; it never needs to write to the repo.
+permissions:
+  contents: read
+
 # A newer push supersedes the older run on the same branch.
 concurrency:
   group: ci-${{ github.ref }}
