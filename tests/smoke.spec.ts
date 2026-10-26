@@ -450,3 +450,27 @@ test("public header becomes a bar only once the page scrolls", async ({
     "data-scroll-bar",
   );
 });
+
+test("the footer's Credits page carries every licence in full", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .locator(".site-footer")
+    .getByRole("link", { name: "Credits" })
+    .click();
+  await expect(page).toHaveURL(/\/credits/);
+  for (const name of ["three.js", "<model-viewer>", "Fraunces", "Caveat"])
+    await expect(page.getByRole("heading", { name })).toBeVisible();
+  const three = page.locator("li", { hasText: "three.js" }).first();
+  await three.getByText("MIT", { exact: true }).click();
+  await expect(three.locator("pre")).toContainText(
+    "Permission is hereby granted",
+  );
+  await expect(page.locator("pre", { hasText: "Apache License" })).toHaveCount(
+    1,
+  );
+  await expect(
+    page.locator("pre", { hasText: "Open Font License" }),
+  ).toHaveCount(2);
+});
