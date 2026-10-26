@@ -220,4 +220,35 @@ export const it: Strings = {
     goodbyeFailed:
       "Quel link non ha funzionato — probabilmente sei già fuori dalla lista.",
   },
+  emails: {
+    confirmSubject: "Conferma gli avvisi dello studio",
+    confirm: (url: string) =>
+      [
+        "Qualcuno (speriamo tu) ha chiesto di ricevere via email",
+        "i nuovi dipinti e gli eventi dello studio di Barbara Straka.",
+        "",
+        "Conferma qui:",
+        url,
+        "",
+        "Se non sei stato tu, ignora questo messaggio: nessuno entra nella lista",
+        "senza quel clic.",
+      ].join("\n"),
+    alreadySubject: "Sei già nella lista dello studio",
+    already: [
+      "Qualcuno (speriamo tu) ha chiesto di ricevere le email sui nuovi dipinti",
+      "di Barbara Straka, e questo indirizzo è già nella lista.",
+      "Non devi fare nulla: nuovi dipinti ed eventi continueranno ad arrivare.",
+      "",
+      "Se non sei stato tu, ignora questo messaggio.",
+      "",
+      "— Barbara",
+    ].join("\n"),
+    goodbyeSubject: "Rimosso dalla lista dei nuovi dipinti",
+    goodbye: [
+      "Fatto: non riceverai più email dallo studio.",
+      "Puoi iscriverti di nuovo quando vuoi dal sito.",
+      "",
+      "— Barbara",
+    ].join("\n"),
+  },
 };

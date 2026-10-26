@@ -357,6 +357,30 @@ describe("dev mock list", () => {
     );
   });
 
+  it("writes to a French visitor in French, linking the French page", async () => {
+    stubFetch(() => okRes());
+    const res = await onRequestPost(
+      mockPostContext({ email: "delivered+fr@resend.dev", locale: "fr" }),
+    );
+    assert.equal(res.status, 201);
+    const mail = sentEmails().find((m) =>
+      m.to.includes("delivered+fr@resend.dev"),
+    );
+    assert.equal(mail.subject, "Confirmez vos alertes de l’atelier");
+    assert.match(mail.text, /\/fr\/email\/confirmed\?/);
+    const data = await res.json();
+    assert.match(data.devConfirmUrl, /\/fr\/email\/confirmed\?/);
+  });
+
+  it("ignores a language it doesn't offer", async () => {
+    stubFetch(() => okRes());
+    const res = await onRequestPost(
+      mockPostContext({ email: "fan@example.com", locale: "xx" }),
+    );
+    const data = await res.json();
+    assert.match(data.devConfirmUrl, /4331\/email\/confirmed\?/);
+  });
+
   it("sends nothing real for ordinary addresses", async () => {
     stubFetch(() => okRes());
     const res = await onRequestPost(
