@@ -1676,6 +1676,19 @@ test("email page previews the exact email buyers get", async ({ page }) => {
     "New painting at Barbara Straka's studio",
   );
   await expect(frame.locator("body")).toContainText("come look");
+  // The frame fits the email: no empty band under the unsubscribe line.
+  await expect
+    .poll(() =>
+      page.locator("#email-preview-body").evaluate((f) => {
+        const doc = f instanceof HTMLIFrameElement ? f.contentDocument : null;
+        if (doc === null) return 999;
+        // The email's own content, not the frame-filling page around it.
+        const content = doc.body.firstElementChild?.getBoundingClientRect();
+        if (content === undefined) return 999;
+        return Math.abs(f.getBoundingClientRect().height - content.bottom);
+      }),
+    )
+    .toBeLessThan(12);
   // Typed text shows in the preview and is included in the send.
   await page.locator("#email-body").fill("Fresh off the easel");
   await expect(frame.locator("body")).toContainText("Fresh off the easel");
