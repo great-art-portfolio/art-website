@@ -1,4 +1,4 @@
-import { readBinaryFile } from "../_lib/github";
+import { gitConfig, readBinaryFile } from "../_lib/github";
 import type { AppEnv } from "../_lib/env";
 import { badRequest, githubFailure, requireAdmin } from "../_lib/http";
 
@@ -20,17 +20,12 @@ const IMAGE_TYPE: Record<string, string> = {
 export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
   const denied = await requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
-  const token = context.env.GITHUB_TOKEN ?? "";
-  const repo = context.env.GITHUB_REPO ?? "";
-  if (token === "" || repo === "")
-    return badRequest("GitHub publishing is not configured");
+  const config = gitConfig(context.env);
+  if (config === null) return badRequest("GitHub publishing is not configured");
   const path = new URL(context.request.url).searchParams.get("path") ?? "";
   if (!PHOTO_FILE.test(path)) return badRequest("Unknown photo");
   try {
-    const bytes = await readBinaryFile(
-      { token, repo, branch: context.env.GITHUB_BRANCH ?? "main" },
-      path,
-    );
+    const bytes = await readBinaryFile(config, path);
     if (bytes === null) return badRequest("Unknown photo");
     const ext = (path.split(".").pop() ?? "jpg").toLowerCase();
     // Copy into an exact-length ArrayBuffer so no extra bytes are sent.

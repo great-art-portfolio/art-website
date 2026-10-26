@@ -2481,14 +2481,14 @@ test("a refused GitHub key reads as that, not a connection problem", async ({
       status: 503,
       json: {
         error:
-          "Saving is paused: the site's GitHub key has run out. Ask Chris to renew it — nothing you've saved is lost.",
+          "Saving is paused: GitHub turned the site away. Ask Chris to fix it — nothing you've saved is lost.",
         code: "github-key",
       },
     }),
   );
   await page.goto("/admin");
   await expect(page.locator("#edit-list")).toContainText(
-    "GitHub key has run out",
+    "GitHub turned the site away",
   );
   await expect(page.locator("#edit-list")).not.toContainText("connection");
   await expect(page.locator("#key-note")).toBeHidden();

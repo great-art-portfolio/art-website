@@ -227,7 +227,7 @@ afterEach(() => {
 
 /** GitHub + Resend stub. Records commits and emails. */
 function stubServices(fileMd) {
-  const calls = { trees: [], emails: [] };
+  const calls = { blobs: [], trees: [], emails: [] };
   globalThis.fetch = async (url, init = {}) => {
     const u = String(url);
     const body = init.body ? JSON.parse(init.body) : null;
@@ -245,6 +245,10 @@ function stubServices(fileMd) {
       });
     if (u.includes("/git/ref/heads/")) return ok({ object: { sha: "base" } });
     if (u.includes("/git/commits/base")) return ok({ tree: { sha: "tree0" } });
+    if (u.endsWith("/git/blobs")) {
+      calls.blobs.push(body);
+      return ok({ sha: `blob${calls.blobs.length}` });
+    }
     if (u.endsWith("/git/trees")) {
       calls.trees.push(body);
       return ok({ sha: "tree1" });
@@ -288,10 +292,9 @@ describe("POST /api/stripe-webhook", () => {
     const res = await webhook({ request: webhookRequest(paidEvent()), env });
     assert.equal(res.status, 200);
     assert.equal(calls.commitMessage, "Sold online: Night Reeds");
-    const written = Buffer.from(
-      calls.trees[0].tree[0].content,
-      "base64",
-    ).toString();
+    assert.equal(calls.blobs[0].encoding, "base64");
+    assert.equal(calls.trees[0].tree[0].sha, "blob1");
+    const written = Buffer.from(calls.blobs[0].content, "base64").toString();
     assert.match(written, /^sold: true$/m);
     assert.match(written, /^soldSession: "cs_test_1"$/m);
     assert.equal(calls.trees[0].tree[0].path, item.file);
