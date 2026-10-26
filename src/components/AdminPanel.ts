@@ -1696,10 +1696,10 @@ function wireList(): void {
     fadeIn(status);
   };
 
-  // A list can grow to hundreds: newest first, 25 to a page, with plain
+  // A list can grow to hundreds: newest first, 10 to a page, with plain
   // Newer / Older controls and where she is ("26–50 of 820"). Search looks
   // through everyone, not just the page drawn.
-  const PAGE = 25;
+  const PAGE = 10;
   let all: Awaited<ReturnType<typeof api.listContacts>>["contacts"] = [];
   let page = 0;
   const pager = document.getElementById("list-pager");
@@ -1713,9 +1713,17 @@ function wireList(): void {
     const li = document.createElement("li");
     li.dataset.email = c.email;
     li.classList.toggle("off", c.unsubscribed);
-    const who = document.createElement("span");
+    // Addresses stay blurred for privacy (a visitor, a shared screen)
+    // until she hovers, tabs to one, or taps it; a second tap hides it.
+    const who = document.createElement("button");
+    who.type = "button";
     who.className = "who";
     who.textContent = c.email;
+    who.title = "Show this address";
+    who.addEventListener("click", () => {
+      const shown = li.classList.toggle("shown");
+      who.title = shown ? "Hide this address" : "Show this address";
+    });
     const when = document.createElement("span");
     when.className = "when";
     const joined = joinedLabel(c.createdAt);

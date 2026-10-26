@@ -2342,13 +2342,13 @@ test("the email list shows everyone and adds or removes in plain words", async (
   expect(posts[1]).toEqual({ action: "remove", email: "ada@resend.dev" });
 });
 
-test("a big email list pages 25 at a time and searches everyone", async ({
+test("a big email list pages 10 at a time and searches everyone", async ({
   page,
 }) => {
   await page.addInitScript(() =>
     sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
   );
-  const contacts = Array.from({ length: 60 }, (_, i) => ({
+  const contacts = Array.from({ length: 25 }, (_, i) => ({
     email: `fan${i}@resend.dev`,
     unsubscribed: false,
     createdAt: `2026-01-01 00:00:${String(i).padStart(3, "0")}+00`,
@@ -2358,22 +2358,49 @@ test("a big email list pages 25 at a time and searches everyone", async ({
   );
   await page.goto("/admin/email");
   const rows = page.locator("#list-people li");
-  await expect(rows).toHaveCount(25);
+  await expect(rows).toHaveCount(10);
   // Newest first.
-  await expect(rows.first()).toContainText("fan59@resend.dev");
+  await expect(rows.first()).toContainText("fan24@resend.dev");
   const range = page.locator("#list-range");
-  await expect(range).toHaveText("1–25 of 60");
+  await expect(range).toHaveText("1–10 of 25");
   await expect(page.locator("#list-newer")).toBeDisabled();
   await page.locator("#list-older").click();
-  await expect(range).toHaveText("26–50 of 60");
+  await expect(range).toHaveText("11–20 of 25");
   await page.locator("#list-older").click();
-  await expect(range).toHaveText("51–60 of 60");
-  await expect(rows).toHaveCount(10);
+  await expect(range).toHaveText("21–25 of 25");
+  await expect(rows).toHaveCount(5);
   await expect(page.locator("#list-older")).toBeDisabled();
   // Search reaches everyone and starts back at the first page.
   await page.locator("#list-search").fill("fan3@");
   await expect(rows).toHaveCount(1);
   await expect(page.locator("#list-pager")).toBeHidden();
+});
+
+test("email addresses stay blurred until she asks", async ({ page }) => {
+  await page.addInitScript(() =>
+    sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
+  );
+  await page.route("**/api/collectors*", (route) =>
+    route.fulfill({
+      json: {
+        total: 1,
+        contacts: [
+          { email: "ada@resend.dev", unsubscribed: false, createdAt: "" },
+        ],
+      },
+    }),
+  );
+  await page.goto("/admin/email");
+  const who = page.locator("#list-people .who");
+  await expect(who).toHaveCSS("filter", "blur(5px)");
+  // A tap shows it and keeps it shown after the pointer leaves.
+  await who.click();
+  await page.mouse.move(0, 0);
+  await expect(who).toHaveCSS("filter", "none");
+  await who.click();
+  await page.mouse.move(0, 0);
+  await who.blur();
+  await expect(who).toHaveCSS("filter", "blur(5px)");
 });
 
 test("a long email list gets a search box", async ({ page }) => {
