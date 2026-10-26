@@ -2,6 +2,7 @@ import { api, ApiError } from "../lib/api";
 import { $, isLocalPreview } from "../lib/dom";
 import {
   parseStatsSeed,
+  viewsSchema,
   type SiteMetrics,
   type StatsSeedRow,
 } from "../lib/schemas";
@@ -24,6 +25,38 @@ import { viewsLabel } from "../lib/views";
  */
 
 const SVG = "http://www.w3.org/2000/svg";
+
+/** The last numbers this browser loaded, shown at once on the next visit
+ * while fresh ones come from Cloudflare (about a second). Only counts, so
+ * nothing private sits on her device. */
+const CACHE_KEY = "studio-metrics-v1";
+
+function readCache(): {
+  views: Array<{ slug: string; views: number }>;
+  metrics: SiteMetrics | null;
+} | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (raw === null) return null;
+    const parsed = viewsSchema.safeParse(JSON.parse(raw));
+    return parsed.success
+      ? { views: parsed.data.views, metrics: parsed.data.metrics ?? null }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(
+  views: Array<{ slug: string; views: number }>,
+  metrics: SiteMetrics,
+): void {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ views, metrics }));
+  } catch {
+    // Storage blocked: the page just waits for the live numbers.
+  }
+}
 
 /** Daily bars with a hover/tap readout; the hidden table reads them out. */
 function renderChart(m: SiteMetrics): void {
@@ -73,11 +106,15 @@ function renderChart(m: SiteMetrics): void {
     nodes.push(bar, hit);
   });
   svg.replaceChildren(...nodes);
-  svg.addEventListener("pointerleave", () => {
-    if (svg.classList.contains("picking")) return;
-    for (const b of svg.querySelectorAll(".bar.on")) b.classList.remove("on");
-    label.textContent = idle;
-  });
+  // Drawn twice per visit (saved numbers, then fresh), wired once.
+  if (svg.dataset.wired !== "1") {
+    svg.dataset.wired = "1";
+    svg.addEventListener("pointerleave", () => {
+      if (svg.classList.contains("picking")) return;
+      for (const b of svg.querySelectorAll(".bar.on")) b.classList.remove("on");
+      label.textContent = idle;
+    });
+  }
   label.textContent = idle;
   if (first !== null && m.days[0] !== undefined)
     first.textContent = dayLabel(m.days[0].date);
@@ -132,7 +169,9 @@ function renderList(
 }
 
 function renderSite(m: SiteMetrics): void {
-  $("stats-total").textContent = m.visits.toLocaleString();
+  const total = $("stats-total");
+  total.textContent = m.visits.toLocaleString();
+  total.removeAttribute("data-loading");
   $("stats-trend").textContent = trendSentence(m.visits, m.visitsBefore);
   renderChart(m);
   renderList(
@@ -207,12 +246,24 @@ function init(): void {
       "Couldn't read the painting list — reload the page and try again.";
     return;
   }
-  // Render the rows right away without waiting for counts.
-  render(seed, new Map());
+  // Render right away: last visit's numbers when this browser has them,
+  // else the bare rows, then the fresh numbers replace them.
+  const cached = readCache();
+  render(seed, new Map(cached?.views.map((v) => [v.slug, v.views]) ?? []));
+  if (cached?.metrics) renderSite(cached.metrics);
   api
     .paintingViews()
     .then(({ views, metrics, unconfigured }) => {
-      if (metrics !== null) renderSite(metrics);
+      if (metrics !== null) {
+        renderSite(metrics);
+        writeCache(views, metrics);
+      }
+      // No numbers to show: settle the waiting ellipsis on a plain dash.
+      const totalEl = $("stats-total");
+      if (totalEl.hasAttribute("data-loading")) {
+        totalEl.textContent = "—";
+        totalEl.removeAttribute("data-loading");
+      }
       if (views.length === 0 && unconfigured) {
         $("stats-note").textContent = isLocalPreview()
           ? "Counts appear once buyers visit the live site."
