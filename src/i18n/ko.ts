@@ -104,7 +104,7 @@ export const ko: Strings = {
     wallDesk: "거의 실제 크기로 보여 드려요.",
     machineNote: "제목과 설명은 영어에서 자동으로 번역되었어요.",
     wallScan:
-      "내 벽에서 보려면 휴대폰 카메라로 이 코드를 스캔한 뒤 <strong>내 벽에서 보기</strong>를 눌러 주세요.",
+      "휴대폰 카메라로 이 코드를 스캔한 뒤 <strong>내 벽에서 보기</strong>를 눌러 주세요.",
   },
   paintingClient: {
     sending: "보내는 중…",

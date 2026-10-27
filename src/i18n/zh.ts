@@ -101,8 +101,7 @@ export const zh: Strings = {
       "按接近真实的尺寸显示。点按<strong>在你的墙上看</strong>，然后把手机对准你想挂画的位置。",
     wallDesk: "按接近真实的尺寸显示。",
     machineNote: "标题和介绍由英文自动翻译。",
-    wallScan:
-      "想在你的墙上看看，请用手机相机扫描这个码，然后点按<strong>在你的墙上看</strong>。",
+    wallScan: "用手机相机扫描这个码，然后点按<strong>在你的墙上看</strong>。",
   },
   paintingClient: {
     sending: "正在发送…",

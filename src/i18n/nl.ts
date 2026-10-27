@@ -107,7 +107,7 @@ export const nl: Strings = {
     wallDesk: "Ongeveer op ware grootte getoond.",
     machineNote: "Titel en beschrijving automatisch vertaald uit het Engels.",
     wallScan:
-      "Wilt u het aan uw muur zien? Scan dit met de camera van uw telefoon en tik dan op <strong>Bekijk aan uw muur</strong>.",
+      "Scan dit met de camera van uw telefoon en tik dan op <strong>Bekijk aan uw muur</strong>.",
   },
   paintingClient: {
     sending: "Versturen…",

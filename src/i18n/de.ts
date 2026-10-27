@@ -110,7 +110,7 @@ export const de: Strings = {
     machineNote:
       "Titel und Beschreibung wurden automatisch aus dem Englischen übersetzt.",
     wallScan:
-      "Um es an Ihrer Wand zu sehen, scannen Sie dies mit der Handykamera und tippen Sie dann auf <strong>An Ihrer Wand ansehen</strong>.",
+      "Scannen Sie dies mit der Handykamera und tippen Sie dann auf <strong>An Ihrer Wand ansehen</strong>.",
   },
   paintingClient: {
     sending: "Wird gesendet…",

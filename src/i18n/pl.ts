@@ -116,7 +116,7 @@ export const pl: Strings = {
     wallDesk: "Pokazany mniej więcej w rzeczywistym rozmiarze.",
     machineNote: "Tytuł i opis przetłumaczono automatycznie z angielskiego.",
     wallScan:
-      "Aby zobaczyć go na swojej ścianie, zeskanuj ten kod aparatem telefonu, a potem dotknij <strong>Zobacz na swojej ścianie</strong>.",
+      "Zeskanuj ten kod aparatem telefonu, a potem dotknij <strong>Zobacz na swojej ścianie</strong>.",
   },
   paintingClient: {
     sending: "Wysyłanie…",
