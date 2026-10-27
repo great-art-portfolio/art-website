@@ -4,9 +4,8 @@ dateAdded: 2026-10-27
 image: "undercurrent.jpg"
 alt: ""
 sold: false
-draft: true
+draft: false
 price: 550.00
-publishOn: "2026-10-26"
 widthIn: 48
 heightIn: 24
 depthIn: 1.5
