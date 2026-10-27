@@ -233,7 +233,7 @@ const offers = Object.fromEntries(
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png" />
     <meta name="generator" content={Astro.generator} />
-    <title>{pageTitle(title, wordmark === "admin")}</title>
+    <title>{pageTitle(title)}</title>
     <ClientRouter />
     <Analytics studio={wordmark === "admin"} />
   </head>

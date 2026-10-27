@@ -6,8 +6,6 @@ export const nl: Strings = {
     siteTitle: "Barbara Straka — Originele schilderijen",
     description:
       "Originele natuur- en abstracte schilderijen, rechtstreeks uit het atelier van de kunstenaar.",
-    paintingTitle: (title: string, sold: boolean) =>
-      `${title} door Barbara Straka — ${sold ? "Verkocht" : "Origineel schilderij"}`,
   },
   layout: {
     skip: "Naar de inhoud",
@@ -198,7 +196,7 @@ export const nl: Strings = {
     back: "Terug naar de galerie",
   },
   notFound: {
-    title: "Niet gevonden — Barbara Straka, originele schilderijen",
+    title: "Niet gevonden",
     description:
       "Deze pagina bestaat niet. Bekijk in plaats daarvan de collectie originele schilderijen.",
     eyebrow: "Van de muur — 404",
@@ -210,13 +208,13 @@ export const nl: Strings = {
     heading: "Meldingen van nieuwe schilderijen",
     working: "Bezig…",
     back: "Terug naar de galerie",
-    confirmedTitle: "U staat op de lijst — Barbara Straka",
+    confirmedTitle: "U staat op de lijst",
     confirmNeedsLink:
       "Deze pagina werkt alleen via de link — meld u aan via een vak Houd me op de hoogte en tik op de e-mail die we sturen.",
     confirmed: "U staat op de lijst — nieuwe schilderijen en evenementen.",
     confirmFailed:
       "Die link werkte niet — misschien is hij ouder dan een week. Meld u opnieuw aan via een vak Houd me op de hoogte.",
-    goodbyeTitle: "Afgemeld — Barbara Straka",
+    goodbyeTitle: "Afgemeld",
     goodbyeNeedsLink:
       "Deze pagina werkt alleen via de link — die staat in elke e-mail over een nieuw schilderij.",
     goodbye: "U bent afgemeld — geen e-mails meer.",

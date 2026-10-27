@@ -5,8 +5,6 @@ export const ko: Strings = {
   meta: {
     siteTitle: "Barbara Straka — 원화 작품",
     description: "작가의 작업실에서 직접 선보이는 자연과 추상 원화 작품입니다.",
-    paintingTitle: (title: string, sold: boolean) =>
-      `${title} (Barbara Straka 작) — ${sold ? "판매 완료" : "원화"}`,
   },
   layout: {
     skip: "본문으로 건너뛰기",
@@ -185,7 +183,7 @@ export const ko: Strings = {
     back: "갤러리로 돌아가기",
   },
   notFound: {
-    title: "페이지를 찾을 수 없어요 — Barbara Straka 원화 작품",
+    title: "페이지를 찾을 수 없어요",
     description: "없는 페이지예요. 대신 원화 컬렉션을 둘러보세요.",
     eyebrow: "벽에 걸린 게 없어요 — 404",
     heading: "이 벽은 비어 있어요.",
@@ -196,13 +194,13 @@ export const ko: Strings = {
     heading: "새 그림 알림",
     working: "처리하는 중…",
     back: "갤러리로 돌아가기",
-    confirmedTitle: "구독되었어요 — Barbara Straka",
+    confirmedTitle: "구독되었어요",
     confirmNeedsLink:
       "이 페이지는 링크로 열어야 해요 — 아무 “알림 받기” 창에서 구독한 뒤, 보내 드린 이메일을 눌러 주세요.",
     confirmed: "구독되었어요 — 새 그림과 행사 소식을 보내 드릴게요.",
     confirmFailed:
       "링크가 작동하지 않았어요 — 일주일이 지난 링크일 수 있어요. 아무 “알림 받기” 창에서 다시 구독해 주세요.",
-    goodbyeTitle: "구독 취소됨 — Barbara Straka",
+    goodbyeTitle: "구독 취소됨",
     goodbyeNeedsLink:
       "이 페이지는 링크로 열어야 해요 — 링크는 새 그림 알림 이메일마다 들어 있어요.",
     goodbye: "구독이 취소되었어요 — 더 이상 이메일을 보내지 않을게요.",

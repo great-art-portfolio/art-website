@@ -6,8 +6,6 @@ export const pa: Strings = {
     siteTitle: "Barbara Straka — ਮੂਲ ਪੇਂਟਿੰਗਾਂ",
     description:
       "ਕੁਦਰਤ ਅਤੇ ਐਬਸਟ੍ਰੈਕਟ ਦੀਆਂ ਮੂਲ ਪੇਂਟਿੰਗਾਂ, ਸਿੱਧੀਆਂ ਕਲਾਕਾਰ ਦੇ ਸਟੂਡੀਓ ਤੋਂ।",
-    paintingTitle: (title: string, sold: boolean) =>
-      `${title}, Barbara Straka ਦੀ ਕਿਰਤ — ${sold ? "ਵਿਕ ਚੁੱਕੀ" : "ਮੂਲ ਪੇਂਟਿੰਗ"}`,
   },
   layout: {
     skip: "ਸਿੱਧਾ ਮੁੱਖ ਸਮੱਗਰੀ 'ਤੇ ਜਾਓ",
@@ -194,7 +192,7 @@ export const pa: Strings = {
     back: "ਗੈਲਰੀ 'ਤੇ ਵਾਪਸ ਜਾਓ",
   },
   notFound: {
-    title: "ਨਹੀਂ ਮਿਲਿਆ — Barbara Straka ਮੂਲ ਪੇਂਟਿੰਗਾਂ",
+    title: "ਨਹੀਂ ਮਿਲਿਆ",
     description:
       "ਇਹ ਪੰਨਾ ਮੌਜੂਦ ਨਹੀਂ ਹੈ। ਇਸ ਦੀ ਬਜਾਏ ਮੂਲ ਪੇਂਟਿੰਗਾਂ ਦਾ ਸੰਗ੍ਰਹਿ ਦੇਖੋ।",
     eyebrow: "ਕੰਧ ਤੋਂ ਉੱਤਰਿਆ — 404",
@@ -206,14 +204,14 @@ export const pa: Strings = {
     heading: "ਨਵੀਂ ਪੇਂਟਿੰਗ ਦੀਆਂ ਸੂਚਨਾਵਾਂ",
     working: "ਹੋ ਰਿਹਾ ਹੈ…",
     back: "ਗੈਲਰੀ 'ਤੇ ਵਾਪਸ ਜਾਓ",
-    confirmedTitle: "ਤੁਸੀਂ ਸੂਚੀ ਵਿੱਚ ਹੋ — Barbara Straka",
+    confirmedTitle: "ਤੁਸੀਂ ਸੂਚੀ ਵਿੱਚ ਹੋ",
     confirmNeedsLink:
       "ਇਹ ਪੰਨਾ ਆਪਣੇ ਲਿੰਕ ਨਾਲ ਹੀ ਖੁੱਲ੍ਹਦਾ ਹੈ — ਕਿਸੇ ਵੀ “ਮੈਨੂੰ ਸੂਚਿਤ ਕਰੋ” ਬਾਕਸ ਤੋਂ ਜੁੜੋ ਅਤੇ ਸਾਡੀ ਭੇਜੀ ਈਮੇਲ 'ਤੇ ਟੈਪ ਕਰੋ।",
     confirmed:
       "ਤੁਸੀਂ ਸੂਚੀ ਵਿੱਚ ਹੋ — ਨਵੀਆਂ ਪੇਂਟਿੰਗਾਂ ਅਤੇ ਸਮਾਗਮਾਂ ਦੀ ਸੂਚਨਾ ਮਿਲੇਗੀ।",
     confirmFailed:
       "ਇਹ ਲਿੰਕ ਕੰਮ ਨਹੀਂ ਕਰ ਸਕਿਆ — ਸ਼ਾਇਦ ਇਹ ਇੱਕ ਹਫ਼ਤੇ ਤੋਂ ਪੁਰਾਣਾ ਹੈ। ਕਿਸੇ ਵੀ “ਮੈਨੂੰ ਸੂਚਿਤ ਕਰੋ” ਬਾਕਸ ਤੋਂ ਦੁਬਾਰਾ ਜੁੜੋ।",
-    goodbyeTitle: "ਗਾਹਕੀ ਛੱਡ ਦਿੱਤੀ — Barbara Straka",
+    goodbyeTitle: "ਗਾਹਕੀ ਛੱਡ ਦਿੱਤੀ",
     goodbyeNeedsLink:
       "ਇਹ ਪੰਨਾ ਆਪਣੇ ਲਿੰਕ ਨਾਲ ਹੀ ਖੁੱਲ੍ਹਦਾ ਹੈ — ਉਹ ਹਰ ਨਵੀਂ ਪੇਂਟਿੰਗ ਵਾਲੀ ਈਮੇਲ ਵਿੱਚ ਆਉਂਦਾ ਹੈ।",
     goodbye: "ਤੁਹਾਨੂੰ ਹਟਾ ਦਿੱਤਾ ਗਿਆ ਹੈ — ਹੁਣ ਕੋਈ ਈਮੇਲ ਨਹੀਂ ਆਵੇਗੀ।",

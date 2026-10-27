@@ -14,8 +14,6 @@ export const pl: Strings = {
     siteTitle: "Barbara Straka — Oryginalne obrazy",
     description:
       "Oryginalne obrazy przyrody i abstrakcje, prosto z pracowni artystki.",
-    paintingTitle: (title: string, sold: boolean) =>
-      `${title}, Barbara Straka — ${sold ? "Sprzedany" : "Oryginalny obraz"}`,
   },
   layout: {
     skip: "Przejdź do treści",
@@ -205,7 +203,7 @@ export const pl: Strings = {
     back: "Powrót do galerii",
   },
   notFound: {
-    title: "Nie znaleziono — Barbara Straka, oryginalne obrazy",
+    title: "Nie znaleziono",
     description:
       "Ta strona nie istnieje. Zobacz zamiast tego kolekcję oryginalnych obrazów.",
     eyebrow: "Pusta ściana — 404",
@@ -217,13 +215,13 @@ export const pl: Strings = {
     heading: "Powiadomienia o nowych obrazach",
     working: "Chwileczkę…",
     back: "Powrót do galerii",
-    confirmedTitle: "Jesteś na liście — Barbara Straka",
+    confirmedTitle: "Jesteś na liście",
     confirmNeedsLink:
       "Ta strona działa tylko z linku — zapisz się w dowolnym okienku Powiadamiaj mnie i dotknij linku w e-mailu, który wyślemy.",
     confirmed: "Jesteś na liście — nowe obrazy i wydarzenia.",
     confirmFailed:
       "Ten link nie zadziałał — może być starszy niż tydzień. Zapisz się ponownie w dowolnym okienku Powiadamiaj mnie.",
-    goodbyeTitle: "Wypisano — Barbara Straka",
+    goodbyeTitle: "Wypisano",
     goodbyeNeedsLink:
       "Ta strona działa tylko z linku — znajdziesz go w każdym e-mailu o nowym obrazie.",
     goodbye: "Adres usunięty — koniec z e-mailami.",

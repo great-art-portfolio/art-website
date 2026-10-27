@@ -123,11 +123,7 @@ const paintingJsonLd = {
 ---
 
 <Layout
-  title={
-    locale === "en"
-      ? `${painting.data.title}${ARTIST_NAME === null ? "" : ` by ${ARTIST_NAME}`} — ${painting.data.sold ? "Sold" : "Original Painting"}`
-      : s.meta.paintingTitle(words.title, painting.data.sold)
-  }
+  title={words.title}
   description={description}
   canonical={localePath(locale, path)}
   locale={locale}

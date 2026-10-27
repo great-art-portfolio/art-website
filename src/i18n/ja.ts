@@ -6,8 +6,6 @@ export const ja: Strings = {
     siteTitle: "Barbara Straka — 原画作品",
     description:
       "自然と抽象をテーマにした原画を、画家のアトリエから直接お届けします。",
-    paintingTitle: (title: string, sold: boolean) =>
-      `${title}｜Barbara Straka — ${sold ? "売約済み" : "原画"}`,
   },
   layout: {
     skip: "本文へスキップ",
@@ -195,7 +193,7 @@ export const ja: Strings = {
     back: "ギャラリーに戻る",
   },
   notFound: {
-    title: "ページが見つかりません — Barbara Straka 原画作品",
+    title: "ページが見つかりません",
     description: "このページは存在しません。原画のコレクションをご覧ください。",
     eyebrow: "壁は空っぽ — 404",
     heading: "この壁には何もありません。",
@@ -206,13 +204,13 @@ export const ja: Strings = {
     heading: "新作のお知らせ",
     working: "処理中…",
     back: "ギャラリーに戻る",
-    confirmedTitle: "登録が完了しました — Barbara Straka",
+    confirmedTitle: "登録が完了しました",
     confirmNeedsLink:
       "このページはメール内のリンクから開いてください。「新作のお知らせ」ボックスから登録し、届いたメールをタップしてください。",
     confirmed: "登録が完了しました。新作やイベントをお知らせします。",
     confirmFailed:
       "このリンクは使えませんでした。1週間以上前のものかもしれません。「新作のお知らせ」ボックスから、もう一度ご登録ください。",
-    goodbyeTitle: "配信を停止しました — Barbara Straka",
+    goodbyeTitle: "配信を停止しました",
     goodbyeNeedsLink:
       "このページはメール内のリンクから開いてください。リンクは新作のお知らせメールに毎回入っています。",
     goodbye: "配信を停止しました。今後メールは届きません。",

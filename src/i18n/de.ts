@@ -6,8 +6,6 @@ export const de: Strings = {
     siteTitle: "Barbara Straka — Originalgemälde",
     description:
       "Originale Natur- und abstrakte Gemälde, direkt aus dem Atelier der Künstlerin.",
-    paintingTitle: (title: string, sold: boolean) =>
-      `${title} von Barbara Straka — ${sold ? "Verkauft" : "Originalgemälde"}`,
   },
   layout: {
     skip: "Zum Inhalt springen",
@@ -200,7 +198,7 @@ export const de: Strings = {
     back: "Zurück zur Galerie",
   },
   notFound: {
-    title: "Nicht gefunden — Barbara Straka Originalgemälde",
+    title: "Nicht gefunden",
     description:
       "Diese Seite gibt es nicht. Sehen Sie sich stattdessen die Sammlung der Originalgemälde an.",
     eyebrow: "Abgehängt — 404",
@@ -212,13 +210,13 @@ export const de: Strings = {
     heading: "Benachrichtigungen über neue Gemälde",
     working: "Einen Moment…",
     back: "Zurück zur Galerie",
-    confirmedTitle: "Sie sind eingetragen — Barbara Straka",
+    confirmedTitle: "Sie sind eingetragen",
     confirmNeedsLink:
       "Diese Seite braucht ihren Link — tragen Sie sich über ein beliebiges „Benachrichtigen“-Feld ein und tippen Sie auf den Link in unserer E-Mail.",
     confirmed: "Sie sind eingetragen — für neue Gemälde und Veranstaltungen.",
     confirmFailed:
       "Dieser Link hat nicht funktioniert — vielleicht ist er älter als eine Woche. Tragen Sie sich über ein „Benachrichtigen“-Feld erneut ein.",
-    goodbyeTitle: "Abgemeldet — Barbara Straka",
+    goodbyeTitle: "Abgemeldet",
     goodbyeNeedsLink:
       "Diese Seite braucht ihren Link — er steht in jeder E-Mail zu einem neuen Gemälde.",
     goodbye: "Sie wurden ausgetragen — keine weiteren E-Mails.",

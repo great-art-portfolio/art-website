@@ -6,8 +6,6 @@ export const hi: Strings = {
     siteTitle: "Barbara Straka — मूल पेंटिंग्स",
     description:
       "प्रकृति और एब्स्ट्रैक्ट की मूल पेंटिंग्स, सीधे कलाकार के स्टूडियो से।",
-    paintingTitle: (title: string, sold: boolean) =>
-      `${title}, Barbara Straka की कृति — ${sold ? "बिक चुकी" : "मूल पेंटिंग"}`,
   },
   layout: {
     skip: "सीधे मुख्य सामग्री पर जाएँ",
@@ -192,7 +190,7 @@ export const hi: Strings = {
     back: "गैलरी पर वापस जाएँ",
   },
   notFound: {
-    title: "नहीं मिला — Barbara Straka मूल पेंटिंग्स",
+    title: "नहीं मिला",
     description:
       "यह पेज मौजूद नहीं है। इसके बजाय मूल पेंटिंग्स का संग्रह देखें।",
     eyebrow: "दीवार से उतरा — 404",
@@ -204,13 +202,13 @@ export const hi: Strings = {
     heading: "नई पेंटिंग की सूचनाएँ",
     working: "हो रहा है…",
     back: "गैलरी पर वापस जाएँ",
-    confirmedTitle: "आप सूची में हैं — Barbara Straka",
+    confirmedTitle: "आप सूची में हैं",
     confirmNeedsLink:
       "यह पेज अपने लिंक से ही खुलता है — किसी भी “मुझे सूचना दें” बॉक्स से जुड़ें और हमारे भेजे ईमेल पर टैप करें।",
     confirmed: "आप सूची में हैं — नई पेंटिंग्स और कार्यक्रमों की सूचना मिलेगी।",
     confirmFailed:
       "यह लिंक काम नहीं कर पाया — शायद यह एक हफ़्ते से पुराना है। किसी भी “मुझे सूचना दें” बॉक्स से फिर से जुड़ें।",
-    goodbyeTitle: "सदस्यता छोड़ दी — Barbara Straka",
+    goodbyeTitle: "सदस्यता छोड़ दी",
     goodbyeNeedsLink:
       "यह पेज अपने लिंक से ही खुलता है — वह हर नई पेंटिंग वाले ईमेल में आता है।",
     goodbye: "आपको हटा दिया गया है — अब कोई ईमेल नहीं आएगा।",
