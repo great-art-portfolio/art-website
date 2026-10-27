@@ -1,4 +1,5 @@
 ---
+publishOn: "2026-10-26"
 title: "Quiet Divide"
 dateAdded: 2026-10-27
 image: "quiet-divide.jpg"
