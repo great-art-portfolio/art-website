@@ -898,3 +898,61 @@ test("the photo picker offers the library as well as the camera", async ({
   await page.goto("/admin/paintings/prairie-moon");
   await expect(page.locator("#de-replace-file")).not.toHaveAttribute("capture");
 });
+
+test("crop & adjust finds the painting on the wall and straightens it", async ({
+  page,
+}) => {
+  await page.goto("/admin/paintings/new");
+  // A 1200 × 1600 phone photo: beige wall, a tilted dark painting.
+  await page.evaluate(async () => {
+    const c = document.createElement("canvas");
+    c.width = 1200;
+    c.height = 1600;
+    const ctx = c.getContext("2d");
+    if (ctx === null) throw new Error("no canvas");
+    ctx.fillStyle = "#d6cec0";
+    ctx.fillRect(0, 0, 1200, 1600);
+    ctx.fillStyle = "#2f4a6a";
+    ctx.beginPath();
+    ctx.moveTo(250, 300);
+    ctx.lineTo(950, 340);
+    ctx.lineTo(930, 1100);
+    ctx.lineTo(270, 1080);
+    ctx.closePath();
+    ctx.fill();
+    const blob = await new Promise<Blob | null>((r) =>
+      c.toBlob(r, "image/jpeg", 0.9),
+    );
+    if (blob === null) throw new Error("no blob");
+    const input = document.getElementById("de-photo");
+    if (!(input instanceof HTMLInputElement)) throw new Error("no input");
+    const dt = new DataTransfer();
+    dt.items.add(new File([blob], "wall.jpg", { type: "image/jpeg" }));
+    input.files = dt.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await expect(page.locator("#de-photo-meta")).toContainText("1200 × 1600");
+  await page.locator("#de-fix").click();
+  const dialog = page.locator("#photo-fix");
+  await expect(dialog).toBeVisible();
+  await expect(page.locator("#pf-hint")).toContainText("Found the edges");
+  // Cancel leaves the photo as it was.
+  await page.locator("#pf-cancel").click();
+  await expect(dialog).toBeHidden();
+  await expect(page.locator("#de-photo-meta")).toContainText("1200 × 1600");
+  // Use this crops to the painting: about 690 × 760 px.
+  await page.locator("#de-fix").click();
+  await page.locator("#pf-done").click();
+  await expect(dialog).toBeHidden();
+  await expect(page.locator("#de-photo-meta")).not.toContainText("1200 × 1600");
+  const meta = (await page.locator("#de-photo-meta").textContent()) ?? "";
+  const [w, h] = (meta.match(/(\d+) × (\d+)/) ?? []).slice(1).map(Number);
+  expect(w).toBeGreaterThan(650);
+  expect(w).toBeLessThan(730);
+  expect(h).toBeGreaterThan(720);
+  expect(h).toBeLessThan(800);
+  // Her measured size sets the shape: 24 × 24 in makes it square.
+  await page.locator("#de-w").fill("24");
+  await page.locator("#de-h").fill("24");
+  await expect(page.locator("#de-photo-meta")).toContainText(`${h} × ${h}`);
+});

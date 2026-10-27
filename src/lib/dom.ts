@@ -47,6 +47,24 @@ export interface ElementMap {
   "de-rotate-270": HTMLButtonElement;
   "de-photo-meta": HTMLElement;
   "de-replace": HTMLButtonElement;
+  "de-fix": HTMLButtonElement;
+  // Crop & adjust dialog (PhotoFix.ts).
+  "photo-fix": HTMLDialogElement;
+  "pf-hint": HTMLElement;
+  "pf-stage": HTMLElement;
+  "pf-canvas": HTMLCanvasElement;
+  "pf-loupe": HTMLCanvasElement;
+  "pf-shade": SVGPathElement;
+  "pf-edge": SVGPolygonElement;
+  "pf-overlay": SVGSVGElement;
+  "pf-find": HTMLButtonElement;
+  "pf-whole": HTMLButtonElement;
+  "pf-bright": HTMLInputElement;
+  "pf-warm": HTMLInputElement;
+  "pf-contrast": HTMLInputElement;
+  "pf-reset": HTMLButtonElement;
+  "pf-cancel": HTMLButtonElement;
+  "pf-done": HTMLButtonElement;
   "de-replace-file": HTMLInputElement;
   "de-ar-waiting": HTMLElement;
   "pv-title": HTMLElement;

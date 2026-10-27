@@ -159,6 +159,9 @@ const eyebrow =
             <img id="de-photo-preview" alt="Photo preview" hidden />
           </div>
           <div class="tile-row" id="de-photo-tools" hidden>
+            <button type="button" id="de-fix">
+              Crop &amp; adjust
+            </button>
             <button type="button" id="de-rotate-90">
               Rotate ↻
             </button>
@@ -200,6 +203,9 @@ const eyebrow =
               <button type="button" id="de-replace">
                 Replace photo
               </button>
+              <button type="button" id="de-fix">
+                Crop &amp; adjust
+              </button>
               <input
                 id="de-replace-file"
                 type="file"
@@ -210,6 +216,94 @@ const eyebrow =
             </div>
           )}
         </div>
+      )}
+      {studio && (
+        <dialog id="photo-fix" aria-labelledby="pf-title">
+          <div class="pf-head">
+            <h2 id="pf-title">Crop &amp; adjust</h2>
+            <p class="hint" id="pf-hint" aria-live="polite">
+              Drag the four corners onto the painting's edges.
+            </p>
+          </div>
+          <div class="pf-stage" id="pf-stage">
+            <canvas id="pf-canvas" />
+            <svg id="pf-overlay" aria-hidden="true">
+              <path id="pf-shade" fill-rule="evenodd" />
+              <polygon id="pf-edge" />
+            </svg>
+            <button
+              type="button"
+              class="pf-handle"
+              data-corner="0"
+              aria-label="Top-left corner"
+            />
+            <button
+              type="button"
+              class="pf-handle"
+              data-corner="1"
+              aria-label="Top-right corner"
+            />
+            <button
+              type="button"
+              class="pf-handle"
+              data-corner="2"
+              aria-label="Bottom-right corner"
+            />
+            <button
+              type="button"
+              class="pf-handle"
+              data-corner="3"
+              aria-label="Bottom-left corner"
+            />
+            <canvas id="pf-loupe" width="240" height="240" hidden />
+          </div>
+          <div class="pf-tools">
+            <button type="button" id="pf-find">
+              Find edges
+            </button>
+            <button type="button" id="pf-whole">
+              Whole photo
+            </button>
+          </div>
+          <div class="pf-sliders">
+            <label>
+              <span>Brightness</span>
+              <input
+                id="pf-bright"
+                type="range"
+                min="-100"
+                max="100"
+                value="0"
+              />
+            </label>
+            <label>
+              <span>Warmth</span>
+              <input id="pf-warm" type="range" min="-100" max="100" value="0" />
+            </label>
+            <label>
+              <span>Contrast</span>
+              <input
+                id="pf-contrast"
+                type="range"
+                min="-100"
+                max="100"
+                value="0"
+              />
+            </label>
+          </div>
+          <div class="pf-actions">
+            <button type="button" id="pf-reset">
+              Start over
+            </button>
+            <span class="pf-gap" />
+            <button type="button" id="pf-cancel">
+              Cancel
+            </button>
+            <button type="button" id="pf-done" class="btn-primary">
+              Use this
+            </button>
+          </div>
+        </dialog>
       )}
       {studio && !data.sold && (
         <div id="ar-mount">
@@ -2269,5 +2363,210 @@ const eyebrow =
   }
   #de-photo-meta:empty {
     display: none;
+  }
+
+  /* Crop & adjust: the photo with four corner handles, three sliders,
+     and Use this. Full screen on a phone, a centered sheet on wider ones. */
+  #photo-fix {
+    box-sizing: border-box;
+    width: min(100%, 56rem);
+    max-width: none;
+    max-height: 100dvh;
+    margin: auto;
+    padding: 1rem max(1rem, env(safe-area-inset-right))
+      max(1rem, env(safe-area-inset-bottom))
+      max(1rem, env(safe-area-inset-left));
+    border: 0;
+    border-radius: var(--radius, 1rem);
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: var(--shadow);
+    overflow-y: auto;
+  }
+  #photo-fix[open] {
+    display: grid;
+    gap: 0.9rem;
+    animation: pf-in 0.22s ease;
+  }
+  #photo-fix::backdrop {
+    background: rgb(0 0 0 / 0.55);
+  }
+  @keyframes pf-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @media (max-width: 40rem) {
+    #photo-fix {
+      width: 100%;
+      height: 100dvh;
+      border-radius: 0;
+      padding-top: max(1rem, env(safe-area-inset-top));
+      gap: 0.7rem;
+    }
+    /* Label beside its slider, so the whole sheet fits a phone screen. */
+    .pf-sliders label {
+      grid-template-columns: 6.5rem 1fr;
+      align-items: center;
+    }
+    .pf-stage {
+      width: min(100%, calc(46dvh * var(--pf-aspect)));
+    }
+  }
+  .pf-head h2 {
+    margin: 0;
+    font-size: 1.35rem;
+  }
+  .pf-head .hint {
+    margin: 0.25rem 0 0;
+  }
+  .pf-stage {
+    --pf-aspect: 1;
+    position: relative;
+    justify-self: center;
+    width: min(100%, calc(52dvh * var(--pf-aspect)));
+    aspect-ratio: var(--pf-aspect);
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  #pf-canvas,
+  #pf-overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  #pf-canvas {
+    border-radius: 0.4rem;
+  }
+  #pf-shade {
+    fill: rgb(0 0 0 / 0.5);
+    transition: fill 0.2s ease;
+  }
+  #pf-edge {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2;
+    vector-effect: non-scaling-stroke;
+  }
+  .pf-handle {
+    position: absolute;
+    width: 2.75rem;
+    height: 2.75rem;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    transform: translate(-50%, -50%);
+    cursor: grab;
+    touch-action: none;
+  }
+  .pf-handle::after {
+    content: "";
+    position: absolute;
+    inset: 0.7rem;
+    border-radius: 999px;
+    border: 2px solid #fff;
+    background: var(--accent);
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.5);
+    transition: transform 0.15s ease;
+  }
+  .pf-handle:hover::after,
+  .pf-handle[data-active]::after {
+    transform: scale(1.25);
+  }
+  .pf-handle[data-active] {
+    cursor: grabbing;
+  }
+  .pf-handle:focus-visible {
+    outline: none;
+  }
+  .pf-handle:focus-visible::after {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+  /* A magnifier in the far top corner while a finger covers the handle. */
+  #pf-loupe {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+    width: 7.5rem;
+    height: 7.5rem;
+    border-radius: 999px;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 10px rgb(0 0 0 / 0.45);
+    pointer-events: none;
+    background: #000;
+  }
+  #pf-loupe[data-side="right"] {
+    left: auto;
+    right: 0.5rem;
+  }
+  #pf-loupe[hidden] {
+    display: none;
+  }
+  .pf-tools,
+  .pf-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    align-items: center;
+  }
+  .pf-tools button,
+  .pf-actions button:not(.btn-primary) {
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    min-height: 3rem;
+    padding: 0.7rem 1.2rem;
+    border-radius: 0.75rem;
+    cursor: pointer;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    transition: border-color 0.2s ease;
+  }
+  .pf-tools button:hover,
+  .pf-actions button:not(.btn-primary):hover {
+    border-color: var(--ink);
+  }
+  .pf-tools button:focus-visible,
+  .pf-actions button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .pf-gap {
+    flex: 1;
+  }
+  .pf-sliders {
+    display: grid;
+    gap: 0.4rem 1.25rem;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  }
+  .pf-sliders label {
+    display: grid;
+    gap: 0.15rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+  .pf-sliders input {
+    width: 100%;
+    min-height: 2.25rem;
+    accent-color: var(--accent);
+  }
+  .pf-sliders input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pf-handle::after {
+      transition: none;
+    }
+    .pf-handle:hover::after,
+    .pf-handle[data-active]::after {
+      transform: none;
+    }
   }
 </style>

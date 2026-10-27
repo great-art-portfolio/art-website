@@ -3,6 +3,8 @@
  * models. Local dev without a token uses the practice overlay. */
 import { api, existingTitles, getApiToken, uniqueSlug } from "../lib/api";
 import { loadImageFile, prepareImage, smallJpegDataUrl } from "../lib/image";
+import { isNoop, rotateQuad, type PhotoFix } from "../lib/photo-fix";
+import { openPhotoFix } from "./PhotoFix";
 
 import { dollarsToCents, formatPriceCAD } from "../lib/money";
 import { formatDimensions } from "../lib/dims";
@@ -102,6 +104,8 @@ let loadedImage: HTMLImageElement | null = null;
 let preparedBlob: Blob | null = null;
 let lastPreviewUrl: string | null = null;
 let rotation: 0 | 90 | 180 | 270 = 0;
+/** Crop & adjust on the loaded photo, kept through rotations. */
+let fix: PhotoFix | null = null;
 let photoGen = 0;
 let previewModels: { sig: string; glb: Blob; usdz: Blob } | null = null;
 let photoReplaced = false;
@@ -122,6 +126,30 @@ function modelSig(): string | null {
   if (preparedBlob === null) return null;
   const { widthIn, heightIn, depthIn } = readDims();
   return [photoGen, rotation, widthIn, heightIn, depthIn].map(String).join("|");
+}
+
+/** Re-renders the loaded photo with the current rotation and fix, then
+ * shows it and rebuilds the wall preview. */
+async function reprepare(): Promise<void> {
+  if (loadedImage === null) return;
+  const { widthIn, heightIn } = readDims();
+  const prepared = await prepareImage(loadedImage, rotation, fix, {
+    widthIn,
+    heightIn,
+  });
+  if (lastPreviewUrl !== null) URL.revokeObjectURL(lastPreviewUrl);
+  preparedBlob = prepared.blob;
+  photoGen += 1;
+  previewModels = null;
+  photoReplaced = true;
+  lastPreviewUrl = prepared.previewUrl;
+  showPhoto(
+    prepared.previewUrl,
+    prepared.width,
+    prepared.height,
+    prepared.blob.size,
+  );
+  await autoBuildAr();
 }
 
 /**
@@ -390,20 +418,55 @@ function showPhoto(
 
 async function ingestPhoto(img: HTMLImageElement): Promise<void> {
   loadedImage = img;
-  const prepared = await prepareImage(loadedImage, rotation);
-  if (lastPreviewUrl !== null) URL.revokeObjectURL(lastPreviewUrl);
-  preparedBlob = prepared.blob;
-  photoGen += 1;
-  previewModels = null;
-  photoReplaced = true;
-  lastPreviewUrl = prepared.previewUrl;
-  showPhoto(
-    prepared.previewUrl,
-    prepared.width,
-    prepared.height,
-    prepared.blob.size,
-  );
-  void autoBuildAr();
+  fix = null;
+  await reprepare();
+}
+
+/** The photo Crop & adjust works on: the one she just chose, else (in
+ * the edit room) the saved photo from the repo, else the one on screen. */
+async function photoToFix(
+  imagePath: string | null,
+): Promise<HTMLImageElement | null> {
+  if (loadedImage !== null) return loadedImage;
+  let blob: Blob | null = null;
+  if (imagePath !== null) blob = await api.getPhoto(imagePath);
+  if (blob === null) {
+    const img = document.querySelector<HTMLImageElement>("#photo-wrap img");
+    const src =
+      img === null ? "" : img.currentSrc !== "" ? img.currentSrc : img.src;
+    if (src === "") return null;
+    const res = await fetch(src);
+    blob = res.ok ? await res.blob() : null;
+  }
+  if (blob === null) return null;
+  return await loadImageFile(blobToFile(blob, "photo.jpg", blob.type));
+}
+
+/** Opens Crop & adjust and applies what she chooses. */
+function initPhotoFix(imagePath: () => Promise<string | null>): void {
+  const btn = maybe("de-fix");
+  btn?.addEventListener("click", () => {
+    if (btn.dataset.busy !== undefined) return;
+    btn.dataset.busy = "";
+    void (async () => {
+      try {
+        const img = await photoToFix(await imagePath());
+        if (img === null) {
+          setStatus("Couldn't open this photo to crop it.", true);
+          return;
+        }
+        const chosen = await openPhotoFix(img, rotation, fix);
+        if (chosen === null) return;
+        loadedImage = img;
+        fix = isNoop(chosen) ? null : chosen;
+        await reprepare();
+      } catch (err) {
+        setStatus(errorMessage(err), true);
+      } finally {
+        delete btn.dataset.busy;
+      }
+    })();
+  });
 }
 
 function heicHint(file: File): string {
@@ -647,6 +710,14 @@ function scheduleArBuild(): void {
   window.clearTimeout(arBuildTimer);
   arBuildTimer = window.setTimeout(() => {
     if (preparedBlob !== null) void autoBuildAr();
+  }, 900);
+}
+
+/** Re-crops after she edits the size, which also rebuilds the models. */
+function scheduleRefix(): void {
+  window.clearTimeout(arBuildTimer);
+  arBuildTimer = window.setTimeout(() => {
+    reprepare().catch((err: unknown) => setStatus(errorMessage(err), true));
   }, 900);
 }
 
@@ -1293,6 +1364,7 @@ function initStudio(): void {
   if (lastPreviewUrl !== null) URL.revokeObjectURL(lastPreviewUrl);
   lastPreviewUrl = null;
   rotation = 0;
+  fix = null;
   shareDirty = false;
 
   refreshPreview();
@@ -1317,7 +1389,9 @@ function initStudio(): void {
     $(id).addEventListener("input", () => {
       refreshPreview();
       scheduleAutosave();
-      scheduleArBuild();
+      // A cropped photo takes its shape from her measurements.
+      if (fix !== null && id !== "de-d") scheduleRefix();
+      else scheduleArBuild();
     });
   }
 
@@ -1338,28 +1412,14 @@ function initStudio(): void {
       // step fails to compile here.
       const next = (rotation + deg) % 360;
       rotation = next === 0 ? 0 : next === 90 ? 90 : next === 180 ? 180 : 270;
+      if (fix !== null) fix = { ...fix, quad: rotateQuad(fix.quad, deg) };
       if (loadedImage === null) return;
-      prepareImage(loadedImage, rotation)
-        .then(async (prepared) => {
-          if (lastPreviewUrl !== null) URL.revokeObjectURL(lastPreviewUrl);
-          preparedBlob = prepared.blob;
-          photoGen += 1;
-          previewModels = null;
-          photoReplaced = true;
-          lastPreviewUrl = prepared.previewUrl;
-          showPhoto(
-            prepared.previewUrl,
-            prepared.width,
-            prepared.height,
-            prepared.blob.size,
-          );
-          await autoBuildAr();
-        })
-        .catch((err: unknown) => setStatus(errorMessage(err), true));
+      reprepare().catch((err: unknown) => setStatus(errorMessage(err), true));
     });
   }
 
   if (mode === "draft") {
+    initPhotoFix(() => Promise.resolve(null));
     // Clicking the preview title or price focuses its field.
     for (const [pvId, fieldId, name] of [
       ["pv-title", "de-title", "title"],
@@ -1411,6 +1471,10 @@ function initStudio(): void {
   // Wire the buttons now while the file loads. If it fails to load outside
   // dev practice, the buttons are disabled.
   const basePromise = loadEditBase(mdPath);
+  initPhotoFix(async () => {
+    const image = (await basePromise)?.parsed.image ?? "";
+    return image === "" ? null : `src/content/paintings/${image}`;
+  });
   void basePromise.then((base) => {
     // A scheduled draft shows the alerts it will send on its day.
     if (base !== null && draft) {
