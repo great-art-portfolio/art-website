@@ -1,4 +1,5 @@
 import type { AppEnv } from "./env";
+import { logEvent } from "./log";
 
 /** Cloudflare Access sign-in for the admin API. Access guards /admin* with
  * an email code, and its CF_Authorization cookie is scoped to the whole
@@ -116,7 +117,12 @@ export async function accessEmail(
     );
     if (!ok) return null;
   } catch (err) {
-    console.error("access verify failed", err);
+    await logEvent(env, {
+      level: "warn",
+      event: "access.verify_threw",
+      message: "Checking a studio sign-in threw",
+      err,
+    });
     return null;
   }
   const email = payload["email"];

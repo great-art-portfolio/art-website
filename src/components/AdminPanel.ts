@@ -45,6 +45,7 @@ import {
   setTrash,
   todayKey,
 } from "../lib/painting-edit";
+import { reportError } from "../lib/report";
 
 /** Studio dashboard: the collection list, banner editor, and gallery ordering.
  * Painting rooms live on their own routes. */
@@ -54,6 +55,8 @@ let statusTimer = 0;
  * motion keeps it. One timer drives both phases, so a new message cancels a
  * fade-out in progress. */
 function setStatus(msg: string, isError = false, durationMs = 6000): void {
+  // Agents see every error she was shown (pnpm logs --event studio.shown).
+  if (isError) reportError("studio.shown", new Error(msg), {}, "warn");
   const el = $("admin-status");
   window.clearTimeout(statusTimer);
   el.classList.remove("toast-out");
@@ -1777,66 +1780,76 @@ function init(): void {
       }
       const durationRaw = $("f-duration").value;
       setStatus("Publishing banner… (live in a few minutes)");
-      void import("../lib/banner").then((bannerMod) => {
-        const days = durationRaw === "" ? null : Number(durationRaw);
-        const body = bannerMod.formatAnnouncement(
-          text,
-          days === null || !Number.isFinite(days)
-            ? null
-            : bannerMod.expiryForDuration(days),
-        );
-        // The note goes up with its translations for the other-language
-        // homepages; if the translator can't answer it goes up alone.
-        const said = bannerMod.parseAnnouncement(body).text;
-        const translating =
-          said === ""
-            ? Promise.resolve(null)
-            : translationFor("banner", "", {
-                title: said,
-                description: "",
-                alt: "",
-                medium: "",
-              }).catch(() => null);
-        translating
-          .then((translation) =>
-            api.commitFiles("Update homepage banner", [
-              { path: "src/content/announcement.txt", blob: body },
-              ...(translation === null ? [] : [translation]),
-            ]),
-          )
-          .then(() => {
-            clearBannerPreview();
-            setBannerRemovable(body !== "");
-            setStatus(
-              body === ""
-                ? "Banner cleared."
-                : "Banner updated on the homepage.",
-            );
-          })
-          .catch((err: unknown) => {
-            // Dev has no publishing backend, so keep the banner in this
-            // browser. With a stored token the commit path runs instead.
-            if (isLocalPreview() && getApiToken() === "") {
-              const parsed = bannerMod.parseAnnouncement(body);
-              if (parsed.text === "") clearBannerPreview();
-              else storeBannerPreview(parsed.text, parsed.expires);
-              const meta = $("announce-meta");
-              meta.textContent =
-                parsed.text === ""
-                  ? "No banner showing right now."
-                  : "Preview kept in this browser — open the homepage to see it.";
-              fadeIn(meta);
-              setBannerRemovable(parsed.text !== "");
+      void import("../lib/banner")
+        .then((bannerMod) => {
+          const days = durationRaw === "" ? null : Number(durationRaw);
+          const body = bannerMod.formatAnnouncement(
+            text,
+            days === null || !Number.isFinite(days)
+              ? null
+              : bannerMod.expiryForDuration(days),
+          );
+          // The note goes up with its translations for the other-language
+          // homepages; if the translator can't answer it goes up alone.
+          const said = bannerMod.parseAnnouncement(body).text;
+          const translating =
+            said === ""
+              ? Promise.resolve(null)
+              : translationFor("banner", "", {
+                  title: said,
+                  description: "",
+                  alt: "",
+                  medium: "",
+                }).catch(() => null);
+          translating
+            .then((translation) =>
+              api.commitFiles("Update homepage banner", [
+                { path: "src/content/announcement.txt", blob: body },
+                ...(translation === null ? [] : [translation]),
+              ]),
+            )
+            .then(() => {
+              clearBannerPreview();
+              setBannerRemovable(body !== "");
               setStatus(
-                parsed.text === ""
-                  ? "Banner cleared in this browser."
-                  : "Banner preview kept in this browser — open the homepage to see it.",
+                body === ""
+                  ? "Banner cleared."
+                  : "Banner updated on the homepage.",
               );
-              return;
-            }
-            setStatus(errorMessage(err), true);
-          });
-      });
+            })
+            .catch((err: unknown) => {
+              // Dev has no publishing backend, so keep the banner in this
+              // browser. With a stored token the commit path runs instead.
+              if (isLocalPreview() && getApiToken() === "") {
+                const parsed = bannerMod.parseAnnouncement(body);
+                if (parsed.text === "") clearBannerPreview();
+                else storeBannerPreview(parsed.text, parsed.expires);
+                const meta = $("announce-meta");
+                meta.textContent =
+                  parsed.text === ""
+                    ? "No banner showing right now."
+                    : "Preview kept in this browser — open the homepage to see it.";
+                fadeIn(meta);
+                setBannerRemovable(parsed.text !== "");
+                setStatus(
+                  parsed.text === ""
+                    ? "Banner cleared in this browser."
+                    : "Banner preview kept in this browser — open the homepage to see it.",
+                );
+                return;
+              }
+              setStatus(errorMessage(err), true);
+              reportError("studio.banner_failed", err);
+            });
+        })
+        .catch((err: unknown) => {
+          // The banner code didn't load (a page open across a deploy).
+          setStatus(
+            "Couldn't publish the banner. Reload the page and try again.",
+            true,
+          );
+          reportError("studio.banner_load_failed", err);
+        });
     }
   }
 
@@ -2102,7 +2115,10 @@ function wireBroadcast(): void {
       api
         .sendCollectorEmail(readEmailCopy())
         .then((r) => {
-          if (r.emailTotal === 0) {
+          if (r.failed) {
+            status.textContent =
+              "Couldn't send the email just now. Try again in a few minutes.";
+          } else if (r.emailTotal === 0) {
             status.textContent =
               "Nobody to email yet — no addresses subscribed.";
           } else if (r.emailed) {

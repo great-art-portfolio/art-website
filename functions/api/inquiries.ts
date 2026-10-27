@@ -1,16 +1,73 @@
 import { isLocale } from "../../src/i18n/locales";
 import type { AppEnv } from "../_lib/env";
 import { badRequest, json, serverError, spamCheckFailed } from "../_lib/http";
+import { logEvent } from "../_lib/log";
 import { sendInquiryNotifications } from "../_lib/notify";
 import { turnstileOk } from "../_lib/turnstile";
 import { parseCatalog } from "../_lib/validation";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/** Saves the inquiry before anything is sent, so a failed email never
+ * loses it. Null when the save itself failed (logged; sending goes on). */
+async function recordInquiry(
+  env: AppEnv,
+  request: Request,
+  row: {
+    slug: string;
+    paintingTitle: string;
+    buyerName: string;
+    buyerEmail: string;
+    message: string;
+    locale: string;
+  },
+): Promise<number | null> {
+  try {
+    const res = await env.DB.prepare(
+      "INSERT INTO inquiries (slug, painting_title, buyer_name, buyer_email, message, locale) VALUES (?, ?, ?, ?, ?, ?) RETURNING id",
+    )
+      .bind(
+        row.slug,
+        row.paintingTitle,
+        row.buyerName,
+        row.buyerEmail,
+        row.message,
+        row.locale,
+      )
+      .first<{ id: number }>();
+    return res?.id ?? null;
+  } catch (err) {
+    await logEvent(env, {
+      event: "inquiry.record_failed",
+      message: "Couldn't save an inquiry before sending it",
+      err,
+      detail: { slug: row.slug },
+      request,
+    });
+    return null;
+  }
+}
+
+async function markInquiry(
+  env: AppEnv,
+  id: number | null,
+  status: "sent" | "failed",
+  error = "",
+): Promise<void> {
+  if (id === null) return;
+  await env.DB.prepare(
+    "UPDATE inquiries SET status = ?, error = ? WHERE id = ?",
+  )
+    .bind(status, error.slice(0, 500), id)
+    .run()
+    .catch(() => undefined);
+}
+
 /**
- * Public: a visitor asks about a painting. Nothing is stored. The note is
- * emailed to the artist through Resend with the buyer as reply-to, plus an
- * optional Pushover alert.
+ * Public: a visitor asks about a painting. The note is saved to the D1
+ * `inquiries` table, then emailed to the artist through Resend with the
+ * buyer as reply-to, plus an optional Pushover alert. A row left at
+ * "failed" never reached her.
  */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   let body: Record<string, unknown>;
@@ -73,6 +130,15 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     return badRequest("That painting isn't on the site any more.");
   const paintingTitle = painting.title;
   const priceCents = painting.sold ? 0 : painting.priceCents;
+  const locale = isLocale(body["locale"]) ? body["locale"] : "en";
+  const id = await recordInquiry(context.env, context.request, {
+    slug: painting.slug,
+    paintingTitle,
+    buyerName,
+    buyerEmail,
+    message,
+    locale,
+  });
   try {
     // Awaited rather than waitUntil, so the buyer only sees "thanks" once a
     // channel delivered. A 5xx makes the offline outbox keep it for retry.
@@ -82,14 +148,30 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       buyerName,
       buyerEmail,
       message,
-      locale: isLocale(body["locale"]) ? body["locale"] : "en",
+      locale,
     });
     if (!result.emailed && !result.pushed) {
+      await markInquiry(context.env, id, "failed", "no channel delivered");
+      await logEvent(context.env, {
+        event: "inquiry.not_delivered",
+        message:
+          "An inquiry reached no channel (email and push both failed or are off)",
+        detail: { inquiryId: id, slug: painting.slug },
+        request: context.request,
+      });
       return serverError("Notifications are not configured — try again later.");
     }
+    await markInquiry(context.env, id, "sent");
     return json({ ok: true }, { status: 201 });
   } catch (err) {
-    console.error(err);
+    await markInquiry(context.env, id, "failed", String(err));
+    await logEvent(context.env, {
+      event: "inquiry.send_threw",
+      message: "Sending an inquiry threw",
+      err,
+      detail: { inquiryId: id, slug: painting.slug },
+      request: context.request,
+    });
     return serverError();
   }
 };

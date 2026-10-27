@@ -332,9 +332,12 @@ export const api = {
   },
   /** Emails the list about a painting she just published (its .md path):
    * photo, words and price, sent once its page is live. */
-  async notifyCollectors(
-    file: string,
-  ): Promise<{ emailed: boolean; emailTotal: number; scheduled: boolean }> {
+  async notifyCollectors(file: string): Promise<{
+    emailed: boolean;
+    emailTotal: number;
+    scheduled: boolean;
+    failed: boolean;
+  }> {
     return await request("/api/notify", notifySchema, {
       method: "POST",
       headers: { ...adminHeaders(), "Content-Type": "application/json" },
@@ -348,7 +351,7 @@ export const api = {
   async sendCollectorEmail(copy: {
     subject: string;
     body: string;
-  }): Promise<{ emailed: boolean; emailTotal: number }> {
+  }): Promise<{ emailed: boolean; emailTotal: number; failed: boolean }> {
     const data = await request("/api/notify", notifySchema, {
       method: "POST",
       headers: { ...adminHeaders(), "Content-Type": "application/json" },
@@ -430,15 +433,15 @@ export const api = {
   },
 };
 
-/** Painting titles in the repo, for the duplicate-title check. Empty when
- * offline, which lets saves proceed. */
+/** Said when the paintings folder can't be listed before a save. */
+export const LIST_FAILED =
+  "Couldn't check your other paintings just now, so nothing was saved. Try again in a moment.";
+
+/** Painting titles in the repo, for the duplicate-title check. Throws
+ * when the folder can't be listed: saving blind could overwrite a
+ * painting with the same name. */
 export async function existingTitles(): Promise<string[]> {
-  let files: string[];
-  try {
-    files = await api.listPaintingFiles();
-  } catch {
-    return [];
-  }
+  const files = await api.listPaintingFiles();
   // Several at a time: one by one, a big collection kept her waiting on
   // the Save button.
   const md = files.filter((f) => f.endsWith(".md"));
@@ -462,11 +465,12 @@ export async function existingTitles(): Promise<string[]> {
 /** Unique slug for a new painting, checking the repo's paintings folder. */
 export async function uniqueSlug(title: string): Promise<string> {
   const base = slugifyTitle(title);
-  let files: string[] = [];
+  let files: string[];
   try {
     files = await api.listPaintingFiles();
   } catch {
-    // Offline or unconfigured. Proceed, since the commit may still succeed.
+    // Saving blind could overwrite another painting's files.
+    throw new Error(LIST_FAILED);
   }
   const taken = new Set(files);
   if (!taken.has(`${base}.md`)) return base;

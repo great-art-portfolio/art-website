@@ -134,6 +134,9 @@ test("publishing a draft emails the list when ticked", async ({ browser }) => {
         (route.request().postDataJSON() as { message?: string } | null)
           ?.message ?? null;
       await route.fulfill({ json: { ok: true, commit: "test" }, status: 201 });
+    } else if (route.request().method() === "PUT") {
+      // The folder listing a save checks titles against.
+      await route.fulfill({ json: { files: [] } });
     } else {
       await route.continue();
     }
@@ -175,6 +178,9 @@ test("dismissing the publish ask keeps the draft", async ({ browser }) => {
     if (route.request().method() === "POST") {
       commits += 1;
       await route.fulfill({ json: { ok: true, commit: "test" }, status: 201 });
+    } else if (route.request().method() === "PUT") {
+      // The folder listing a save checks titles against.
+      await route.fulfill({ json: { files: [] } });
     } else {
       await route.continue();
     }
@@ -587,6 +593,9 @@ test("draft save carries its publish-on date", async ({ browser }) => {
           } | null
         )?.files ?? null;
       await route.fulfill({ json: { ok: true, commit: "test" }, status: 201 });
+    } else if (route.request().method() === "PUT") {
+      // The folder listing a save checks titles against.
+      await route.fulfill({ json: { files: [] } });
     } else {
       await route.continue();
     }
@@ -790,6 +799,9 @@ test("save answers the tap at once and ignores a second tap", async ({
       commits += 1;
       await held;
       await route.fulfill({ json: { ok: true, commit: "test" }, status: 201 });
+    } else if (route.request().method() === "PUT") {
+      // The folder listing a save checks titles against.
+      await route.fulfill({ json: { files: [] } });
     } else {
       await route.continue();
     }
@@ -835,6 +847,9 @@ test("publishing commits the painting's translations with it", async ({
           ? ""
           : Buffer.from(tr.contentBase64, "base64").toString();
       await route.fulfill({ json: { ok: true, commit: "test" }, status: 201 });
+    } else if (route.request().method() === "PUT") {
+      // The folder listing a save checks titles against.
+      await route.fulfill({ json: { files: [] } });
     } else {
       await route.continue();
     }
@@ -881,6 +896,9 @@ test("a save still goes through when translation is down", async ({
       };
       committed = (body.files ?? []).map((f) => f.path);
       await route.fulfill({ json: { ok: true, commit: "test" }, status: 201 });
+    } else if (route.request().method() === "PUT") {
+      // The folder listing a save checks titles against.
+      await route.fulfill({ json: { files: [] } });
     } else {
       await route.continue();
     }
@@ -969,4 +987,46 @@ test("crop & adjust finds the painting on the wall and straightens it", async ({
   await page.locator("#de-w").fill("24");
   await page.locator("#de-h").fill("24");
   await expect(page.locator("#de-photo-meta")).toContainText(`${h} × ${h}`);
+});
+
+test("a save stops when the other paintings can't be checked", async ({
+  browser,
+}) => {
+  const authed = await browser.newContext();
+  await authed.addInitScript(() =>
+    sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
+  );
+  const page = await authed.newPage();
+  let committed = false;
+  await page.route("**/api/commit*", async (route) => {
+    const method = route.request().method();
+    if (method === "PUT")
+      await route.fulfill({ status: 502, json: { error: "GitHub is down" } });
+    else if (method === "POST") {
+      committed = true;
+      await route.fulfill({ json: { ok: true, commit: "test" }, status: 201 });
+    } else await route.continue();
+  });
+  const reports: string[] = [];
+  await page.route("**/api/log", async (route) => {
+    reports.push(String(route.request().postDataJSON()?.event));
+    await route.fulfill({ status: 204 });
+  });
+  await page.goto("/admin/paintings/new");
+  await page.locator("#de-title").fill("Blind Save");
+  await page.locator("#de-price").fill("80");
+  await page
+    .locator("#de-photo")
+    .setInputFiles("tests/fixtures/site/content/paintings/1943x1967.jpg");
+  await expect(page.locator("#de-photo-preview")).toBeVisible();
+  await page.locator("#de-save-draft").click();
+  // Saving blind could overwrite a painting of the same name.
+  await expect(page.locator("#de-status")).toContainText(
+    "Couldn't check your other paintings just now, so nothing was saved.",
+  );
+  expect(committed).toBe(false);
+  // Agents see what happened and what she was told.
+  await expect.poll(() => reports).toContain("studio.list_failed");
+  expect(reports).toContain("studio.shown");
+  await authed.close();
 });

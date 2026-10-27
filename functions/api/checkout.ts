@@ -10,6 +10,7 @@ import {
 } from "../_lib/stripe";
 import { parseCatalog, parseCheckoutBody } from "../_lib/validation";
 import { parsePainting } from "../../src/lib/painting-edit";
+import { logEvent } from "../_lib/log";
 
 /**
  * Public: starts Stripe Checkout for one painting. Body: { slug, title,
@@ -37,7 +38,19 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     const catalogRes = await env.ASSETS.fetch(
       new Request(`${origin}/catalog.json`),
     );
-    const catalog = catalogRes.ok ? parseCatalog(await catalogRes.json()) : [];
+    if (!catalogRes.ok) {
+      // Not "isn't for sale": the site's own list couldn't be read.
+      await logEvent(env, {
+        event: "checkout.catalog_unreadable",
+        message: `catalog.json answered ${catalogRes.status}`,
+        detail: { slug: body.slug },
+        request,
+      });
+      return serverError(
+        "Checkout isn't available right now. Try again in a minute.",
+      );
+    }
+    const catalog = parseCatalog(await catalogRes.json());
     const sellable = findSellable(catalog, body);
     if (!sellable.ok)
       return json({ error: sellable.error }, { status: sellable.status });
@@ -46,7 +59,22 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     // rebuild lands.
     const config = gitConfig(env);
     if (config !== null && PAINTING_FILE.test(sellable.item.file)) {
-      const md = await readTextFile(config, sellable.item.file);
+      // A GitHub hiccup must not stop every sale: fall back to the
+      // catalog. A painting that sold in those minutes is caught by the
+      // webhook (already-sold email) and refunded by hand.
+      const md = await readTextFile(config, sellable.item.file).catch(
+        async (err: unknown) => {
+          await logEvent(env, {
+            level: "warn",
+            event: "checkout.git_unreadable",
+            message: "Couldn't read the painting from git; using the catalog",
+            err,
+            detail: { file: sellable.item.file },
+            request,
+          });
+          return null;
+        },
+      );
       const live = md === null ? null : parsePainting(md);
       if (live?.sold === true)
         return json(
@@ -77,7 +105,12 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     );
     return json({ url });
   } catch (err) {
-    console.error(err);
+    await logEvent(context.env, {
+      event: "checkout.threw",
+      message: "Starting a checkout threw",
+      err,
+      request: context.request,
+    });
     return serverError("Checkout isn't available right now.");
   }
 };

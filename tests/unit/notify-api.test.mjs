@@ -30,6 +30,7 @@ describe("POST /api/notify", () => {
       emailed: false,
       emailTotal: 0,
       scheduled: false,
+      failed: false,
     });
   });
 
@@ -120,6 +121,7 @@ describe("POST /api/notify for a painting", () => {
       emailed: true,
       emailTotal: 2,
       scheduled: true,
+      failed: false,
     });
     assert.match(read[0], /prairie-moon\.md/);
     assert.equal(sent.length, 1);

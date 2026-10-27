@@ -1,4 +1,5 @@
 import type { AppEnv } from "./env";
+import { logEvent } from "./log";
 import { MUSE_MODEL, MUSE_URL } from "./suggest";
 import {
   cleanLocales,
@@ -159,8 +160,13 @@ export async function translateWords(
     groups.push(input.locales.slice(i, i + PER_REQUEST));
   const results = await Promise.all(
     groups.map((codes) =>
-      askMuse(env, input, codes).catch((err: unknown) => {
-        console.error("translate failed", codes.join(","), err);
+      askMuse(env, input, codes).catch(async (err: unknown) => {
+        await logEvent(env, {
+          event: "translate.group_failed",
+          message: "Translating into some languages failed",
+          err,
+          detail: { locales: codes.join(",") },
+        });
         return {};
       }),
     ),

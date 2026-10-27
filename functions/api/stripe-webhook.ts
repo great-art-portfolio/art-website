@@ -15,6 +15,7 @@ import {
   parsePainting,
   soldSessionOf,
 } from "../../src/lib/painting-edit";
+import { logEvent } from "../_lib/log";
 
 /**
  * Stripe webhook: a paid checkout marks the painting `sold: true` with a
@@ -53,12 +54,17 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
         : "";
     if (type.startsWith("checkout.session.")) {
       // Only the event's id: its body carries the buyer's details.
-      console.error(
-        "unreadable checkout event",
-        typeof raw === "object" && raw !== null && "id" in raw
-          ? String((raw as { id: unknown }).id)
-          : "",
-      );
+      await logEvent(env, {
+        event: "sale.unreadable_event",
+        message: "A checkout event couldn't be read; Stripe will retry",
+        detail: {
+          eventId:
+            typeof raw === "object" && raw !== null && "id" in raw
+              ? String((raw as { id: unknown }).id)
+              : "",
+          type,
+        },
+      });
       return serverError("Unreadable checkout event");
     }
     return json({ ignored: true });
@@ -74,14 +80,26 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   let duplicate = false;
   const config = gitConfig(env);
   if (!PAINTING_FILE.test(file)) {
-    console.error("sale without a painting file", event.id);
+    await logEvent(env, {
+      event: "sale.no_painting_file",
+      message: "A sale carried no painting file",
+      detail: { eventId: event.id, session },
+    });
   } else if (config === null) {
-    console.error("GitHub is not configured; not marking sold:", file);
+    await logEvent(env, {
+      event: "sale.github_unconfigured",
+      message: "GitHub isn't configured, so a sold painting wasn't marked",
+      detail: { file, session },
+    });
   } else {
     try {
       const md = await readTextFile(config, file);
       if (md === null) {
-        console.error("sold painting file is missing:", file);
+        await logEvent(env, {
+          event: "sale.file_missing",
+          message: "The sold painting's file is missing",
+          detail: { file, session },
+        });
       } else if (parsePainting(md)?.sold === true) {
         if (soldSessionOf(md) === session) {
           duplicate = true;
@@ -94,7 +112,12 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
         marked = true;
       }
     } catch (err) {
-      console.error(err);
+      await logEvent(env, {
+        event: "sale.mark_failed",
+        message: "Couldn't mark a sold painting; Stripe will retry",
+        err,
+        detail: { file, session },
+      });
       return serverError("Could not mark the painting sold");
     }
   }
@@ -108,14 +131,23 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       ? { replyTo: event.data.object.customer_details.email }
       : {}),
     ...mail,
-  }).catch((err: unknown) => {
-    console.error("sale email failed", err);
+  }).catch(async (err: unknown) => {
+    await logEvent(env, {
+      event: "sale.email_threw",
+      message: "The sale email threw",
+      err,
+      detail: { session },
+    });
     return false;
   });
   if (!emailed) {
     // Stripe retries; the painting is already marked, so the retry only
     // sends this email.
-    console.error("sale email not sent:", mail.subject);
+    await logEvent(env, {
+      event: "sale.email_not_sent",
+      message: "The sale email didn't go out; Stripe will retry",
+      detail: { session, subject: mail.subject },
+    });
     return serverError("Sale email not sent");
   }
   return json(duplicate ? { ok: true, duplicate } : { ok: true, alreadySold });
