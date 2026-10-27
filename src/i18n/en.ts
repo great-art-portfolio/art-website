@@ -114,7 +114,7 @@ export const en = {
     /** Under a painting's title and description in other languages. */
     machineNote: "Title and description translated automatically from English.",
     wallScan:
-      "To see it on your wall, scan this with your phone's camera, then tap <strong>View on your wall</strong>.",
+      "Scan this with your phone's camera, then tap <strong>View on your wall</strong>.",
   },
   /** Said by the painting page's script. */
   paintingClient: {

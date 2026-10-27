@@ -108,7 +108,7 @@ export const ja: Strings = {
     wallDesk: "ほぼ実物大で表示しています。",
     machineNote: "タイトルと説明文は英語から自動翻訳したものです。",
     wallScan:
-      "お部屋の壁で見るには、このコードをスマートフォンのカメラで読み取り、「<strong>壁に飾ってみる</strong>」をタップしてください。",
+      "このコードをスマートフォンのカメラで読み取り、「<strong>壁に飾ってみる</strong>」をタップしてください。",
   },
   paintingClient: {
     sending: "送信中…",
