@@ -1297,7 +1297,11 @@ function initSuggest(): void {
         return;
       }
       go.disabled = true;
-      say("Looking at the painting… (about 10 seconds)");
+      go.dataset.busy = "";
+      go.setAttribute("aria-busy", "true");
+      const idle = go.textContent;
+      go.textContent = "Looking at the painting…";
+      say("This takes about 15 seconds.");
       try {
         const { widthIn, heightIn } = readDims();
         const ideas = await api.suggest({
@@ -1336,6 +1340,9 @@ function initSuggest(): void {
         say(errorMessage(err));
       } finally {
         go.disabled = false;
+        delete go.dataset.busy;
+        go.removeAttribute("aria-busy");
+        go.textContent = idle;
       }
     })();
   });

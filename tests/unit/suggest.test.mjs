@@ -127,7 +127,7 @@ describe("parseSuggestion", () => {
 });
 
 describe("suggestWords", () => {
-  it("asks Muse with the key, the photo, and low effort", async () => {
+  it("asks Muse with the key, the photo, and high effort", async () => {
     let sent;
     globalThis.fetch = async (url, init) => {
       assert.equal(String(url), MUSE_URL);
@@ -143,7 +143,7 @@ describe("suggestWords", () => {
     );
     assert.deepEqual(out, ideas);
     assert.equal(sent.model, "muse-spark-1.3-contributor");
-    assert.equal(sent.reasoning_effort, "low");
+    assert.equal(sent.reasoning_effort, "high");
     assert.equal(sent.messages[0].role, "system");
     assert.equal(sent.messages[1].content[1].image_url.url, IMAGE);
   });

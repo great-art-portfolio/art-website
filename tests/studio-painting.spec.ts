@@ -717,10 +717,13 @@ test("writing helper offers titles and a description she picks from", async ({
   page,
 }) => {
   let sent: Record<string, unknown> = {};
+  let release: () => void = () => {};
+  const held = new Promise<void>((r) => (release = r));
   await page.route("**/api/suggest", async (route) => {
     if (route.request().method() === "GET")
       return route.fulfill({ json: { enabled: true } });
     sent = route.request().postDataJSON() as Record<string, unknown>;
+    await held;
     return route.fulfill({
       json: {
         titles: ["Night Water", "Winter Hold", "Blue Hollow"],
@@ -734,7 +737,18 @@ test("writing helper offers titles and a description she picks from", async ({
   const desc = await page.locator("#de-desc").inputValue();
   await page.locator("#de-alt").fill("");
   await page.locator("#de-suggest-notes").fill("painted in winter");
-  await page.locator("#de-suggest-go").click();
+  const go = page.locator("#de-suggest-go");
+  await go.click();
+  // While Muse looks, the button says so and its bar slides.
+  await expect(go).toHaveText("Looking at the painting…");
+  await expect(go).toHaveAttribute("aria-busy", "true");
+  await expect(go).toBeDisabled();
+  await expect(page.locator("#de-suggest-status")).toHaveText(
+    "This takes about 15 seconds.",
+  );
+  release();
+  await expect(go).toHaveText("Suggest a title and description");
+  await expect(go).not.toHaveAttribute("aria-busy");
   await expect(page.locator("#de-suggest-titles button")).toHaveText([
     "Night Water",
     "Winter Hold",
