@@ -1,0 +1,75 @@
+{
+  "source": "1fsj6eg",
+  "fr": {
+    "title": "Roseaux de nuit",
+    "description": "Des couches de bleu sarcelle profond et de vert traversées de fines lignes pâles, comme la pluie qui tombe à travers les roseaux au crépuscule. De petites étincelles de rouge et de bleu tiennent compagnie à l'obscurité. Mélancolique et plein d'atmosphère — il change avec la lumière de la pièce.",
+    "alt": "Peinture abstraite sarcelle pleine d'ambiance, avec de fines lignes verticales blanches comme la pluie sur une eau sombre",
+    "medium": ""
+  },
+  "es": {
+    "title": "Juncos de noche",
+    "description": "Capas de verde azulado profundo y verde cruzadas por finas líneas pálidas, como lluvia cayendo entre los juncos al anochecer. Pequeñas chispas de rojo y azul acompañan a la oscuridad. Melancólico y con atmósfera — cambia con la luz de la habitación.",
+    "alt": "Melancólica pintura abstracta en verde azulado con finas líneas verticales blancas como lluvia sobre agua oscura",
+    "medium": ""
+  },
+  "pt": {
+    "title": "Juncos da noite",
+    "description": "Camadas de verde-azulado profundo e verde cruzadas por linhas finas e claras, como chuva caindo entre os juncos ao entardecer. Pequenas faíscas de vermelho e azul fazem companhia à escuridão. Melancólico e atmosférico — muda com a luz do ambiente.",
+    "alt": "Pintura abstrata melancólica em verde-azulado com finas linhas verticais brancas como chuva sobre água escura",
+    "medium": ""
+  },
+  "de": {
+    "title": "Nachtschilf",
+    "description": "Schichten aus tiefem Petrol und Grün, durchzogen von feinen hellen Linien, wie Regen, der in der Abenddämmerung durch Schilf fällt. Kleine rote und blaue Funken leisten der Dunkelheit Gesellschaft. Stimmungsvoll und atmosphärisch — es verändert sich mit dem Licht im Raum.",
+    "alt": "Stimmungsvolles petrolfarbenes abstraktes Gemälde mit feinen vertikalen weißen Linien wie Regen über dunklem Wasser",
+    "medium": ""
+  },
+  "it": {
+    "title": "Canne notturne",
+    "description": "Strati di verde petrolio profondo e verde attraversati da sottili linee chiare, come pioggia che cade tra le canne all’imbrunire. Piccole scintille di rosso e blu fanno compagnia al buio. Malinconico e suggestivo — cambia con la luce della stanza.",
+    "alt": "Astratto malinconico verde petrolio con sottili linee bianche verticali come pioggia sull’acqua scura",
+    "medium": ""
+  },
+  "nl": {
+    "title": "Nachtriet",
+    "description": "Lagen diep petrol en groen met fijne, lichte lijntjes erdoor, als regen die in de schemering door het riet valt. Kleine vonkjes rood en blauw houden het donker gezelschap. Stemmingvol en sfeervol — het verandert mee met het licht in de kamer.",
+    "alt": "Stemmingvol petrolkleurig abstract schilderij met fijne verticale witte lijnen als regen boven donker water",
+    "medium": ""
+  },
+  "pl": {
+    "title": "Nocne trzciny",
+    "description": "Warstwy głębokiego turkusu i zieleni poprzecinane delikatnymi jasnymi liniami, jak deszcz padający o zmierzchu przez trzciny. Małe iskierki czerwieni i błękitu dotrzymują towarzystwa ciemności. Nastrojowy i pełen klimatu — zmienia się wraz ze światłem w pokoju.",
+    "alt": "Nastrojowy turkusowy obraz abstrakcyjny z cienkimi pionowymi białymi liniami jak deszcz nad ciemną wodą",
+    "medium": ""
+  },
+  "ja": {
+    "title": "夜の葦",
+    "description": "深いティールと緑の層に細い淡い線が重なり、夕暮れに葦の中を降る雨のようです。小さな赤と青のきらめきが暗さに寄り添います。しっとりと雰囲気のある作品で、お部屋の光によって表情が変わります。",
+    "alt": "雨のように細い白い縦線が暗い水面に降る、しっとりしたティール色の抽象画",
+    "medium": ""
+  },
+  "ko": {
+    "title": "밤 갈대",
+    "description": "깊은 청록과 초록이 켜켜이 쌓이고, 그 위로 가느다란 옅은 선들이 황혼에 갈대 사이로 내리는 비처럼 가로지릅니다. 빨강과 파랑의 작은 불빛들이 어둠 곁을 지켜 줍니다. 분위기 있고 몽환적인 — 방 안의 빛에 따라 달리 보입니다.",
+    "alt": "어두운 물 위에 내리는 비 같은 가느다란 수직의 흰 선이 있는 분위기 있는 청록색 추상화",
+    "medium": ""
+  },
+  "zh": {
+    "title": "夜苇",
+    "description": "深青色与绿色层层叠叠，细细的浅色线条穿过其中，像暮色中落在芦苇间的雨。点点红色与蓝色的微光陪伴着黑暗。情绪深沉、氛围浓郁——会随着房间里的光线而变化。",
+    "alt": "富有情绪的青色抽象画，细细的白色竖线如雨般落在深色的水面上",
+    "medium": ""
+  },
+  "hi": {
+    "title": "रात के नरकट",
+    "description": "गहरे टील और हरे रंग की परतों पर बारीक हल्की रेखाएँ, जैसे शाम के समय नरकटों के बीच से गुजरती बारिश। लाल और नीले के छोटे चमकीले बिंदु अँधेरे का साथ देते हैं। भावपूर्ण और वातावरणमय — यह कमरे की रोशनी के साथ बदलता है।",
+    "alt": "भावपूर्ण टील रंग की अमूर्त पेंटिंग, गहरे पानी पर बारिश जैसी बारीक खड़ी सफ़ेद रेखाएँ",
+    "medium": ""
+  },
+  "pa": {
+    "title": "ਰਾਤ ਦੇ ਸਰਕੰਡੇ",
+    "description": "ਡੂੰਘੇ ਟੀਲ ਅਤੇ ਹਰੇ ਰੰਗ ਦੀਆਂ ਪਰਤਾਂ ਉੱਤੇ ਪਤਲੀਆਂ ਹਲਕੀਆਂ ਲਕੀਰਾਂ, ਜਿਵੇਂ ਸ਼ਾਮ ਵੇਲੇ ਸਰਕੰਡਿਆਂ ਵਿੱਚੋਂ ਪੈਂਦਾ ਮੀਂਹ। ਲਾਲ ਅਤੇ ਨੀਲੇ ਦੇ ਛੋਟੇ ਚਮਕਦੇ ਬਿੰਦੂ ਹਨੇਰੇ ਦਾ ਸਾਥ ਦਿੰਦੇ ਹਨ। ਮੂਡ ਭਰਿਆ ਅਤੇ ਮਾਹੌਲ ਵਾਲਾ — ਇਹ ਕਮਰੇ ਦੀ ਰੌਸ਼ਨੀ ਨਾਲ ਬਦਲਦਾ ਹੈ।",
+    "alt": "ਮੂਡ ਭਰਿਆ ਟੀਲ ਅਮੂਰਤ ਪੇਂਟਿੰਗ, ਗੂੜ੍ਹੇ ਪਾਣੀ ਉੱਤੇ ਮੀਂਹ ਵਾਂਗ ਪਤਲੀਆਂ ਖੜ੍ਹਵੀਆਂ ਚਿੱਟੀਆਂ ਲਕੀਰਾਂ",
+    "medium": ""
+  }
+}

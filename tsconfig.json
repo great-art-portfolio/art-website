@@ -9,7 +9,7 @@
     "functions/globals.d.ts",
     "tests/**/*.spec.ts"
   ],
-  "exclude": ["dist", "node_modules", "src/content/**/*"],
+  "exclude": [".e2e", "dist", "node_modules", "src/content/**/*"],
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022", "DOM"],

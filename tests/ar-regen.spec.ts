@@ -12,10 +12,13 @@ import { fileURLToPath } from "node:url";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const mdPath = "src/content/paintings/1943x1967.md";
-const localMd = readFileSync(join(repoRoot, mdPath), "utf8");
-const localJpg = readFileSync(
-  join(repoRoot, "src", "content", "paintings", "1943x1967.jpg"),
+// The e2e site is built from these fixtures (scripts/build-e2e.mjs).
+const fixtures = join(repoRoot, "tests", "fixtures", "site", "content");
+const localMd = readFileSync(
+  join(fixtures, "paintings", "1943x1967.md"),
+  "utf8",
 );
+const localJpg = readFileSync(join(fixtures, "paintings", "1943x1967.jpg"));
 
 interface PostedFile {
   path: string;

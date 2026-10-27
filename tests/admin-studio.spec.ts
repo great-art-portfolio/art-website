@@ -11,8 +11,8 @@ import { slugifyTitle } from "../src/lib/site";
 function loadPaintings(): Array<{ slug: string; title: string }> {
   const dir = join(
     dirname(fileURLToPath(import.meta.url)),
-    "..",
-    "src",
+    "fixtures",
+    "site",
     "content",
     "paintings",
   );
@@ -34,8 +34,8 @@ const paintings = loadPaintings();
 
 const paintingsDir = join(
   dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "src",
+  "fixtures",
+  "site",
   "content",
   "paintings",
 );
@@ -1811,7 +1811,7 @@ test("practice draft from the new room lands in the dashboard Drafts section", a
   await page.locator("#de-price").fill("999.99");
   await page
     .locator("#de-photo")
-    .setInputFiles("src/content/paintings/1943x1967.jpg");
+    .setInputFiles("tests/fixtures/site/content/paintings/1943x1967.jpg");
   await page.locator("#de-save-draft").click();
   // Saving returns to the dashboard with a confirmation,
   await expect(page).toHaveURL(/\/admin\/?$/);

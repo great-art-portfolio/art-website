@@ -12,6 +12,7 @@ export default tseslint.config(
   {
     ignores: [
       "dist/**",
+      ".e2e/**",
       ".astro/**",
       "node_modules/**",
       "public/js/**",

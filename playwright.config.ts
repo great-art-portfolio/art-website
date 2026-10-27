@@ -1,7 +1,8 @@
 import { defineConfig } from "@playwright/test";
 
-// Serves the built site through the Pages runtime, static pages and
-// Functions, without secrets.
+// Serves the e2e build (`pnpm build:e2e`: fixed fixture paintings, never
+// her live ones) through the Pages runtime, static pages and Functions,
+// without secrets.
 export default defineConfig({
   testDir: "./tests",
   timeout: 30_000,
@@ -12,7 +13,7 @@ export default defineConfig({
   // run the suite against it.
   use: { baseURL: "http://127.0.0.1:4331" },
   webServer: {
-    command: "pnpm wrangler pages dev dist --port 4331 --ip 127.0.0.1",
+    command: "pnpm wrangler pages dev .e2e/dist --port 4331 --ip 127.0.0.1",
     url: "http://127.0.0.1:4331/",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
