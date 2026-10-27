@@ -29,13 +29,11 @@ export function siteTitle(): string {
     : "Calgary & Abstract Original Paintings";
 }
 
-/** Browser-tab title: the page's own title, followed by the artist's name
- * when the title doesn't already carry it, so a tab never reads twice.
- * Studio pages keep their own "Admin - …" titles. */
-export function pageTitle(title: string, studio = false): string {
-  if (studio || ARTIST_NAME === null || title.includes(ARTIST_NAME))
-    return title;
-  return `${title} — ${ARTIST_NAME}`;
+/** Browser-tab title: the page's own name, short ("Prairie Moon",
+ * "Privacy"). Her name lives in the homepage title and the site name that
+ * link previews and search results show beside it (owner, 2026-10-26). */
+export function pageTitle(title: string): string {
+  return title;
 }
 
 /** URL slug from a painting title: "Night Reeds" → "night-reeds". A title

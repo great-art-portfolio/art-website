@@ -44,7 +44,12 @@ test("painting structured data points at the photo and names the artist", async 
   page,
 }) => {
   await page.goto("/paintings/first-thaw");
-  await expect(page).toHaveTitle(/^First Thaw by Barbara Straka/);
+  // Just the painting's name; her name rides along as the site name.
+  await expect(page).toHaveTitle("First Thaw");
+  await expect(page.locator('meta[property="og:site_name"]')).toHaveAttribute(
+    "content",
+    "Barbara Straka",
+  );
   const raw = await page
     .locator('script[type="application/ld+json"]')
     .first()

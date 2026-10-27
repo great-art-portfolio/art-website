@@ -11,15 +11,9 @@ import {
 } from "../../src/lib/site.ts";
 
 describe("pageTitle", () => {
-  it("adds the artist's name once", () => {
-    assert.equal(pageTitle("Thank you"), "Thank you — Barbara Straka");
-    assert.equal(
-      pageTitle("Night Reeds by Barbara Straka — Original Painting"),
-      "Night Reeds by Barbara Straka — Original Painting",
-    );
-  });
-  it("leaves studio titles alone", () => {
-    assert.equal(pageTitle("Admin - Email", true), "Admin - Email");
+  it("is the page's own short name, without her name added", () => {
+    assert.equal(pageTitle("Thank you"), "Thank you");
+    assert.equal(pageTitle("Prairie Moon"), "Prairie Moon");
   });
 });
 

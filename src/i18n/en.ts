@@ -11,9 +11,6 @@ export const en = {
     siteTitle: "Barbara Straka — Original Paintings",
     description:
       "Original nature and abstract paintings, direct from the artist's studio.",
-    /** Browser tab and link preview for a painting page. */
-    paintingTitle: (title: string, sold: boolean) =>
-      `${title} by Barbara Straka — ${sold ? "Sold" : "Original Painting"}`,
   },
   layout: {
     skip: "Skip to content",
@@ -203,7 +200,7 @@ export const en = {
     back: "Back to the gallery",
   },
   notFound: {
-    title: "Not found — Barbara Straka Original Paintings",
+    title: "Not found",
     description:
       "This page doesn't exist. Browse the collection of original paintings instead.",
     eyebrow: "Off the wall — 404",
@@ -215,13 +212,13 @@ export const en = {
     heading: "New-painting alerts",
     working: "Working…",
     back: "Back to the gallery",
-    confirmedTitle: "You're on the list — Barbara Straka",
+    confirmedTitle: "You're on the list",
     confirmNeedsLink:
       "This page needs its link — join from any Notify me box and tap the email we send.",
     confirmed: "You're on the list — new paintings and events.",
     confirmFailed:
       "That link didn't work — it may be older than a week. Join again from any Notify me box.",
-    goodbyeTitle: "Unsubscribed — Barbara Straka",
+    goodbyeTitle: "Unsubscribed",
     goodbyeNeedsLink:
       "This page needs its link — it arrives inside every new-painting email.",
     goodbye: "You've been removed — no more emails.",

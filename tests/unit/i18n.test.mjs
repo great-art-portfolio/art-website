@@ -109,7 +109,6 @@ describe("every language's words", () => {
       sameShape(en, words, code);
       assert.equal(typeof words.gallery.count(3), "string");
       assert.match(words.painting.buyNow("$140 CAD"), /\$140 CAD/);
-      assert.match(words.meta.paintingTitle("X", false), /X/);
     });
   }
 

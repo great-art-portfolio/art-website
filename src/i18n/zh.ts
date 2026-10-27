@@ -5,8 +5,6 @@ export const zh: Strings = {
   meta: {
     siteTitle: "Barbara Straka — 原创画作",
     description: "自然与抽象原创画作，直接来自画家的工作室。",
-    paintingTitle: (title: string, sold: boolean) =>
-      `Barbara Straka《${title}》— ${sold ? "已售出" : "原创画作"}`,
   },
   layout: {
     skip: "跳到正文",
@@ -180,7 +178,7 @@ export const zh: Strings = {
     back: "返回画廊",
   },
   notFound: {
-    title: "页面未找到 — Barbara Straka 原创画作",
+    title: "页面未找到",
     description: "此页面不存在。不如去看看原创画作集吧。",
     eyebrow: "墙上空空 — 404",
     heading: "这面墙是空的。",
@@ -191,13 +189,13 @@ export const zh: Strings = {
     heading: "新画作通知",
     working: "处理中…",
     back: "返回画廊",
-    confirmedTitle: "订阅成功 — Barbara Straka",
+    confirmedTitle: "订阅成功",
     confirmNeedsLink:
       "此页面需要通过链接打开——在任意“新作通知”框中订阅，然后点按我们发给你的邮件。",
     confirmed: "订阅成功——新画作和活动都会通知你。",
     confirmFailed:
       "这个链接无效——它可能已超过一周。请在任意“新作通知”框中重新订阅。",
-    goodbyeTitle: "已退订 — Barbara Straka",
+    goodbyeTitle: "已退订",
     goodbyeNeedsLink: "此页面需要通过链接打开——每封新画作邮件里都有这个链接。",
     goodbye: "你已退订——不会再收到邮件。",
     goodbyeFailed: "这个链接无效——你可能已经不在名单上了。",

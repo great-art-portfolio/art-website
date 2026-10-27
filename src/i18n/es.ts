@@ -6,8 +6,6 @@ export const es: Strings = {
     siteTitle: "Barbara Straka — Pinturas originales",
     description:
       "Pinturas originales de naturaleza y abstractas, directo del estudio de la artista.",
-    paintingTitle: (title: string, sold: boolean) =>
-      `${title}, de Barbara Straka — ${sold ? "Vendida" : "Pintura original"}`,
   },
   layout: {
     skip: "Saltar al contenido",
@@ -197,7 +195,7 @@ export const es: Strings = {
     back: "Volver a la galería",
   },
   notFound: {
-    title: "Página no encontrada — Barbara Straka, pinturas originales",
+    title: "Página no encontrada",
     description:
       "Esta página no existe. Mejor explore la colección de pinturas originales.",
     eyebrow: "Fuera de la pared — 404",
@@ -209,13 +207,13 @@ export const es: Strings = {
     heading: "Avisos de pinturas nuevas",
     working: "Un momento…",
     back: "Volver a la galería",
-    confirmedTitle: "Ya está en la lista — Barbara Straka",
+    confirmedTitle: "Ya está en la lista",
     confirmNeedsLink:
       "Esta página necesita su enlace — únase desde cualquier ventana “Avisarme” y toque el correo que le enviamos.",
     confirmed: "Ya está en la lista — pinturas nuevas y eventos.",
     confirmFailed:
       "Ese enlace no funcionó — puede que tenga más de una semana. Vuelva a unirse desde cualquier ventana “Avisarme”.",
-    goodbyeTitle: "Baja confirmada — Barbara Straka",
+    goodbyeTitle: "Baja confirmada",
     goodbyeNeedsLink:
       "Esta página necesita su enlace — viene dentro de cada correo de pintura nueva.",
     goodbye: "Ya no está en la lista — no recibirá más correos.",
