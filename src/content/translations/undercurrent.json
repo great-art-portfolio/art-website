@@ -1,0 +1,75 @@
+{
+  "source": "jfxv2u",
+  "fr": {
+    "title": "Sous-courant",
+    "description": "Fraîchement sortie de l'atelier.",
+    "alt": "",
+    "medium": "Impression sur toile d'une peinture acrylique originale"
+  },
+  "es": {
+    "title": "Contracorriente",
+    "description": "Recién salida del estudio.",
+    "alt": "",
+    "medium": "Impresión en lienzo de una pintura acrílica original"
+  },
+  "pt": {
+    "title": "Contracorrente",
+    "description": "Recém-saída do ateliê.",
+    "alt": "",
+    "medium": "Impressão em tela de uma pintura acrílica original"
+  },
+  "de": {
+    "title": "Unterströmung",
+    "description": "Frisch aus dem Atelier.",
+    "alt": "",
+    "medium": "Leinwanddruck eines originalen Acrylgemäldes"
+  },
+  "it": {
+    "title": "Sottocorrente",
+    "description": "Appena uscito dallo studio.",
+    "alt": "",
+    "medium": "Stampa su tela di un dipinto acrilico originale"
+  },
+  "nl": {
+    "title": "Onderstroom",
+    "description": "Vers uit het atelier.",
+    "alt": "",
+    "medium": "Canvasprint van een origineel acrylschilderij"
+  },
+  "pl": {
+    "title": "Podprąd",
+    "description": "Prosto z pracowni.",
+    "alt": "",
+    "medium": "Wydruk na płótnie oryginalnego obrazu akrylowego"
+  },
+  "ja": {
+    "title": "底流",
+    "description": "スタジオからできたてです。",
+    "alt": "",
+    "medium": "オリジナルのアクリル画のキャンバスプリント"
+  },
+  "ko": {
+    "title": "암류",
+    "description": "스튜디오에서 갓 나온 작품입니다.",
+    "alt": "",
+    "medium": "아크릴 원화 캔버스 프린트"
+  },
+  "zh": {
+    "title": "暗流",
+    "description": "工作室新作。",
+    "alt": "",
+    "medium": "丙烯原画帆布印刷品"
+  },
+  "hi": {
+    "title": "अंतर्धारा",
+    "description": "स्टूडियो से बिल्कुल ताज़ा।",
+    "alt": "",
+    "medium": "मूल ऐक्रेलिक पेंटिंग का कैनवस प्रिंट"
+  },
+  "pa": {
+    "title": "ਅੰਤਰਧਾਰਾ",
+    "description": "ਸਟੂਡੀਓ ਤੋਂ ਬਿਲਕੁਲ ਤਾਜ਼ਾ।",
+    "alt": "",
+    "medium": "ਅਸਲ ਐਕ੍ਰੀਲਿਕ ਪੇਂਟਿੰਗ ਦਾ ਕੈਨਵਸ ਪ੍ਰਿੰਟ"
+  }
+}
