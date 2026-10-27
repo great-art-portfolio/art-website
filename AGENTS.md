@@ -180,7 +180,9 @@ build and let them pick.
   the translucent sticky header with blur, the warm drifting background
   wash, orange accent labels and prices, the full hero (orange label,
   headline, lede, two buttons, the three-point strip), and the staggered
-  12-column grid of matted cards.
+  12-column grid of matted cards. The mats (gallery cards, the hero
+  painting, the painting page) have no outline, only the panel and its
+  shadow (owner, 2026-10-27); the shadowless sold grid keeps its outline.
 - The hero's right half holds her newest painting (`pickFeatured`, by
   `dateAdded`), with "Newest painting" at the right end of its title line,
   under the painting's corner, so both columns start level. The studio banner is a cream note with one strip of tape

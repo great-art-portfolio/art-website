@@ -408,7 +408,9 @@ const slotClass = (i: number): string[] => {
     position: relative;
     display: block;
     background: var(--card);
-    border: 1px solid var(--line);
+    /* No outline (owner, 2026-10-27): the panel and its shadow set the
+       painting off, like a paper mat, not a drawn card. */
+    border: 1px solid transparent;
     border-radius: var(--radius);
     padding: clamp(0.6rem, 1.5vw, 0.9rem);
     box-shadow: var(--shadow);
@@ -546,6 +548,8 @@ const slotClass = (i: number): string[] => {
   }
   .sold-grid .mat {
     box-shadow: none;
+    /* With no shadow, the outline is what shows the sold panels. */
+    border-color: var(--line);
   }
   .sold-grid img {
     filter: saturate(0.88);
