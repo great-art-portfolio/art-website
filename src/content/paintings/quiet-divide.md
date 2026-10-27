@@ -1,12 +1,11 @@
 ---
 depthIn: 1.5
-publishOn: "2026-10-26"
 title: "Quiet Divide"
 dateAdded: 2026-10-27
 image: "quiet-divide.jpg"
 alt: ""
 sold: false
-draft: true
+draft: false
 price: 650.00
 widthIn: 24
 heightIn: 24
