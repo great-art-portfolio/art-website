@@ -887,3 +887,14 @@ test("a save still goes through when translation is down", async ({
   expect(committed.some((p) => p.includes("translations"))).toBe(false);
   await authed.close();
 });
+
+test("the photo picker offers the library as well as the camera", async ({
+  page,
+}) => {
+  // A capture attribute makes phones open the camera straight away, with
+  // no way to pick a photo she already took.
+  await page.goto("/admin/paintings/new");
+  await expect(page.locator("#de-photo")).not.toHaveAttribute("capture");
+  await page.goto("/admin/paintings/prairie-moon");
+  await expect(page.locator("#de-replace-file")).not.toHaveAttribute("capture");
+});
