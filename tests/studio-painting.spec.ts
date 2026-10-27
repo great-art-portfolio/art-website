@@ -149,7 +149,7 @@ test("publishing a draft emails the list when ticked", async ({ browser }) => {
   await page.locator("#de-price").fill("50");
   await page
     .locator("#de-photo")
-    .setInputFiles("src/content/paintings/1943x1967.jpg");
+    .setInputFiles("tests/fixtures/site/content/paintings/1943x1967.jpg");
   await page.locator("#de-notify-email").check();
   page.on("dialog", async (dialog) => {
     expect(dialog.message()).toContain('Publish "Channel Check" now?');
@@ -184,7 +184,7 @@ test("dismissing the publish ask keeps the draft", async ({ browser }) => {
   await page.locator("#de-price").fill("60");
   await page
     .locator("#de-photo")
-    .setInputFiles("src/content/paintings/1943x1967.jpg");
+    .setInputFiles("tests/fixtures/site/content/paintings/1943x1967.jpg");
   page.on("dialog", async (dialog) => {
     await dialog.dismiss();
   });
@@ -249,7 +249,7 @@ test("draft refuses a title another painting owns", async ({ browser }) => {
   await page.locator("#de-price").fill("50");
   await page
     .locator("#de-photo")
-    .setInputFiles("src/content/paintings/1943x1967.jpg");
+    .setInputFiles("tests/fixtures/site/content/paintings/1943x1967.jpg");
   await expect(page.locator("#de-photo-preview")).toBeVisible();
   await page.locator("#de-save-draft").click();
   // Titles determine page links, so a duplicate title stops the save with
@@ -266,7 +266,7 @@ test("draft photo builds its own wall preview", async ({ page }) => {
   await page.goto("/admin/paintings/new");
   await page
     .locator("#de-photo")
-    .setInputFiles("src/content/paintings/1943x1967.jpg");
+    .setInputFiles("tests/fixtures/site/content/paintings/1943x1967.jpg");
   await expect(page.locator("#de-photo-preview")).toBeVisible();
   await expect(page.locator("#de-photo-empty")).toBeHidden();
   await expect(page.locator("#de-photo-tools")).toBeVisible();
@@ -283,7 +283,7 @@ test("dimension typing shares one rebuild, never one per keystroke", async ({
   await page.goto("/admin/paintings/new");
   await page
     .locator("#de-photo")
-    .setInputFiles("src/content/paintings/1943x1967.jpg");
+    .setInputFiles("tests/fixtures/site/content/paintings/1943x1967.jpg");
   const viewer = page.locator("#ar-stage model-viewer");
   await expect(viewer).toBeAttached({ timeout: 30_000 });
   // Typing a width shouldn't replace the viewer immediately; keystrokes are
@@ -603,7 +603,7 @@ test("draft save carries its publish-on date", async ({ browser }) => {
   await page.locator("#de-price").fill("75");
   await page
     .locator("#de-photo")
-    .setInputFiles("src/content/paintings/1943x1967.jpg");
+    .setInputFiles("tests/fixtures/site/content/paintings/1943x1967.jpg");
   await page.locator("#de-publish-on").fill("2999-06-01");
   // The email box waits for that day instead of being dropped.
   await page.locator("#de-notify-email").check();
@@ -785,7 +785,7 @@ test("save answers the tap at once and ignores a second tap", async ({
   await page.locator("#de-price").fill("50");
   await page
     .locator("#de-photo")
-    .setInputFiles("src/content/paintings/1943x1967.jpg");
+    .setInputFiles("tests/fixtures/site/content/paintings/1943x1967.jpg");
   const btn = page.locator("#de-save-draft");
   await btn.click();
   await expect(btn).toHaveText("Saving…");
@@ -840,7 +840,7 @@ test("publishing commits the painting's translations with it", async ({
   await page.locator("#de-price").fill("50");
   await page
     .locator("#de-photo")
-    .setInputFiles("src/content/paintings/1943x1967.jpg");
+    .setInputFiles("tests/fixtures/site/content/paintings/1943x1967.jpg");
   page.on("dialog", (dialog) => void dialog.accept());
   await page.locator("#de-publish").click();
   await expect(page).toHaveURL(/\/admin\/?$/, { timeout: 25_000 });
@@ -879,7 +879,7 @@ test("a save still goes through when translation is down", async ({
   await page.locator("#de-price").fill("50");
   await page
     .locator("#de-photo")
-    .setInputFiles("src/content/paintings/1943x1967.jpg");
+    .setInputFiles("tests/fixtures/site/content/paintings/1943x1967.jpg");
   page.on("dialog", (dialog) => void dialog.accept());
   await page.locator("#de-publish").click();
   await expect(page).toHaveURL(/\/admin\/?$/, { timeout: 25_000 });
