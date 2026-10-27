@@ -50,9 +50,13 @@ test("the language menu goes to the same painting in another language", async ({
   page,
 }) => {
   await page.goto("/paintings/prairie-moon");
-  const menu = page.locator(".lang-menu");
-  await expect(menu.locator("a[aria-current]")).toHaveText("English");
-  await menu.getByRole("link", { name: "日本語" }).click();
+  const picker = page.locator(".lang-pick");
+  // One small control, not a row of every language.
+  await expect(picker.locator("summary")).toContainText("English");
+  await expect(picker.getByRole("link", { name: "日本語" })).toBeHidden();
+  await picker.locator("summary").click();
+  await expect(picker.locator("a[aria-current]")).toHaveText("English");
+  await picker.getByRole("link", { name: "日本語" }).click();
   await expect(page).toHaveURL(/\/ja\/paintings\/prairie-moon$/);
   await expect(page.locator("html")).toHaveAttribute("lang", "ja");
 });
@@ -82,7 +86,7 @@ test.describe("a Spanish-speaking browser", () => {
 
 test("an English browser isn't offered anything", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".lang-menu")).toBeVisible();
+  await expect(page.locator(".lang-pick")).toBeVisible();
   await expect(page.locator("#lang-offer")).toBeHidden();
 });
 
@@ -104,7 +108,7 @@ test("the English-only offline page offers no other languages", async ({
   page,
 }) => {
   await page.goto("/offline");
-  await expect(page.locator(".lang-menu")).toHaveCount(0);
+  await expect(page.locator(".lang-pick")).toHaveCount(0);
   await expect(page.locator("#lang-offer")).toHaveCount(0);
 });
 
@@ -118,4 +122,18 @@ test("the studio's language ticks are small boxes beside each name", async ({
   // A name never wraps a character to a line.
   const ja = await page.locator("#lang-choices span[lang='ja']").boundingBox();
   expect(ja?.height ?? 99).toBeLessThan(40);
+});
+
+test("the language picker closes on a tap outside it or Escape", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const picker = page.locator(".lang-pick");
+  await picker.locator("summary").click();
+  await expect(picker).toHaveAttribute("open", "");
+  await page.locator("h1").click();
+  await expect(picker).not.toHaveAttribute("open", "");
+  await picker.locator("summary").click();
+  await page.keyboard.press("Escape");
+  await expect(picker).not.toHaveAttribute("open", "");
 });

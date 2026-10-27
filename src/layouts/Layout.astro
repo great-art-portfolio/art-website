@@ -13,6 +13,7 @@ import frauncesLatin from "@fontsource-variable/fraunces/files/fraunces-latin-op
 import Analytics from "../components/Analytics.astro";
 import Signature from "../components/Signature.astro";
 import AdminWordmark from "../components/AdminWordmark.astro";
+import LanguagePicker from "../components/LanguagePicker.astro";
 import background from "../assets/background-warm.svg";
 import backgroundCollection from "../assets/background-studio-collection.svg";
 import backgroundBanner from "../assets/background-studio-banner.svg";
@@ -114,6 +115,9 @@ const sectionLabel = (id: string): string =>
     }) as Record<string, string>
   )[id] ?? "Studio";
 const here = (path: string): string => localePath(locale, path);
+// Public pages get the language picker at the foot of the page.
+const showPicker =
+  wordmark === "signature" && languageMenu && SITE_LOCALES.length > 1;
 // Every version of this page, for hreflang links and the language menu.
 // Pages without alternates (the studio, the 404) offer each language's
 // homepage instead.
@@ -360,25 +364,14 @@ const offers = Object.fromEntries(
         © {year} {artistLabel} ·{" "}
         <a href={here("/credits")}>{s.layout.credits}</a>
       </p>
-      {wordmark === "signature" && languageMenu && versions.length > 1 && (
-        <nav class="lang-menu" aria-label={s.layout.language}>
-          <ul>
-            {versions.map((v) => (
-              <li>
-                <a
-                  href={v.href}
-                  hreflang={v.lang}
-                  lang={v.lang}
-                  data-lang={v.code}
-                  aria-current={v.code === locale ? "true" : undefined}
-                  data-astro-reload
-                >
-                  {v.name}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
+      {showPicker && (
+        <div class="footer-lang">
+          <LanguagePicker
+            versions={versions}
+            locale={locale}
+            label={s.layout.language}
+          />
+        </div>
       )}
     </footer>
     {wordmark === "signature" && languageMenu && versions.length > 1 && (
@@ -813,7 +806,7 @@ const offers = Object.fromEntries(
         if (!(box instanceof HTMLElement) || box.dataset.wired === "1") return;
         box.dataset.wired = "1";
         const current = box.dataset.locale ?? "en";
-        for (const a of document.querySelectorAll(".lang-menu a[data-lang]")) {
+        for (const a of document.querySelectorAll(".lang-pick a[data-lang]")) {
           if (a instanceof HTMLElement)
             a.addEventListener("click", () =>
               rememberLanguage(a.dataset.lang ?? ""),
@@ -851,6 +844,27 @@ const offers = Object.fromEntries(
       }
       offerLanguage();
       document.addEventListener("astro:page-load", offerLanguage);
+      // The language picker closes on a tap outside it or Escape.
+      if (window.__langPickWired !== true) {
+        window.__langPickWired = true;
+        document.addEventListener("click", (e) => {
+          for (const d of document.querySelectorAll(
+            "details.lang-pick[open]",
+          )) {
+            if (e.target instanceof Node && !d.contains(e.target))
+              d.removeAttribute("open");
+          }
+        });
+        document.addEventListener("keydown", (e) => {
+          if (e.key !== "Escape") return;
+          for (const d of document.querySelectorAll(
+            "details.lang-pick[open]",
+          )) {
+            d.removeAttribute("open");
+            d.querySelector("summary")?.focus();
+          }
+        });
+      }
 
       // Public pages: the header is clear at the top of the page and the
       // translucent bar fills in with the scroll itself over the first
@@ -1532,43 +1546,8 @@ const offers = Object.fromEntries(
     white-space: nowrap;
     border: 0;
   }
-  /* Every language the site is in, as a quiet row of names, each in its
-     own language. The current one is plain ink, not a link colour. */
-  .lang-menu ul {
-    list-style: none;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.15rem 0.35rem;
-    max-width: 34rem;
-    margin: 1rem auto 0;
-    padding: 0;
-    font-size: 0.85rem;
-  }
-  .lang-menu a {
-    display: inline-flex;
-    align-items: center;
-    min-height: 2.75rem;
-    padding: 0 0.45rem;
-    color: var(--muted);
-    text-decoration: underline transparent;
-    text-underline-offset: 3px;
-    transition:
-      color 0.12s ease,
-      text-decoration-color 0.12s ease;
-  }
-  .lang-menu a:hover {
-    color: var(--accent);
-    text-decoration-color: currentColor;
-  }
-  .lang-menu a[aria-current] {
-    color: var(--ink);
-    font-weight: 600;
-  }
-  .lang-menu a:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-    border-radius: 0.25rem;
+  .footer-lang {
+    margin-top: 0.75rem;
   }
   /* "Lire ce site en français": offered once to a visitor whose browser
      prefers another of her languages. A quiet card at the foot of the
