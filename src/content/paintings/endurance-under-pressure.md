@@ -4,9 +4,8 @@ dateAdded: 2026-10-27
 image: "endurance-under-pressure.jpg"
 alt: "Abstract painting with a large off-white shape in the centre surrounded by dark brown brushwork with ochre accent."
 sold: false
-draft: true
+draft: false
 price: 650.00
-publishOn: "2026-10-26"
 widthIn: 24
 heightIn: 24
 depthIn: 1.5
