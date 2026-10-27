@@ -43,5 +43,6 @@ interface Window {
   __pageFadeWired?: boolean;
   /** Notify modal wiring, registered once per session. */
   __notifyWired?: boolean;
+  __langPickWired?: boolean;
   __scrollBarWired?: boolean;
 }

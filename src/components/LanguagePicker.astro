@@ -1,0 +1,152 @@
+---
+/** One small control for the site's languages: a globe and the current
+ * language, opening a short list of the others, each in its own language.
+ * Sits at the foot of every public page. A plain <details>, so it works
+ * without scripts; the layout script closes
+ * it on an outside tap or Escape and remembers the pick. */
+interface Props {
+  versions: Array<{ code: string; lang: string; name: string; href: string }>;
+  locale: string;
+  label: string;
+}
+const { versions, locale, label } = Astro.props;
+const current = versions.find((v) => v.code === locale) ?? versions[0];
+---
+
+<details class="lang-pick">
+  <summary aria-label={`${label}: ${current?.name ?? ""}`}>
+    <svg
+      class="globe"
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.6"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="9"></circle>
+      <path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"></path>
+    </svg>
+    <span class="current" lang={current?.lang}>
+      {current?.name}
+    </span>
+    <svg
+      class="chev"
+      viewBox="0 0 12 8"
+      width="10"
+      height="7"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.8"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M1 1.5 6 6.5 11 1.5"></path>
+    </svg>
+  </summary>
+  <ul>
+    {versions.map((v) => (
+      <li>
+        <a
+          href={v.href}
+          hreflang={v.lang}
+          lang={v.lang}
+          data-lang={v.code}
+          aria-current={v.code === locale ? "true" : undefined}
+          data-astro-reload
+        >
+          {v.name}
+        </a>
+      </li>
+    ))}
+  </ul>
+</details>
+
+<style>
+  .lang-pick {
+    position: relative;
+    display: inline-block;
+  }
+  summary {
+    list-style: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 2.75rem;
+    padding: 0 0.6rem;
+    border-radius: 999px;
+    color: var(--muted);
+    font-size: 0.88rem;
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s ease;
+  }
+  summary::-webkit-details-marker {
+    display: none;
+  }
+  summary:hover,
+  .lang-pick[open] summary {
+    color: var(--ink);
+  }
+  summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .chev {
+    transition: transform 0.2s ease;
+  }
+  .lang-pick[open] .chev {
+    transform: rotate(180deg);
+  }
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0.4rem;
+    position: absolute;
+    z-index: 30;
+    min-width: 12rem;
+    max-height: min(22rem, 60vh);
+    overflow-y: auto;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 0.9rem;
+    box-shadow: 0 12px 32px rgb(0 0 0 / 0.16);
+    text-align: start;
+    animation: lang-pick-in 0.18s ease both;
+  }
+  @keyframes lang-pick-in {
+    from {
+      opacity: 0;
+    }
+  }
+  /* It sits at the foot of the page, so the list opens upward. */
+  ul {
+    bottom: calc(100% + 0.4rem);
+    left: 50%;
+    translate: -50% 0;
+  }
+  a {
+    display: flex;
+    align-items: center;
+    min-height: 2.6rem;
+    padding: 0 0.8rem;
+    border-radius: 0.6rem;
+    color: var(--ink);
+    text-decoration: none;
+    font-size: 0.95rem;
+    transition: background-color 0.15s ease;
+  }
+  a:hover {
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+  a[aria-current] {
+    font-weight: 600;
+    color: var(--accent);
+  }
+  a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+</style>
