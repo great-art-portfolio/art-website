@@ -7,19 +7,28 @@ content collections for paintings. One artist, a few uploads a month.
 
 Fast loop (every change): `format:check` → `lint` → `astro check` →
 `typecheck` → `test:unit` → `build` → `check:inline` (it scans `dist/`,
-so the build comes first), then the touched spec file(s)
+so the build comes first), then `build:e2e` and the touched spec file(s)
 (`pnpm test:e2e tests/<name>.spec.ts` — the Playwright config boots the
-Pages runtime on :4331 itself, so no manual server is needed). Full
+Pages runtime on :4331 itself, so no manual server is needed).
+
+The browser tests never see her live paintings: `pnpm build:e2e` copies
+the build inputs to `.e2e/` with `tests/fixtures/site` (her collection as
+of 2026-10-27, before that day's uploads) in place of `src/content` and
+`public/models`, and Playwright serves `.e2e/dist`. Her uploads, edits and
+trash used to turn CI red; now they can't. Tests that read painting files
+read the fixtures. Rebuild with `build:e2e` after a change, or 4331 serves
+the old e2e build. Full
 `test:e2e` runs pre-commit. Gate order is also the CI order:
 `format:check → lint → astro check → typecheck → test:unit → build →
-check:inline → e2e`.
+check:inline → build:e2e → e2e`.
 
 `format` before committing; `format:check` and `lint` must be clean.
 Never commit with a red gate to "fix later".
 
-## Port 4331 serves dist, not src
+## Port 4331 serves a build, not src
 
-`pnpm dev:prod` is `astro build` + `wrangler pages dev dist`. The browser
+`pnpm dev:prod` is `astro build` + `wrangler pages dev dist` (her real
+paintings); the e2e server on the same port serves `.e2e/dist`. The browser
 always shows the last build — rebuild after every change or you will
 chase stale CSS. (`dev:astro` is live src; `dev` is the studio loop below;
 tests and review use 4331.)

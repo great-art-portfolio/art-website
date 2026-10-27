@@ -61,4 +61,7 @@ jobs:
             test "$i" = 3 && exit 1
             sleep 15
           done
+      # The browser tests run on fixed fixture paintings, not her live
+      # collection, so her uploads never turn CI red.
+      - run: pnpm build:e2e
       - run: pnpm exec playwright test

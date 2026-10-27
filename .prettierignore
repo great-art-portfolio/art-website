@@ -1,5 +1,7 @@
 # Build output and vendored bundles — never reformat.
 dist/
+.e2e/
+tests/fixtures/site/
 .astro/
 public/js/
 *.min.js

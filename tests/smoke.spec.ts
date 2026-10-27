@@ -95,8 +95,8 @@ test("homepage keeps signup in a modal and shows the baked banner as-is", async 
   const raw = readFileSync(
     join(
       dirname(fileURLToPath(import.meta.url)),
-      "..",
-      "src",
+      "fixtures",
+      "site",
       "content",
       "announcement.txt",
     ),

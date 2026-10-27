@@ -149,7 +149,7 @@ test("publishing a draft emails the list when ticked", async ({ browser }) => {
   await page.locator("#de-price").fill("50");
   await page
     .locator("#de-photo")
-    .setInputFiles("src/content/paintings/1943x1967.jpg");
+    .setInputFiles("tests/fixtures/site/content/paintings/1943x1967.jpg");
   await page.locator("#de-notify-email").check();
   page.on("dialog", async (dialog) => {
     expect(dialog.message()).toContain('Publish "Channel Check" now?');
@@ -184,7 +184,7 @@ test("dismissing the publish ask keeps the draft", async ({ browser }) => {
   await page.locator("#de-price").fill("60");
   await page
     .locator("#de-photo")
-    .setInputFiles("src/content/paintings/1943x1967.jpg");
+    .setInputFiles("tests/fixtures/site/content/paintings/1943x1967.jpg");
   page.on("dialog", async (dialog) => {
     await dialog.dismiss();
   });
@@ -249,7 +249,7 @@ test("draft refuses a title another painting owns", async ({ browser }) => {
   await page.locator("#de-price").fill("50");
   await page
     .locator("#de-photo")
-    .setInputFiles("src/content/paintings/1943x1967.jpg");
+    .setInputFiles("tests/fixtures/site/content/paintings/1943x1967.jpg");
   await expect(page.locator("#de-photo-preview")).toBeVisible();
   await page.locator("#de-save-draft").click();
   // Titles determine page links, so a duplicate title stops the save with
@@ -266,7 +266,7 @@ test("draft photo builds its own wall preview", async ({ page }) => {
   await page.goto("/admin/paintings/new");
   await page
     .locator("#de-photo")
-    .setInputFiles("src/content/paintings/1943x1967.jpg");
+    .setInputFiles("tests/fixtures/site/content/paintings/1943x1967.jpg");
   await expect(page.locator("#de-photo-preview")).toBeVisible();
   await expect(page.locator("#de-photo-empty")).toBeHidden();
   await expect(page.locator("#de-photo-tools")).toBeVisible();
@@ -283,7 +283,7 @@ test("dimension typing shares one rebuild, never one per keystroke", async ({
   await page.goto("/admin/paintings/new");
   await page
     .locator("#de-photo")
-    .setInputFiles("src/content/paintings/1943x1967.jpg");
+    .setInputFiles("tests/fixtures/site/content/paintings/1943x1967.jpg");
   const viewer = page.locator("#ar-stage model-viewer");
   await expect(viewer).toBeAttached({ timeout: 30_000 });
   // Typing a width shouldn't replace the viewer immediately; keystrokes are
@@ -603,7 +603,7 @@ test("draft save carries its publish-on date", async ({ browser }) => {
   await page.locator("#de-price").fill("75");
   await page
     .locator("#de-photo")
-    .setInputFiles("src/content/paintings/1943x1967.jpg");
+    .setInputFiles("tests/fixtures/site/content/paintings/1943x1967.jpg");
   await page.locator("#de-publish-on").fill("2999-06-01");
   // The email box waits for that day instead of being dropped.
   await page.locator("#de-notify-email").check();
@@ -717,10 +717,13 @@ test("writing helper offers titles and a description she picks from", async ({
   page,
 }) => {
   let sent: Record<string, unknown> = {};
+  let release: () => void = () => {};
+  const held = new Promise<void>((r) => (release = r));
   await page.route("**/api/suggest", async (route) => {
     if (route.request().method() === "GET")
       return route.fulfill({ json: { enabled: true } });
     sent = route.request().postDataJSON() as Record<string, unknown>;
+    await held;
     return route.fulfill({
       json: {
         titles: ["Night Water", "Winter Hold", "Blue Hollow"],
@@ -734,7 +737,18 @@ test("writing helper offers titles and a description she picks from", async ({
   const desc = await page.locator("#de-desc").inputValue();
   await page.locator("#de-alt").fill("");
   await page.locator("#de-suggest-notes").fill("painted in winter");
-  await page.locator("#de-suggest-go").click();
+  const go = page.locator("#de-suggest-go");
+  await go.click();
+  // While Muse looks, the button says so and its bar slides.
+  await expect(go).toHaveText("Looking at the painting…");
+  await expect(go).toHaveAttribute("aria-busy", "true");
+  await expect(go).toBeDisabled();
+  await expect(page.locator("#de-suggest-status")).toHaveText(
+    "This takes about 15 seconds.",
+  );
+  release();
+  await expect(go).toHaveText("Suggest a title and description");
+  await expect(go).not.toHaveAttribute("aria-busy");
   await expect(page.locator("#de-suggest-titles button")).toHaveText([
     "Night Water",
     "Winter Hold",
@@ -785,7 +799,7 @@ test("save answers the tap at once and ignores a second tap", async ({
   await page.locator("#de-price").fill("50");
   await page
     .locator("#de-photo")
-    .setInputFiles("src/content/paintings/1943x1967.jpg");
+    .setInputFiles("tests/fixtures/site/content/paintings/1943x1967.jpg");
   const btn = page.locator("#de-save-draft");
   await btn.click();
   await expect(btn).toHaveText("Saving…");
@@ -840,7 +854,7 @@ test("publishing commits the painting's translations with it", async ({
   await page.locator("#de-price").fill("50");
   await page
     .locator("#de-photo")
-    .setInputFiles("src/content/paintings/1943x1967.jpg");
+    .setInputFiles("tests/fixtures/site/content/paintings/1943x1967.jpg");
   page.on("dialog", (dialog) => void dialog.accept());
   await page.locator("#de-publish").click();
   await expect(page).toHaveURL(/\/admin\/?$/, { timeout: 25_000 });
@@ -879,7 +893,7 @@ test("a save still goes through when translation is down", async ({
   await page.locator("#de-price").fill("50");
   await page
     .locator("#de-photo")
-    .setInputFiles("src/content/paintings/1943x1967.jpg");
+    .setInputFiles("tests/fixtures/site/content/paintings/1943x1967.jpg");
   page.on("dialog", (dialog) => void dialog.accept());
   await page.locator("#de-publish").click();
   await expect(page).toHaveURL(/\/admin\/?$/, { timeout: 25_000 });
@@ -897,4 +911,62 @@ test("the photo picker offers the library as well as the camera", async ({
   await expect(page.locator("#de-photo")).not.toHaveAttribute("capture");
   await page.goto("/admin/paintings/prairie-moon");
   await expect(page.locator("#de-replace-file")).not.toHaveAttribute("capture");
+});
+
+test("crop & adjust finds the painting on the wall and straightens it", async ({
+  page,
+}) => {
+  await page.goto("/admin/paintings/new");
+  // A 1200 × 1600 phone photo: beige wall, a tilted dark painting.
+  await page.evaluate(async () => {
+    const c = document.createElement("canvas");
+    c.width = 1200;
+    c.height = 1600;
+    const ctx = c.getContext("2d");
+    if (ctx === null) throw new Error("no canvas");
+    ctx.fillStyle = "#d6cec0";
+    ctx.fillRect(0, 0, 1200, 1600);
+    ctx.fillStyle = "#2f4a6a";
+    ctx.beginPath();
+    ctx.moveTo(250, 300);
+    ctx.lineTo(950, 340);
+    ctx.lineTo(930, 1100);
+    ctx.lineTo(270, 1080);
+    ctx.closePath();
+    ctx.fill();
+    const blob = await new Promise<Blob | null>((r) =>
+      c.toBlob(r, "image/jpeg", 0.9),
+    );
+    if (blob === null) throw new Error("no blob");
+    const input = document.getElementById("de-photo");
+    if (!(input instanceof HTMLInputElement)) throw new Error("no input");
+    const dt = new DataTransfer();
+    dt.items.add(new File([blob], "wall.jpg", { type: "image/jpeg" }));
+    input.files = dt.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await expect(page.locator("#de-photo-meta")).toContainText("1200 × 1600");
+  await page.locator("#de-fix").click();
+  const dialog = page.locator("#photo-fix");
+  await expect(dialog).toBeVisible();
+  await expect(page.locator("#pf-hint")).toContainText("Found the edges");
+  // Cancel leaves the photo as it was.
+  await page.locator("#pf-cancel").click();
+  await expect(dialog).toBeHidden();
+  await expect(page.locator("#de-photo-meta")).toContainText("1200 × 1600");
+  // Use this crops to the painting: about 690 × 760 px.
+  await page.locator("#de-fix").click();
+  await page.locator("#pf-done").click();
+  await expect(dialog).toBeHidden();
+  await expect(page.locator("#de-photo-meta")).not.toContainText("1200 × 1600");
+  const meta = (await page.locator("#de-photo-meta").textContent()) ?? "";
+  const [w, h] = (meta.match(/(\d+) × (\d+)/) ?? []).slice(1).map(Number);
+  expect(w).toBeGreaterThan(650);
+  expect(w).toBeLessThan(730);
+  expect(h).toBeGreaterThan(720);
+  expect(h).toBeLessThan(800);
+  // Her measured size sets the shape: 24 × 24 in makes it square.
+  await page.locator("#de-w").fill("24");
+  await page.locator("#de-h").fill("24");
+  await expect(page.locator("#de-photo-meta")).toContainText(`${h} × ${h}`);
 });

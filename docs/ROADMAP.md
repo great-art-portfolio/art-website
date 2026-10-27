@@ -30,6 +30,8 @@
   - Stripe is not escrow: money settles to her bank on a schedule (first payout ~7 days, then ~3 business days), whether or not she has shipped. The buyer's protection is the chargeback. A manual-capture hold only lasts ~7 days (Visa ~5), too short to wait on shipping, so charge at checkout and ship promptly with tracking.
   - Keep Interac e-transfer as the no-fee option for people she knows: free, money is final once deposited (no chargebacks), but no buyer protection and fully manual.
 - [ ] Enable Shippo (`ENABLE_SHIPPO` + token) when label volume justifies it; until then Chit Chats / Pirate Ship links in `/admin`
+- [ ] Frames (2026-10-27): she printed mockups of one painting in floater frames painted Sherwin-Williams colours: Misty (SW 6232), In the Navy (SW 9178), Charcoal Blue (SW 2739), Web Gray (SW 7075), Gibraltar (SW 6257). Waiting on her: does a buyer choose the finish, which finishes, and the price per size (or framed price as one number)? Then the painting page gets finish swatches that recolour the frame around the photo, and the wall preview's frame follows the pick.
+- [ ] Prints (2026-10-27): asked her who makes them (her or a print-on-demand shop), open or numbered editions, and whether they sit on the painting's page or in their own section. Prints need sizes with their own prices and never sell out, so new frontmatter, a size picker in the buy box, and checkout charging the chosen size. They'd join the `/paintings` filter as an "Originals / Prints" chip.
 - [ ] QR price tags for in-person markets (print stylesheet from the collection list)
 - [ ] "Recently sold" section + a few words from buyers (social proof for new visitors)
   - Sold paintings already carry `sold: true`; the gallery groups them. Needs a buyer-quote field she can fill in from the painting room, shown with permission only.
@@ -38,6 +40,7 @@
 
 - [x] Writing helper in the painting room (2026-10-25): Muse Spark looks at the photo and suggests three titles, a description, and alt text. Go-live: set the `MUSE_API_KEY` Pages secret (Meta Model API key); the button stays hidden until then.
 - [x] "Find a painting" search on the studio list past 12 paintings (2026-10-25).
+- [x] Crop & adjust in the painting room (2026-10-27): four corner handles (auto-placed by "Find edges") straighten the photo and cut away the wall, plus brightness, warmth and contrast. Her measured width × height sets the crop's shape so the wall preview stays true to size. Works on the saved photo in the edit room too (`lib/photo-fix.ts`, `components/PhotoFix.ts`).
 
 ## When there are a lot of paintings
 

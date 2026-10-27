@@ -174,7 +174,9 @@ export async function suggestWords(
       },
       body: JSON.stringify({
         model: env.MUSE_MODEL ?? MUSE_MODEL,
-        reasoning_effort: "low",
+        // High reads the painting more closely (about 12 s against 6 s at
+        // low, checked 2026-10-27); she waits once per painting.
+        reasoning_effort: "high",
         messages: [
           { role: "system", content: systemPrompt(voice) },
           { role: "user", content: userContent(input) },

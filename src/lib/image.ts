@@ -1,7 +1,10 @@
 /**
  * Browser-side photo preparation with Canvas. Phone photos are downscaled,
- * rotated, and exported as JPEG. Build-time thumbnails are handled by sharp.
+ * rotated, optionally cropped and adjusted (photo-fix), and exported as
+ * JPEG. Build-time thumbnails are handled by sharp.
  */
+
+import { isNoop, outputSize, warp, type PhotoFix } from "./photo-fix";
 
 export interface PreparedImage {
   blob: Blob;
@@ -11,6 +14,8 @@ export interface PreparedImage {
 }
 
 export const MAX_SIDE = 2000;
+/** A crop keeps the detail of a bigger source before it's cut down. */
+const FIX_SOURCE_SIDE = 3200;
 export const JPEG_QUALITY = 0.85;
 
 export async function loadImageFile(file: File): Promise<HTMLImageElement> {
@@ -38,22 +43,25 @@ export function scaleFor(
   naturalWidth: number,
   naturalHeight: number,
   rotationDeg: 0 | 90 | 180 | 270,
+  maxSide = MAX_SIDE,
 ): { width: number; height: number } {
   const rotated = rotationDeg === 90 || rotationDeg === 270;
   const srcW = rotated ? naturalHeight : naturalWidth;
   const srcH = rotated ? naturalWidth : naturalHeight;
-  const scale = Math.min(1, MAX_SIDE / Math.max(srcW, srcH));
+  const scale = Math.min(1, maxSide / Math.max(srcW, srcH));
   return { width: Math.round(srcW * scale), height: Math.round(srcH * scale) };
 }
 
-function drawPrepared(
+export function drawPrepared(
   img: HTMLImageElement,
   rotationDeg: 0 | 90 | 180 | 270,
+  maxSide = MAX_SIDE,
 ): { canvas: HTMLCanvasElement; width: number; height: number } {
   const { width, height } = scaleFor(
     img.naturalWidth,
     img.naturalHeight,
     rotationDeg,
+    maxSide,
   );
   const canvas = document.createElement("canvas");
   canvas.width = width;
@@ -68,11 +76,48 @@ function drawPrepared(
   return { canvas, width, height };
 }
 
+/** The rotated photo straightened to the fix's corners, with its tone. */
+function drawFixed(
+  img: HTMLImageElement,
+  rotationDeg: 0 | 90 | 180 | 270,
+  fix: PhotoFix,
+  dims: { widthIn: number | null; heightIn: number | null },
+): { canvas: HTMLCanvasElement; width: number; height: number } {
+  const src = drawPrepared(img, rotationDeg, FIX_SOURCE_SIDE);
+  const srcCtx = src.canvas.getContext("2d");
+  if (srcCtx === null)
+    throw new Error("Canvas is not available in this browser");
+  const pixels = srcCtx.getImageData(0, 0, src.width, src.height);
+  const { width, height } = outputSize(
+    fix.quad,
+    src.width,
+    src.height,
+    MAX_SIDE,
+    dims,
+  );
+  const out = warp(pixels, fix.quad, width, height, fix.tone);
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (ctx === null) throw new Error("Canvas is not available in this browser");
+  ctx.putImageData(new ImageData(out, width, height), 0, 0);
+  return { canvas, width, height };
+}
+
 export async function prepareImage(
   img: HTMLImageElement,
   rotationDeg: 0 | 90 | 180 | 270 = 0,
+  fix: PhotoFix | null = null,
+  dims: { widthIn: number | null; heightIn: number | null } = {
+    widthIn: null,
+    heightIn: null,
+  },
 ): Promise<PreparedImage> {
-  const { canvas, width, height } = drawPrepared(img, rotationDeg);
+  const { canvas, width, height } =
+    fix === null || isNoop(fix)
+      ? drawPrepared(img, rotationDeg)
+      : drawFixed(img, rotationDeg, fix, dims);
   const blob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
       (result) =>

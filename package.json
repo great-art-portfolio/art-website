@@ -11,6 +11,7 @@
     "studio:reset": "node scripts/studio-reset.mjs",
     "seed:gallery": "node scripts/seed-gallery.mjs",
     "build": "astro build",
+    "build:e2e": "node scripts/build-e2e.mjs",
     "preview": "astro preview",
     "astro": "astro",
     "check": "astro check",

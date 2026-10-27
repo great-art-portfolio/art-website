@@ -21,8 +21,8 @@ interface Painting {
 function loadPaintings(): Painting[] {
   const dir = join(
     dirname(fileURLToPath(import.meta.url)),
-    "..",
-    "src",
+    "fixtures",
+    "site",
     "content",
     "paintings",
   );
