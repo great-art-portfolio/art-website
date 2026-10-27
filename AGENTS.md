@@ -132,6 +132,41 @@ data read it from `/catalog.json` through `env.ASSETS`. Check with
   [E2E with
   Playwright](https://resend.com/docs/knowledge-base/end-to-end-testing-with-playwright).
 
+## Logs and errors (for agents)
+
+This site is built and kept by agents, so errors are logged for agents
+to read, and what people see is written for people, separately.
+
+- Read first when anything is reported broken: `pnpm logs` (errors and
+  warnings, last 7 days, newest first). Narrow with `--since 2h`,
+  `--event sale`, `--level error`, `--source client`, `--limit 100`.
+  `pnpm logs --inquiries --failed` lists buyer inquiries that never
+  reached her (resend them). `--local` reads the dev/e2e D1.
+- Server: log with `logEvent(env, { event, message, err, detail, request })`
+  from `functions/_lib/log.ts`, never bare `console.error`. It writes the
+  D1 `logs` table and one JSON console line (`wrangler pages deployment
+tail`), and never throws. `event` is a stable dotted key
+  (`area.what_happened`); `detail` is small JSON context (status codes,
+  provider answers, slugs), never secrets.
+- The `/api/*` middleware logs every 5xx (except 501, a switched-off
+  feature) with route and ray id, and turns anything an endpoint throws
+  into a plain 500, so a missed catch still leaves a trace.
+- Browser: `src/lib/report.ts` posts uncaught errors and rejected promises
+  from every page to `/api/log` (stored as `client.*`, capped per visit and
+  per ten minutes). Studio code calls `reportError(event, err)` where it
+  catches a failure, and every error toast she's shown is logged as
+  `client.studio.shown` (warn), so an agent sees exactly what she saw.
+- A failure must never read as success or as "nothing to do": a list that
+  couldn't be read throws instead of returning empty, a send that didn't go
+  out answers `failed: true`, and a save whose safety checks couldn't run
+  stops. Best-effort catches (storage, vibrate, Background Sync) stay
+  silent and say so in a comment.
+- Every inquiry is saved to the D1 `inquiries` table before it's emailed.
+- Retention: log rows older than 90 days are trimmed as new ones arrive.
+- New tables need a migration in `migrations/` and a line in both
+  `db:migrate` scripts; apply it to the remote D1 before merging code that
+  writes to it.
+
 ## Taste (non-negotiable)
 
 The owner's taste is final. For any change in visual direction, show 2–4

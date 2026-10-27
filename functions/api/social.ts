@@ -7,6 +7,7 @@ import {
   serverError,
 } from "../_lib/http";
 import { publishNewPainting } from "../_lib/social";
+import { logEvent } from "../_lib/log";
 
 /** Admin: one-click social post. Returns 501 until enabled. The share
  * helper works without it. */
@@ -33,7 +34,12 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     }
     return json({ id: post.id });
   } catch (err) {
-    console.error(err);
+    await logEvent(context.env, {
+      event: "social.threw",
+      message: "Posting to social threw",
+      err,
+      request: context.request,
+    });
     return serverError(err instanceof Error ? err.message : undefined);
   }
 };

@@ -2,6 +2,7 @@ import type { AppEnv } from "../_lib/env";
 import { PAINTING_FILE } from "../_lib/gallery-paths";
 import { gitConfig, readTextFile } from "../_lib/github";
 import { json, requireAdmin, sameSecret, serverError } from "../_lib/http";
+import { logEvent } from "../_lib/log";
 import {
   cleanBroadcastBody,
   cleanBroadcastSubject,
@@ -111,8 +112,14 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
             new URL(context.request.url).origin,
             viaAlertsKey ? "" : text(body["file"]),
             text(body["slug"]),
-          ).catch((err: unknown) => {
-            console.error("publish alert painting lookup failed", err);
+          ).catch(async (err: unknown) => {
+            await logEvent(context.env, {
+              event: "broadcast.painting_lookup_failed",
+              message: "Couldn't find the painting a publish alert is for",
+              err,
+              detail: { slug: text(body["slug"]) },
+              request: context.request,
+            });
             return null;
           })
         : null;
@@ -133,14 +140,29 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       emailCopy === null ? "" : cleanBroadcastSubject(emailCopy["subject"]),
       emailCopy === null ? "" : cleanBroadcastBody(emailCopy["body"]),
       opts,
-    ).catch(() => ({ sent: 0, total: 0 }));
+    ).catch(async (err: unknown) => {
+      await logEvent(context.env, {
+        event: "broadcast.threw",
+        message: "The broadcast threw",
+        err,
+        request: context.request,
+      });
+      return { sent: 0, total: 0, failed: true };
+    });
     return json({
       emailed: result.sent > 0,
       emailTotal: result.total,
       scheduled: result.sent > 0 && opts.scheduledAt !== undefined,
+      // The send was tried and didn't go out (logged as broadcast.*).
+      failed: result.failed,
     });
   } catch (err) {
-    console.error(err);
+    await logEvent(context.env, {
+      event: "notify.threw",
+      message: "The notify endpoint threw",
+      err,
+      request: context.request,
+    });
     return serverError();
   }
 };
@@ -160,7 +182,12 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
     );
     return json({ emailSubject: subject, emailText: text, emailHtml: html });
   } catch (err) {
-    console.error(err);
+    await logEvent(context.env, {
+      event: "notify.preview_threw",
+      message: "The email preview threw",
+      err,
+      request: context.request,
+    });
     return serverError();
   }
 };

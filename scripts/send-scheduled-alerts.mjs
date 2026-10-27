@@ -28,7 +28,7 @@ export async function waitForPage(url, waitMs = WAIT_MS, pollMs = POLL_MS) {
 }
 
 /** Asks the site to email the list about the painting at `slug`. Returns
- * how many addresses it went to. */
+ * how many addresses it went to, and whether a tried send failed. */
 export async function sendAlerts(site, token, slug = "") {
   const res = await fetch(`${site}/api/notify`, {
     method: "POST",
@@ -41,7 +41,11 @@ export async function sendAlerts(site, token, slug = "") {
   if (!res.ok)
     throw new Error(`notify answered ${res.status}: ${await res.text()}`);
   const data = await res.json();
-  return { emailed: data.emailTotal ?? 0 };
+  return {
+    emailed: data.emailed === true ? (data.emailTotal ?? 0) : 0,
+    total: data.emailTotal ?? 0,
+    failed: data.failed === true,
+  };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
@@ -60,5 +64,13 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   const live = await waitForPage(`${SITE}/paintings/${alerts.slug}`);
   if (!live) console.log("The page isn't live yet; sending anyway.");
   const r = await sendAlerts(SITE, token, alerts.slug);
+  // A list with people on it that got nothing is a failure, so the run goes
+  // red; the cause is in the site's logs (`pnpm logs --event broadcast`).
+  if (r.failed || (r.total > 0 && r.emailed === 0)) {
+    console.error(
+      `The publish email to ${r.total} didn't go out. See \`pnpm logs --event broadcast\`.`,
+    );
+    process.exit(1);
+  }
   console.log(`Publish email sent to ${r.emailed}.`);
 }

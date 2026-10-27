@@ -255,6 +255,13 @@ const offers = Object.fromEntries(
           }
         });
       }
+      // Uncaught errors and rejected promises go to /api/log for agents
+      // (src/lib/report). Wires itself once.
+      void import("../lib/report")
+        .then((m) => m.installErrorReporting())
+        .catch(() => {
+          // Reporting is optional; the page works without it.
+        });
     </script>
     <a class="skip" href="#main">
       {s.layout.skip}
@@ -635,6 +642,14 @@ const offers = Object.fromEntries(
                         e.stopPropagation();
                       });
                       hint.appendChild(go);
+                    } else if (
+                      d !== null &&
+                      "emailed" in d &&
+                      d.emailed === false
+                    ) {
+                      // Saved, but the confirm email didn't go out (the
+                      // server logged why): don't promise an email.
+                      notifySay(hint, notifyMsg("failed"));
                     } else {
                       notifySay(hint, notifyMsg("checkInbox"));
                     }

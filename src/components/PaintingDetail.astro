@@ -973,8 +973,8 @@ const eyebrow =
         if (status === null) return;
         say(status, pageMsg("sending"));
         const live = readPageData();
-        void Promise.all([import("../lib/queue"), inquiryToken()]).then(
-          ([{ queuePost }, turnstileToken]) =>
+        void Promise.all([import("../lib/queue"), inquiryToken()])
+          .then(([{ queuePost }, turnstileToken]) =>
             queuePost("/api/inquiries", {
               slug: live.slug,
               paintingTitle: live.title,
@@ -999,7 +999,15 @@ const eyebrow =
               );
               if (result === "sent") form.reset();
             }),
-        );
+          )
+          .catch((err) => {
+            // A chunk that failed to load (a page open across a deploy) or
+            // a broken spam check: say so instead of "Sending…" forever.
+            say(status, pageMsg("failed"));
+            void import("../lib/report").then((m) =>
+              m.reportError("inquiry.submit_failed", err),
+            );
+          });
       });
     }
 

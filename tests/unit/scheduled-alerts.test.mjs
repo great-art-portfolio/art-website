@@ -125,8 +125,15 @@ describe("send-scheduled-alerts", () => {
       return Response.json({ emailed: true, emailTotal: 12 });
     };
     const r = await sendAlerts("https://barbart.ca", "nightly", "first-thaw");
-    assert.deepEqual(r, { emailed: 12 });
+    assert.deepEqual(r, { emailed: 12, total: 12, failed: false });
     assert.deepEqual(bodies, [{ email: true, slug: "first-thaw" }]);
+  });
+
+  it("reports a send that was tried and didn't go out", async () => {
+    globalThis.fetch = async () =>
+      Response.json({ emailed: false, emailTotal: 12, failed: true });
+    const r = await sendAlerts("https://barbart.ca", "nightly", "first-thaw");
+    assert.deepEqual(r, { emailed: 0, total: 12, failed: true });
   });
 
   it("fails loudly when the site refuses", async () => {

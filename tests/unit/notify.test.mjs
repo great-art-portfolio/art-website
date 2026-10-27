@@ -305,7 +305,7 @@ describe("sendCollectorBroadcast", () => {
         : segmentList(["a@example.com", "b@example.com", "c@example.com"]),
     );
     const result = await sendCollectorBroadcast(fullEnv, "https://barbart.ca");
-    assert.deepEqual(result, { sent: 3, total: 3 });
+    assert.deepEqual(result, { sent: 3, total: 3, failed: false });
     assert.equal(calls.length, 2);
     assert.equal(calls[1].url, "https://api.resend.com/broadcasts");
   });
@@ -315,7 +315,7 @@ describe("sendCollectorBroadcast", () => {
       String(url).includes("/broadcasts") ? okRes() : segmentList([]),
     );
     const result = await sendCollectorBroadcast(fullEnv, "https://barbart.ca");
-    assert.deepEqual(result, { sent: 0, total: 0 });
+    assert.deepEqual(result, { sent: 0, total: 0, failed: false });
     assert.equal(calls.length, 1);
   });
 
@@ -326,7 +326,13 @@ describe("sendCollectorBroadcast", () => {
         : segmentList(["a@example.com"]),
     );
     const result = await sendCollectorBroadcast(fullEnv, "https://barbart.ca");
-    assert.deepEqual(result, { sent: 0, total: 1 });
+    assert.deepEqual(result, { sent: 0, total: 1, failed: true });
+  });
+
+  it("reports an unreadable list as a failure, not an empty one", async () => {
+    stubFetch(() => failRes());
+    const result = await sendCollectorBroadcast(fullEnv, "https://barbart.ca");
+    assert.deepEqual(result, { sent: 0, total: 0, failed: true });
   });
 });
 
@@ -389,11 +395,14 @@ describe("listSegmentContacts", () => {
     assert.equal(all[1].createdAt, "2026-10-01 10:00:00");
   });
 
-  it("is empty when unconfigured or rejected", async () => {
-    stubFetch(() => failRes());
-    assert.deepEqual(await listSegmentContacts(fullEnv), []);
+  it("is empty when unconfigured", async () => {
     stubFetch(() => okRes());
     assert.deepEqual(await listSegmentContacts({}), []);
+  });
+
+  it("throws when Resend refuses, so failure never reads as empty", async () => {
+    stubFetch(() => failRes());
+    await assert.rejects(listSegmentContacts(fullEnv), /couldn't be read/);
   });
 });
 

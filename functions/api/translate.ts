@@ -8,6 +8,7 @@ import {
 } from "../_lib/http";
 import { suggestEnabled } from "../_lib/suggest";
 import { parseTranslateInput, translateWords } from "../_lib/translate";
+import { logEvent } from "../_lib/log";
 
 /** Admin: her words in other languages, for the site's translated pages.
  * Body: { kind: "painting" | "banner", words: { title, description, alt,
@@ -36,7 +37,12 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   try {
     return json({ langs: await translateWords(context.env, input) });
   } catch (err) {
-    console.error(err);
+    await logEvent(context.env, {
+      event: "translate.threw",
+      message: "Translating threw",
+      err,
+      request: context.request,
+    });
     return json(
       { error: "Translation couldn't answer — it will try again later." },
       { status: 502 },

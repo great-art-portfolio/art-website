@@ -1,7 +1,13 @@
 /** Draft and edit rooms. Both render the shared PaintingDetail layout, so the
  * editor matches the buyer page. Saving commits the .md, photo, and AR
  * models. Local dev without a token uses the practice overlay. */
-import { api, existingTitles, getApiToken, uniqueSlug } from "../lib/api";
+import {
+  api,
+  existingTitles,
+  getApiToken,
+  LIST_FAILED,
+  uniqueSlug,
+} from "../lib/api";
 import { loadImageFile, prepareImage, smallJpegDataUrl } from "../lib/image";
 import { isNoop, rotateQuad, type PhotoFix } from "../lib/photo-fix";
 import { openPhotoFix } from "./PhotoFix";
@@ -40,10 +46,13 @@ import {
   practiceUpsert,
   type PracticePainting,
 } from "../lib/practice";
+import { reportError } from "../lib/report";
 
 /** Toast that fades in and dismisses itself. One timer drives both phases. */
 let statusTimer = 0;
 function setStatus(msg: string, isError = false): void {
+  // Agents see every error she was shown (pnpm logs --event studio.shown).
+  if (isError) reportError("studio.shown", new Error(msg), {}, "warn");
   const el = maybe("de-status");
   if (el === null) return;
   window.clearTimeout(statusTimer);
@@ -884,16 +893,34 @@ let titlesCache: { at: number; titles: Promise<string[]> } | null = null;
 const TITLES_FRESH_MS = 2 * 60 * 1000;
 
 function prefetchTitles(): Promise<string[]> {
-  if (titlesCache === null || Date.now() - titlesCache.at > TITLES_FRESH_MS)
-    titlesCache = { at: Date.now(), titles: existingTitles() };
+  if (titlesCache === null || Date.now() - titlesCache.at > TITLES_FRESH_MS) {
+    const titles = existingTitles();
+    titlesCache = { at: Date.now(), titles };
+    // A failed listing isn't kept: the next save asks again.
+    titles.catch(() => {
+      if (titlesCache?.titles === titles) titlesCache = null;
+    });
+  }
   return titlesCache.titles;
 }
 
+/** True (with a message) when the save must stop: the title is taken, or
+ * the other paintings couldn't be checked. Practice saves never commit,
+ * so they go ahead without the check. */
 async function titleClash(
   title: string,
   ownSlug: string | null,
 ): Promise<boolean> {
-  if (isTitleTaken(await prefetchTitles(), title, ownSlug)) {
+  let titles: string[];
+  try {
+    titles = await prefetchTitles();
+  } catch (err) {
+    if (await useOverlayMode()) return false;
+    reportError("studio.list_failed", err);
+    setStatus(LIST_FAILED, true);
+    return true;
+  }
+  if (isTitleTaken(titles, title, ownSlug)) {
     setStatus(
       `Another painting is already called "${title}" — give this one its own title.`,
       true,

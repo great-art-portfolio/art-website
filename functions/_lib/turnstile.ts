@@ -1,4 +1,5 @@
 import type { AppEnv } from "./env";
+import { logEvent } from "./log";
 
 /** Turnstile check for public writes. With no secret configured it passes
  * only on this machine (dev and tests); a deployed site without the secret
@@ -48,10 +49,19 @@ export async function turnstileOk(
     };
     if (data.success === true) return true;
     // Log the reason server-side only. Buyers don't see error codes.
-    console.error("turnstile rejected", data["error-codes"] ?? "unknown");
+    await logEvent(env, {
+      level: "warn",
+      event: "spamcheck.rejected",
+      message: "Turnstile rejected a token",
+      detail: { codes: data["error-codes"] ?? "unknown" },
+    });
     return false;
   } catch (err) {
-    console.error("turnstile verify failed", err);
+    await logEvent(env, {
+      event: "spamcheck.threw",
+      message: "Verifying a Turnstile token threw",
+      err,
+    });
     return false;
   } finally {
     clearTimeout(timer);

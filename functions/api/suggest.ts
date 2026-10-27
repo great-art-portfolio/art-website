@@ -9,6 +9,7 @@ import {
   type Voice,
 } from "../_lib/suggest";
 import { parseCatalog } from "../_lib/validation";
+import { logEvent } from "../_lib/log";
 
 /** Her gallery's titles and descriptions, so ideas sound like her. None
  * when the catalog can't be read (the dev studio has no build). */
@@ -49,7 +50,12 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     const voice = await galleryVoice(context.env, context.request);
     return json(await suggestWords(context.env, input, voice));
   } catch (err) {
-    console.error(err);
+    await logEvent(context.env, {
+      event: "suggest.threw",
+      message: "The writing helper failed",
+      err,
+      request: context.request,
+    });
     return json(
       { error: "The writing helper couldn't answer — try again in a minute." },
       { status: 502 },

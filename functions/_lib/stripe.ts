@@ -1,5 +1,6 @@
 import { formatPriceCAD } from "../../src/lib/money";
 import { flag, type AppEnv } from "./env";
+import { logEvent } from "./log";
 import type {
   CatalogItem,
   CheckoutBody,
@@ -153,14 +154,26 @@ export async function expireOtherSessions(
         fetch(
           `https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(String(s.id))}/expire`,
           { method: "POST", headers: auth },
-        ).then((r) => {
-          if (!r.ok) console.error("could not expire session", s.id, r.status);
+        ).then(async (r) => {
+          if (!r.ok)
+            await logEvent(env, {
+              level: "warn",
+              event: "sale.expire_refused",
+              message: `Stripe answered ${r.status} to expiring a checkout`,
+              detail: { session: String(s.id), status: r.status },
+            });
         }),
       ),
     );
     return others.length;
   } catch (err) {
-    console.error("expiring other checkouts failed", err);
+    await logEvent(env, {
+      level: "warn",
+      event: "sale.expire_threw",
+      message: "Closing the painting's other checkouts threw",
+      err,
+      detail: { slug },
+    });
     return 0;
   }
 }

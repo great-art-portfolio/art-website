@@ -16,13 +16,15 @@ export async function sendPublishAlerts(
   try {
     const r = await api.notifyCollectors(file);
     const people = r.emailTotal === 1 ? "1 person" : `${r.emailTotal} people`;
-    return r.emailTotal === 0
-      ? " Email list is empty."
-      : !r.emailed
-        ? " Email not sent (mail isn't set up)."
-        : r.scheduled
-          ? ` The email to ${people} goes out once the page is live, in about 10 minutes.`
-          : ` Emailed ${people}.`;
+    return r.failed
+      ? " The email to your list didn't go out. Try again from the Email page in a few minutes."
+      : r.emailTotal === 0
+        ? " Email list is empty."
+        : !r.emailed
+          ? " Email not sent (mail isn't set up)."
+          : r.scheduled
+            ? ` The email to ${people} goes out once the page is live, in about 10 minutes.`
+            : ` Emailed ${people}.`;
   } catch (err) {
     return ` Couldn't send the email: ${errorMessage(err)}`;
   }

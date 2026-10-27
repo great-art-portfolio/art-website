@@ -11,6 +11,7 @@ import {
   fetchShippoRates,
   type ShippoAddress,
 } from "../_lib/shipping";
+import { logEvent } from "../_lib/log";
 
 /**
  * Admin: Shippo rates and label purchase. Returns 501 until enabled.
@@ -52,7 +53,12 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     }
     return json({ rates: quote.rates });
   } catch (err) {
-    console.error(err);
+    await logEvent(context.env, {
+      event: "shipping.threw",
+      message: "Quoting shipping threw",
+      err,
+      request: context.request,
+    });
     return serverError(err instanceof Error ? err.message : undefined);
   }
 };

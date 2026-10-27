@@ -1,6 +1,7 @@
 import type { AppEnv } from "../_lib/env";
 import { json, requireAdmin, serverError } from "../_lib/http";
 import { buildMetrics, METRICS_QUERY, type MetricsRows } from "../_lib/metrics";
+import { logEvent } from "../_lib/log";
 
 /**
  * Admin: the past 30 days of visits from Cloudflare Web Analytics (free, no
@@ -70,7 +71,12 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
     );
     return json({ views: metrics.paintings, metrics });
   } catch (err) {
-    console.error(err);
+    await logEvent(context.env, {
+      event: "analytics.threw",
+      message: "Reading analytics threw",
+      err,
+      request: context.request,
+    });
     return serverError("Analytics lookup failed.");
   }
 };

@@ -36,6 +36,7 @@ import {
   syncContactSubscribed,
 } from "../_lib/notify";
 import { turnstileOk } from "../_lib/turnstile";
+import { logEvent } from "../_lib/log";
 
 /** The confirm page in the language they joined from. */
 function confirmLink(
@@ -156,7 +157,15 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
             confirmLink(origin, email, sub.token, locale),
             locale,
           ),
-        }).catch(() => false);
+        }).catch(async (err: unknown) => {
+          await logEvent(context.env, {
+            event: "collectors.email_threw",
+            message: "A list email threw",
+            err,
+            request: context.request,
+          });
+          return false;
+        });
       }
       return json(
         {
@@ -171,7 +180,19 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       // An address already on the list gets the same answer as a new
       // one, and its inbox gets a note saying so. Only the person who
       // reads that inbox learns it's subscribed.
-      if (await isConfirmedContact(context.env, email).catch(() => false)) {
+      if (
+        await isConfirmedContact(context.env, email).catch(
+          async (err: unknown) => {
+            await logEvent(context.env, {
+              event: "collectors.lookup_threw",
+              message: "Checking whether an address is on the list threw",
+              err,
+              request: context.request,
+            });
+            return false;
+          },
+        )
+      ) {
         if (invite)
           return json(
             { ok: true, emailed: false, already: true },
@@ -181,7 +202,15 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
           to: [email],
           replyTo: artistInbox(context.env),
           ...alreadyEmail(locale),
-        }).catch(() => false);
+        }).catch(async (err: unknown) => {
+          await logEvent(context.env, {
+            event: "collectors.email_threw",
+            message: "A list email threw",
+            err,
+            request: context.request,
+          });
+          return false;
+        });
         return json({ ok: true, emailed }, { status: 201 });
       }
       const token = await issueLinkToken(context.env, email, "confirm");
@@ -190,10 +219,24 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
         to: [email],
         replyTo: artistInbox(context.env),
         ...confirmEmail(confirmLink(site, email, token, locale), locale),
-      }).catch(() => false);
+      }).catch(async (err: unknown) => {
+        await logEvent(context.env, {
+          event: "collectors.email_threw",
+          message: "A list email threw",
+          err,
+          request: context.request,
+        });
+        return false;
+      });
       return json({ ok: true, emailed }, { status: 201 });
     } catch (err) {
-      console.error(err);
+      await logEvent(context.env, {
+        event: "collectors.threw",
+        message: "An email-list action threw",
+        err,
+        detail: { action },
+        request: context.request,
+      });
       return serverError();
     }
   }
@@ -242,7 +285,13 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
         );
       return json({ ok: true });
     } catch (err) {
-      console.error(err);
+      await logEvent(context.env, {
+        event: "collectors.threw",
+        message: "An email-list action threw",
+        err,
+        detail: { action },
+        request: context.request,
+      });
       return serverError();
     }
   }
@@ -305,18 +354,52 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       // the same either way, so it doesn't reveal who is.
       const member =
         token !== "" ||
-        (await isConfirmedContact(context.env, email).catch(() => false));
-      await syncContactRemoved(context.env, email).catch(() => false);
+        (await isConfirmedContact(context.env, email).catch(
+          async (err: unknown) => {
+            await logEvent(context.env, {
+              event: "collectors.lookup_threw",
+              message: "Checking whether an address is on the list threw",
+              err,
+              request: context.request,
+            });
+            return false;
+          },
+        ));
+      await syncContactRemoved(context.env, email).catch(
+        async (err: unknown) => {
+          await logEvent(context.env, {
+            event: "collectors.remove_threw",
+            message: "Removing a contact from the list threw",
+            err,
+            request: context.request,
+          });
+          return false;
+        },
+      );
       if (member) {
         await sendSiteEmail(context.env, {
           to: [email],
           replyTo: artistInbox(context.env),
           ...goodbyeEmail(locale),
-        }).catch(() => false);
+        }).catch(async (err: unknown) => {
+          await logEvent(context.env, {
+            event: "collectors.email_threw",
+            message: "A list email threw",
+            err,
+            request: context.request,
+          });
+          return false;
+        });
       }
       return json({ ok: true });
     } catch (err) {
-      console.error(err);
+      await logEvent(context.env, {
+        event: "collectors.threw",
+        message: "An email-list action threw",
+        err,
+        detail: { action },
+        request: context.request,
+      });
       return serverError();
     }
   }
@@ -347,7 +430,12 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
     }
     return json({ total: await countSegmentContacts(context.env) });
   } catch (err) {
-    console.error(err);
+    await logEvent(context.env, {
+      event: "collectors.count_threw",
+      message: "Counting the email list threw",
+      err,
+      request: context.request,
+    });
     return serverError();
   }
 };

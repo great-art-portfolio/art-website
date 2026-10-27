@@ -3,6 +3,7 @@ import { formatPriceCAD } from "../../src/lib/money";
 import { t } from "../../src/i18n/strings";
 import { localeInfo, type Locale } from "../../src/i18n/locales";
 import type { AppEnv } from "./env";
+import { logEvent } from "./log";
 
 /**
  * Email and inquiry notifications.
@@ -110,12 +111,20 @@ export async function sendInquiryNotifications(
       replyTo: alert.buyerEmail,
       subject,
       text,
-    }).catch((err) => {
-      console.error("notify email failed", err);
+    }).catch(async (err: unknown) => {
+      await logEvent(env, {
+        event: "inquiry.email_threw",
+        message: "Emailing an inquiry threw",
+        err,
+      });
       return false;
     }),
-    sendPush(env, subject, text).catch((err) => {
-      console.error("notify push failed", err);
+    sendPush(env, subject, text).catch(async (err: unknown) => {
+      await logEvent(env, {
+        event: "inquiry.push_threw",
+        message: "The inquiry push alert threw",
+        err,
+      });
       return false;
     }),
   ]);
@@ -172,7 +181,16 @@ export async function sendSiteEmail(
       text: mail.text,
     }),
   });
-  if (!res.ok) console.error("resend error", await res.text());
+  if (!res.ok)
+    await logEvent(env, {
+      event: "email.resend_refused",
+      message: `Resend answered ${res.status}`,
+      detail: {
+        status: res.status,
+        answer: (await res.text().catch(() => "")).slice(0, 500),
+        subject: mail.subject.slice(0, 120),
+      },
+    });
   return res.ok;
 }
 
@@ -188,7 +206,8 @@ export interface SegmentContact {
 const CONTACTS_PAGE = 100;
 
 /** All contacts on the segment, paged 100 at a time. Empty when
- * unconfigured or on failure. */
+ * unconfigured. Throws (after logging) when the list can't be read, so a
+ * failure never passes for an empty list. */
 export async function listSegmentContacts(
   env: AppEnv,
 ): Promise<SegmentContact[]> {
@@ -209,8 +228,18 @@ export async function listSegmentContacts(
         { headers: resendHeaders(env) },
       );
       if (!res.ok) {
-        console.error("resend segment list failed", await res.text());
-        return out;
+        await logEvent(env, {
+          event: "list.read_refused",
+          message: `Resend answered ${res.status} to a list read`,
+          detail: {
+            status: res.status,
+            answer: (await res.text().catch(() => "")).slice(0, 500),
+          },
+        });
+        // Not an empty list: callers must tell "nobody" from "couldn't read".
+        throw new Error(
+          `The email list couldn't be read (Resend ${res.status})`,
+        );
       }
       const body = (await res.json()) as {
         data?: Array<{
@@ -236,8 +265,13 @@ export async function listSegmentContacts(
     }
     return out;
   } catch (err) {
-    console.error("resend segment list failed", err);
-    return out;
+    if (!(err instanceof Error && err.message.startsWith("The email list")))
+      await logEvent(env, {
+        event: "list.read_threw",
+        message: "Reading the email list threw",
+        err,
+      });
+    throw err;
   }
 }
 
@@ -501,10 +535,23 @@ export async function sendSegmentBroadcast(
           : { scheduled_at: opts.scheduledAt }),
       }),
     });
-    if (!res.ok) console.error("resend broadcast error", await res.text());
+    if (!res.ok)
+      await logEvent(env, {
+        event: "broadcast.resend_refused",
+        message: `Resend answered ${res.status} to a broadcast`,
+        detail: {
+          status: res.status,
+          answer: (await res.text().catch(() => "")).slice(0, 500),
+          subject: cleanSubject.slice(0, 120),
+        },
+      });
     return res.ok;
   } catch (err) {
-    console.error("resend broadcast failed", err);
+    await logEvent(env, {
+      event: "broadcast.threw",
+      message: "Sending a broadcast threw",
+      err,
+    });
     return false;
   }
 }
@@ -539,16 +586,31 @@ export async function syncContactSubscribed(
       body: JSON.stringify({ unsubscribed: false }),
     });
     if (!patched.ok)
-      console.error("resend contact update failed", await patched.text());
+      await logEvent(env, {
+        level: "warn",
+        event: "list.contact_update_refused",
+        message: `Resend answered ${patched.status} to a contact update`,
+        detail: {
+          answer: (await patched.text().catch(() => "")).slice(0, 500),
+        },
+      });
     const added = await fetch(
       `${contact}/segments/${encodeURIComponent(seg)}`,
       { method: "POST", headers: resendHeaders(env) },
     );
     if (!added.ok)
-      console.error("resend contact add failed", await added.text());
+      await logEvent(env, {
+        event: "list.contact_add_refused",
+        message: `Resend answered ${added.status} to a contact add`,
+        detail: { answer: (await added.text().catch(() => "")).slice(0, 500) },
+      });
     return patched.ok || added.ok;
   } catch (err) {
-    console.error("resend contact sync failed", err);
+    await logEvent(env, {
+      event: "list.contact_sync_threw",
+      message: "Adding a contact to the list threw",
+      err,
+    });
     return false;
   }
 }
@@ -568,10 +630,18 @@ export async function syncContactRemoved(
       { method: "DELETE", headers: resendHeaders(env) },
     );
     if (res.ok || res.status === 404) return true;
-    console.error("resend contact remove failed", await res.text());
+    await logEvent(env, {
+      event: "list.contact_remove_refused",
+      message: `Resend answered ${res.status} to a contact removal`,
+      detail: { answer: (await res.text().catch(() => "")).slice(0, 500) },
+    });
     return false;
   } catch (err) {
-    console.error("resend contact remove failed", err);
+    await logEvent(env, {
+      event: "list.contact_remove_threw",
+      message: "Removing a contact from the list threw",
+      err,
+    });
     return false;
   }
 }
@@ -582,17 +652,28 @@ export async function sendCollectorBroadcast(
   subject: unknown = "",
   body: unknown = "",
   opts: BroadcastOptions = {},
-): Promise<{ sent: number; total: number }> {
-  const total = await countSegmentContacts(env).catch(() => 0);
-  const inbox = artistInbox(env);
+): Promise<{ sent: number; total: number; failed: boolean }> {
   if (env.RESEND_API_KEY === undefined || env.RESEND_API_KEY === "") {
-    return { sent: 0, total };
+    return { sent: 0, total: 0, failed: false };
   }
-  if (inbox === "" || total === 0) return { sent: 0, total };
+  let total: number;
+  try {
+    total = await countSegmentContacts(env);
+  } catch (err) {
+    // Not "the list is empty": the list couldn't be read.
+    await logEvent(env, {
+      event: "broadcast.count_failed",
+      message: "Couldn't read the email list before a broadcast",
+      err,
+    });
+    return { sent: 0, total: 0, failed: true };
+  }
+  const inbox = artistInbox(env);
+  if (inbox === "" || total === 0) return { sent: 0, total, failed: false };
   const ok = await sendSegmentBroadcast(env, site, subject, body, opts).catch(
     () => false,
   );
-  return { sent: ok ? total : 0, total };
+  return { sent: ok ? total : 0, total, failed: !ok };
 }
 
 async function sendPush(

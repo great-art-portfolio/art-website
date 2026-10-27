@@ -197,6 +197,8 @@ export const notifySchema = z.object({
   emailTotal: z.number(),
   /** Held until the painting's page is live. */
   scheduled: z.boolean().default(false),
+  /** The send was tried and didn't go out. */
+  failed: z.boolean().default(false),
 });
 
 /** Admin: everyone on the email list, for the studio's list page. */
