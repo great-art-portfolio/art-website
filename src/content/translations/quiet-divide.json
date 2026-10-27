@@ -1,0 +1,75 @@
+{
+  "source": "bbbtw1",
+  "fr": {
+    "title": "Frontière tranquille",
+    "description": "Fraîchement sorti de l’atelier.",
+    "alt": "",
+    "medium": "Acrylique sur toile"
+  },
+  "es": {
+    "title": "Divisoria tranquila",
+    "description": "Recién salida del estudio.",
+    "alt": "",
+    "medium": "Acrílico sobre lienzo"
+  },
+  "pt": {
+    "title": "Divisória silenciosa",
+    "description": "Recém-saída do ateliê.",
+    "alt": "",
+    "medium": "Acrílico sobre tela"
+  },
+  "de": {
+    "title": "Stille Grenze",
+    "description": "Frisch aus dem Atelier.",
+    "alt": "",
+    "medium": "Acryl auf Leinwand"
+  },
+  "it": {
+    "title": "Divisione silenziosa",
+    "description": "Appena uscito dallo studio.",
+    "alt": "",
+    "medium": "Acrilico su tela"
+  },
+  "nl": {
+    "title": "Stille scheiding",
+    "description": "Vers uit het atelier.",
+    "alt": "",
+    "medium": "Acryl op doek"
+  },
+  "pl": {
+    "title": "Cichy podział",
+    "description": "Prosto z pracowni.",
+    "alt": "",
+    "medium": "Akryl na płótnie"
+  },
+  "ja": {
+    "title": "静かな分岐",
+    "description": "アトリエから描きたてです。",
+    "alt": "",
+    "medium": "キャンバスにアクリル"
+  },
+  "ko": {
+    "title": "고요한 분수령",
+    "description": "스튜디오에서 갓 나온 작품입니다.",
+    "alt": "",
+    "medium": "캔버스에 아크릴"
+  },
+  "zh": {
+    "title": "静谧分界",
+    "description": "工作室新作。",
+    "alt": "",
+    "medium": "布面丙烯"
+  },
+  "hi": {
+    "title": "शांत विभाजन",
+    "description": "स्टूडियो से ताज़ा-ताज़ा।",
+    "alt": "",
+    "medium": "कैनवास पर ऐक्रेलिक"
+  },
+  "pa": {
+    "title": "ਸ਼ਾਂਤ ਵੰਡ",
+    "description": "ਸਟੂਡੀਓ ਤੋਂ ਤਾਜ਼ਾ-ਤਾਜ਼ਾ।",
+    "alt": "",
+    "medium": "ਕੈਨਵਸ ਉੱਤੇ ਐਕ੍ਰੀਲਿਕ"
+  }
+}
