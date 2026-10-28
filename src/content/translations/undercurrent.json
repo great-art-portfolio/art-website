@@ -1,75 +1,75 @@
 {
-  "source": "jfxv2u",
+  "source": "4ctrgb",
   "fr": {
     "title": "Sous-courant",
-    "description": "Fraîchement sortie de l'atelier.",
-    "alt": "",
-    "medium": "Impression sur toile d'une peinture acrylique originale"
+    "description": "Fraîchement sortie de l’atelier.",
+    "alt": "Peinture abstraite grand format aux formes inclinées bleu sarcelle, bleu marine, crème et pêche, avec de fines lignes d’esquisse grises.",
+    "medium": "Reproduction sur toile d’une peinture acrylique originale"
   },
   "es": {
     "title": "Contracorriente",
     "description": "Recién salida del estudio.",
-    "alt": "",
+    "alt": "Pintura abstracta apaisada de formas inclinadas en verde azulado, azul marino, crema y melocotón, con finas líneas de boceto grises.",
     "medium": "Impresión en lienzo de una pintura acrílica original"
   },
   "pt": {
     "title": "Contracorrente",
-    "description": "Recém-saída do ateliê.",
-    "alt": "",
+    "description": "Acabada de sair do ateliê.",
+    "alt": "Pintura abstrata ampla de formas inclinadas em verde-azulado, azul-marinho, creme e pêssego, com finas linhas de esboço cinzentas.",
     "medium": "Impressão em tela de uma pintura acrílica original"
   },
   "de": {
     "title": "Unterströmung",
     "description": "Frisch aus dem Atelier.",
-    "alt": "",
+    "alt": "Breites abstraktes Gemälde mit schrägen Formen in Petrol, Marineblau, Creme und Pfirsich mit dünnen grauen Skizzenlinien.",
     "medium": "Leinwanddruck eines originalen Acrylgemäldes"
   },
   "it": {
     "title": "Sottocorrente",
-    "description": "Appena uscito dallo studio.",
-    "alt": "",
+    "description": "Fresco di studio.",
+    "alt": "Ampio dipinto astratto con forme oblique nei toni verde acqua, blu navy, crema e pesca, con sottili linee di schizzo grigie.",
     "medium": "Stampa su tela di un dipinto acrilico originale"
   },
   "nl": {
     "title": "Onderstroom",
     "description": "Vers uit het atelier.",
-    "alt": "",
+    "alt": "Breed abstract schilderij met hellende vormen in teal, marineblauw, crème en perzik, met dunne grijze schetslijnen.",
     "medium": "Canvasprint van een origineel acrylschilderij"
   },
   "pl": {
     "title": "Podprąd",
     "description": "Prosto z pracowni.",
-    "alt": "",
+    "alt": "Szeroki abstrakcyjny obraz z pochyłymi kształtami w kolorach morskim, granatowym, kremowym i brzoskwiniowym, z cienkimi szarymi liniami szkicu.",
     "medium": "Wydruk na płótnie oryginalnego obrazu akrylowego"
   },
   "ja": {
     "title": "底流",
-    "description": "スタジオからできたてです。",
-    "alt": "",
+    "description": "スタジオから生まれたばかり。",
+    "alt": "ティール、ネイビー、クリーム、ピーチ色の傾く形に、細いグレーのスケッチ線を添えた横長の抽象画。",
     "medium": "オリジナルのアクリル画のキャンバスプリント"
   },
   "ko": {
     "title": "암류",
-    "description": "스튜디오에서 갓 나온 작품입니다.",
-    "alt": "",
-    "medium": "아크릴 원화 캔버스 프린트"
+    "description": "스튜디오에서 막 나온 신작이에요.",
+    "alt": "기울어진 청록색, 남색, 크림색과 복숭아색 도형에 얇은 회색 스케치 선이 더해진 넓은 추상화.",
+    "medium": "아크릴 원화의 캔버스 프린트"
   },
   "zh": {
     "title": "暗流",
-    "description": "工作室新作。",
-    "alt": "",
-    "medium": "丙烯原画帆布印刷品"
+    "description": "刚从工作室带来的新作。",
+    "alt": "宽幅抽象画，倾斜的青绿色、深蓝色、米白色和蜜桃色色块，配着细细的灰色线条。",
+    "medium": "原创丙烯画的帆布版画"
   },
   "hi": {
     "title": "अंतर्धारा",
-    "description": "स्टूडियो से बिल्कुल ताज़ा।",
-    "alt": "",
-    "medium": "मूल ऐक्रेलिक पेंटिंग का कैनवस प्रिंट"
+    "description": "स्टूडियो से बिल्कुल ताज़ा आई हुई।",
+    "alt": "ढलानदार टील, गहरे नीले, क्रीम और आड़ू रंग के आकारों वाली चौड़ी ऐब्स्ट्रैक्ट पेंटिंग, जिस पर पतली भूरी स्केच लाइनें हैं।",
+    "medium": "मूल ऐक्रेलिक पेंटिंग का कैनवास प्रिंट"
   },
   "pa": {
-    "title": "ਅੰਤਰਧਾਰਾ",
-    "description": "ਸਟੂਡੀਓ ਤੋਂ ਬਿਲਕੁਲ ਤਾਜ਼ਾ।",
-    "alt": "",
+    "title": "ਹੇਠਲੀ ਲਹਿਰ",
+    "description": "ਸਟੂਡੀਓ ਤੋਂ ਬਿਲਕੁਲ ਤਾਜ਼ਾ ਆਈ।",
+    "alt": "ਢਲਵੇਂ ਟੀਲ, ਗੂੜ੍ਹੇ ਨੀਲੇ, ਕਰੀਮ ਅਤੇ ਆੜੂ ਰੰਗਾਂ ਦੇ ਆਕਾਰਾਂ ਵਾਲੀ ਚੌੜੀ ਐਬਸਟ੍ਰੈਕਟ ਪੇਂਟਿੰਗ, ਜਿਸ ਉੱਤੇ ਪਤਲੀਆਂ ਸਲੇਟੀ ਸਕੈੱਚ ਲਾਈਨਾਂ ਹਨ।",
     "medium": "ਅਸਲ ਐਕ੍ਰੀਲਿਕ ਪੇਂਟਿੰਗ ਦਾ ਕੈਨਵਸ ਪ੍ਰਿੰਟ"
   }
 }
