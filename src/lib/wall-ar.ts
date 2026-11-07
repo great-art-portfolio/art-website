@@ -14,10 +14,12 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 export interface WallArWords {
-  /** Shown until tracking starts. Floors and furniture have the detail
-   * tracking needs; a plain wall often doesn't, so start low, like Google's
-   * viewer does, then turn to the wall. */
+  /** Shown until tracking starts: the phone has to move to see the room. */
   move: string;
+  /** Replaces move when tracking still hasn't started: buyers aim at the
+   * wall, and a plain wall may never start it, while floors and furniture
+   * have the detail it needs (Google's viewer starts on the floor). */
+  stuck: string;
   /** Shown while tracking finds no wall in the middle of the view. */
   aim: string;
   /** Shown while the outline sits on a wall. */
@@ -52,6 +54,13 @@ export class WallArError extends Error {
 
 /** After this long with no wall, the note offers a tip instead. */
 const HINT_AFTER_MS = 12000;
+/** Once it hangs, a new spot is offered only this far from it (metres),
+ * or on a wall turned this much from its own (radians, ~30°). */
+const OFFER_AWAY_M = 0.75;
+const OFFER_TURN_RAD = 0.5;
+const upAxis = new THREE.Vector3(0, 1, 0);
+/** After this long without tracking, it suggests the floor. */
+const STUCK_AFTER_MS = 6000;
 
 /** A hit counts as a wall when its normal is within ~20° of horizontal. */
 const WALL_NORMAL_MAX_Y = 0.35;
@@ -103,7 +112,7 @@ export function start(options: WallArOptions): Promise<void> {
     );
 }
 
-type Note = "move" | "aim" | "hint" | "tap" | "";
+type Note = "move" | "stuck" | "aim" | "hint" | "tap" | "";
 
 interface Overlay {
   root: HTMLDivElement;
@@ -161,10 +170,12 @@ function buildOverlay(words: WallArWords): Overlay {
   Object.assign(note.style, {
     position: "absolute",
     left: "50%",
-    bottom: "max(2.5rem, env(safe-area-inset-bottom))",
+    // Top, under the close button: Chrome covers the bottom with its own
+    // "to exit full screen" notice for the first seconds.
+    top: "calc(env(safe-area-inset-top, 0px) + 7.25rem)",
     transform: "translateX(-50%)",
     display: "flex",
-    flexDirection: "column",
+    flexDirection: "column-reverse",
     alignItems: "center",
     gap: ".75rem",
     color: "#fff",
@@ -194,7 +205,7 @@ function buildOverlay(words: WallArWords): Overlay {
     say(key) {
       root.dataset.note = key;
       if (key !== "") text.textContent = words[key];
-      phone.style.display = key === "move" ? "" : "none";
+      phone.style.display = key === "move" || key === "stuck" ? "" : "none";
       note.style.opacity = key === "" ? "0" : "1";
     },
   };
@@ -527,6 +538,16 @@ async function run(
     const touches: XRInputSource[] = [];
     let touchStart = 0;
     let touchMoved = 0;
+    /** Whether the first finger came down on the painting (a drag) or
+     * elsewhere (a tap); null until the next frame can tell. */
+    let grabbed: boolean | null = null;
+    const onPainting = (at: THREE.Vector3) => {
+      const local = hung.worldToLocal(at.clone());
+      return (
+        Math.abs(local.x) < size.x / 2 + 0.15 &&
+        Math.abs(local.y) < size.y / 2 + 0.15
+      );
+    };
     let twisted = false;
     let lastFinger: THREE.Vector3 | null = null;
     let lastTwist: number | null = null;
@@ -537,6 +558,7 @@ async function run(
         touchStart = performance.now();
         touchMoved = 0;
         twisted = false;
+        grabbed = null;
       }
       lastFinger = null;
       lastTwist = null;
@@ -547,7 +569,8 @@ async function run(
       lastFinger = null;
       lastTwist = null;
       if (touches.length > 0) return;
-      if (!twisted && performance.now() - touchStart < 350 && touchMoved < 0.02)
+      const quick = performance.now() - touchStart < 400;
+      if (!twisted && quick && (grabbed !== true || touchMoved < 0.02))
         tapped = true;
       // Moved by hand: pin it again where it landed.
       else if (hung.visible) anchorWanted = true;
@@ -561,6 +584,7 @@ async function run(
 
     let said: Note | null = null;
     let lookingSince = -1;
+    let lostSince = -1;
     let wasFirm = false;
     const say = (key: Note) => {
       if (key !== said) overlay.say(key);
@@ -581,8 +605,14 @@ async function run(
         const p = frame.getPose(anchor.anchorSpace, refSpace);
         if (p) {
           m.fromArray(p.transform.matrix);
-          m.decompose(hung.position, hung.quaternion, hung.scale);
-          hung.scale.setScalar(1);
+          hung.position.setFromMatrixPosition(m);
+          // Take only the anchor's heading: a painting never leans, even
+          // when ARCore nudges the anchor's tilt.
+          const facing = toViewer.set(0, 0, 1).transformDirection(m);
+          hung.quaternion.setFromAxisAngle(
+            upAxis,
+            Math.atan2(facing.x, facing.z),
+          );
         }
       }
       if (anchorWanted && touches.length === 0 && !snapping) reanchor(frame);
@@ -590,7 +620,10 @@ async function run(
       const finger = touches.length === 1 ? touches[0] : undefined;
       if (finger !== undefined && hung.visible) {
         const at = fingerHit(frame, finger);
-        if (at !== null) {
+        // Only a finger that lands on the painting moves it, as in Google's
+        // viewer; elsewhere a touch is a tap (hang it at the outline).
+        if (grabbed === null) grabbed = at !== null && onPainting(at);
+        if (at !== null && grabbed) {
           if (lastFinger !== null) {
             touchMoved += at.distanceTo(lastFinger);
             hung.position.add(at.clone().sub(lastFinger));
@@ -611,7 +644,9 @@ async function run(
           lastTwist = angle;
         }
       }
-      const handling = touches.length > 0 && (touchMoved >= 0.02 || twisted);
+      const handling =
+        touches.length > 0 &&
+        ((grabbed === true && touchMoved >= 0.02) || twisted);
 
       const source = tracking && pose && !handling ? findWall(frame, pose) : "";
       let offer = false;
@@ -648,14 +683,16 @@ async function run(
         offer =
           !snapping &&
           (!hung.visible ||
-            goal.position.distanceTo(hung.position) > 0.3 ||
-            goal.quaternion.angleTo(hung.quaternion) > 0.35);
+            goal.position.distanceTo(hung.position) > OFFER_AWAY_M ||
+            goal.quaternion.angleTo(hung.quaternion) > OFFER_TURN_RAD);
         if (!aim.visible) {
           aim.position.copy(goal.position);
           aim.quaternion.copy(goal.quaternion);
         } else {
-          aim.position.lerp(goal.position, 0.25);
-          aim.quaternion.slerp(goal.quaternion, 0.2);
+          // Depth is noisy: follow it gently. A recognised wall is steady.
+          const ease = source === "plane" ? 0.3 : 0.1;
+          aim.position.lerp(goal.position, ease);
+          aim.quaternion.slerp(goal.quaternion, ease);
         }
       }
       aim.visible = offer;
@@ -690,7 +727,9 @@ async function run(
       overlay.root.dataset.anchored = anchor === null ? "" : "1";
       if (lookingSince < 0 || !tracking || hung.visible || aim.visible)
         lookingSince = time;
-      if (!tracking) say("move");
+      if (tracking) lostSince = -1;
+      else if (lostSince < 0) lostSince = time;
+      if (!tracking) say(time - lostSince > STUCK_AFTER_MS ? "stuck" : "move");
       else if (aim.visible) say("tap");
       else if (hung.visible) say("");
       else say(time - lookingSince > HINT_AFTER_MS ? "hint" : "aim");

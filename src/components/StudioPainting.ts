@@ -575,13 +575,15 @@ function showArViewer(glbUrl: string, usdzUrl: string): void {
         arButton,
         glbUrl,
         {
-          move: "Point at the floor and move slowly",
+          move: "Move your phone slowly",
+          stuck: "Point at the floor for a moment",
           aim: "Point at the wall",
           tap: "Tap to hang it here",
           hint: "Point at a switch or outlet on the wall",
           close: "Close",
         },
         () => setStatus("The wall view didn\u2019t open. Try again.", true),
+        () => (arButton.textContent = "Try again with fallback"),
       );
     })
     .catch(() => {

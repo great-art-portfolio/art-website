@@ -124,13 +124,15 @@ export const de: Strings = {
     checkoutUnavailable:
       "Die Kasse ist gerade nicht verfügbar. Bitte versuchen Sie es erneut.",
     viewOnWall: "An Ihrer Wand ansehen",
-    arMove: "Zielen Sie auf den Boden und bewegen Sie das Handy langsam",
+    arMove: "Bewegen Sie das Handy langsam",
+    arStuck: "Zielen Sie kurz auf den Boden",
     arAim: "Richten Sie das Handy auf die Wand",
     arTap: "Tippen, um es hier aufzuhängen",
     arClose: "Schließen",
     arHint: "Zielen Sie auf einen Schalter oder eine Steckdose an der Wand",
     arFailed:
       "Die Wandansicht ließ sich nicht öffnen. Bitte versuchen Sie es erneut.",
+    arTryFallback: "Erneut mit Ersatzansicht versuchen",
     share: "Dieses Gemälde teilen",
     copyLink: "Link zu diesem Gemälde kopieren",
     copied: "Kopiert.",
