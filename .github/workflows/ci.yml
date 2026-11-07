@@ -1,9 +1,13 @@
 name: CI
 
 on:
+  # Notes alone (top-level *.md, docs/) skip the run; her paintings are .md
+  # under src/content, so they still run.
   push:
     branches: [main]
+    paths-ignore: ["*.md", "docs/**"]
   pull_request:
+    paths-ignore: ["*.md", "docs/**"]
 
 # The job only reads the code; it never needs to write to the repo.
 permissions:
