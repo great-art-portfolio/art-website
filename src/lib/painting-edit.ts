@@ -65,9 +65,44 @@ export interface PaintingEdits {
   modelUsdz?: string;
 }
 
-/** Quotes a one-line YAML string with escapes. */
+/** Quotes a one-line YAML string with escapes. Line breaks of any kind,
+ * including the U+2028/U+2029 separators pasted text can carry, become
+ * spaces: one would end the line in some readers and not others, and
+ * corrupt the file on the next save. */
 export function yamlQuote(s: string): string {
-  return `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+  const oneLine = s.replace(/[\r\n\u2028\u2029]+/g, " ");
+  return `"${oneLine.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
+/** Runs `edit` on the frontmatter only (between the --- fences), so a
+ * description line that happens to start with "medium:" or "order:" is
+ * never touched. Files without frontmatter pass through. */
+function inFront(md: string, edit: (front: string) => string): string {
+  const m = /^(---\r?\n)([\s\S]*?)(\r?\n---)/.exec(md);
+  if (m === null) return md;
+  const [whole, open = "", front = "", close = ""] = m;
+  return open + edit(front) + close + md.slice(whole.length);
+}
+
+/** A whole frontmatter line for `key`, with its line break. */
+const keyLine = (key: string): RegExp =>
+  new RegExp(`^${key}:[^\\r\\n]*(\\r?\\n)?`, "m");
+
+/** Removes a frontmatter key's line. */
+function dropKey(md: string, key: string): string {
+  return inFront(md, (front) =>
+    front.replace(keyLine(key), "").replace(/\r?\n$/, ""),
+  );
+}
+
+/** Whether the frontmatter has `key`. */
+function hasKey(md: string, key: string): boolean {
+  let found = false;
+  inFront(md, (front) => {
+    found = keyLine(key).test(front);
+    return front;
+  });
+  return found;
 }
 
 function unquote(s: string): string {
@@ -123,11 +158,15 @@ function parseOrder(raw: string | undefined): number | null {
 
 /** Sets or clears the gallery `order:` key without leaving a blank line. */
 export function setOrder(md: string, order: number | null): string {
-  const re = /^order:.*(\r?\n?)/m;
-  if (order === null) return md.replace(re, "");
+  if (order === null) return dropKey(md, "order");
   const line = `order: ${order}`;
-  if (re.test(md)) return md.replace(re, `${line}$1`);
-  return md.replace(/^(title:.*)(\r?\n)/m, `$1$2${line}$2`);
+  if (hasKey(md, "order")) return patchKey(md, "order", String(order));
+  return inFront(md, (front) =>
+    front.replace(
+      /^(title:[^\r\n]*)(\r?\n)/m,
+      (_, t: string, nl: string) => `${t}${nl}${line}${nl}`,
+    ),
+  );
 }
 
 /** The studio's time zone. A "Publish on" date means her calendar day,
@@ -220,10 +259,8 @@ export function formatAlerts(choice: AlertChoice): string {
  * nightly from scripts/publish-due.mjs; whichever publishes it sends the
  * alerts. */
 export function publishDue(md: string): string {
-  const next = md.replace(/^draft:.*$/m, "draft: false");
-  return next
-    .replace(/^publishOn:.*(\r?\n?)/m, "")
-    .replace(/^alertOnPublish:.*(\r?\n?)/m, "");
+  const next = hasKey(md, "draft") ? patchKey(md, "draft", "false") : md;
+  return dropKey(dropKey(next, "publishOn"), "alertOnPublish");
 }
 
 /** Sets the trash flag. Trashing records today's date, and restoring
@@ -233,9 +270,7 @@ export function setTrash(
   trash: boolean,
   date: string | null,
 ): string {
-  const drop = (text: string, key: string): string =>
-    text.replace(new RegExp(`^${key}:.*(\r?\n?)`, "m"), "");
-  if (!trash) return drop(drop(md, "trash"), "trashedAt");
+  if (!trash) return dropKey(dropKey(md, "trash"), "trashedAt");
   let next = patchKey(md, "trash", "true");
   // Quoted because Astro's YAML loader parses a bare date as a Date, which
   // fails the string schema at build time.
@@ -260,12 +295,17 @@ export function soldSessionOf(md: string): string {
 
 /** Rewrites one frontmatter key in place, preserving the other lines. */
 function patchKey(md: string, key: string, value: string): string {
-  const re = new RegExp(`^${key}:.*$`, "m");
+  const re = new RegExp(`^${key}:[^\\r\\n]*`, "m");
   // Replacer functions, so a "$'" or "$&" in her text stays literal instead
   // of splicing the file into the line.
   const line = `${key}: ${value}`;
-  if (re.test(md)) return md.replace(re, () => line);
-  return md.replace(/^---\r?\n/, () => `---\n${line}\n`);
+  return inFront(md, (front) =>
+    re.test(front)
+      ? front.replace(re, () => line)
+      : front === ""
+        ? line
+        : `${line}\n${front}`,
+  );
 }
 
 /** Applies edits to a .md file. Empty dimension strings leave keys
@@ -282,25 +322,25 @@ export function patchPainting(md: string, edits: PaintingEdits): string {
   if (edits.publishOn !== undefined) {
     const due = normalizePublishOn(edits.publishOn);
     if (due === "") {
-      next = next.replace(/^publishOn:.*(\r?\n?)/m, "");
+      next = dropKey(next, "publishOn");
       // Alerts only wait for a scheduled day.
-      next = next.replace(/^alertOnPublish:.*(\r?\n?)/m, "");
+      next = dropKey(next, "alertOnPublish");
     } else {
       next = patchKey(next, "publishOn", yamlQuote(due));
     }
   }
-  if (edits.alertOnPublish !== undefined && /^publishOn:/m.test(next)) {
+  if (edits.alertOnPublish !== undefined && hasKey(next, "publishOn")) {
     const alerts = formatAlerts(parseAlerts(edits.alertOnPublish));
     next =
       alerts === ""
-        ? next.replace(/^alertOnPublish:.*(\r?\n?)/m, "")
+        ? dropKey(next, "alertOnPublish")
         : patchKey(next, "alertOnPublish", yamlQuote(alerts));
   }
   // Same set-or-clear handling as publishOn.
   if (edits.slugHistory !== undefined) {
     const history = formatSlugHistory(parseSlugHistory(edits.slugHistory));
     if (history === "") {
-      next = next.replace(/^slugHistory:.*(\r?\n?)/m, "");
+      next = dropKey(next, "slugHistory");
     } else {
       next = patchKey(next, "slugHistory", yamlQuote(history));
     }
@@ -308,7 +348,7 @@ export function patchPainting(md: string, edits: PaintingEdits): string {
   // Medium is optional. An empty field removes the key rather than storing
   // a blank string.
   if (edits.medium.trim() === "") {
-    next = next.replace(/^medium:.*\r?$/m, "");
+    next = dropKey(next, "medium");
   } else {
     next = patchKey(next, "medium", yamlQuote(edits.medium.trim()));
   }

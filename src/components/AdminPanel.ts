@@ -907,7 +907,10 @@ async function emptyTrash(): Promise<void> {
   setStatus(
     `Emptying the trash… (${trashed.length === 1 ? "1 painting" : `${trashed.length} paintings`})`,
   );
+  // Only paintings whose file was read are deleted, and counted: one that
+  // couldn't be read (a network blip) stays in trash for next time.
   const paths: string[] = [];
+  const done: string[] = [];
   for (const r of trashed) {
     if (r.mdPath === "") continue;
     const content = await api.getPaintingFile(r.mdPath);
@@ -915,17 +918,22 @@ async function emptyTrash(): Promise<void> {
     const parsed = parsePainting(content);
     if (parsed === null) continue;
     paths.push(...paintingFilePaths(r.mdPath, parsed));
+    done.push(r.mdPath);
   }
-  await api.deleteFiles(
-    `Empty trash (${trashed.length} paintings)`,
-    await withTranslations(
-      paths,
-      trashed.map((r) => r.mdPath),
-    ),
-  );
+  const left = trashed.length - done.length;
+  if (done.length > 0) {
+    await api.deleteFiles(
+      `Empty trash (${done.length} paintings)`,
+      await withTranslations(paths, done),
+    );
+  }
   await refreshCollection();
+  const count = (n: number) => (n === 1 ? "1 painting" : `${n} paintings`);
   setStatus(
-    `Emptied the trash — ${trashed.length === 1 ? "1 painting" : `${trashed.length} paintings`}, gone for good.`,
+    left === 0
+      ? `Emptied the trash — ${count(done.length)}, gone for good.`
+      : `Emptied ${count(done.length)}. ${count(left)} couldn't be reached and stayed in trash — try again.`,
+    left > 0,
   );
 }
 
@@ -936,7 +944,10 @@ async function purgeOldTrash(rows: LocalPainting[]): Promise<LocalPainting[]> {
     (r) => r.trash && (trashAgeDays(r.trashedAt) ?? 0) > 30,
   );
   if (old.length === 0) return rows;
+  // As in emptying the trash: a file that couldn't be read stays for the
+  // next load rather than being reported as cleared.
   const paths: string[] = [];
+  const cleared: LocalPainting[] = [];
   for (const r of old) {
     if (r.mdPath === "") continue;
     const content = await api.getPaintingFile(r.mdPath);
@@ -944,19 +955,19 @@ async function purgeOldTrash(rows: LocalPainting[]): Promise<LocalPainting[]> {
     const parsed = parsePainting(content);
     if (parsed === null) continue;
     paths.push(...paintingFilePaths(r.mdPath, parsed));
+    cleared.push(r);
   }
-  if (paths.length > 0) {
-    await api.deleteFiles(
-      `Clear old trash (${old.length} paintings)`,
-      await withTranslations(
-        paths,
-        old.map((r) => r.mdPath),
-      ),
-    );
-  }
-  const gone = new Set(old.map((r) => r.slug));
+  if (cleared.length === 0) return rows;
+  await api.deleteFiles(
+    `Clear old trash (${cleared.length} paintings)`,
+    await withTranslations(
+      paths,
+      cleared.map((r) => r.mdPath),
+    ),
+  );
+  const gone = new Set(cleared.map((r) => r.slug));
   setStatus(
-    `Cleared ${old.length === 1 ? "1 painting" : `${old.length} paintings`} trashed over 30 days ago.`,
+    `Cleared ${cleared.length === 1 ? "1 painting" : `${cleared.length} paintings`} trashed over 30 days ago.`,
   );
   return rows.filter((r) => !gone.has(r.slug));
 }

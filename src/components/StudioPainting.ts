@@ -123,6 +123,8 @@ let fix: PhotoFix | null = null;
 let photoGen = 0;
 let previewModels: { sig: string; glb: Blob; usdz: Blob } | null = null;
 let photoReplaced = false;
+/** A chosen photo still being read and prepared. */
+let photoLoading = false;
 
 function readDims(): {
   widthIn: number | null;
@@ -734,13 +736,50 @@ function readFields(): FieldSet | null {
   };
 }
 
-/** The Sold value to save over git's copy. The box is filled from the last
- * build, so a sale since (the webhook commits sold: true) isn't in it:
- * unless she changed the box herself, git's value stands, and an edit made
- * after a sale can't put the painting back on sale. */
-function soldToSave(gitSold: boolean, boxSold: boolean): boolean {
-  const box = $("de-sold");
-  return boxSold === box.defaultChecked ? gitSold : boxSold;
+/** Whether she changed a field in this room. The form is filled from the
+ * last build, which can be older than git (a save of hers just before, a
+ * sale, a reorder): a field she didn't touch must keep git's value, or a
+ * save would quietly undo those. Restored autosave text counts as hers. */
+function edited(id: string): boolean {
+  const el = document.getElementById(id);
+  if (el instanceof HTMLInputElement && el.type === "checkbox")
+    return el.checked !== el.defaultChecked;
+  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)
+    return el.value !== el.defaultValue;
+  return true;
+}
+
+/** The fields to save: hers where she changed them, git's latest copy
+ * everywhere else. */
+function mergedFields(
+  fresh: ParsedPainting,
+  fields: FieldSet,
+): Pick<
+  PaintingEdits,
+  | "title"
+  | "price"
+  | "alt"
+  | "description"
+  | "widthIn"
+  | "heightIn"
+  | "depthIn"
+  | "medium"
+  | "sold"
+> & { publishOn: string } {
+  const dim = (id: string, mine: number | null, git: string): string =>
+    edited(id) ? (mine === null ? "" : String(mine)) : git;
+  return {
+    title: edited("de-title") ? fields.title : fresh.title,
+    price: edited("de-price") ? fields.price.toFixed(2) : fresh.price,
+    alt: edited("de-alt") ? fields.alt : fresh.alt,
+    description: edited("de-desc") ? fields.description : fresh.description,
+    widthIn: dim("de-w", fields.widthIn, fresh.widthIn),
+    heightIn: dim("de-h", fields.heightIn, fresh.heightIn),
+    depthIn: dim("de-d", fields.depthIn, fresh.depthIn),
+    medium: edited("de-medium") ? fields.medium : fresh.medium,
+    sold: edited("de-sold") ? fields.sold : fresh.sold,
+    publishOn: edited("de-publish-on") ? fields.publishOn : fresh.publishOn,
+  };
 }
 
 /** Autosaves form input so it survives a refresh or crash. Photos aren't
@@ -888,7 +927,6 @@ function restoreAutosave(): void {
   set("de-w", next["w"] ?? "");
   set("de-h", next["h"] ?? "");
   set("de-d", next["d"] ?? "");
-  set("de-sold", next["sold"] ?? false);
   set("de-publish-on", next["publishOn"] ?? "");
   refreshPreview();
 }
@@ -1149,29 +1187,42 @@ async function saveEdit(
     );
     return;
   }
+  if (photoLoading) {
+    setStatus("The new photo is still loading. Save again in a moment.", true);
+    return;
+  }
   if (await titleClash(fields.title, slug)) return;
   setStatus("Saving… (live in a few minutes)");
-  const translating = startTranslation(mdPath, fields);
   let previewNote: string | null = null;
   try {
+    // The latest copy in git, not the one from when the room opened: a sale
+    // or another save may have landed since.
+    const latest = await loadEditBase(mdPath);
+    if (latest === null)
+      throw new Error("Couldn't load the latest copy of this painting");
+    base = latest;
+    const merged = mergedFields(base.parsed, fields);
+    // Save never publishes or unpublishes: git's flag stands.
+    draft = base.parsed.draft;
+    const translating = startTranslation(mdPath, {
+      ...fields,
+      title: merged.title,
+      description: merged.description,
+      alt: merged.alt,
+    });
     const imageFile =
       base.parsed.image === "" ? `${slug}.jpg` : base.parsed.image;
     const files: Array<{ path: string; blob: Blob | string }> = [];
     const edits: PaintingEdits = {
-      title: fields.title,
-      price: fields.price.toFixed(2),
-      alt: fields.alt,
-      description: fields.description,
-      widthIn: fields.widthIn === null ? "" : String(fields.widthIn),
-      heightIn: fields.heightIn === null ? "" : String(fields.heightIn),
-      depthIn: fields.depthIn === null ? "" : String(fields.depthIn),
-      medium: fields.medium,
+      ...merged,
       draft,
-      sold: soldToSave(base.parsed.sold, fields.sold),
-      publishOn: fields.publishOn,
       // A scheduled draft keeps her alert ticks for its day.
       alertOnPublish: draft ? formatAlerts(alertChoice()) : "",
-      slugHistory: renamedHistory(base.parsed, slug, fields.title),
+      slugHistory: renamedHistory(
+        base.parsed,
+        slugifyTitle(base.parsed.title) || slug,
+        merged.title,
+      ),
     };
     if (photoReplaced && preparedBlob !== null) {
       // New photo: build its models and commit everything together.
@@ -1195,6 +1246,8 @@ async function saveEdit(
         },
         { path: `src/content/paintings/${imageFile}`, blob: preparedBlob },
       );
+      if (models === null)
+        previewNote = "it couldn't be built for the new photo.";
       if (models !== null) {
         const stem = (ref: string): string => ref.replace(/^\/models\//, "");
         files.push(
@@ -1225,12 +1278,12 @@ async function saveEdit(
     }
     const translation = await finishTranslation(translating);
     if (translation !== null) files.push(translation);
-    await api.commitFiles(`Edit painting: ${fields.title}`, files);
+    await api.commitFiles(`Edit painting: ${merged.title}`, files);
     buzz();
     const saved =
-      draft && fields.publishOn !== ""
-        ? `Saved "${fields.title}" — goes live ${fields.publishOn}.${alertsLater(alertChoice())}`
-        : `Saved "${fields.title}" — live in a few minutes.`;
+      draft && merged.publishOn !== ""
+        ? `Saved "${merged.title}" — goes live ${merged.publishOn}.${alertsLater(alertChoice())}`
+        : `Saved "${merged.title}" — live in a few minutes.`;
     goAdmin(
       previewNote === null
         ? saved
@@ -1470,11 +1523,15 @@ function initStudio(): void {
     const file = draftInput.files?.[0];
     if (file === undefined) return;
     rotation = 0;
+    photoLoading = true;
     loadImageFile(file)
       .then((img) => ingestPhoto(img))
       .catch((err: unknown) =>
         setStatus(`${errorMessage(err)}.${heicHint(file)}`, true),
-      );
+      )
+      .finally(() => {
+        photoLoading = false;
+      });
   });
   for (const deg of [90, 270] as const) {
     maybe(`de-rotate-${deg}`)?.addEventListener("click", () => {
@@ -1531,11 +1588,15 @@ function initStudio(): void {
     const file = replaceFile.files?.[0];
     if (file === undefined) return;
     rotation = 0;
+    photoLoading = true;
     loadImageFile(file)
       .then((img) => ingestPhoto(img))
       .catch((err: unknown) =>
         setStatus(`${errorMessage(err)}.${heicHint(file)}`, true),
-      );
+      )
+      .finally(() => {
+        photoLoading = false;
+      });
   });
 
   // Wire the buttons now while the file loads. If it fails to load outside
@@ -1594,8 +1655,20 @@ function initStudio(): void {
           );
           return;
         }
+        if (photoReplaced || photoLoading) {
+          setStatus(
+            "Save the new photo first, then publish or unpublish.",
+            true,
+          );
+          return;
+        }
         setStatus(draft ? "Publishing…" : "Unpublishing…");
-        patchFlipDraft(mdPath, base, slug, !draft, fields)
+        loadEditBase(mdPath)
+          .then((latest) => {
+            if (latest === null)
+              throw new Error("Couldn't load the latest copy of this painting");
+            return patchFlipDraft(mdPath, latest, slug, !draft, fields);
+          })
           .then(async () => {
             buzz();
             const alerts = draft ? await publishAlerts(mdPath) : "";
@@ -1620,7 +1693,8 @@ function initStudio(): void {
         );
         return;
       }
-      const base = await basePromise;
+      // The latest copy, so trash (and a later restore) keeps every save.
+      const base = await loadEditBase(mdPath);
       if (base === null) throw new Error("Couldn't load this painting's file.");
       const parsed = parsePainting(base.content) ?? base.parsed;
       await api.commitFiles(`Move to trash: ${parsed.title}`, [
@@ -1642,22 +1716,19 @@ async function patchFlipDraft(
   draft: boolean,
   fields: FieldSet,
 ): Promise<void> {
+  const merged = mergedFields(base.parsed, fields);
   const edits: PaintingEdits = {
-    title: fields.title,
-    price: fields.price.toFixed(2),
-    alt: fields.alt,
-    description: fields.description,
-    widthIn: fields.widthIn === null ? "" : String(fields.widthIn),
-    heightIn: fields.heightIn === null ? "" : String(fields.heightIn),
-    depthIn: fields.depthIn === null ? "" : String(fields.depthIn),
-    medium: fields.medium,
+    ...merged,
     draft,
-    sold: soldToSave(base.parsed.sold, fields.sold),
     // Publishing clears the schedule. Unpublishing keeps it.
-    publishOn: draft ? fields.publishOn : "",
-    slugHistory: renamedHistory(base.parsed, oldSlug, fields.title),
+    publishOn: draft ? merged.publishOn : "",
+    slugHistory: renamedHistory(
+      base.parsed,
+      slugifyTitle(base.parsed.title) || oldSlug,
+      merged.title,
+    ),
   };
-  await api.commitFiles(`Edit painting: ${fields.title}`, [
+  await api.commitFiles(`Edit painting: ${merged.title}`, [
     { path: mdPath, blob: patchPainting(base.content, edits) },
   ]);
 }
