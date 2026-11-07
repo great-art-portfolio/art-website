@@ -121,6 +121,12 @@ export const ja: Strings = {
     checkoutUnavailable:
       "現在、決済をご利用いただけません。もう一度お試しください。",
     viewOnWall: "壁に飾ってみる",
+    arMove: "床に向けて、ゆっくり動かしてください",
+    arAim: "壁に向けてください",
+    arTap: "タップしてここに掛ける",
+    arClose: "閉じる",
+    arHint: "壁のスイッチやコンセントに向けてください",
+    arFailed: "壁のプレビューを開けませんでした。もう一度お試しください。",
     share: "この作品をシェア",
     copyLink: "この作品のリンクをコピー",
     copied: "コピーしました。",

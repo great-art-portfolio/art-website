@@ -2,6 +2,8 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { join, dirname } from "node:path";
+import { createHash } from "node:crypto";
+import { VENDOR_HASHES } from "../../src/lib/vendor-hashes.ts";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -24,6 +26,24 @@ describe("vendored viewer + AR builder", () => {
       );
     });
   }
+
+  it("pages load the bundles by their current hash", () => {
+    for (const [file, hash] of Object.entries(VENDOR_HASHES)) {
+      const actual = createHash("sha256")
+        .update(readFileSync(join(root, "public/js", file)))
+        .digest("hex")
+        .slice(0, 12);
+      assert.equal(hash, actual, `${file} hash — run pnpm vendor`);
+    }
+  });
+
+  it("model-viewer.js carries the wall AR viewer", () => {
+    const bundle = readFileSync(
+      join(root, "public/js/model-viewer.js"),
+      "utf8",
+    );
+    assert.ok(bundle.includes("WallAr"), "window.WallAr set");
+  });
 
   it("ar-tooling.js carries the admin flow's entry points", () => {
     const bundle = readFileSync(join(root, "public/js/ar-tooling.js"), "utf8");

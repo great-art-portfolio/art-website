@@ -121,6 +121,12 @@ export const nl: Strings = {
     checkoutUnavailable:
       "Afrekenen is op dit moment niet mogelijk. Probeer het opnieuw.",
     viewOnWall: "Bekijk aan uw muur",
+    arMove: "Richt op de vloer en beweeg langzaam",
+    arAim: "Richt op de muur",
+    arTap: "Tik om het hier op te hangen",
+    arClose: "Sluiten",
+    arHint: "Richt op een schakelaar of stopcontact aan de muur",
+    arFailed: "De muurweergave ging niet open. Probeer het opnieuw.",
     share: "Deel dit schilderij",
     copyLink: "Kopieer de link naar dit schilderij",
     copied: "Gekopieerd.",

@@ -15,7 +15,8 @@
  * Re-run after upgrading @google/model-viewer or three, or after editing
  * src/lib/ar.ts (bundled into ar-tooling.js), then commit the result.
  */
-import { mkdirSync, existsSync } from "node:fs";
+import { mkdirSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
@@ -43,7 +44,8 @@ if (!existsSync(mvSrc)) throw new Error(`model-viewer dist missing: ${mvSrc}`);
 execFileSync(
   esbuild,
   [
-    mvSrc,
+    // mv-entry imports mvSrc and adds the wall AR viewer on the same three.
+    join(here, "mv-entry.ts"),
     "--bundle",
     "--minify",
     "--format=esm",
@@ -70,6 +72,28 @@ execFileSync(
     "--log-level=error",
   ],
   { stdio: "inherit" },
+);
+
+// The files keep stable names, so pages load them as /js/<file>?v=<hash>:
+// a rebuilt bundle reaches phones at once instead of after the day-long
+// cache (public/_headers).
+const hashes = Object.fromEntries(
+  ["model-viewer.js", "ar-tooling.js"].map((file) => [
+    file,
+    createHash("sha256")
+      .update(readFileSync(join(outDir, file)))
+      .digest("hex")
+      .slice(0, 12),
+  ]),
+);
+writeFileSync(
+  join(root, "src", "lib", "vendor-hashes.ts"),
+  `/** Written by scripts/vendor/build.mjs (\`pnpm vendor\`); don't edit. */
+export const VENDOR_HASHES = {
+  "model-viewer.js": "${hashes["model-viewer.js"]}",
+  "ar-tooling.js": "${hashes["ar-tooling.js"]}",
+} as const;
+`,
 );
 
 console.log("vendored public/js/model-viewer.js + public/js/ar-tooling.js");

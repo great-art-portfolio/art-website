@@ -34,3 +34,21 @@ test("Android buyer gets WebXR before Scene Viewer", async ({ page }) => {
   );
   expect(layers, "projection layers hidden").not.toBe(true);
 });
+
+test("Android buyer is told when the wall view fails", async ({ page }) => {
+  await page.goto("/paintings/night-reeds");
+  await page.locator("#ar-mount").scrollIntoViewIfNeeded();
+  const viewer = page.locator("#ar-stage model-viewer");
+  await expect(viewer).toBeAttached({ timeout: 20000 });
+  const status = page.locator("#ar-status");
+  await expect(status).not.toHaveClass(/show/);
+  await viewer.evaluate((el) =>
+    el.dispatchEvent(
+      new CustomEvent("ar-status", { detail: { status: "failed" } }),
+    ),
+  );
+  await expect(status).toHaveClass(/show/);
+  await expect(status).toHaveText(
+    "The wall view didn't open. Please try again.",
+  );
+});

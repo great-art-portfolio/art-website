@@ -354,7 +354,8 @@ test("3D model waits for the visitor to scroll to it", async ({ browser }) => {
     glbRequests += 1;
     await route.continue();
   });
-  await page.route("**/*model-viewer*.js", async (route) => {
+  // The file loads as /js/model-viewer.js?v=<hash>.
+  await page.route("**/*model-viewer*.js*", async (route) => {
     viewerLibRequests += 1;
     await route.continue();
   });

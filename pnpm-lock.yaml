@@ -58,6 +58,9 @@ importers:
       '@types/three':
         specifier: ^0.186.0
         version: 0.186.0
+      '@types/webxr':
+        specifier: 0.5.24
+        version: 0.5.24
       eslint:
         specifier: ^10.13.0
         version: 10.13.0
