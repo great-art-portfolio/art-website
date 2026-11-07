@@ -4,9 +4,9 @@
  * facing the buyer while only the wall's distance is known (depth), solid
  * and flat once ARCore recognises the wall itself. A tap hangs the painting
  * there; it snaps flat when the wall is recognised later, one finger slides
- * it, two fingers turn it until then, and a tap on an outline elsewhere
- * moves it (another spot or another wall). An anchor keeps it on the wall
- * through tracking resets. Bundled into /js/model-viewer.js
+ * it, two fingers turn it any time (a turn by hand stops the auto-snap),
+ * and a tap on an outline elsewhere moves it (another spot or another
+ * wall). An anchor keeps it on the wall through tracking resets. Bundled into /js/model-viewer.js
  * (scripts/vendor/mv-entry.ts) so it shares that file's three.js, and
  * reached through window.WallAr. Blank walls in a bare room can keep
  * ARCore from tracking at all; no viewer gets past that. */
@@ -503,6 +503,9 @@ async function run(
     /** Whether the hung painting lies on a wall ARCore recognised, or still
      * faces where the buyer stood (a plain wall it can't read yet). */
     let snapped = false;
+    /** Turned with two fingers since it was hung: no more auto-snapping
+     * until it's hung somewhere new. */
+    let turnedByHand = false;
     let snapping = false;
     const snapTo = new THREE.Object3D();
 
@@ -512,6 +515,7 @@ async function run(
       hung.visible = true;
       aim.visible = false;
       snapped = onPlane;
+      turnedByHand = false;
       snapping = false;
       hungAt = still ? -Infinity : time;
       reanchor(frame);
@@ -657,7 +661,11 @@ async function run(
           lastFinger = at;
         }
       }
-      if (twoFingers && hung.visible && !snapped) {
+      // Two fingers always turn it, snapped or not: the buyer's hand wins
+      // over a wall ARCore may have misread.
+      if (twoFingers && hung.visible) {
+        snapping = false;
+        turnedByHand = true;
         const angle = fingerAngle(onScreen);
         if (angle !== null) {
           if (lastTwist !== null) {
@@ -689,6 +697,7 @@ async function run(
         if (
           hung.visible &&
           !snapped &&
+          !turnedByHand &&
           source === "plane" &&
           behind < 0.5 &&
           wallPos.distanceTo(hung.position) < 1.5
