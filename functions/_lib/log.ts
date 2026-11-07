@@ -69,6 +69,24 @@ export function logRow(entry: LogEntry): {
   };
 }
 
+/** Writes an entry unless `event` was already logged `limit` times in the
+ * last ten minutes: for events anyone on the internet can trigger, so
+ * junk requests can't fill the table. Never throws. */
+export async function logCapped(
+  env: AppEnv,
+  entry: LogEntry,
+  limit = 1,
+): Promise<void> {
+  const recent = await env.DB?.prepare(
+    "SELECT COUNT(*) AS n FROM logs WHERE event = ? AND at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-10 minutes')",
+  )
+    .bind(entry.event)
+    .first<{ n: number }>()
+    .catch(() => null);
+  if ((recent?.n ?? 0) >= limit) return;
+  await logEvent(env, entry);
+}
+
 /** Writes one entry. Await it, or hand it to `context.waitUntil`. */
 export async function logEvent(env: AppEnv, entry: LogEntry): Promise<void> {
   const row = logRow(entry);

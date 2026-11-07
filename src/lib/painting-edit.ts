@@ -60,6 +60,8 @@ export interface PaintingEdits {
   alertOnPublish?: string;
   /** A history string sets the previous slugs, and "" clears them. */
   slugHistory?: string | undefined;
+  /** The day it went live ("YYYY-MM-DD"); undefined leaves the date. */
+  dateAdded?: string;
   /** Set after an AR rebuild. When omitted, existing refs are kept. */
   modelGlb?: string;
   modelUsdz?: string;
@@ -355,6 +357,8 @@ export function patchPainting(md: string, edits: PaintingEdits): string {
   } else {
     next = patchKey(next, "medium", yamlQuote(edits.medium.trim()));
   }
+  if (edits.dateAdded !== undefined && hasKey(next, "dateAdded"))
+    next = patchKey(next, "dateAdded", edits.dateAdded);
   // AR model refs, present only after a rebuild.
   if (edits.modelGlb !== undefined && edits.modelGlb !== "") {
     next = patchKey(next, "modelGlb", yamlQuote(edits.modelGlb));

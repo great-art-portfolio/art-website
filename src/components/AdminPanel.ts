@@ -285,7 +285,10 @@ async function fillRowQrs(list: Element): Promise<void> {
   for (const el of list.querySelectorAll(".qr-mini:empty")) {
     const actions = el.closest(".row-actions");
     const link = actions?.querySelector(".row-qr");
-    const slug = (link?.getAttribute("href") ?? "").split("#")[1] ?? "";
+    // The link points at the card, `#qr-<slug>`.
+    const slug = (
+      (link?.getAttribute("href") ?? "").split("#")[1] ?? ""
+    ).replace(/^qr-/, "");
     if (slug === "") continue;
     empty.push(el);
     el.setAttribute("data-slug", slug);

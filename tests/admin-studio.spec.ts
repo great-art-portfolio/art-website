@@ -2134,6 +2134,16 @@ test("collection rows link published paintings to their qr card", async ({
     if ((await link.count()) === 0) continue;
     await expect(link.first()).toHaveText("QR code");
   }
+  // Each mini code encodes the painting's own page: the slug, never the
+  // card id's "qr-" prefix.
+  const rowCodes = page.locator('[data-group="available"] .row-card .qr-mini');
+  await expect(rowCodes.first().locator("svg")).toBeAttached({
+    timeout: 15000,
+  });
+  for (const slug of await rowCodes.evaluateAll((els) =>
+    els.map((el) => el.getAttribute("data-slug") ?? ""),
+  ))
+    expect(slug).not.toMatch(/^qr-/);
   // Drafts have no buyer page, so no code.
   await expect(
     page.locator('[data-group="drafts"] .row-card .row-qr'),

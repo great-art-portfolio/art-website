@@ -1257,6 +1257,7 @@ async function saveEdit(
       title: merged.title,
       description: merged.description,
       alt: merged.alt,
+      medium: merged.medium,
     });
     const imageFile =
       base.parsed.image === "" ? `${slug}.jpg` : base.parsed.image;
@@ -1785,6 +1786,9 @@ async function patchFlipDraft(
     draft,
     // Publishing clears the schedule. Unpublishing keeps it.
     publishOn: draft ? merged.publishOn : "",
+    // Publishing a draft dates it today, as a scheduled publish does, so
+    // the homepage features it as her newest.
+    ...(!draft && base.parsed.draft ? { dateAdded: todayKey() } : {}),
     slugHistory: renamedHistory(
       base.parsed,
       slugifyTitle(base.parsed.title) || oldSlug,

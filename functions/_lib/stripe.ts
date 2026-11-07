@@ -160,8 +160,10 @@ export async function createCheckoutSession(
   return data.url;
 }
 
-/** Pages of open checkouts read when a painting sells (100 each). */
-const MAX_LIST_PAGES = 20;
+/** Pages of open checkouts read when a painting sells (100 each). Five
+ * keeps a sale's Worker well inside its ~50 outbound requests, with room
+ * for the git commit and the email. */
+const MAX_LIST_PAGES = 5;
 
 /**
  * Closes every other open checkout for the same painting once it sells,
