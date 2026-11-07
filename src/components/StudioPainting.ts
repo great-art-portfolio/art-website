@@ -125,6 +125,16 @@ let previewModels: { sig: string; glb: Blob; usdz: Blob } | null = null;
 let photoReplaced = false;
 /** A chosen photo still being read and prepared. */
 let photoLoading = false;
+/** Settles when the photo being prepared is ready (or failed). */
+let photoReady: Promise<void> = Promise.resolve();
+
+/** A save tapped right after choosing a photo waits for it, rather than
+ * saving without it or asking her to tap again. */
+async function photoSettled(): Promise<void> {
+  if (!photoLoading) return;
+  setStatus("Getting the photo ready…");
+  await photoReady;
+}
 
 interface Dims {
   widthIn: number | null;
@@ -1041,6 +1051,7 @@ async function titleClash(
 
 /** Commits a new painting, as a draft or published, and returns to /admin. */
 async function saveNew(draft: boolean): Promise<void> {
+  await photoSettled();
   const fields = readFields();
   if (fields === null) return;
   if (preparedBlob === null) {
@@ -1072,10 +1083,6 @@ async function saveNew(draft: boolean): Promise<void> {
         ? `Draft "${fields.title}" kept in this tab's practice list — publish it on the live site.`
         : `Practice save of "${fields.title}" kept in this tab — publish it on the live site.`,
     );
-    return;
-  }
-  if (photoLoading) {
-    setStatus("The new photo is still loading. Try again in a moment.", true);
     return;
   }
   setStatus(
@@ -1213,6 +1220,7 @@ async function saveEdit(
   base: { content: string; parsed: ParsedPainting } | null,
   draft: boolean,
 ): Promise<void> {
+  await photoSettled();
   const fields = readFields();
   if (fields === null) return;
   if ((await useOverlayMode()) || base === null) {
@@ -1229,10 +1237,6 @@ async function saveEdit(
     goAdmin(
       `Saved "${fields.title}" in this tab's practice list — publish it on the live site.`,
     );
-    return;
-  }
-  if (photoLoading) {
-    setStatus("The new photo is still loading. Save again in a moment.", true);
     return;
   }
   if (await titleClash(fields.title, slug)) return;
@@ -1582,7 +1586,7 @@ function initStudio(): void {
     if (file === undefined) return;
     rotation = 0;
     photoLoading = true;
-    loadImageFile(file)
+    photoReady = loadImageFile(file)
       .then((img) => ingestPhoto(img))
       .catch((err: unknown) =>
         setStatus(`${errorMessage(err)}.${heicHint(file)}`, true),
@@ -1647,7 +1651,7 @@ function initStudio(): void {
     if (file === undefined) return;
     rotation = 0;
     photoLoading = true;
-    loadImageFile(file)
+    photoReady = loadImageFile(file)
       .then((img) => ingestPhoto(img))
       .catch((err: unknown) =>
         setStatus(`${errorMessage(err)}.${heicHint(file)}`, true),
@@ -1713,7 +1717,8 @@ function initStudio(): void {
           );
           return;
         }
-        if (photoReplaced || photoLoading) {
+        await photoSettled();
+        if (photoReplaced) {
           setStatus(
             "Save the new photo first, then publish or unpublish.",
             true,
