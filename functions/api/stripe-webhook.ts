@@ -1,5 +1,11 @@
 import type { AppEnv } from "../_lib/env";
-import { commitFiles, gitConfig, readTextFile } from "../_lib/github";
+import {
+  commitFiles,
+  gitConfig,
+  headSha,
+  isRefRace,
+  readTextFile,
+} from "../_lib/github";
 import { PAINTING_FILE } from "../_lib/gallery-paths";
 import { badRequest, json, serverError } from "../_lib/http";
 import { artistInbox, sendSiteEmail } from "../_lib/notify";
@@ -16,6 +22,10 @@ import {
   soldSessionOf,
 } from "../../src/lib/painting-edit";
 import { logEvent } from "../_lib/log";
+import { forgetLivePainting } from "./checkout";
+
+/** Reads of the painting a sale may take when commits keep landing. */
+const MARK_TRIES = 3;
 
 /**
  * Stripe webhook: a paid checkout marks the painting `sold: true` with a
@@ -26,18 +36,41 @@ import { logEvent } from "../_lib/log";
  * commit again or warn her of a double sale; it just resends the sale
  * email, since Stripe only repeats a delivery this answered with an error.
  * A sale email that fails answers 500 too, so she always hears of it.
- * Once sold, every other open checkout for the painting is closed.
+ * Every other open checkout for the painting is closed first, before git
+ * is touched, so a GitHub outage can't let more buyers pay meanwhile.
+ * The commit builds on exactly the commit the painting was read at, so two
+ * sales close together can't both pass as the first.
  */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   const { env, request } = context;
   const payload = await request.text();
+  const secret = env.STRIPE_WEBHOOK_SECRET ?? "";
+  const signature = request.headers.get("stripe-signature");
+  if (secret === "") {
+    await logEvent(env, {
+      event: "sale.no_webhook_secret",
+      message: "STRIPE_WEBHOOK_SECRET isn't set, so no sale can be recorded",
+    });
+    return serverError("Webhook not configured");
+  }
   const valid = await verifyStripeSignature(
     payload,
-    request.headers.get("stripe-signature"),
-    env.STRIPE_WEBHOOK_SECRET ?? "",
+    signature,
+    secret,
     Math.floor(Date.now() / 1000),
   );
-  if (!valid) return badRequest("Bad signature");
+  if (!valid) {
+    // Only signed-looking deliveries are logged, so junk posts can't fill
+    // the log; a wrong secret shows up here on every real sale.
+    if (signature !== null)
+      await logEvent(env, {
+        level: "warn",
+        event: "sale.bad_signature",
+        message:
+          "A Stripe delivery failed its signature check: is STRIPE_WEBHOOK_SECRET the live endpoint's?",
+      });
+    return badRequest("Bad signature");
+  }
   let raw: unknown;
   try {
     raw = JSON.parse(payload);
@@ -79,6 +112,9 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   let marked = false;
   let duplicate = false;
   const config = gitConfig(env);
+  // A paid sale closes the painting's other checkouts whatever git says
+  // (a second buyer of a sold painting just repeats it).
+  await expireOtherSessions(env, slug, session);
   if (!PAINTING_FILE.test(file)) {
     await logEvent(env, {
       event: "sale.no_painting_file",
@@ -93,23 +129,38 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     });
   } else {
     try {
-      const md = await readTextFile(config, file);
-      if (md === null) {
-        await logEvent(env, {
-          event: "sale.file_missing",
-          message: "The sold painting's file is missing",
-          detail: { file, session },
-        });
-      } else if (parsePainting(md)?.sold === true) {
-        if (soldSessionOf(md) === session) {
-          duplicate = true;
+      for (let attempt = 1; ; attempt += 1) {
+        const at = await headSha(config);
+        const md = await readTextFile(config, file, at);
+        if (md === null) {
+          await logEvent(env, {
+            event: "sale.file_missing",
+            message: "The sold painting's file is missing",
+            detail: { file, session },
+          });
+        } else if (parsePainting(md)?.sold === true) {
+          if (soldSessionOf(md) === session) {
+            duplicate = true;
+            marked = true;
+          } else alreadySold = true;
+        } else {
+          try {
+            await commitFiles(
+              config,
+              `Sold online: ${title}`,
+              [{ path: file, text: markSold(md, session) }],
+              { parent: at },
+            );
+          } catch (err) {
+            // Something landed after the read: read again, since it may
+            // be another sale of this painting.
+            if (isRefRace(err) && attempt < MARK_TRIES) continue;
+            throw err;
+          }
           marked = true;
-        } else alreadySold = true;
-      } else {
-        await commitFiles(config, `Sold online: ${title}`, [
-          { path: file, text: markSold(md, session) },
-        ]);
-        marked = true;
+          await forgetLivePainting(file);
+        }
+        break;
       }
     } catch (err) {
       await logEvent(env, {
@@ -121,8 +172,6 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       return serverError("Could not mark the painting sold");
     }
   }
-
-  if (marked && !alreadySold) await expireOtherSessions(env, slug, session);
 
   const mail = saleEmail(event, { alreadySold, marked });
   const emailed = await sendSiteEmail(env, {

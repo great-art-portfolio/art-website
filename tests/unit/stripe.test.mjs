@@ -251,8 +251,20 @@ function stubServices(fileMd, opts = {}) {
       json: async () => data,
       text: async () => "",
     });
+    const refused = (status) => ({
+      ...ok({}),
+      ok: false,
+      status,
+      text: async () => "refused",
+    });
+    calls.reads = (calls.reads ?? 0) + (u.includes("/contents/") ? 1 : 0);
     // Files are read with GitHub's raw media type.
-    if (u.includes("/contents/")) return new Response(fileMd);
+    if (u.includes("/contents/"))
+      return fileMd === null
+        ? new Response("", { status: 404 })
+        : new Response(fileMd);
+    if (opts.gitDown === true && u.includes("api.github.com"))
+      return refused(500);
     if (u.includes("/git/ref/heads/")) return ok({ object: { sha: "base" } });
     if (u.includes("/git/commits/base")) return ok({ tree: { sha: "tree0" } });
     if (u.endsWith("/git/blobs")) {
@@ -267,7 +279,17 @@ function stubServices(fileMd, opts = {}) {
       calls.commitMessage = body.message;
       return ok({ sha: "c1" });
     }
-    if (u.includes("/git/refs/heads/")) return ok({});
+    if (u.includes("/git/refs/heads/")) {
+      // Another sale of this painting landed between the read and the
+      // update: GitHub refuses it, and the file now reads sold.
+      if (opts.raceTo !== undefined && !calls.raced) {
+        calls.raced = true;
+        fileMd = opts.raceTo;
+        return refused(422);
+      }
+      calls.updated = (calls.updated ?? 0) + 1;
+      return ok({});
+    }
     if (u === "https://api.resend.com/emails") {
       calls.emails.push(body);
       if (opts.emailDown === true)
@@ -275,6 +297,24 @@ function stubServices(fileMd, opts = {}) {
       return ok({ id: "e1" });
     }
     // Other buyers still on Stripe's page: one for this painting, one not.
+    if (
+      opts.pagedSessions === true &&
+      u.startsWith("https://api.stripe.com/v1/checkout/sessions?status=open")
+    )
+      return u.includes("starting_after=cs_else")
+        ? ok({
+            data: [
+              { id: "cs_late", metadata: { painting_slug: "night-reeds" } },
+            ],
+            has_more: false,
+          })
+        : ok({
+            data: [
+              { id: "cs_test_1", metadata: { painting_slug: "night-reeds" } },
+              { id: "cs_else", metadata: { painting_slug: "shoreline" } },
+            ],
+            has_more: true,
+          });
     if (u.startsWith("https://api.stripe.com/v1/checkout/sessions?status=open"))
       return ok({
         data: [
@@ -381,6 +421,34 @@ describe("POST /api/stripe-webhook", () => {
     assert.equal(res.status, 400);
     assert.equal(calls.trees.length, 0);
   });
+  it("reads again when another sale lands first, and flags the double sale", async () => {
+    const calls = stubServices(md, { raceTo: markSold(md, "cs_first") });
+    const res = await webhook({ request: webhookRequest(paidEvent()), env });
+    assert.deepEqual(await res.json(), { ok: true, alreadySold: true });
+    assert.equal(calls.updated ?? 0, 0);
+    assert.equal(calls.reads, 2);
+    assert.match(calls.emails[0].subject, /^Check this sale/);
+  });
+  it("closes other checkouts even when GitHub is down", async () => {
+    const calls = stubServices(md, { gitDown: true });
+    const res = await webhook({ request: webhookRequest(paidEvent()), env });
+    assert.equal(res.status, 500);
+    assert.deepEqual(calls.expired, ["cs_other"]);
+  });
+  it("closes checkouts past the first page of Stripe's list", async () => {
+    const calls = stubServices(md, { pagedSessions: true });
+    await webhook({ request: webhookRequest(paidEvent()), env });
+    assert.deepEqual(calls.expired, ["cs_late"]);
+  });
+  it("says it's unconfigured without a webhook secret", async () => {
+    const calls = stubServices(md);
+    const res = await webhook({
+      request: webhookRequest(paidEvent()),
+      env: { ...env, STRIPE_WEBHOOK_SECRET: "" },
+    });
+    assert.equal(res.status, 500);
+    assert.equal(calls.trees.length, 0);
+  });
   it("ignores unpaid sessions", async () => {
     const calls = stubServices(md);
     const res = await webhook({
@@ -405,6 +473,9 @@ describe("POST /api/checkout", () => {
       env: {
         ENABLE_STRIPE: "true",
         STRIPE_SECRET_KEY: "sk_test_x",
+        STRIPE_WEBHOOK_SECRET: "whsec_x",
+        RESEND_API_KEY: "re_x",
+        ARTIST_INBOX: "artist@example.com",
         ASSETS: assets,
         ...extra,
       },
@@ -463,6 +534,27 @@ describe("POST /api/checkout", () => {
       { GITHUB_TOKEN: "t", GITHUB_REPO: "o/r" },
     );
     assert.equal(drafted.status, 404);
+  });
+  it("stays off without the webhook secret or the sale email", async () => {
+    for (const off of [
+      { STRIPE_WEBHOOK_SECRET: "" },
+      { RESEND_API_KEY: "" },
+      { ARTIST_INBOX: "" },
+    ]) {
+      const res = await post(
+        { slug: "night-reeds", title: "Night Reeds", priceCents: 14000 },
+        off,
+      );
+      assert.equal(res.status, 501);
+    }
+  });
+  it("refuses a painting deleted since the build", async () => {
+    stubServices(null);
+    const res = await post(
+      { slug: "night-reeds", title: "Night Reeds", priceCents: 14000 },
+      { GITHUB_TOKEN: "t", GITHUB_REPO: "o/r" },
+    );
+    assert.equal(res.status, 404);
   });
   it("refuses a painting git already marks sold", async () => {
     stubServices(markSold(md));

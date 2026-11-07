@@ -734,6 +734,15 @@ function readFields(): FieldSet | null {
   };
 }
 
+/** The Sold value to save over git's copy. The box is filled from the last
+ * build, so a sale since (the webhook commits sold: true) isn't in it:
+ * unless she changed the box herself, git's value stands, and an edit made
+ * after a sale can't put the painting back on sale. */
+function soldToSave(gitSold: boolean, boxSold: boolean): boolean {
+  const box = $("de-sold");
+  return boxSold === box.defaultChecked ? gitSold : boxSold;
+}
+
 /** Autosaves form input so it survives a refresh or crash. Photos aren't
  * included. Cleared on save or delete. */
 let autosaveTimer = 0;
@@ -1158,7 +1167,7 @@ async function saveEdit(
       depthIn: fields.depthIn === null ? "" : String(fields.depthIn),
       medium: fields.medium,
       draft,
-      sold: fields.sold,
+      sold: soldToSave(base.parsed.sold, fields.sold),
       publishOn: fields.publishOn,
       // A scheduled draft keeps her alert ticks for its day.
       alertOnPublish: draft ? formatAlerts(alertChoice()) : "",
@@ -1643,7 +1652,7 @@ async function patchFlipDraft(
     depthIn: fields.depthIn === null ? "" : String(fields.depthIn),
     medium: fields.medium,
     draft,
-    sold: fields.sold,
+    sold: soldToSave(base.parsed.sold, fields.sold),
     // Publishing clears the schedule. Unpublishing keeps it.
     publishOn: draft ? fields.publishOn : "",
     slugHistory: renamedHistory(base.parsed, oldSlug, fields.title),
