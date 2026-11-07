@@ -43,7 +43,8 @@ if (!existsSync(mvSrc)) throw new Error(`model-viewer dist missing: ${mvSrc}`);
 execFileSync(
   esbuild,
   [
-    mvSrc,
+    // mv-entry imports mvSrc and adds the wall AR viewer on the same three.
+    join(here, "mv-entry.ts"),
     "--bundle",
     "--minify",
     "--format=esm",

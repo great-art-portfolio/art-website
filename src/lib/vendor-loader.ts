@@ -3,6 +3,7 @@
  * files as modules. */
 import type { ArModels, DimFixResult } from "./ar";
 import type { PaintingEdits, ParsedPainting } from "./painting-edit";
+import type { WallArWords } from "./wall-ar";
 
 export const MODEL_VIEWER_URL = "/js/model-viewer.js";
 export const AR_TOOLING_URL = "/js/ar-tooling.js";
@@ -80,6 +81,30 @@ export function hideXrLayers(): void {
 export function loadModelViewer(): Promise<void> {
   hideXrLayers();
   return loadScript(MODEL_VIEWER_URL, true);
+}
+
+/** On Android, "View on your wall" opens our wall viewer (an outline to
+ * aim, tap to hang) instead of model-viewer's own AR. model-viewer stays
+ * the fallback when it can't open. Call after loadModelViewer(). */
+export function wireWallAr(
+  viewer: HTMLElement,
+  button: HTMLButtonElement,
+  glb: string,
+  words: WallArWords,
+): void {
+  const api = window.WallAr;
+  if (api === undefined || !/android/i.test(navigator.userAgent)) return;
+  void api.supported().then((ok) => {
+    if (!ok) return;
+    button.addEventListener("click", (e) => {
+      // model-viewer listens on the button's slot; keep the tap ours.
+      e.stopPropagation();
+      api.start({ glb, words }).catch(() => {
+        const fallback: unknown = Reflect.get(viewer, "activateAR");
+        if (typeof fallback === "function") void fallback.call(viewer);
+      });
+    });
+  });
 }
 
 /** Loads the AR builder and returns the window.ArTooling global. */

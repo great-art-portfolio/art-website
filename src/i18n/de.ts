@@ -124,6 +124,9 @@ export const de: Strings = {
     checkoutUnavailable:
       "Die Kasse ist gerade nicht verfügbar. Bitte versuchen Sie es erneut.",
     viewOnWall: "An Ihrer Wand ansehen",
+    arAim: "Richten Sie das Handy auf die Wand",
+    arTap: "Tippen, um es hier aufzuhängen",
+    arClose: "Schließen",
     share: "Dieses Gemälde teilen",
     copyLink: "Link zu diesem Gemälde kopieren",
     copied: "Kopiert.",

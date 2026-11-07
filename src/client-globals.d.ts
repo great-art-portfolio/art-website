@@ -21,6 +21,8 @@ interface Window {
    * `lib/vendor-loader`.
    */
   ArTooling?: import("./lib/vendor-loader").ArTooling;
+  /** Wall AR viewer set by /js/model-viewer.js (`lib/wall-ar`). */
+  WallAr?: import("./lib/wall-ar").WallArApi;
   /** Cloudflare Turnstile widget API, present only after its CDN loads. */
   turnstile?: {
     render: (

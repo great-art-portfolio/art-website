@@ -126,6 +126,9 @@ export const en = {
     checkoutUnavailable:
       "Checkout isn't available right now. Please try again.",
     viewOnWall: "View on your wall",
+    arAim: "Point at the wall",
+    arTap: "Tap to hang it here",
+    arClose: "Close",
     share: "Share this painting",
     copyLink: "Copy the link to this painting",
     copied: "Copied.",

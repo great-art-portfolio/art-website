@@ -767,13 +767,10 @@ const eyebrow =
     const build = () => {
       // Loaded with a script tag because Vite dev won't serve /public files
       // as modules.
-      let modes = "scene-viewer quick-look";
       void import("../lib/vendor-loader")
-        .then(({ arModes, loadModelViewer }) => {
-          modes = arModes(navigator.userAgent);
-          return loadModelViewer();
-        })
-        .then(() => {
+        .then((vendor) => vendor.loadModelViewer().then(() => vendor))
+        .then(({ arModes, wireWallAr }) => {
+          const modes = arModes(navigator.userAgent);
           if (!document.contains(mount)) return;
           const liveStage = document.getElementById("ar-stage");
           if (liveStage === null) return;
@@ -831,6 +828,11 @@ const eyebrow =
           // appendChild, since the Workers types give append() HTMLRewriter's
           // signature.
           liveStage.firstElementChild?.appendChild(arButton);
+          wireWallAr(el, arButton, glb, {
+            aim: pageMsg("arAim") || "Point at the wall",
+            tap: pageMsg("arTap") || "Tap to hang it here",
+            close: pageMsg("arClose") || "Close",
+          });
           // An empty slot hides the loading bar, which the wall shadow
           // smeared into a grey band across the top.
           const noBar = document.createElement("span");

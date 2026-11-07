@@ -31,7 +31,12 @@ import {
   type ParsedPainting,
   DEFAULT_DESCRIPTION,
 } from "../lib/painting-edit";
-import { arModes, loadArTooling, loadModelViewer } from "../lib/vendor-loader";
+import {
+  arModes,
+  loadArTooling,
+  loadModelViewer,
+  wireWallAr,
+} from "../lib/vendor-loader";
 import { readBackup } from "../lib/autosave";
 import { sendPublishAlerts } from "../lib/alerts";
 import {
@@ -557,7 +562,19 @@ function showArViewer(glbUrl: string, usdzUrl: string): void {
       el.style.width = "100%";
       el.style.height = "20rem";
       el.style.borderRadius = "1rem";
+      // The buyer page's button, so her check matches what buyers get.
+      const arButton = document.createElement("button");
+      arButton.slot = "ar-button";
+      arButton.type = "button";
+      arButton.className = "ar-button";
+      arButton.textContent = "View on your wall";
+      el.appendChild(arButton);
       stage.replaceChildren(el);
+      wireWallAr(el, arButton, glbUrl, {
+        aim: "Point at the wall",
+        tap: "Tap to hang it here",
+        close: "Close",
+      });
     })
     .catch(() => {
       stage.innerHTML =
