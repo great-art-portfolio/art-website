@@ -99,6 +99,10 @@ export const es: Strings = {
     message: "Mensaje",
     messagePlaceholder: "Hola, me encanta esta obra…",
     send: "Enviar consulta",
+    roomTitle: "En una sala",
+    roomAlt: (title: string) => `${title} sobre un sofá en una sala de estar`,
+    roomNote: (inches: number) =>
+      `Tamaño real, sobre un sofá de ${inches} pulgadas.`,
     wallTitle: "Pruébela en su pared",
     wallTouch:
       "Se muestra casi a tamaño real. Toque <strong>Ver en su pared</strong> y apunte el teléfono hacia donde la colgaría.",

@@ -101,6 +101,10 @@ export const fr: Strings = {
     message: "Message",
     messagePlaceholder: "Bonjour, j’adore cette œuvre…",
     send: "Envoyer la demande",
+    roomTitle: "Dans une pièce",
+    roomAlt: (title: string) => `${title} au-dessus d’un canapé dans un salon`,
+    roomNote: (inches: number) =>
+      `Taille réelle, au-dessus d’un canapé de ${inches} pouces.`,
     wallTitle: "Essayez-le sur votre mur",
     wallTouch:
       "Affiché à peu près en taille réelle. Touchez <strong>Voir sur votre mur</strong>, puis pointez votre téléphone là où il serait accroché.",
