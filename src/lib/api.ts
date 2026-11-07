@@ -401,6 +401,7 @@ export const api = {
   /** Sends someone the confirm email; they join when they tap it. */
   async inviteContact(email: string): Promise<{
     already: boolean;
+    emailed: boolean;
     devConfirmUrl: string;
   }> {
     const r = await request("/api/collectors", inviteSchema, {
@@ -410,6 +411,8 @@ export const api = {
     });
     return {
       already: r.already === true,
+      // Older answers had no flag; only an explicit false is a failure.
+      emailed: r.emailed !== false,
       devConfirmUrl: r.devConfirmUrl ?? "",
     };
   },

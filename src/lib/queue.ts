@@ -143,7 +143,7 @@ export async function flushOutbox(
 export async function queuePost(
   path: string,
   payload: unknown,
-): Promise<"sent" | "queued" | "check" | "rejected"> {
+): Promise<"sent" | "queued" | "check" | "rejected" | "failed"> {
   const body = JSON.stringify(payload);
   try {
     const res = await fetch(path, {
@@ -158,15 +158,17 @@ export async function queuePost(
     // Other 4xx means the server rejected it, such as bad input or a sold
     // painting, so don't queue it.
     if (res.status >= 400 && res.status < 500) return "rejected";
+  } catch {
+    // Offline, or the request failed on the way: keep it, below.
+  }
+  // The server failed or the network did: keep it to retry, if the browser
+  // lets us. Private mode and blocked storage don't, and then the buyer
+  // must hear it didn't go, not "saved".
+  try {
     await enqueue(path, body);
     return "queued";
   } catch {
-    try {
-      await enqueue(path, body);
-    } catch {
-      // IndexedDB is unavailable, as in private mode.
-    }
-    return "queued";
+    return "failed";
   }
 }
 

@@ -142,6 +142,16 @@ describe("subscribe", () => {
   });
 });
 
+describe("addresses beyond plain ASCII", () => {
+  it("sends a working confirm link to an address with ł or ü", async () => {
+    stubEmptyList();
+    const res = await onRequestPost(postContext({ email: "jan@łódź.pl" }));
+    assert.equal(res.status, 201);
+    const link = confirmLinkOf("jan@łódź.pl");
+    assert.equal(link.email, "jan@łódź.pl");
+  });
+});
+
 describe("confirm", () => {
   it("joins the segment on a full round trip", async () => {
     stubEmptyList();
@@ -196,6 +206,25 @@ describe("confirm", () => {
 });
 
 describe("unsubscribe", () => {
+  it("says so, and sends no goodbye, when the list refuses the removal", async () => {
+    stubFetch((url, init) => {
+      if (url.includes("/segments/"))
+        return okJson({
+          object: "list",
+          data: [{ email: "fan@example.com", unsubscribed: false }],
+        });
+      if (url.includes("/contacts/") && init?.method === "DELETE")
+        return { ok: false, status: 429, text: async () => "slow down" };
+      if (url.endsWith("/emails")) return okRes();
+      return failRes();
+    });
+    const res = await onRequestPost(
+      postContext({ action: "unsubscribe", email: "fan@example.com" }),
+    );
+    assert.equal(res.status, 500);
+    assert.equal(sentEmails().length, 0);
+  });
+
   it("removes by link and says goodbye", async () => {
     stubEmptyList();
     const token = await issueLinkToken(env, "fan@example.com", "goodbye");

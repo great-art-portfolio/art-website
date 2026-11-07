@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { readFileSync } from "node:fs";
 
 /**
  * Studio painting rooms. /admin/paintings/new (draft) and
@@ -1028,5 +1029,66 @@ test("a save stops when the other paintings can't be checked", async ({
   // Agents see what happened and what she was told.
   await expect.poll(() => reports).toContain("studio.list_failed");
   expect(reports).toContain("studio.shown");
+  await authed.close();
+});
+
+test("a save keeps git's newer values for the fields she didn't touch", async ({
+  browser,
+}) => {
+  // The page was built before her last save and a sale: git now has a new
+  // price, a new description and sold: true. She changes only the medium.
+  const authed = await browser.newContext();
+  await authed.addInitScript(() =>
+    sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
+  );
+  const page = await authed.newPage();
+  const fixture = readFileSync(
+    "tests/fixtures/site/content/paintings/1943x1967.md",
+    "utf8",
+  );
+  const newer = fixture
+    .replace("price: 125.00", "price: 180.00")
+    .replace("sold: false", 'sold: true\nsoldSession: "cs_live_1"')
+    .replace(/\n---\n\n[\s\S]*$/, "\n---\n\nHer newer words.\n");
+  let saved = "";
+  await page.route("**/api/commit*", async (route) => {
+    const req = route.request();
+    if (req.method() === "GET") {
+      await route.fulfill({ json: { content: newer } });
+    } else if (req.method() === "PUT") {
+      await route.fulfill({ json: { files: [] } });
+    } else if (req.method() === "POST") {
+      const body = req.postDataJSON() as {
+        files?: Array<{ path: string; contentBase64: string }>;
+      };
+      const md = (body.files ?? []).find((f) => f.path.endsWith(".md"));
+      saved =
+        md === undefined
+          ? ""
+          : Buffer.from(md.contentBase64, "base64").toString();
+      await route.fulfill({ json: { ok: true, commit: "test" }, status: 201 });
+    } else {
+      await route.continue();
+    }
+  });
+  await page.route("**/api/translate", (route) =>
+    route.fulfill({ json: { langs: {} } }),
+  );
+  await page.goto("/admin/paintings/first-thaw");
+  await expect(page.locator("#main")).toHaveAttribute(
+    "data-studio-wired",
+    /edit/,
+  );
+  // The form still shows the build's values.
+  await expect(page.locator("#de-price")).toHaveValue("125");
+  await expect(page.locator("#de-sold")).not.toBeChecked();
+  await page.locator("#de-medium").fill("Acrylic on canvas");
+  await page.locator("#de-save").click();
+  await expect(page).toHaveURL(/\/admin\/?$/, { timeout: 25_000 });
+  expect(saved).toMatch(/^medium: "Acrylic on canvas"$/m);
+  expect(saved).toMatch(/^price: 180\.00$/m);
+  expect(saved).toMatch(/^sold: true$/m);
+  expect(saved).toMatch(/^soldSession: "cs_live_1"$/m);
+  expect(saved).toMatch(/\n---\n\nHer newer words\.\n$/);
   await authed.close();
 });
