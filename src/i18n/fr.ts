@@ -123,9 +123,12 @@ export const fr: Strings = {
     checkoutUnavailable:
       "Le paiement n’est pas disponible pour le moment. Veuillez réessayer.",
     viewOnWall: "Voir sur votre mur",
+    arMove: "Visez le sol et bougez lentement",
     arAim: "Visez le mur",
     arTap: "Touchez pour l'accrocher ici",
     arClose: "Fermer",
+    arHint: "Visez un interrupteur ou une prise du mur",
+    arFailed: "La vue sur le mur ne s'est pas ouverte. Veuillez réessayer.",
     share: "Partager ce tableau",
     copyLink: "Copier le lien de ce tableau",
     copied: "Copié.",

@@ -120,9 +120,12 @@ export const es: Strings = {
     checkoutUnavailable:
       "El pago no está disponible en este momento. Por favor, intente de nuevo.",
     viewOnWall: "Ver en su pared",
+    arMove: "Apunte al suelo y muévase despacio",
     arAim: "Apunte a la pared",
     arTap: "Toque para colgarlo aquí",
     arClose: "Cerrar",
+    arHint: "Apunte a un interruptor o enchufe de la pared",
+    arFailed: "La vista en la pared no se abrió. Inténtelo de nuevo.",
     share: "Compartir esta pintura",
     copyLink: "Copiar el enlace de esta pintura",
     copied: "Copiado.",

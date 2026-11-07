@@ -120,9 +120,12 @@ export const pt: Strings = {
     checkoutUnavailable:
       "O pagamento não está disponível agora. Por favor, tente de novo.",
     viewOnWall: "Ver na sua parede",
+    arMove: "Aponte para o chão e mova devagar",
     arAim: "Aponte para a parede",
     arTap: "Toque para pendurá-lo aqui",
     arClose: "Fechar",
+    arHint: "Aponte para um interruptor ou tomada na parede",
+    arFailed: "A visualização na parede não abriu. Tente novamente.",
     share: "Compartilhar esta pintura",
     copyLink: "Copiar o link desta pintura",
     copied: "Copiado.",

@@ -570,11 +570,19 @@ function showArViewer(glbUrl: string, usdzUrl: string): void {
       arButton.textContent = "View on your wall";
       el.appendChild(arButton);
       stage.replaceChildren(el);
-      wireWallAr(el, arButton, glbUrl, {
-        aim: "Point at the wall",
-        tap: "Tap to hang it here",
-        close: "Close",
-      });
+      wireWallAr(
+        el,
+        arButton,
+        glbUrl,
+        {
+          move: "Point at the floor and move slowly",
+          aim: "Point at the wall",
+          tap: "Tap to hang it here",
+          hint: "Point at a switch or outlet on the wall",
+          close: "Close",
+        },
+        () => setStatus("The wall view didn\u2019t open. Try again.", true),
+      );
     })
     .catch(() => {
       stage.innerHTML =

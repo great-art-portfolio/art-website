@@ -1,17 +1,30 @@
 /// <reference types="webxr" />
 /** In-browser AR for hanging a painting on a real wall (Android, WebXR).
- * A true-size outline follows the wall where the phone points; a tap hangs
- * the painting there, and a drag slides it along that wall. Bundled into
- * /js/model-viewer.js (scripts/vendor/mv-entry.ts) so it shares that
- * file's three.js, and reached through window.WallAr. */
+ * A true-size outline follows the wall where the phone points: faint and
+ * facing the buyer while only the wall's distance is known (depth), solid
+ * and flat once ARCore recognises the wall itself. A tap hangs the painting
+ * there; it snaps flat when the wall is recognised later, one finger slides
+ * it, two fingers turn it until then, and a tap on an outline elsewhere
+ * moves it (another spot or another wall). An anchor keeps it on the wall
+ * through tracking resets. Bundled into /js/model-viewer.js
+ * (scripts/vendor/mv-entry.ts) so it shares that file's three.js, and
+ * reached through window.WallAr. Blank walls in a bare room can keep
+ * ARCore from tracking at all; no viewer gets past that. */
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 export interface WallArWords {
-  /** Shown until the phone finds a wall. */
+  /** Shown until tracking starts. Floors and furniture have the detail
+   * tracking needs; a plain wall often doesn't, so start low, like Google's
+   * viewer does, then turn to the wall. */
+  move: string;
+  /** Shown while tracking finds no wall in the middle of the view. */
   aim: string;
   /** Shown while the outline sits on a wall. */
   tap: string;
+  /** Replaces aim when no wall has turned up for a while: detail is what
+   * lets the phone recognise a wall. */
+  hint: string;
   /** The close button's label. */
   close: string;
 }
@@ -25,6 +38,20 @@ export interface WallArApi {
   supported(): Promise<boolean>;
   start(options: WallArOptions): Promise<void>;
 }
+
+/** Why the viewer stopped. `opened` says whether AR had started, so the
+ * caller knows to try model-viewer's AR (no) or tell the buyer (yes). */
+export class WallArError extends Error {
+  readonly opened: boolean;
+  constructor(message: string, opened: boolean, cause: unknown) {
+    super(message, { cause });
+    this.name = "WallArError";
+    this.opened = opened;
+  }
+}
+
+/** After this long with no wall, the note offers a tip instead. */
+const HINT_AFTER_MS = 12000;
 
 /** A hit counts as a wall when its normal is within ~20° of horizontal. */
 const WALL_NORMAL_MAX_Y = 0.35;
@@ -47,7 +74,8 @@ export async function supported(): Promise<boolean> {
  * when the viewer closes, rejects when it couldn't open. */
 export function start(options: WallArOptions): Promise<void> {
   const xr = navigator.xr;
-  if (xr === undefined) return Promise.reject(new Error("No WebXR"));
+  if (xr === undefined)
+    return Promise.reject(new WallArError("No WebXR", false, null));
   const overlay = buildOverlay(options.words);
   document.body.appendChild(overlay.root);
   // The model downloads alongside the session start; the 3D preview has
@@ -57,10 +85,10 @@ export function start(options: WallArOptions): Promise<void> {
   return xr
     .requestSession("immersive-ar", {
       requiredFeatures: ["hit-test"],
-      optionalFeatures: ["dom-overlay", "depth-sensing"],
+      optionalFeatures: ["dom-overlay", "depth-sensing", "anchors"],
       domOverlay: { root: overlay.root },
       // Plain painted walls rarely become tracked planes; depth still sees
-      // them (wallFromDepth).
+      // them (surfaceFromDepth).
       depthSensing: {
         usagePreference: ["cpu-optimized"],
         dataFormatPreference: ["luminance-alpha", "float32"],
@@ -70,16 +98,27 @@ export function start(options: WallArOptions): Promise<void> {
       (session) => run(session, overlay, model),
       (err: unknown) => {
         overlay.root.remove();
-        throw err;
+        throw new WallArError("AR didn't start", false, err);
       },
     );
 }
 
+type Note = "move" | "aim" | "hint" | "tap" | "";
+
 interface Overlay {
   root: HTMLDivElement;
-  /** Shows one of the words, or hides the note for "". */
-  say(key: "aim" | "tap" | ""): void;
+  /** Shows one of the words (with the moving phone for "move"), or hides
+   * the note for "". */
+  say(key: Note): void;
 }
+
+/** A phone outline that glides side to side: "move me slowly". */
+const PHONE_SVG =
+  '<svg viewBox="0 0 24 36" width="22" height="33" aria-hidden="true">' +
+  '<rect x="2" y="1.5" width="20" height="33" rx="3.5" fill="none" ' +
+  'stroke="currentColor" stroke-width="2.2"/>' +
+  '<line x1="9" y1="30.5" x2="15" y2="30.5" stroke="currentColor" ' +
+  'stroke-width="2.2" stroke-linecap="round"/></svg>';
 
 function buildOverlay(words: WallArWords): Overlay {
   const root = document.createElement("div");
@@ -90,6 +129,13 @@ function buildOverlay(words: WallArWords): Overlay {
     fontFamily: "system-ui, sans-serif",
     zIndex: "2147483647",
   });
+  const style = document.createElement("style");
+  style.textContent =
+    "@keyframes wall-ar-sweep{0%,100%{transform:translateX(-14px)}" +
+    "50%{transform:translateX(14px)}}" +
+    ".wall-ar-phone{display:inline-flex;animation:wall-ar-sweep 2.4s " +
+    "ease-in-out infinite}" +
+    "@media (prefers-reduced-motion:reduce){.wall-ar-phone{animation:none}}";
   const close = document.createElement("button");
   close.type = "button";
   close.setAttribute("aria-label", words.close);
@@ -111,27 +157,44 @@ function buildOverlay(words: WallArWords): Overlay {
   });
   // A tap on the button must not also hang or move the painting.
   close.addEventListener("beforexrselect", (e) => e.preventDefault());
-  const note = document.createElement("p");
+  const note = document.createElement("div");
   Object.assign(note.style, {
     position: "absolute",
     left: "50%",
     bottom: "max(2.5rem, env(safe-area-inset-bottom))",
     transform: "translateX(-50%)",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: ".75rem",
+    color: "#fff",
+    transition: "opacity .25s ease",
+    opacity: "0",
+  });
+  const phone = document.createElement("span");
+  phone.className = "wall-ar-phone";
+  phone.innerHTML = PHONE_SVG;
+  phone.style.filter = "drop-shadow(0 1px 2px rgba(0,0,0,.6))";
+  const text = document.createElement("p");
+  Object.assign(text.style, {
     margin: "0",
     padding: ".6rem 1.1rem",
     borderRadius: "999px",
     background: "rgba(0,0,0,.55)",
-    color: "#fff",
     fontSize: "1rem",
     whiteSpace: "nowrap",
-    transition: "opacity .25s ease",
   });
+  note.appendChild(phone);
+  note.appendChild(text);
+  root.appendChild(style);
   root.appendChild(close);
   root.appendChild(note);
   return {
     root,
     say(key) {
-      if (key !== "") note.textContent = words[key];
+      root.dataset.note = key;
+      if (key !== "") text.textContent = words[key];
+      phone.style.display = key === "move" ? "" : "none";
       note.style.opacity = key === "" ? "0" : "1";
     },
   };
@@ -211,19 +274,55 @@ const invProj = new THREE.Matrix4();
 const viewToWorld = new THREE.Matrix4();
 const point = new THREE.Vector3();
 const top = new THREE.Vector3();
-/** Across the view, wide apart so the wall's angle beats depth noise. */
-const ROW = [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8];
 
-/** Finds the wall at the centre of the view from the depth map, for walls
- * too plain for ARCore to track as a plane. A row of depths across the
- * view gives the wall's line on the floor plan (its angle); a top and a
- * bottom point check it stands upright. Writes the centre point and the
- * wall's horizontal normal; false when there's no such wall. */
-function wallFromDepth(
+/** Reads metres at normalized view coordinates straight from the depth
+ * buffer. Kiwi's getDepthInMeters ignores x (a whole row of the view read
+ * one value, so every wall looked square-on), so this maps view to buffer
+ * with normDepthBufferFromNormView itself and takes the median of a 3×3
+ * patch, skipping holes (0). */
+function depthReader(
+  map: XRCPUDepthInformation,
+  format: XRDepthDataFormat | undefined,
+): (x: number, y: number) => number {
+  const M = map.normDepthBufferFromNormView.matrix;
+  const { width: w, height: h, rawValueToMeters: scale } = map;
+  const raw =
+    format === "float32"
+      ? new Float32Array(map.data)
+      : new Uint16Array(map.data);
+  const patch: number[] = [];
+  return (x, y) => {
+    const u = (M[0] ?? 0) * x + (M[4] ?? 0) * y + (M[12] ?? 0);
+    const v = (M[1] ?? 0) * x + (M[5] ?? 0) * y + (M[13] ?? 0);
+    const cx = Math.floor(u * w);
+    const cy = Math.floor(v * h);
+    patch.length = 0;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const px = cx + dx;
+        const py = cy + dy;
+        if (px < 0 || py < 0 || px >= w || py >= h) continue;
+        const value = raw[py * w + px] ?? 0;
+        if (value > 0) patch.push(value * scale);
+      }
+    }
+    if (patch.length < 5) return 0;
+    patch.sort((p, q) => p - q);
+    return patch[Math.floor(patch.length / 2)] ?? 0;
+  };
+}
+
+/** Where the view's centre meets an upright surface, from the depth map:
+ * the distance is good even on a plain wall, the angle isn't (ARCore
+ * smooths a featureless wall's depth nearly flat), so the caller faces the
+ * outline to the buyer until ARCore recognises the wall itself. Writes the
+ * point; false when there's no upright surface there (floor, bed, a hole
+ * in the depth). */
+function surfaceFromDepth(
   frame: XRFrame,
   view: XRView,
+  format: XRDepthDataFormat | undefined,
   pos: THREE.Vector3,
-  normal: THREE.Vector3,
 ): boolean {
   let depth: XRCPUDepthInformation | null | undefined;
   try {
@@ -233,11 +332,11 @@ function wallFromDepth(
     return false;
   }
   if (depth === null || depth === undefined) return false;
-  const map = depth;
+  const metresAt = depthReader(depth, format);
   invProj.fromArray(view.projectionMatrix).invert();
   viewToWorld.fromArray(view.transform.matrix);
   const at = (x: number, y: number, out: THREE.Vector3): boolean => {
-    const metres = map.getDepthInMeters(x, y);
+    const metres = metresAt(x, y);
     if (!(metres > 0.3 && metres < 6)) return false;
     out.set(2 * x - 1, 1 - 2 * y, -1).applyMatrix4(invProj);
     out.multiplyScalar(metres / -out.z).applyMatrix4(viewToWorld);
@@ -247,53 +346,7 @@ function wallFromDepth(
   if (!at(0.5, 0.3, top) || !at(0.5, 0.7, point)) return false;
   top.sub(point);
   if (Math.abs(top.y) < 0.8 * top.length()) return false;
-  // Least-squares line through the row, in the floor plane (x, z).
-  let mx = 0;
-  let mz = 0;
-  let sxx = 0;
-  let szz = 0;
-  let sxz = 0;
-  const xs: number[] = [];
-  const zs: number[] = [];
-  let centre = false;
-  for (const x of ROW) {
-    if (!at(x, 0.5, point)) continue;
-    xs.push(point.x);
-    zs.push(point.z);
-    if (x === 0.5) {
-      pos.copy(point);
-      centre = true;
-    }
-  }
-  const n = xs.length;
-  if (n < 5 || !centre) return false;
-  for (let i = 0; i < n; i++) {
-    mx += xs[i] ?? 0;
-    mz += zs[i] ?? 0;
-  }
-  mx /= n;
-  mz /= n;
-  for (let i = 0; i < n; i++) {
-    const dx = (xs[i] ?? 0) - mx;
-    const dz = (zs[i] ?? 0) - mz;
-    sxx += dx * dx;
-    szz += dz * dz;
-    sxz += dx * dz;
-  }
-  // The row must span a real stretch of wall and lie close to one line.
-  const spread = sxx + szz;
-  if (spread < n * 0.01 * 0.01) return false;
-  const angle = 0.5 * Math.atan2(2 * sxz, sxx - szz);
-  const ux = Math.cos(angle);
-  const uz = Math.sin(angle);
-  let off = 0;
-  for (let i = 0; i < n; i++) {
-    const d = ((xs[i] ?? 0) - mx) * -uz + ((zs[i] ?? 0) - mz) * ux;
-    off += d * d;
-  }
-  if (Math.sqrt(off / n) > 0.03) return false;
-  normal.set(-uz, 0, ux);
-  return true;
+  return at(0.5, 0.5, pos);
 }
 
 /** Points the group's +Z out of the wall and keeps its up vertical. */
@@ -310,6 +363,7 @@ function faceOut(
   );
 }
 
+/** Hangs and moves the painting: what a tap or drag means right now. */
 async function run(
   session: XRSession,
   overlay: Overlay,
@@ -321,26 +375,25 @@ async function run(
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera();
+  // Even, neutral light: buyers judge her colours, so the room's light
+  // (often warm or dim) isn't applied to the painting.
   scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8070, 2.4));
+  const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const ended = new Promise<void>((resolve) => {
     session.addEventListener("end", () => resolve(), { once: true });
   });
-  const closeButton = overlay.root.querySelector("button");
-  closeButton?.addEventListener("click", () => void session.end());
+  overlay.root
+    .querySelector("button")
+    ?.addEventListener("click", () => void session.end());
 
   let hitSource: XRHitTestSource | undefined;
   try {
     await renderer.xr.setSession(session);
     const viewer = await session.requestReferenceSpace("viewer");
-    // Feature points too: a plain wall rarely becomes a whole plane, but its
-    // texture, a switch or a frame edge gives points with a normal.
-    hitSource = await session
-      .requestHitTestSource?.({
-        space: viewer,
-        entityTypes: ["plane", "point"],
-      })
-      ?.catch(() => session.requestHitTestSource?.({ space: viewer }));
+    // Planes only: a lone feature point's normal is a guess, and turned
+    // the painting sideways.
+    hitSource = await session.requestHitTestSource?.({ space: viewer });
     if (hitSource === undefined) throw new Error("No hit test");
     const gltf = await model;
 
@@ -363,24 +416,106 @@ async function run(
     scene.add(hung, aim);
 
     const refSpace = renderer.xr.getReferenceSpace();
-    const hitPos = new THREE.Vector3();
-    const hitNormal = new THREE.Vector3();
+    const wallPos = new THREE.Vector3();
+    const wallNormal = new THREE.Vector3();
     const toViewer = new THREE.Vector3();
     const goal = new THREE.Object3D();
     const m = new THREE.Matrix4();
-    let onWall = false;
-    let hungAt = 0;
+    let hungAt = -Infinity;
+    const outlineLook = aim.material;
 
-    // Dragging: the finger's ray against the wall the painting hangs on.
-    let dragging: XRInputSource | null = null;
-    const dragOffset = new THREE.Vector3();
+    /** The wall in the middle of the view. "plane": ARCore recognises it,
+     * so its angle is the wall's. "depth": only its distance is known, so
+     * it faces the buyer until a plane turns up. Writes wallPos and
+     * wallNormal. */
+    const findWall = (
+      frame: XRFrame,
+      pose: XRViewerPose,
+    ): "plane" | "depth" | "" => {
+      if (refSpace === null || hitSource === undefined) return "";
+      for (const hit of frame.getHitTestResults(hitSource)) {
+        const p = hit.getPose(refSpace);
+        // Chrome answers null, not undefined, for "no pose yet".
+        if (!p) continue;
+        m.fromArray(p.transform.matrix);
+        wallNormal.set(m.elements[4], m.elements[5], m.elements[6]);
+        if (Math.abs(wallNormal.y) < WALL_NORMAL_MAX_Y) {
+          wallPos.setFromMatrixPosition(m);
+          return "plane";
+        }
+      }
+      const view = pose.views[0];
+      if (
+        view !== undefined &&
+        surfaceFromDepth(frame, view, session.depthDataFormat, wallPos)
+      ) {
+        const v = pose.transform.position;
+        wallNormal.set(v.x - wallPos.x, 0, v.z - wallPos.z);
+        if (wallNormal.lengthSq() > 1e-6) return "depth";
+      }
+      return "";
+    };
+
+    // An anchor pins the painting to the room itself: when ARCore loses
+    // tracking and rebuilds its map, raw coordinates move but the anchor
+    // stays on the wall. Without anchor support it keeps its coordinates.
+    let anchor: XRAnchor | null = null;
+    let anchorWanted = false;
+    const dropAnchor = () => {
+      anchor?.delete();
+      anchor = null;
+    };
+    const reanchor = (frame: XRFrame) => {
+      anchorWanted = false;
+      dropAnchor();
+      if (refSpace === null || frame.createAnchor === undefined) return;
+      const { x, y, z } = hung.position;
+      const q = hung.quaternion;
+      frame
+        .createAnchor(
+          new XRRigidTransform({ x, y, z }, { x: q.x, y: q.y, z: q.z, w: q.w }),
+          refSpace,
+        )
+        .then(
+          (made) => {
+            if (anchorWanted || !hung.visible) made.delete();
+            else anchor = made;
+          },
+          () => {
+            // Anchors refused: the painting keeps its coordinates.
+          },
+        );
+    };
+
+    /** Whether the hung painting lies on a wall ARCore recognised, or still
+     * faces where the buyer stood (a plain wall it can't read yet). */
+    let snapped = false;
+    let snapping = false;
+    const snapTo = new THREE.Object3D();
+
+    const hang = (time: number, frame: XRFrame, onPlane: boolean) => {
+      hung.position.copy(aim.position);
+      hung.quaternion.copy(aim.quaternion);
+      hung.visible = true;
+      aim.visible = false;
+      snapped = onPlane;
+      snapping = false;
+      hungAt = still ? -Infinity : time;
+      reanchor(frame);
+      navigator.vibrate?.(12);
+    };
+
+    // One finger drags the painting along its wall, by the finger's own
+    // movement; a quick touch that barely moves is a tap, which hangs it at
+    // the outline (first time, or another spot or wall). Two fingers turn
+    // it, while it still faces the buyer rather than a recognised wall.
     const plane = new THREE.Plane();
     const ray = new THREE.Ray();
     const fingerHit = (frame: XRFrame, source: XRInputSource) => {
       if (refSpace === null) return null;
-      const pose = frame.getPose(source.targetRaySpace, refSpace);
-      if (pose === undefined) return null;
-      m.fromArray(pose.transform.matrix);
+      const p = frame.getPose(source.targetRaySpace, refSpace);
+      if (!p) return null;
+      m.fromArray(p.transform.matrix);
       ray.origin.setFromMatrixPosition(m);
       ray.direction.set(0, 0, -1).transformDirection(m);
       plane.setFromNormalAndCoplanarPoint(
@@ -389,123 +524,188 @@ async function run(
       );
       return ray.intersectPlane(plane, new THREE.Vector3());
     };
-
-    let pendingTap = false;
-    let pendingDrag: XRInputSource | null = null;
+    const touches: XRInputSource[] = [];
+    let touchStart = 0;
+    let touchMoved = 0;
+    let twisted = false;
+    let lastFinger: THREE.Vector3 | null = null;
+    let lastTwist: number | null = null;
+    let tapped = false;
     session.addEventListener("selectstart", (e) => {
-      if (hung.visible) pendingDrag = e.inputSource;
-      else pendingTap = true;
+      touches.push(e.inputSource);
+      if (touches.length === 1) {
+        touchStart = performance.now();
+        touchMoved = 0;
+        twisted = false;
+      }
+      lastFinger = null;
+      lastTwist = null;
     });
-    session.addEventListener("selectend", () => {
-      dragging = null;
-      pendingDrag = null;
+    session.addEventListener("selectend", (e) => {
+      const i = touches.indexOf(e.inputSource);
+      if (i >= 0) touches.splice(i, 1);
+      lastFinger = null;
+      lastTwist = null;
+      if (touches.length > 0) return;
+      if (!twisted && performance.now() - touchStart < 350 && touchMoved < 0.02)
+        tapped = true;
+      // Moved by hand: pin it again where it landed.
+      else if (hung.visible) anchorWanted = true;
     });
+    const fingerAngle = (): number | null => {
+      const a = touches[0]?.gamepad?.axes;
+      const b = touches[1]?.gamepad?.axes;
+      if (a === undefined || b === undefined) return null;
+      return Math.atan2((b[1] ?? 0) - (a[1] ?? 0), (b[0] ?? 0) - (a[0] ?? 0));
+    };
 
-    let said: "aim" | "tap" | "" | null = null;
-    const say = (key: "aim" | "tap" | "") => {
+    let said: Note | null = null;
+    let lookingSince = -1;
+    let wasFirm = false;
+    const say = (key: Note) => {
       if (key !== said) overlay.say(key);
       said = key;
     };
 
     renderer.setAnimationLoop((time, frame: XRFrame | undefined) => {
       // three also calls this outside XR frames, with no frame.
-      if (frame === undefined || refSpace === null || hitSource === undefined)
-        return;
-      const viewerPose = frame.getViewerPose(refSpace);
+      if (frame === undefined || refSpace === null) return;
+      const pose = frame.getViewerPose(refSpace);
+      // null, not undefined, while ARCore isn't tracking.
+      const tracking = !!pose && !pose.emulatedPosition;
 
-      if (!hung.visible) {
-        const hits = frame.getHitTestResults(hitSource);
-        onWall = false;
-        const debug: number[] = [];
-        for (const hit of hits) {
-          const pose = hit.getPose(refSpace);
-          if (pose === undefined || viewerPose === undefined) continue;
-          m.fromArray(pose.transform.matrix);
-          hitNormal.set(m.elements[4], m.elements[5], m.elements[6]);
-          debug.push(Math.round(hitNormal.y * 100) / 100);
-          if (Math.abs(hitNormal.y) < WALL_NORMAL_MAX_Y) {
-            onWall = true;
-            hitPos.setFromMatrixPosition(m);
-            const v = viewerPose.transform.position;
-            toViewer.set(v.x, v.y, v.z).sub(hitPos);
-            goal.position.copy(hitPos);
-            faceOut(goal, hitNormal, toViewer);
-            if (!aim.visible) {
-              aim.position.copy(goal.position);
-              aim.quaternion.copy(goal.quaternion);
-            } else {
-              aim.position.lerp(goal.position, 0.3);
-              aim.quaternion.slerp(goal.quaternion, 0.3);
-            }
-            break;
-          }
+      // Hands on the painting, or a snap under way: let go of the anchor,
+      // and pin it again once it rests.
+      if ((touches.length > 0 || snapping) && anchor !== null) dropAnchor();
+      if (anchor !== null) {
+        const p = frame.getPose(anchor.anchorSpace, refSpace);
+        if (p) {
+          m.fromArray(p.transform.matrix);
+          m.decompose(hung.position, hung.quaternion, hung.scale);
+          hung.scale.setScalar(1);
         }
-        const view = viewerPose?.views[0];
-        let fromDepth = false;
-        if (!onWall && view !== undefined && viewerPose !== undefined) {
-          fromDepth = wallFromDepth(frame, view, hitPos, hitNormal);
-          if (fromDepth) {
-            onWall = true;
-            const v = viewerPose.transform.position;
-            toViewer.set(v.x, v.y, v.z).sub(hitPos);
-            goal.position.copy(hitPos);
-            faceOut(goal, hitNormal, toViewer);
-            if (!aim.visible) {
-              aim.position.copy(goal.position);
-              aim.quaternion.copy(goal.quaternion);
-            } else {
-              aim.position.lerp(goal.position, 0.2);
-              aim.quaternion.slerp(goal.quaternion, 0.2);
-            }
+      }
+      if (anchorWanted && touches.length === 0 && !snapping) reanchor(frame);
+
+      const finger = touches.length === 1 ? touches[0] : undefined;
+      if (finger !== undefined && hung.visible) {
+        const at = fingerHit(frame, finger);
+        if (at !== null) {
+          if (lastFinger !== null) {
+            touchMoved += at.distanceTo(lastFinger);
+            hung.position.add(at.clone().sub(lastFinger));
           }
+          lastFinger = at;
         }
-        Reflect.set(window, "__wallDebug", {
-          hits: debug,
-          lost: viewerPose?.emulatedPosition ?? null,
-          depth: session.depthUsage ?? null,
-          fromDepth,
-          ny: Math.round(hitNormal.y * 100) / 100,
-        });
-        aim.visible = onWall;
-        say(onWall ? "tap" : "aim");
-        if (pendingTap && onWall) {
-          hung.position.copy(aim.position);
-          hung.quaternion.copy(aim.quaternion);
-          hung.visible = true;
-          aim.visible = false;
-          hungAt = time;
-          say("");
+      }
+      if (touches.length === 2 && hung.visible && !snapped) {
+        const angle = fingerAngle();
+        if (angle !== null) {
+          if (lastTwist !== null) {
+            let turn = angle - lastTwist;
+            if (turn > Math.PI) turn -= 2 * Math.PI;
+            if (turn < -Math.PI) turn += 2 * Math.PI;
+            hung.rotateY(-turn);
+            twisted = true;
+          }
+          lastTwist = angle;
+        }
+      }
+      const handling = touches.length > 0 && (touchMoved >= 0.02 || twisted);
+
+      const source = tracking && pose && !handling ? findWall(frame, pose) : "";
+      let offer = false;
+      if (source !== "" && pose) {
+        const v = pose.transform.position;
+        toViewer.set(v.x, v.y, v.z).sub(wallPos);
+        goal.position.copy(wallPos);
+        faceOut(goal, wallNormal, toViewer);
+        // A recognised wall close behind a painting that still faces the
+        // buyer: lay it flat on that wall.
+        const behind = Math.abs(
+          wallNormal.dot(snapTo.position.copy(hung.position).sub(wallPos)),
+        );
+        if (
+          hung.visible &&
+          !snapped &&
+          source === "plane" &&
+          behind < 0.5 &&
+          wallPos.distanceTo(hung.position) < 1.5
+        ) {
+          snapTo.position
+            .copy(hung.position)
+            .addScaledVector(
+              wallNormal,
+              -wallNormal.dot(toViewer.copy(hung.position).sub(wallPos)),
+            );
+          snapTo.quaternion.copy(goal.quaternion);
+          snapped = true;
+          snapping = true;
           navigator.vibrate?.(12);
         }
-        pendingTap = false;
-      } else {
-        if (pendingDrag !== null) {
-          const at = fingerHit(frame, pendingDrag);
-          if (at !== null) {
-            dragging = pendingDrag;
-            dragOffset.copy(hung.position).sub(at);
-          }
-          pendingDrag = null;
+        // Once it hangs, only offer a spot well away from it, or another
+        // wall; near the painting, a tap is just a tap.
+        offer =
+          !snapping &&
+          (!hung.visible ||
+            goal.position.distanceTo(hung.position) > 0.3 ||
+            goal.quaternion.angleTo(hung.quaternion) > 0.35);
+        if (!aim.visible) {
+          aim.position.copy(goal.position);
+          aim.quaternion.copy(goal.quaternion);
+        } else {
+          aim.position.lerp(goal.position, 0.25);
+          aim.quaternion.slerp(goal.quaternion, 0.2);
         }
-        if (dragging !== null) {
-          const at = fingerHit(frame, dragging);
-          if (at !== null) hung.position.copy(at.add(dragOffset));
-          aim.position.copy(hung.position);
-          aim.quaternion.copy(hung.quaternion);
-        }
-        aim.visible = dragging !== null;
-        // Ease the painting in against the wall after it's hung.
-        const t = Math.min(1, (time - hungAt) / SETTLE_MS);
-        settle.position.z = SETTLE_FROM * (1 - t) * (1 - t);
       }
+      aim.visible = offer;
+      // Solid once it's on a recognised wall, soft while it only faces you;
+      // a light buzz when it locks on.
+      const firm = source === "plane";
+      if (outlineLook instanceof THREE.MeshBasicMaterial)
+        outlineLook.opacity = firm ? 0.95 : 0.55;
+      if (firm && !wasFirm && offer) navigator.vibrate?.(8);
+      wasFirm = firm && offer;
+      if (tapped && offer) hang(time, frame, firm);
+      tapped = false;
+
+      // The snap swings the painting flat over a few frames.
+      if (snapping) {
+        hung.position.lerp(snapTo.position, still ? 1 : 0.2);
+        hung.quaternion.slerp(snapTo.quaternion, still ? 1 : 0.2);
+        if (
+          hung.position.distanceTo(snapTo.position) < 0.002 &&
+          hung.quaternion.angleTo(snapTo.quaternion) < 0.01
+        ) {
+          hung.position.copy(snapTo.position);
+          hung.quaternion.copy(snapTo.quaternion);
+          snapping = false;
+          anchorWanted = true;
+        }
+      }
+
+      overlay.root.dataset.source = source;
+      overlay.root.dataset.hung = hung.visible ? "1" : "";
+      overlay.root.dataset.snapped = snapped ? "1" : "";
+      overlay.root.dataset.anchored = anchor === null ? "" : "1";
+      if (lookingSince < 0 || !tracking || hung.visible || aim.visible)
+        lookingSince = time;
+      if (!tracking) say("move");
+      else if (aim.visible) say("tap");
+      else if (hung.visible) say("");
+      else say(time - lookingSince > HINT_AFTER_MS ? "hint" : "aim");
+
+      // Ease the painting in against the wall after it's hung.
+      const t = Math.min(1, (time - hungAt) / SETTLE_MS);
+      settle.position.z = SETTLE_FROM * (1 - t) * (1 - t);
       renderer.render(scene, camera);
     });
 
     await ended;
   } catch (err) {
-    // Already ended is fine; the caller falls back either way.
+    // Already ended is fine.
     await session.end().catch(() => undefined);
-    throw err;
+    throw new WallArError("AR stopped", true, err);
   } finally {
     renderer.setAnimationLoop(null);
     hitSource?.cancel();
