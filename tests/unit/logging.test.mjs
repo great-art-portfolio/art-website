@@ -30,9 +30,8 @@ function fakeDb({ count = 0, failInsert = false, repeat = false } = {}) {
             throw new Error("D1 down");
           runs.push({ sql, values });
           if (sql.startsWith("SELECT COUNT")) return { n: count };
-          // The repeat check: a match only when the test says there's one.
-          if (sql.startsWith("SELECT id FROM inquiries"))
-            return repeat ? { id: 7 } : null;
+          // The insert skips a repeat: no row comes back.
+          if (repeat && sql.startsWith("INSERT INTO inquiries")) return null;
           return { id: nextId++ };
         },
       };
@@ -170,7 +169,7 @@ describe("inquiries are kept even when the email fails", () => {
 });
 
 describe("a note replayed twice is sent once", () => {
-  it("answers a repeat as sent, without saving or emailing it again", async () => {
+  it("answers a repeat as sent, without sending it again", async () => {
     const db = fakeDb({ repeat: true });
     const res = await postInquiry({
       env: { DB: db, ASSETS: assets },
@@ -186,10 +185,12 @@ describe("a note replayed twice is sent once", () => {
     });
     assert.equal(res.status, 201);
     assert.deepEqual(await res.json(), { ok: true, repeat: true });
+    // The save found the same note, so nothing was sent or marked.
     assert.equal(
-      db.runs.some((r) => r.sql.startsWith("INSERT INTO inquiries")),
+      db.runs.some((r) => r.sql.startsWith("UPDATE inquiries")),
       false,
     );
+    assert.deepEqual(logs(db), []);
   });
 });
 

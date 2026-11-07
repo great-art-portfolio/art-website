@@ -7,7 +7,7 @@ import {
   readTextFile,
 } from "../_lib/github";
 import { PAINTING_FILE } from "../_lib/gallery-paths";
-import { badRequest, json, serverError } from "../_lib/http";
+import { badRequest, json, notEnabled, serverError } from "../_lib/http";
 import { artistInbox, sendSiteEmail } from "../_lib/notify";
 import {
   expireOtherSessions,
@@ -21,7 +21,7 @@ import {
   parsePainting,
   soldSessionOf,
 } from "../../src/lib/painting-edit";
-import { logEvent } from "../_lib/log";
+import { logCapped, logEvent } from "../_lib/log";
 import { forgetLivePainting } from "./checkout";
 
 /** Reads of the painting a sale may take when commits keep landing. */
@@ -36,22 +36,29 @@ const MARK_TRIES = 3;
  * commit again or warn her of a double sale; it just resends the sale
  * email, since Stripe only repeats a delivery this answered with an error.
  * A sale email that fails answers 500 too, so she always hears of it.
- * Every other open checkout for the painting is closed first, before git
- * is touched, so a GitHub outage can't let more buyers pay meanwhile.
- * The commit builds on exactly the commit the painting was read at, so two
+ * Every other open checkout for the painting is closed after the sold
+ * commit (and when git fails, before answering 500, so an outage can't let
+ * more buyers pay), then again once checkout's 15-second cache of the
+ * painting has run out everywhere, catching any started meanwhile. The
+ * commit builds on exactly the commit the painting was read at, so two
  * sales close together can't both pass as the first.
  */
+
+/** Past checkout's 15 s cache of a painting, in every data centre. */
+const RECLOSE_AFTER_MS = 20_000;
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   const { env, request } = context;
   const payload = await request.text();
   const secret = env.STRIPE_WEBHOOK_SECRET ?? "";
   const signature = request.headers.get("stripe-signature");
   if (secret === "") {
-    await logEvent(env, {
+    // Logged at most once per ten minutes: anyone can post here. A 501
+    // (switched off) still makes Stripe retry, once the secret is set.
+    await logCapped(env, {
       event: "sale.no_webhook_secret",
       message: "STRIPE_WEBHOOK_SECRET isn't set, so no sale can be recorded",
     });
-    return serverError("Webhook not configured");
+    return notEnabled("The sale webhook", "Set STRIPE_WEBHOOK_SECRET.");
   }
   const valid = await verifyStripeSignature(
     payload,
@@ -60,10 +67,10 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     Math.floor(Date.now() / 1000),
   );
   if (!valid) {
-    // Only signed-looking deliveries are logged, so junk posts can't fill
-    // the log; a wrong secret shows up here on every real sale.
+    // A wrong secret shows up here on every real sale. Capped, since any
+    // post with any stripe-signature header gets this far.
     if (signature !== null)
-      await logEvent(env, {
+      await logCapped(env, {
         level: "warn",
         event: "sale.bad_signature",
         message:
@@ -113,8 +120,15 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   let duplicate = false;
   const config = gitConfig(env);
   // A paid sale closes the painting's other checkouts whatever git says
-  // (a second buyer of a sold painting just repeats it).
-  await expireOtherSessions(env, slug, session);
+  // (a second buyer of a sold painting just repeats it): now, after the
+  // commit below, and again past checkout's cache.
+  const closeOthers = () => expireOtherSessions(env, slug, session);
+  const closeAgainLater = () => {
+    const later = new Promise<void>((resolve) =>
+      setTimeout(resolve, RECLOSE_AFTER_MS),
+    ).then(closeOthers);
+    if (typeof context.waitUntil === "function") context.waitUntil(later);
+  };
   if (!PAINTING_FILE.test(file)) {
     await logEvent(env, {
       event: "sale.no_painting_file",
@@ -169,9 +183,14 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
         err,
         detail: { file, session },
       });
+      // Git is down: close the others anyway, so nobody else can pay.
+      await closeOthers();
+      closeAgainLater();
       return serverError("Could not mark the painting sold");
     }
   }
+  await closeOthers();
+  closeAgainLater();
 
   const mail = saleEmail(event, { alreadySold, marked });
   const emailed = await sendSiteEmail(env, {

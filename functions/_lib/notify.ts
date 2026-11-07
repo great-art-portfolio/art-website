@@ -205,9 +205,6 @@ export interface SegmentContact {
 /** Contacts per page; Resend's maximum. */
 const CONTACTS_PAGE = 100;
 
-/** All contacts on the segment, paged 100 at a time. Empty when
- * unconfigured. Throws (after logging) when the list can't be read, so a
- * failure never passes for an empty list. */
 /** Resend allows a few requests a second. A 429 waits as long as it asks
  * (a second by default, at most 5) and tries again, up to 3 times, so a
  * long list is read slowly rather than not at all. */
@@ -222,6 +219,9 @@ async function fetchPaced(url: string, init: RequestInit): Promise<Response> {
   }
 }
 
+/** All contacts on the segment, paged 100 at a time. Empty when
+ * unconfigured. Throws (after logging) when the list can't be read, so a
+ * failure never passes for an empty list. */
 export async function listSegmentContacts(
   env: AppEnv,
 ): Promise<SegmentContact[]> {

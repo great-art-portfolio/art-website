@@ -446,7 +446,8 @@ describe("POST /api/stripe-webhook", () => {
       request: webhookRequest(paidEvent()),
       env: { ...env, STRIPE_WEBHOOK_SECRET: "" },
     });
-    assert.equal(res.status, 500);
+    // Switched off (501), which Stripe still retries once it's set.
+    assert.equal(res.status, 501);
     assert.equal(calls.trees.length, 0);
   });
   it("ignores unpaid sessions", async () => {

@@ -9,7 +9,13 @@ import { parseCatalog } from "../_lib/validation";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** Saves the inquiry before anything is sent, so a failed email never
- * loses it. Null when the save itself failed (logged; sending goes on). */
+ * loses it. "repeat" when the same note from the same buyer about the same
+ * painting was sent in the last 15 minutes, or is being sent right now (a
+ * row under a minute old): a saved note replayed twice, by the page and the
+ * background sync together. The check and the save are one statement, so
+ * two copies arriving at once can't both pass. A row stuck "received" for
+ * over a minute (its attempt died) doesn't count, so its retry goes
+ * through. Null when the save itself failed (logged; sending goes on). */
 async function recordInquiry(
   env: AppEnv,
   request: Request,
@@ -21,10 +27,15 @@ async function recordInquiry(
     message: string;
     locale: string;
   },
-): Promise<number | null> {
+): Promise<number | "repeat" | null> {
   try {
     const res = await env.DB.prepare(
-      "INSERT INTO inquiries (slug, painting_title, buyer_name, buyer_email, message, locale) VALUES (?, ?, ?, ?, ?, ?) RETURNING id",
+      "INSERT INTO inquiries (slug, painting_title, buyer_name, buyer_email, message, locale) " +
+        "SELECT ?, ?, ?, ?, ?, ? WHERE NOT EXISTS (" +
+        "SELECT 1 FROM inquiries WHERE slug = ? AND buyer_email = ? AND message = ? AND (" +
+        "(status = 'sent' AND at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-15 minutes')) OR " +
+        "(status = 'received' AND at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-1 minutes')))" +
+        ") RETURNING id",
     )
       .bind(
         row.slug,
@@ -33,9 +44,13 @@ async function recordInquiry(
         row.buyerEmail,
         row.message,
         row.locale,
+        row.slug,
+        row.buyerEmail,
+        row.message,
       )
       .first<{ id: number }>();
-    return res?.id ?? null;
+    // No row inserted: the NOT EXISTS found the same note.
+    return res === null || res === undefined ? "repeat" : res.id;
   } catch (err) {
     await logEvent(env, {
       event: "inquiry.record_failed",
@@ -45,27 +60,6 @@ async function recordInquiry(
       request,
     });
     return null;
-  }
-}
-
-/** The same note from the same buyer about the same painting in the last
- * 15 minutes, already sent or still sending: a saved note replayed twice
- * (the page and the background sync both reconnecting). A failed one
- * doesn't count, so its retry goes through. A database error answers no,
- * so a note is never dropped for it. */
-async function isRepeat(
-  env: AppEnv,
-  note: { slug: string; buyerEmail: string; message: string },
-): Promise<boolean> {
-  try {
-    const row = await env.DB.prepare(
-      "SELECT id FROM inquiries WHERE slug = ? AND buyer_email = ? AND message = ? AND status IN ('received', 'sent') AND at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-15 minutes') LIMIT 1",
-    )
-      .bind(note.slug, note.buyerEmail, note.message)
-      .first<{ id: number }>();
-    return row !== null && row !== undefined;
-  } catch {
-    return false;
   }
 }
 
@@ -152,15 +146,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   const paintingTitle = painting.title;
   const priceCents = painting.sold ? 0 : painting.priceCents;
   const locale = isLocale(body["locale"]) ? body["locale"] : "en";
-  if (
-    await isRepeat(context.env, {
-      slug: painting.slug,
-      buyerEmail,
-      message,
-    })
-  )
-    return json({ ok: true, repeat: true }, { status: 201 });
-  const id = await recordInquiry(context.env, context.request, {
+  const recorded = await recordInquiry(context.env, context.request, {
     slug: painting.slug,
     paintingTitle,
     buyerName,
@@ -168,6 +154,9 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     message,
     locale,
   });
+  if (recorded === "repeat")
+    return json({ ok: true, repeat: true }, { status: 201 });
+  const id = recorded;
   try {
     // Awaited rather than waitUntil, so the buyer only sees "thanks" once a
     // channel delivered. A 5xx makes the offline outbox keep it for retry.
