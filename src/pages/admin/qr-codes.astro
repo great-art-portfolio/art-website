@@ -38,7 +38,7 @@ const codes = cards.map((p) => {
       </button>
       <ul class="qr-grid">
         {codes.map((c) => (
-          <li class="qr-card" id={c.slug}>
+          <li class="qr-card" id={`qr-${c.slug}`}>
             <div class="qr-code" set:html={c.svg} />
             <p class="qr-title">
               {c.title}
@@ -132,6 +132,8 @@ const codes = cards.map((p) => {
     :global(.site-nav),
     :global(#admin-status),
     :global(#background),
+    :global(.site-footer),
+    #sec-qr > h2,
     #sec-qr > p,
     #qr-print,
     #sec-qr .qr-print-one {
@@ -143,6 +145,12 @@ const codes = cards.map((p) => {
     }
     #sec-qr .qr-card {
       break-inside: avoid;
+    }
+    /* Paper is white: a dark theme mustn't print light-on-white text. */
+    :global(html),
+    :global(body) {
+      background: #fff !important;
+      color: #111 !important;
     }
     #sec-qr.printing-one .qr-card {
       display: none;

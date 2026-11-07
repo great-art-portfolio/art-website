@@ -756,10 +756,17 @@ const at = (b: Box) =>
             <div class="ar-skeleton" aria-hidden="true" />
           </div>
           <p class="ar-status" id="ar-status" role="status" />
-          <div class="ar-scan">
-            <span class="ar-qr" set:html={qrSvg(paintingPageUrl(data.slug))} />
-            <p class="hint" set:html={s.painting.wallScan} />
-          </div>
+          {/* A draft's preview has no public page for a code to open. The
+              code opens this page in the language it's shown in. */}
+          {!preview && (
+            <div class="ar-scan">
+              <span
+                class="ar-qr"
+                set:html={qrSvg(paintingPageUrl(data.slug, locale))}
+              />
+              <p class="hint" set:html={s.painting.wallScan} />
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -1907,9 +1914,11 @@ const at = (b: Box) =>
       margin: 0;
     }
   }
+  /* 7rem keeps a long title's code readable on a 1x screen, now that it
+     carries the standard four-module white margin. */
   .ar-qr {
     flex: none;
-    width: 5.5rem;
+    width: 7rem;
     line-height: 0;
   }
   .ar-qr :global(svg) {
