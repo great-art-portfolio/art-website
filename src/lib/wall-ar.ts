@@ -61,6 +61,8 @@ const OFFER_TURN_RAD = 0.5;
 const upAxis = new THREE.Vector3(0, 1, 0);
 /** After this long without tracking, it suggests the floor. */
 const STUCK_AFTER_MS = 6000;
+/** Sooner when tracking drops mid-use (a reset) than at the start. */
+const STUCK_AGAIN_MS = 3000;
 
 /** A hit counts as a wall when its normal is within ~20° of horizontal. */
 const WALL_NORMAL_MAX_Y = 0.35;
@@ -575,9 +577,12 @@ async function run(
       // Moved by hand: pin it again where it landed.
       else if (hung.visible) anchorWanted = true;
     });
-    const fingerAngle = (): number | null => {
-      const a = touches[0]?.gamepad?.axes;
-      const b = touches[1]?.gamepad?.axes;
+    /** The angle of the line between two fingers on the screen. Chrome
+     * fires selectstart for the first finger only, so both are read from
+     * the session's live screen inputs, as model-viewer does. */
+    const fingerAngle = (fingers: XRInputSource[]): number | null => {
+      const a = fingers[0]?.gamepad?.axes;
+      const b = fingers[1]?.gamepad?.axes;
       if (a === undefined || b === undefined) return null;
       return Math.atan2((b[1] ?? 0) - (a[1] ?? 0), (b[0] ?? 0) - (a[0] ?? 0));
     };
@@ -585,6 +590,7 @@ async function run(
     let said: Note | null = null;
     let lookingSince = -1;
     let lostSince = -1;
+    let trackedOnce = false;
     let wasFirm = false;
     const say = (key: Note) => {
       if (key !== said) overlay.say(key);
@@ -617,7 +623,13 @@ async function run(
       }
       if (anchorWanted && touches.length === 0 && !snapping) reanchor(frame);
 
-      const finger = touches.length === 1 ? touches[0] : undefined;
+      const onScreen = Array.from(session.inputSources).filter(
+        (source) => source.targetRayMode === "screen",
+      );
+      const twoFingers = onScreen.length >= 2;
+      if (!twoFingers) lastTwist = null;
+      const finger =
+        touches.length === 1 && !twoFingers ? touches[0] : undefined;
       if (finger !== undefined && hung.visible) {
         const at = fingerHit(frame, finger);
         // Only a finger that lands on the painting moves it, as in Google's
@@ -631,8 +643,8 @@ async function run(
           lastFinger = at;
         }
       }
-      if (touches.length === 2 && hung.visible && !snapped) {
-        const angle = fingerAngle();
+      if (twoFingers && hung.visible && !snapped) {
+        const angle = fingerAngle(onScreen);
         if (angle !== null) {
           if (lastTwist !== null) {
             let turn = angle - lastTwist;
@@ -727,9 +739,12 @@ async function run(
       overlay.root.dataset.anchored = anchor === null ? "" : "1";
       if (lookingSince < 0 || !tracking || hung.visible || aim.visible)
         lookingSince = time;
-      if (tracking) lostSince = -1;
-      else if (lostSince < 0) lostSince = time;
-      if (!tracking) say(time - lostSince > STUCK_AFTER_MS ? "stuck" : "move");
+      if (tracking) {
+        lostSince = -1;
+        trackedOnce = true;
+      } else if (lostSince < 0) lostSince = time;
+      const stuckAfter = trackedOnce ? STUCK_AGAIN_MS : STUCK_AFTER_MS;
+      if (!tracking) say(time - lostSince > stuckAfter ? "stuck" : "move");
       else if (aim.visible) say("tap");
       else if (hung.visible) say("");
       else say(time - lookingSince > HINT_AFTER_MS ? "hint" : "aim");
