@@ -4,17 +4,13 @@
     {
       "name": "art-website-prod",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": [
-        "dev:prod"
-      ],
+      "runtimeArgs": ["dev:prod"],
       "port": 4331
     },
     {
       "name": "art-website-studio",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": [
-        "dev:studio"
-      ],
+      "runtimeArgs": ["dev:studio"],
       "port": 4332
     }
   ]
