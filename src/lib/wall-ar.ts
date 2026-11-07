@@ -553,6 +553,8 @@ async function run(
     let twisted = false;
     let lastFinger: THREE.Vector3 | null = null;
     let lastTwist: number | null = null;
+    const anchorAt = new THREE.Vector3();
+    const anchorTurn = new THREE.Quaternion();
     let tapped = false;
     session.addEventListener("selectstart", (e) => {
       touches.push(e.inputSource);
@@ -563,13 +565,13 @@ async function run(
         grabbed = null;
       }
       lastFinger = null;
-      lastTwist = null;
     });
     session.addEventListener("selectend", (e) => {
       const i = touches.indexOf(e.inputSource);
       if (i >= 0) touches.splice(i, 1);
       lastFinger = null;
-      lastTwist = null;
+      // The turn carries on while any finger is down (the frame loop
+      // clears lastTwist when the screen is empty).
       if (touches.length > 0) return;
       const quick = performance.now() - touchStart < 400;
       if (!twisted && quick && (grabbed !== true || touchMoved < 0.02))
@@ -584,7 +586,13 @@ async function run(
       const a = fingers[0]?.gamepad?.axes;
       const b = fingers[1]?.gamepad?.axes;
       if (a === undefined || b === undefined) return null;
-      return Math.atan2((b[1] ?? 0) - (a[1] ?? 0), (b[0] ?? 0) - (a[0] ?? 0));
+      // Undirected (mod π): Chrome doesn't keep the two fingers in one
+      // order, and a swap must not read as a half turn.
+      const line = Math.atan2(
+        (b[1] ?? 0) - (a[1] ?? 0),
+        (b[0] ?? 0) - (a[0] ?? 0),
+      );
+      return ((line % Math.PI) + Math.PI) % Math.PI;
     };
 
     let said: Note | null = null;
@@ -604,30 +612,36 @@ async function run(
       // null, not undefined, while ARCore isn't tracking.
       const tracking = !!pose && !pose.emulatedPosition;
 
+      const onScreen = Array.from(session.inputSources).filter(
+        (source) => source.targetRayMode === "screen",
+      );
+      // Hands stay on until every finger is off: Chrome can drop one
+      // finger's selectend or input for a frame mid-gesture.
+      const handsOn = touches.length > 0 || onScreen.length > 0;
+      if (onScreen.length === 0) lastTwist = null;
+
       // Hands on the painting, or a snap under way: let go of the anchor,
       // and pin it again once it rests.
-      if ((touches.length > 0 || snapping) && anchor !== null) dropAnchor();
+      if ((handsOn || snapping) && anchor !== null) dropAnchor();
       if (anchor !== null) {
         const p = frame.getPose(anchor.anchorSpace, refSpace);
         if (p) {
           m.fromArray(p.transform.matrix);
-          hung.position.setFromMatrixPosition(m);
+          anchorAt.setFromMatrixPosition(m);
           // Take only the anchor's heading: a painting never leans, even
           // when ARCore nudges the anchor's tilt.
           const facing = toViewer.set(0, 0, 1).transformDirection(m);
-          hung.quaternion.setFromAxisAngle(
-            upAxis,
-            Math.atan2(facing.x, facing.z),
-          );
+          anchorTurn.setFromAxisAngle(upAxis, Math.atan2(facing.x, facing.z));
+          // Ease out ARCore's small corrections so it doesn't fidget; a
+          // big move (a map reset) lands at once.
+          const ease = hung.position.distanceTo(anchorAt) > 0.3 ? 1 : 0.15;
+          hung.position.lerp(anchorAt, ease);
+          hung.quaternion.slerp(anchorTurn, ease);
         }
       }
-      if (anchorWanted && touches.length === 0 && !snapping) reanchor(frame);
+      if (anchorWanted && !handsOn && !snapping) reanchor(frame);
 
-      const onScreen = Array.from(session.inputSources).filter(
-        (source) => source.targetRayMode === "screen",
-      );
       const twoFingers = onScreen.length >= 2;
-      if (!twoFingers) lastTwist = null;
       const finger =
         touches.length === 1 && !twoFingers ? touches[0] : undefined;
       if (finger !== undefined && hung.visible) {
@@ -648,8 +662,8 @@ async function run(
         if (angle !== null) {
           if (lastTwist !== null) {
             let turn = angle - lastTwist;
-            if (turn > Math.PI) turn -= 2 * Math.PI;
-            if (turn < -Math.PI) turn += 2 * Math.PI;
+            if (turn > Math.PI / 2) turn -= Math.PI;
+            if (turn < -Math.PI / 2) turn += Math.PI;
             hung.rotateY(-turn);
             twisted = true;
           }
