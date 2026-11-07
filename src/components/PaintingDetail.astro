@@ -746,10 +746,10 @@ const eyebrow =
     return await takeTurnstileToken("#turnstile-mount");
   }
 
-  /** Says under the 3D preview that the wall view didn't open, for a few
-   * seconds, instead of the button doing nothing. */
+  /** A line under the 3D preview for a few seconds: the wall view didn't
+   * open, instead of the button doing nothing. */
   let arFailedTimer = 0;
-  function showArFailed(msg = "") {
+  function showArNote(msg = "") {
     const el = document.getElementById("ar-status");
     if (el === null) return;
     window.clearTimeout(arFailedTimer);
@@ -846,7 +846,8 @@ const eyebrow =
             arButton,
             glb,
             {
-              move: pageMsg("arMove") || "Point at the floor and move slowly",
+              move: pageMsg("arMove") || "Move your phone slowly",
+              stuck: pageMsg("arStuck") || "Point at the floor for a moment",
               aim: pageMsg("arAim") || "Point at the wall",
               tap: pageMsg("arTap") || "Tap to hang it here",
               hint:
@@ -854,10 +855,14 @@ const eyebrow =
               close: pageMsg("arClose") || "Close",
             },
             () =>
-              showArFailed(
+              showArNote(
                 pageMsg("arFailed") ||
                   "The wall view didn't open. Please try again.",
               ),
+            // Google's viewer closed at once: the same button now opens ours.
+            () =>
+              (arButton.textContent =
+                pageMsg("arTryFallback") || "Try again with fallback"),
           );
           // An empty slot hides the loading bar, which the wall shadow
           // smeared into a grey band across the top.

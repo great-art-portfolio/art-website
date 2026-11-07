@@ -53,15 +53,15 @@ export function loadScript(src: string, module: boolean): Promise<void> {
   return p;
 }
 
-/** model-viewer's ar-modes for this browser. Android tries in-browser
- * WebXR first: the Google app's Scene Viewer closes the moment it opens
- * since its fall 2026 updates (arcore-android-sdk #1795, #1797), and
- * WebXR is the only AR that still works there. Scene Viewer stays as the
- * fallback for browsers without WebXR. Elsewhere webxr stays off, since
- * touching navigator.xr costs the page its instant Back. */
+/** model-viewer's ar-modes for this browser. Android opens Google's Scene
+ * Viewer first; when the Google app's viewer closes at once (its fall 2026
+ * updates, arcore-android-sdk #1795, #1797), wireWallAr falls back to our
+ * WebXR viewer. model-viewer's own WebXR stays for browsers that can't
+ * open Scene Viewer. Elsewhere webxr stays off, since touching navigator.xr
+ * costs the page its instant Back. */
 export function arModes(userAgent: string): string {
   return /android/i.test(userAgent)
-    ? "webxr scene-viewer quick-look"
+    ? "scene-viewer webxr quick-look"
     : "scene-viewer quick-look";
 }
 
@@ -85,17 +85,40 @@ export function loadModelViewer(): Promise<void> {
   return loadScript(MODEL_VIEWER_URL, true);
 }
 
-/** Wires "View on your wall". On Android it opens our wall viewer (an
- * outline to aim, tap to hang), with model-viewer's own AR as the fallback
- * when ours can't start. Any way it fails, the buyer is told (`onFail`)
- * and the failure is logged: a dead button with no word is the worst
- * outcome. Call after loadModelViewer(). */
+/** Remembered for the visit: Google's viewer bounced, so later taps go
+ * straight to ours. Storage can be blocked; then each page tries Google
+ * once. */
+const GOOGLE_OUT = "wallAr.googleOut";
+function googleOut(): boolean {
+  try {
+    return sessionStorage.getItem(GOOGLE_OUT) === "1";
+  } catch {
+    // Blocked storage: try Google's viewer again.
+    return false;
+  }
+}
+function markGoogleOut(): void {
+  try {
+    sessionStorage.setItem(GOOGLE_OUT, "1");
+  } catch {
+    // Blocked storage: this page still remembers (see `fellBack`).
+  }
+}
+
+/** Wires "View on your wall". On Android it opens Google's viewer (Scene
+ * Viewer) first; if that closes at once or never opens, the same button
+ * opens our wall viewer instead for the rest of the visit (`onFallback`
+ * relabels it "Try again with fallback"). Our viewer is tried at once too,
+ * but browsers want a fresh tap to start AR, so in practice the second tap
+ * opens it. Real failures are said (`onFail`) and
+ * logged. Call after loadModelViewer(). */
 export function wireWallAr(
   viewer: HTMLElement,
   button: HTMLButtonElement,
   glb: string,
   words: WallArWords,
   onFail: () => void,
+  onFallback: () => void,
 ): void {
   const android = /android/i.test(navigator.userAgent);
   const failed = (event: string, err: unknown, detail = {}) => {
@@ -109,60 +132,90 @@ export function wireWallAr(
     if (status === "session-started") sessionStarted = true;
     if (status === "failed") failed("viewer_failed", new Error("AR failed"));
   });
-  // Scene Viewer can't report failure: when the Google app's viewer
-  // crashes it hands straight back to the page, and when the browser
-  // blocks it nothing happens at all. Watch for both on Android (iPhone's
-  // Quick Look opens over the page, so it never leaves it).
-  const watchSceneViewer = () => {
-    if (!android) return;
-    sessionStarted = false;
-    let hiddenAt = 0;
-    const onVisibility = () => {
-      if (document.visibilityState === "hidden") {
-        hiddenAt = performance.now();
-        return;
-      }
-      document.removeEventListener("visibilitychange", onVisibility);
-      const away = performance.now() - hiddenAt;
-      if (away < 1500)
-        failed("viewer_bounced", new Error("AR viewer closed at once"), {
-          ms: Math.round(away),
-        });
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-    window.setTimeout(() => {
-      if (hiddenAt !== 0) return;
-      document.removeEventListener("visibilitychange", onVisibility);
-      if (!sessionStarted)
-        failed("viewer_not_opened", new Error("AR viewer didn't open"));
-    }, 3000);
-  };
-  const fallBack = () => {
-    watchSceneViewer();
-    const activate: unknown = Reflect.get(viewer, "activateAR");
-    if (typeof activate === "function") void activate.call(viewer);
-  };
 
   let ours = false;
+  let fellBack = false;
   const api = window.WallAr;
   if (android && api !== undefined) {
     void api.supported().then((ok) => (ours = ok));
   }
-  button.addEventListener("click", (e) => {
-    if (!ours || api === undefined) {
-      watchSceneViewer();
-      return;
-    }
-    // model-viewer listens on the button's slot; keep the tap ours.
-    e.stopPropagation();
+  const startOurs = (afterBounce: boolean) => {
+    if (api === undefined) return;
     api.start({ glb, words }).catch((err: unknown) => {
       if (Reflect.get(Object(err), "opened") === true) {
         failed("wall_stopped", err);
-      } else {
-        reportError("ar.wall_start_failed", err, { glb }, "warn");
-        fallBack();
+      } else if (!afterBounce) {
+        failed("wall_start_failed", err);
       }
+      // After a bounce the browser may want a fresh tap: the button now
+      // opens ours, and its label says so.
     });
+  };
+  // Google's viewer can't report failure: when the Google app's viewer
+  // crashes it hands straight back to the page, and when the browser
+  // blocks it nothing happens at all. Either way, fall back to ours.
+  const watchGoogle = () => {
+    sessionStarted = false;
+    let hiddenAt = 0;
+    const toOurs = (event: string, detail = {}) => {
+      reportError(
+        `ar.${event}`,
+        new Error("Google's viewer didn't stay open"),
+        { glb, ...detail },
+        "warn",
+      );
+      if (!ours) {
+        onFail();
+        return;
+      }
+      fellBack = true;
+      markGoogleOut();
+      onFallback();
+      startOurs(true);
+    };
+    // The page loses focus when the viewer opens, and often isn't even
+    // hidden before a crashing viewer hands it back, so focus is the signal.
+    // Acting at once keeps the tap's user activation, which our viewer
+    // needs to start.
+    let settled = false;
+    const stop = () => {
+      settled = true;
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+    const onBlur = () => {
+      if (hiddenAt === 0) hiddenAt = performance.now();
+    };
+    const onFocus = () => {
+      if (hiddenAt === 0 || settled) return;
+      const away = performance.now() - hiddenAt;
+      stop();
+      if (away < 1500) toOurs("viewer_bounced", { ms: Math.round(away) });
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") onBlur();
+      else onFocus();
+    };
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    window.setTimeout(() => {
+      if (settled || hiddenAt !== 0) return;
+      stop();
+      if (!sessionStarted) toOurs("viewer_not_opened");
+    }, 3000);
+  };
+
+  button.addEventListener("click", (e) => {
+    if (!android) return;
+    if (ours && (fellBack || googleOut())) {
+      // model-viewer listens on the button's slot; keep the tap ours.
+      e.stopPropagation();
+      startOurs(false);
+      return;
+    }
+    watchGoogle();
   });
 }
 

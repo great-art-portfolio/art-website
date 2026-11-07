@@ -14,7 +14,9 @@ test.use({
   isMobile: true,
 });
 
-test("Android buyer gets WebXR before Scene Viewer", async ({ page }) => {
+test("Android buyer gets Google's viewer first, WebXR behind it", async ({
+  page,
+}) => {
   await page.goto("/paintings/night-reeds");
   await page.locator("#ar-mount").scrollIntoViewIfNeeded();
   const viewer = page.locator("#ar-stage model-viewer");
@@ -23,7 +25,7 @@ test("Android buyer gets WebXR before Scene Viewer", async ({ page }) => {
   });
   await expect(viewer).toHaveAttribute(
     "ar-modes",
-    "webxr scene-viewer quick-look",
+    "scene-viewer webxr quick-look",
   );
   await expect(viewer).toHaveAttribute("ar-placement", "wall");
   // three.js would pick WebXR Layers, which Kiwi lists but can't run.
