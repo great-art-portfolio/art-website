@@ -211,6 +211,52 @@ const at = (b: Box) =>
             )}
             {data.sold && <span class="badge sold">{s.gallery.sold}</span>}
           </div>
+          {room !== null && roomArt !== null && (
+            <>
+              <div id="room-view" hidden>
+                <div class="room-frame">
+                  <div class="room-stage" style={at(room.stage)}>
+                    <img
+                      class="room-bg"
+                      src="/rooms/living-room-1600.webp"
+                      srcset="/rooms/living-room-1000.webp 1000w, /rooms/living-room-1600.webp 1600w, /rooms/living-room-2000.webp 2000w"
+                      sizes="(min-width: 900px) 70vw, 150vw"
+                      width="2000"
+                      height="1333"
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                    />
+                    <div class="room-art" style={at(room.art)}>
+                      <img
+                        src={roomArt.src}
+                        alt={s.painting.roomAlt(data.title)}
+                        loading="lazy"
+                        decoding="async"
+                      />
+                      <div class="room-light" style={at(room.light)} />
+                    </div>
+                  </div>
+                </div>
+                <p class="hint">{s.painting.roomNote(SOFA_WIDTH_IN)}</p>
+              </div>
+              {/* The painting, or the painting in a room: tap to switch. */}
+              <div class="views" id="views">
+                <button type="button" data-view="photo" aria-pressed="true">
+                  <img src={roomArt.src} alt="" loading="lazy" />
+                  <span>{s.painting.viewPainting}</span>
+                </button>
+                <button type="button" data-view="room" aria-pressed="false">
+                  <img
+                    src="/rooms/living-room-1000.webp"
+                    alt=""
+                    loading="lazy"
+                  />
+                  <span>{s.painting.roomTitle}</span>
+                </button>
+              </div>
+            </>
+          )}
           {studio && (
             <div class="tile-row">
               <button type="button" id="de-replace">
@@ -693,36 +739,6 @@ const at = (b: Box) =>
           </form>
         </>
       )}
-      {room !== null && roomArt !== null && (
-        <section id="room-view" aria-labelledby="room-title">
-          <h2 id="room-title">{s.painting.roomTitle}</h2>
-          <div class="room-frame">
-            <div class="room-stage" style={at(room.stage)}>
-              <img
-                class="room-bg"
-                src="/rooms/living-room-1600.webp"
-                srcset="/rooms/living-room-1000.webp 1000w, /rooms/living-room-1600.webp 1600w, /rooms/living-room-2000.webp 2000w"
-                sizes="(min-width: 900px) 70vw, 150vw"
-                width="2000"
-                height="1333"
-                alt=""
-                loading="lazy"
-                decoding="async"
-              />
-              <div class="room-art" style={at(room.art)}>
-                <img
-                  src={roomArt.src}
-                  alt={s.painting.roomAlt(data.title)}
-                  loading="lazy"
-                  decoding="async"
-                />
-                <div class="room-light" style={at(room.light)} />
-              </div>
-            </div>
-          </div>
-          <p class="hint">{s.painting.roomNote(SOFA_WIDTH_IN)}</p>
-        </section>
-      )}
       {!studio && !data.sold && data.modelGlb !== "" && (
         <div id="ar-mount">
           <h2>{s.painting.wallTitle}</h2>
@@ -1027,7 +1043,29 @@ const at = (b: Box) =>
     });
   }
 
+  /** The painting, or the painting in a room: the two thumbnails under
+   * the photo switch which one shows. */
+  function initViews() {
+    const views = document.getElementById("views");
+    const photo = document.getElementById("photo-wrap");
+    const room = document.getElementById("room-view");
+    if (views === null || photo === null || room === null) return;
+    if (views.dataset.wired === "1") return;
+    views.dataset.wired = "1";
+    const buttons = Array.from(views.querySelectorAll("button"));
+    for (const b of buttons) {
+      b.addEventListener("click", () => {
+        const inRoom = b.dataset.view === "room";
+        photo.hidden = inRoom;
+        room.hidden = !inRoom;
+        for (const o of buttons)
+          o.setAttribute("aria-pressed", String(o === b));
+      });
+    }
+  }
+
   function initDetail() {
+    initViews();
     initAr();
     initAdmin();
     initPageShare();
@@ -1631,18 +1669,45 @@ const at = (b: Box) =>
   }
   /* The painting at true size in a rendered room. Every position is a
      percentage from src/lib/room.ts, so it needs no script. */
-  #room-view {
-    margin-top: 1.25rem;
-    padding-top: 1.25rem;
-    border-top: 1px solid var(--line);
-  }
-  #room-view h2 {
-    font-size: 1.25rem;
-    font-weight: 500;
-    margin: 0 0 1.25rem;
-  }
   #room-view .hint {
     margin: 0.6rem 0 0;
+  }
+  .views {
+    display: flex;
+    gap: 0.6rem;
+    margin-top: 0.75rem;
+  }
+  .views button {
+    display: grid;
+    justify-items: center;
+    gap: 0.3rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+  .views img {
+    width: 3.75rem;
+    height: 3.75rem;
+    object-fit: cover;
+    object-position: 50% 62%;
+    border-radius: 0.5rem;
+    border: 2px solid transparent;
+    opacity: 0.7;
+  }
+  .views button[aria-pressed="true"] {
+    color: inherit;
+  }
+  .views button[aria-pressed="true"] img {
+    border-color: currentColor;
+    opacity: 1;
+  }
+  .views button:focus-visible img {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
   }
   .room-frame {
     position: relative;

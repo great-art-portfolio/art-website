@@ -4,8 +4,16 @@ import { expect, test } from "@playwright/test";
 test("a painting hangs at true size in the room view", async ({ page }) => {
   await page.goto("/paintings/night-reeds");
   const room = page.locator("#room-view");
-  await room.scrollIntoViewIfNeeded();
-  await expect(room.locator("h2")).toHaveText("In a room");
+  const photo = page.locator("#photo-wrap");
+  // The painting first; the room is one tap away.
+  await expect(room).toBeHidden();
+  await page.locator('#views [data-view="room"]').click();
+  await expect(room).toBeVisible();
+  await expect(photo).toBeHidden();
+  await expect(page.locator('#views [data-view="room"]')).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   const art = room.locator(".room-art img");
   await expect(art).toHaveAttribute("alt", /Night Reeds above a sofa/);
   // Both pictures load.
@@ -28,4 +36,8 @@ test("a painting hangs at true size in the room view", async ({ page }) => {
   });
   expect(share).toBeCloseTo((12 * 0.0254 * 406.504) / 2000, 3);
   await expect(room).toContainText("True size, above a 71-inch sofa.");
+  // And back to the painting.
+  await page.locator('#views [data-view="photo"]').click();
+  await expect(photo).toBeVisible();
+  await expect(room).toBeHidden();
 });

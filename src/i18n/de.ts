@@ -101,6 +101,7 @@ export const de: Strings = {
     message: "Nachricht",
     messagePlaceholder: "Hallo, dieses Bild gefällt mir sehr…",
     send: "Anfrage senden",
+    viewPainting: "Gemälde",
     roomTitle: "In einem Raum",
     roomAlt: (title: string) => `${title} über einem Sofa im Wohnzimmer`,
     roomNote: (inches: number) =>

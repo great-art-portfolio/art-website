@@ -100,7 +100,8 @@ export const ja: Strings = {
     message: "メッセージ",
     messagePlaceholder: "こんにちは。この作品がとても気に入りました…",
     send: "問い合わせを送信",
-    roomTitle: "お部屋に飾ると",
+    viewPainting: "作品",
+    roomTitle: "お部屋で",
     roomAlt: (title: string) => `リビングのソファの上に掛けた「${title}」`,
     roomNote: (inches: number) =>
       `実寸で表示しています。ソファの幅は${inches}インチです。`,

@@ -99,6 +99,7 @@ export const pt: Strings = {
     message: "Mensagem",
     messagePlaceholder: "Olá, adorei esta obra…",
     send: "Enviar mensagem",
+    viewPainting: "Pintura",
     roomTitle: "Em uma sala",
     roomAlt: (title: string) => `${title} sobre um sofá em uma sala de estar`,
     roomNote: (inches: number) =>
