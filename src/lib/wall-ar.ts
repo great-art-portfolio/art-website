@@ -4,11 +4,11 @@
  * facing the buyer while only the wall's distance is known (depth), solid
  * and flat once ARCore recognises the wall itself. A tap hangs the painting
  * there; it snaps flat when the wall is recognised later, one finger slides
- * it, two fingers turn it until then, and a tap on an outline elsewhere
- * moves it (another spot or another wall). An anchor keeps it on the wall
- * through tracking resets. Bundled into /js/model-viewer.js
- * (scripts/vendor/mv-entry.ts) so it shares that file's three.js, and
- * reached through window.WallAr. Blank walls in a bare room can keep
+ * it, two fingers turn it any time (a turn by hand stops the auto-snap),
+ * and a tap on an outline elsewhere moves it (another spot or another
+ * wall). An anchor keeps it on the wall through tracking resets. Bundled
+ * into /js/model-viewer.js (scripts/vendor/mv-entry.ts) so it shares
+ * that file's three.js, and reached through window.WallAr. Blank walls in a bare room can keep
  * ARCore from tracking at all; no viewer gets past that. */
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -437,6 +437,9 @@ async function run(
     let hungAt = -Infinity;
     const outlineLook = aim.material;
 
+    /** This frame's hit on a recognised wall, if any. */
+    let planeHit: XRHitTestResult | null = null;
+
     /** The wall in the middle of the view. "plane": ARCore recognises it,
      * so its angle is the wall's. "depth": only its distance is known, so
      * it faces the buyer until a plane turns up. Writes wallPos and
@@ -445,6 +448,7 @@ async function run(
       frame: XRFrame,
       pose: XRViewerPose,
     ): "plane" | "depth" | "" => {
+      planeHit = null;
       if (refSpace === null || hitSource === undefined) return "";
       for (const hit of frame.getHitTestResults(hitSource)) {
         const p = hit.getPose(refSpace);
@@ -454,6 +458,7 @@ async function run(
         wallNormal.set(m.elements[4], m.elements[5], m.elements[6]);
         if (Math.abs(wallNormal.y) < WALL_NORMAL_MAX_Y) {
           wallPos.setFromMatrixPosition(m);
+          planeHit = hit;
           return "plane";
         }
       }
@@ -472,37 +477,74 @@ async function run(
     // An anchor pins the painting to the room itself: when ARCore loses
     // tracking and rebuilds its map, raw coordinates move but the anchor
     // stays on the wall. Without anchor support it keeps its coordinates.
+    // On a recognised wall the anchor is the wall plane's own (from the hit
+    // test), which ARCore keeps on that wall; a free anchor floats in the
+    // room and can slide. The painting keeps its offset from the anchor.
     let anchor: XRAnchor | null = null;
     let anchorWanted = false;
+    /** The painting relative to its anchor, read on the anchor's first pose. */
+    let anchorOffset: THREE.Matrix4 | null = null;
+    /** Only the newest anchor request may land. */
+    let anchorGen = 0;
     const dropAnchor = () => {
+      anchorGen += 1;
       anchor?.delete();
       anchor = null;
+      anchorOffset = null;
+    };
+    /** The wall-plane hit the hung painting lies on, if it lies on one. */
+    const facing = new THREE.Vector3();
+    const fromWall = new THREE.Vector3();
+    const hitUnderPainting = (): XRHitTestResult | null => {
+      if (planeHit === null || planeHit.createAnchor === undefined) return null;
+      facing.set(0, 0, 1).applyQuaternion(hung.quaternion);
+      const off = Math.abs(
+        wallNormal.dot(fromWall.copy(hung.position).sub(wallPos)),
+      );
+      // Within 5 cm of the plane and turned within ~14° of it.
+      return off < 0.05 && Math.abs(facing.dot(wallNormal)) > 0.97
+        ? planeHit
+        : null;
     };
     const reanchor = (frame: XRFrame) => {
-      anchorWanted = false;
       dropAnchor();
-      if (refSpace === null || frame.createAnchor === undefined) return;
+      anchorWanted = false;
+      if (refSpace === null) return;
+      const gen = anchorGen;
+      const onWall = hitUnderPainting();
       const { x, y, z } = hung.position;
       const q = hung.quaternion;
-      frame
-        .createAnchor(
-          new XRRigidTransform({ x, y, z }, { x: q.x, y: q.y, z: q.z, w: q.w }),
-          refSpace,
-        )
-        .then(
-          (made) => {
-            if (anchorWanted || !hung.visible) made.delete();
-            else anchor = made;
-          },
-          () => {
-            // Anchors refused: the painting keeps its coordinates.
-          },
-        );
+      const made =
+        onWall !== null
+          ? onWall.createAnchor?.()
+          : frame.createAnchor?.(
+              new XRRigidTransform(
+                { x, y, z },
+                { x: q.x, y: q.y, z: q.z, w: q.w },
+              ),
+              refSpace,
+            );
+      if (made === undefined) return;
+      made.then(
+        (got) => {
+          if (gen !== anchorGen || anchorWanted || !hung.visible) got.delete();
+          else {
+            anchor = got;
+            overlay.root.dataset.anchorKind = onWall !== null ? "wall" : "free";
+          }
+        },
+        () => {
+          // Anchors refused: the painting keeps its coordinates.
+        },
+      );
     };
 
     /** Whether the hung painting lies on a wall ARCore recognised, or still
      * faces where the buyer stood (a plain wall it can't read yet). */
     let snapped = false;
+    /** Turned with two fingers since it was hung: no more auto-snapping
+     * until it's hung somewhere new. */
+    let turnedByHand = false;
     let snapping = false;
     const snapTo = new THREE.Object3D();
 
@@ -512,6 +554,7 @@ async function run(
       hung.visible = true;
       aim.visible = false;
       snapped = onPlane;
+      turnedByHand = false;
       snapping = false;
       hungAt = still ? -Infinity : time;
       reanchor(frame);
@@ -521,7 +564,7 @@ async function run(
     // One finger drags the painting along its wall, by the finger's own
     // movement; a quick touch that barely moves is a tap, which hangs it at
     // the outline (first time, or another spot or wall). Two fingers turn
-    // it, while it still faces the buyer rather than a recognised wall.
+    // it, any time.
     const plane = new THREE.Plane();
     const ray = new THREE.Ray();
     const fingerHit = (frame: XRFrame, source: XRInputSource) => {
@@ -576,8 +619,9 @@ async function run(
       const quick = performance.now() - touchStart < 400;
       if (!twisted && quick && (grabbed !== true || touchMoved < 0.02))
         tapped = true;
-      // Moved by hand: pin it again where it landed.
-      else if (hung.visible) anchorWanted = true;
+      // The touch let go of the anchor: pin it again where it rests, even
+      // after a tap that doesn't move it.
+      if (hung.visible) anchorWanted = true;
     });
     /** The angle of the line between two fingers on the screen. Chrome
      * fires selectstart for the first finger only, so both are read from
@@ -612,6 +656,7 @@ async function run(
       // null, not undefined, while ARCore isn't tracking.
       const tracking = !!pose && !pose.emulatedPosition;
 
+      planeHit = null;
       const onScreen = Array.from(session.inputSources).filter(
         (source) => source.targetRayMode === "screen",
       );
@@ -627,9 +672,24 @@ async function run(
         const p = frame.getPose(anchor.anchorSpace, refSpace);
         if (p) {
           m.fromArray(p.transform.matrix);
+          // A wall anchor sits where the phone pointed, with the plane's
+          // axes; keep the painting where it was relative to it.
+          if (anchorOffset === null) {
+            anchorOffset = m
+              .clone()
+              .invert()
+              .multiply(
+                new THREE.Matrix4().compose(
+                  hung.position,
+                  hung.quaternion,
+                  new THREE.Vector3(1, 1, 1),
+                ),
+              );
+          }
+          m.multiply(anchorOffset);
           anchorAt.setFromMatrixPosition(m);
-          // Take only the anchor's heading: a painting never leans, even
-          // when ARCore nudges the anchor's tilt.
+          // Take only the heading: a painting never leans, even when
+          // ARCore nudges the anchor's tilt.
           const facing = toViewer.set(0, 0, 1).transformDirection(m);
           anchorTurn.setFromAxisAngle(upAxis, Math.atan2(facing.x, facing.z));
           // Ease out ARCore's small corrections so it doesn't fidget; a
@@ -639,7 +699,6 @@ async function run(
           hung.quaternion.slerp(anchorTurn, ease);
         }
       }
-      if (anchorWanted && !handsOn && !snapping) reanchor(frame);
 
       const twoFingers = onScreen.length >= 2;
       const finger =
@@ -657,7 +716,11 @@ async function run(
           lastFinger = at;
         }
       }
-      if (twoFingers && hung.visible && !snapped) {
+      // Two fingers always turn it, snapped or not: the buyer's hand wins
+      // over a wall ARCore may have misread.
+      if (twoFingers && hung.visible) {
+        snapping = false;
+        turnedByHand = true;
         const angle = fingerAngle(onScreen);
         if (angle !== null) {
           if (lastTwist !== null) {
@@ -670,9 +733,10 @@ async function run(
           lastTwist = angle;
         }
       }
+      // Any finger still down counts: Chrome reports only the first finger's
+      // selectend, and a wall read mid-turn would snap it out of the hand.
       const handling =
-        touches.length > 0 &&
-        ((grabbed === true && touchMoved >= 0.02) || twisted);
+        handsOn && ((grabbed === true && touchMoved >= 0.02) || twisted);
 
       const source = tracking && pose && !handling ? findWall(frame, pose) : "";
       let offer = false;
@@ -689,6 +753,7 @@ async function run(
         if (
           hung.visible &&
           !snapped &&
+          !turnedByHand &&
           source === "plane" &&
           behind < 0.5 &&
           wallPos.distanceTo(hung.position) < 1.5
@@ -731,6 +796,9 @@ async function run(
       wasFirm = firm && offer;
       if (tapped && offer) hang(time, frame, firm);
       tapped = false;
+      // Pinned after this frame's wall reading: a wall hit can only be
+      // anchored in its own frame.
+      if (anchorWanted && !handsOn && !snapping) reanchor(frame);
 
       // The snap swings the painting flat over a few frames.
       if (snapping) {
