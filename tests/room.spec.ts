@@ -5,15 +5,21 @@ test("a painting hangs at true size in the room view", async ({ page }) => {
   await page.goto("/paintings/night-reeds");
   const room = page.locator("#room-view");
   const photo = page.locator("#photo-wrap");
-  // The painting first; the room is one tap away.
+  const toggle = page.locator("#room-toggle");
+  // The painting first; the room is one tap away, on the size line.
   await expect(room).toBeHidden();
-  await page.locator('#views [data-view="room"]').click();
+  await expect(toggle).toHaveText("See it in a room");
+  const before = await photo.boundingBox();
+  await toggle.click();
   await expect(room).toBeVisible();
-  await expect(photo).toBeHidden();
-  await expect(page.locator('#views [data-view="room"]')).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expect(photo).toHaveClass(/in-room/);
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(toggle).toHaveText("Show the painting");
+  // The room fills the photo's own frame: its size doesn't change, so
+  // nothing below it moves. (The tap may scroll the page.)
+  const after = await photo.boundingBox();
+  expect(after?.width).toBeCloseTo(before?.width ?? 0, 1);
+  expect(after?.height).toBeCloseTo(before?.height ?? 0, 1);
   const art = room.locator(".room-art img");
   await expect(art).toHaveAttribute("alt", /Night Reeds above a sofa/);
   // Both pictures load.
@@ -35,9 +41,9 @@ test("a painting hangs at true size in the room view", async ({ page }) => {
     return stage && box ? box.width / stage.width : 0;
   });
   expect(share).toBeCloseTo((12 * 0.0254 * 406.504) / 2000, 3);
-  await expect(room).toContainText("True size, above a 71-inch sofa.");
+  await expect(room).toContainText("True size");
   // And back to the painting.
-  await page.locator('#views [data-view="photo"]').click();
-  await expect(photo).toBeVisible();
+  await toggle.click();
   await expect(room).toBeHidden();
+  await expect(photo).not.toHaveClass(/in-room/);
 });

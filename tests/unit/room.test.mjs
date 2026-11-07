@@ -59,6 +59,20 @@ describe("roomLayout", () => {
       Math.abs((-l.light.left * l.art.width) / 100 - l.art.left) < 0.01,
     );
   });
+  it("crops to the photo's shape, inside the render", () => {
+    for (const aspect of [0.75, 1, 1.25, 2.2]) {
+      const l = roomLayout(24, 24, aspect);
+      assert.equal(l.aspect, aspect);
+      // The render in crop percent keeps the render's own shape.
+      const renderAspect = (l.stage.width * aspect) / l.stage.height;
+      assert.ok(Math.abs(renderAspect - ROOM.width / ROOM.height) < 0.01);
+      const left = (-l.stage.left / l.stage.width) * 100;
+      const top = (-l.stage.top / l.stage.height) * 100;
+      assert.ok(left >= -0.01 && top >= -0.01);
+      assert.ok(left + 10000 / l.stage.width <= 100.01);
+      assert.ok(top + 10000 / l.stage.height <= 100.01);
+    }
+  });
   it("skips paintings without a size", () => {
     assert.equal(roomLayout(0, 24), null);
     assert.equal(roomLayout(Number.NaN, 24), null);

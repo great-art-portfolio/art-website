@@ -6,7 +6,7 @@ import { getImage, Picture } from "astro:assets";
 import type { ImageMetadata } from "astro";
 import { formatPriceCAD } from "../lib/money";
 import { paintingPageUrl, qrSvg } from "../lib/qr";
-import { roomLayout, SOFA_WIDTH_IN, type Box } from "../lib/room";
+import { roomLayout, type Box } from "../lib/room";
 import { PHOTO_WIDTHS, photoSizes } from "../lib/responsive-images";
 import { SHOW_PAGE_SHARE, SHOW_PRICES } from "../lib/site";
 import { t } from "../i18n";
@@ -79,7 +79,11 @@ const eyebrow =
 // only, for paintings still for sale that have a size.
 const room =
   !studio && !data.sold && data.image !== undefined
-    ? roomLayout(Number(data.widthIn), Number(data.heightIn))
+    ? roomLayout(
+        Number(data.widthIn),
+        Number(data.heightIn),
+        data.image.width / data.image.height,
+      )
     : null;
 const roomArt =
   room !== null && data.image !== undefined
@@ -210,53 +214,34 @@ const at = (b: Box) =>
               />
             )}
             {data.sold && <span class="badge sold">{s.gallery.sold}</span>}
-          </div>
-          {room !== null && roomArt !== null && (
-            <>
-              <div id="room-view" hidden>
-                <div class="room-frame">
-                  <div class="room-stage" style={at(room.stage)}>
+            {room !== null && roomArt !== null && (
+              <div class="room-layer" id="room-view" aria-hidden="true">
+                <div class="room-stage" style={at(room.stage)}>
+                  <img
+                    class="room-bg"
+                    src="/rooms/living-room-1600.webp"
+                    srcset="/rooms/living-room-1000.webp 1000w, /rooms/living-room-1600.webp 1600w, /rooms/living-room-2000.webp 2000w"
+                    sizes="(min-width: 900px) 70vw, 150vw"
+                    width="2000"
+                    height="1333"
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <div class="room-art" style={at(room.art)}>
                     <img
-                      class="room-bg"
-                      src="/rooms/living-room-1600.webp"
-                      srcset="/rooms/living-room-1000.webp 1000w, /rooms/living-room-1600.webp 1600w, /rooms/living-room-2000.webp 2000w"
-                      sizes="(min-width: 900px) 70vw, 150vw"
-                      width="2000"
-                      height="1333"
-                      alt=""
+                      src={roomArt.src}
+                      alt={s.painting.roomAlt(data.title)}
                       loading="lazy"
                       decoding="async"
                     />
-                    <div class="room-art" style={at(room.art)}>
-                      <img
-                        src={roomArt.src}
-                        alt={s.painting.roomAlt(data.title)}
-                        loading="lazy"
-                        decoding="async"
-                      />
-                      <div class="room-light" style={at(room.light)} />
-                    </div>
+                    <div class="room-light" style={at(room.light)} />
                   </div>
                 </div>
-                <p class="hint">{s.painting.roomNote(SOFA_WIDTH_IN)}</p>
+                <span class="room-true">{s.painting.roomTrue}</span>
               </div>
-              {/* The painting, or the painting in a room: tap to switch. */}
-              <div class="views" id="views">
-                <button type="button" data-view="photo" aria-pressed="true">
-                  <img src={roomArt.src} alt="" loading="lazy" />
-                  <span>{s.painting.viewPainting}</span>
-                </button>
-                <button type="button" data-view="room" aria-pressed="false">
-                  <img
-                    src="/rooms/living-room-1000.webp"
-                    alt=""
-                    loading="lazy"
-                  />
-                  <span>{s.painting.roomTitle}</span>
-                </button>
-              </div>
-            </>
-          )}
+            )}
+          </div>
           {studio && (
             <div class="tile-row">
               <button type="button" id="de-replace">
@@ -670,7 +655,28 @@ const at = (b: Box) =>
           ) : (
             <p class="price-note">{s.painting.priceOnRequest}</p>
           )}
-          {data.meta !== "" && <p class="art-meta">{data.meta}</p>}
+          {data.meta !== "" && (
+            <p class="art-meta">
+              {data.meta}
+              {room !== null && roomArt !== null && " "}
+              {room !== null && roomArt !== null && (
+                <span class="room-cue">
+                  {"· "}
+                  <button
+                    type="button"
+                    class="room-toggle"
+                    id="room-toggle"
+                    aria-pressed="false"
+                    aria-controls="room-view"
+                    data-show={s.painting.roomShow}
+                    data-hide={s.painting.roomHide}
+                  >
+                    {s.painting.roomShow}
+                  </button>
+                </span>
+              )}
+            </p>
+          )}
           <div class="desc">
             <slot />
           </div>
@@ -1043,29 +1049,51 @@ const at = (b: Box) =>
     });
   }
 
-  /** The painting, or the painting in a room: the two thumbnails under
-   * the photo switch which one shows. */
-  function initViews() {
-    const views = document.getElementById("views");
+  /** "See it in a room" on the size line swaps the photo for the
+   * painting in the room render, and back. */
+  function initRoom() {
+    const toggle = document.getElementById("room-toggle");
     const photo = document.getElementById("photo-wrap");
     const room = document.getElementById("room-view");
-    if (views === null || photo === null || room === null) return;
-    if (views.dataset.wired === "1") return;
-    views.dataset.wired = "1";
-    const buttons = Array.from(views.querySelectorAll("button"));
-    for (const b of buttons) {
-      b.addEventListener("click", () => {
-        const inRoom = b.dataset.view === "room";
-        photo.hidden = inRoom;
-        room.hidden = !inRoom;
-        for (const o of buttons)
-          o.setAttribute("aria-pressed", String(o === b));
-      });
-    }
+    if (toggle === null || photo === null || room === null) return;
+    if (toggle.dataset.wired === "1") return;
+    toggle.dataset.wired = "1";
+    // Hidden pictures never lazy-load, so fetch the room once the page has
+    // settled; a tap then fades in a room that's already there.
+    const pictures = Array.from(room.querySelectorAll("img"));
+    const preload = () => {
+      for (const img of pictures) img.loading = "eager";
+    };
+    // Without requestIdleCallback (older Safari), a plain delay.
+    if (typeof window.requestIdleCallback === "function")
+      window.requestIdleCallback(preload, { timeout: 3000 });
+    else setTimeout(preload, 1500);
+    const ready = () =>
+      Promise.race([
+        Promise.all(
+          pictures.map((img) => {
+            img.loading = "eager";
+            return img.decode().catch(() => undefined);
+          }),
+        ),
+        // A slow connection still gets the room, just not perfectly.
+        new Promise((resolve) => window.setTimeout(resolve, 1200)),
+      ]);
+    toggle.addEventListener("click", async () => {
+      const inRoom = !photo.classList.contains("in-room");
+      if (inRoom) await ready();
+      photo.classList.toggle("in-room", inRoom);
+      room.setAttribute("aria-hidden", String(!inRoom));
+      toggle.setAttribute("aria-pressed", String(inRoom));
+      toggle.textContent =
+        (inRoom ? toggle.dataset.hide : toggle.dataset.show) ?? "";
+      // On a phone the photo can be scrolled off; bring the swap into view.
+      photo.scrollIntoView({ block: "nearest" });
+    });
   }
 
   function initDetail() {
-    initViews();
+    initRoom();
     initAr();
     initAdmin();
     initPageShare();
@@ -1270,6 +1298,7 @@ const at = (b: Box) =>
     ) {
       wrap.dataset.wired = "1";
       const open = () => {
+        if (wrap.classList.contains("in-room")) return;
         full.src = photo.currentSrc === "" ? photo.src : photo.currentSrc;
         full.alt = photo.alt;
         // A modal dialog keeps keyboard focus inside it; Tab reaches the ✕.
@@ -1443,9 +1472,13 @@ const at = (b: Box) =>
        painting off, like a paper mat, not a drawn card. */
     border: 1px solid transparent;
     border-radius: var(--radius);
-    padding: clamp(0.7rem, 2vw, 1.1rem);
+    --mat: clamp(0.7rem, 2vw, 1.1rem);
+    padding: var(--mat);
     box-shadow: var(--shadow);
     cursor: zoom-in;
+  }
+  .frame.in-room {
+    cursor: default;
   }
   .frame img {
     width: 100%;
@@ -1669,52 +1702,60 @@ const at = (b: Box) =>
   }
   /* The painting at true size in a rendered room. Every position is a
      percentage from src/lib/room.ts, so it needs no script. */
-  #room-view .hint {
-    margin: 0.6rem 0 0;
+  /* The room fills the photo's place inside the mat, cropped to the
+     photo's shape, and fades in over it: nothing on the page moves. */
+  .room-layer {
+    position: absolute;
+    inset: var(--mat);
+    overflow: hidden;
+    border-radius: 0.25rem;
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      opacity 0.45s ease,
+      visibility 0s linear 0.45s;
   }
-  .views {
-    display: flex;
-    gap: 0.6rem;
-    margin-top: 0.75rem;
+  .in-room .room-layer {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.45s ease;
   }
-  .views button {
-    display: grid;
-    justify-items: center;
-    gap: 0.3rem;
+  @media (prefers-reduced-motion: reduce) {
+    .room-layer,
+    .in-room .room-layer {
+      transition: none;
+    }
+  }
+  .room-true {
+    position: absolute;
+    left: 0.6rem;
+    bottom: 0.6rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    background: rgb(30 26 22 / 0.55);
+    color: #f4efe6;
+    font-size: 0.75rem;
+    letter-spacing: 0.02em;
+  }
+  /* A quiet text button on the size line, where size is on the buyer's
+     mind. */
+  /* The dot wraps with the button, never alone at a line's end. */
+  .room-cue {
+    white-space: nowrap;
+  }
+  .room-toggle {
     padding: 0;
     border: 0;
     background: none;
-    color: var(--muted);
     font: inherit;
-    font-size: 0.8rem;
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
     cursor: pointer;
   }
-  .views img {
-    width: 3.75rem;
-    height: 3.75rem;
-    object-fit: cover;
-    object-position: 50% 62%;
-    border-radius: 0.5rem;
-    border: 2px solid transparent;
-    opacity: 0.7;
-  }
-  .views button[aria-pressed="true"] {
-    color: inherit;
-  }
-  .views button[aria-pressed="true"] img {
-    border-color: currentColor;
-    opacity: 1;
-  }
-  .views button:focus-visible img {
-    outline: 2px solid currentColor;
-    outline-offset: 2px;
-  }
-  .room-frame {
-    position: relative;
-    overflow: hidden;
-    aspect-ratio: 3 / 2;
-    border-radius: 1rem;
-    background: var(--card);
+  .room-toggle:hover {
+    color: var(--ink);
   }
   .room-stage {
     position: absolute;

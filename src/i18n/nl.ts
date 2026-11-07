@@ -99,11 +99,10 @@ export const nl: Strings = {
     message: "Bericht",
     messagePlaceholder: "Hallo, ik vind dit werk prachtig…",
     send: "Vraag versturen",
-    viewPainting: "Schilderij",
-    roomTitle: "In een kamer",
+    roomShow: "Bekijk in een kamer",
+    roomHide: "Toon het schilderij",
     roomAlt: (title: string) => `${title} boven een bank in een woonkamer`,
-    roomNote: (inches: number) =>
-      `Ware grootte, boven een bank van ${inches} inch.`,
+    roomTrue: "Ware grootte",
     wallTitle: "Probeer het aan uw muur",
     wallTouch:
       "Ongeveer op ware grootte getoond. Tik op <strong>Bekijk aan uw muur</strong> en richt uw telefoon op de plek waar het zou hangen.",
