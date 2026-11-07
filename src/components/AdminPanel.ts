@@ -2079,6 +2079,12 @@ function wireList(): void {
     api
       .inviteContact(email)
       .then((r) => {
+        if (!r.already && !r.emailed) {
+          say(
+            `Couldn't send the invite to ${email} just now. Try again in a few minutes.`,
+          );
+          return;
+        }
         input.value = "";
         say(
           r.already
@@ -2106,7 +2112,10 @@ function wireBroadcast(): void {
   if (btn === null) return;
   btn.addEventListener("click", () => {
     const status = document.getElementById("email-status");
-    if (status === null) return;
+    if (status === null || btn.disabled) return;
+    // Locked from the first tap: a second tap during the count would ask
+    // twice and send twice.
+    btn.disabled = true;
     status.textContent = "Sending…";
     fadeIn(status);
     void api.emailSubscriberCount().then((total) => {
@@ -2120,9 +2129,9 @@ function wireBroadcast(): void {
             : null;
       if (question !== null && !window.confirm(question)) {
         status.textContent = "";
+        btn.disabled = false;
         return;
       }
-      btn.disabled = true;
       api
         .sendCollectorEmail(readEmailCopy())
         .then((r) => {

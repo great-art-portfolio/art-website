@@ -7,7 +7,7 @@ import { onRequest as middleware } from "../../functions/api/_middleware.ts";
 import { buildQuery, sinceModifier } from "../../scripts/logs.mjs";
 
 /** A D1 stand-in that records every statement and its values. */
-function fakeDb({ count = 0, failInsert = false } = {}) {
+function fakeDb({ count = 0, failInsert = false, repeat = false } = {}) {
   const runs = [];
   let nextId = 1;
   const db = {
@@ -30,6 +30,9 @@ function fakeDb({ count = 0, failInsert = false } = {}) {
             throw new Error("D1 down");
           runs.push({ sql, values });
           if (sql.startsWith("SELECT COUNT")) return { n: count };
+          // The repeat check: a match only when the test says there's one.
+          if (sql.startsWith("SELECT id FROM inquiries"))
+            return repeat ? { id: 7 } : null;
           return { id: nextId++ };
         },
       };
@@ -162,6 +165,30 @@ describe("inquiries are kept even when the email fails", () => {
     assert.deepEqual(
       logs(db).map((l) => l.event),
       ["inquiry.record_failed", "inquiry.not_delivered"],
+    );
+  });
+});
+
+describe("a note replayed twice is sent once", () => {
+  it("answers a repeat as sent, without saving or emailing it again", async () => {
+    const db = fakeDb({ repeat: true });
+    const res = await postInquiry({
+      env: { DB: db, ASSETS: assets },
+      request: new Request("http://localhost/api/inquiries", {
+        method: "POST",
+        body: JSON.stringify({
+          name: "Ana",
+          email: "ana@resend.dev",
+          slug: "night-reeds",
+          message: "Hi",
+        }),
+      }),
+    });
+    assert.equal(res.status, 201);
+    assert.deepEqual(await res.json(), { ok: true, repeat: true });
+    assert.equal(
+      db.runs.some((r) => r.sql.startsWith("INSERT INTO inquiries")),
+      false,
     );
   });
 });

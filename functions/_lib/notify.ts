@@ -208,6 +208,20 @@ const CONTACTS_PAGE = 100;
 /** All contacts on the segment, paged 100 at a time. Empty when
  * unconfigured. Throws (after logging) when the list can't be read, so a
  * failure never passes for an empty list. */
+/** Resend allows a few requests a second. A 429 waits as long as it asks
+ * (a second by default, at most 5) and tries again, up to 3 times, so a
+ * long list is read slowly rather than not at all. */
+async function fetchPaced(url: string, init: RequestInit): Promise<Response> {
+  for (let attempt = 0; ; attempt += 1) {
+    const res = await fetch(url, init);
+    if (res.status !== 429 || attempt >= 3) return res;
+    const wait = Number(res.headers.get("retry-after"));
+    const ms =
+      Number.isFinite(wait) && wait > 0 ? Math.min(wait, 5) * 1000 : 1000;
+    await new Promise((resolve) => setTimeout(resolve, ms));
+  }
+}
+
 export async function listSegmentContacts(
   env: AppEnv,
 ): Promise<SegmentContact[]> {
@@ -223,7 +237,7 @@ export async function listSegmentContacts(
     // people, four times the free plan's 1,000.
     for (let page = 0; page < 40; page += 1) {
       const query = `limit=${CONTACTS_PAGE}${after === "" ? "" : `&after=${encodeURIComponent(after)}`}`;
-      const res = await fetch(
+      const res = await fetchPaced(
         `https://api.resend.com/segments/${encodeURIComponent(seg)}/contacts?${query}`,
         { headers: resendHeaders(env) },
       );
@@ -676,6 +690,14 @@ export async function sendCollectorBroadcast(
   return { sent: ok ? total : 0, total, failed: !ok };
 }
 
+/** Pushover's message limit, in characters. */
+const PUSH_MESSAGE_MAX = 1024;
+
+function clip(text: string, max: number): string {
+  const chars = Array.from(text);
+  return chars.length <= max ? text : `${chars.slice(0, max - 1).join("")}…`;
+}
+
 async function sendPush(
   env: AppEnv,
   title: string,
@@ -695,8 +717,10 @@ async function sendPush(
         body: JSON.stringify({
           token: env.PUSHOVER_APP_TOKEN,
           user: env.PUSHOVER_USER_KEY,
-          title,
-          message,
+          // Pushover refuses titles over 250 and messages over 1,024
+          // characters: cut them, so a long note still reaches her phone.
+          title: clip(title, 250),
+          message: clip(message, PUSH_MESSAGE_MAX),
         }),
       }).then((res) => res.ok),
     );
