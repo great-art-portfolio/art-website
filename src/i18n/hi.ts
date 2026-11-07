@@ -98,6 +98,10 @@ export const hi: Strings = {
     message: "संदेश",
     messagePlaceholder: "नमस्ते, मुझे यह कृति बहुत पसंद आई…",
     send: "पूछताछ भेजें",
+    roomTitle: "एक कमरे में",
+    roomAlt: (title: string) => `बैठक में सोफ़े के ऊपर ${title}`,
+    roomNote: (inches: number) =>
+      `असली आकार में, ${inches} इंच के सोफ़े के ऊपर।`,
     wallTitle: "अपनी दीवार पर आज़माएँ",
     wallTouch:
       "लगभग असली आकार में दिखाई गई है। <strong>अपनी दीवार पर देखें</strong> पर टैप करें, फिर फ़ोन को वहाँ करें जहाँ यह टँगेगी।",
