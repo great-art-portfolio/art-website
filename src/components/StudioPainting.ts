@@ -31,7 +31,7 @@ import {
   type ParsedPainting,
   DEFAULT_DESCRIPTION,
 } from "../lib/painting-edit";
-import { loadArTooling, loadModelViewer } from "../lib/vendor-loader";
+import { arModes, loadArTooling, loadModelViewer } from "../lib/vendor-loader";
 import { readBackup } from "../lib/autosave";
 import { sendPublishAlerts } from "../lib/alerts";
 import {
@@ -546,7 +546,7 @@ function showArViewer(glbUrl: string, usdzUrl: string): void {
       el.setAttribute("src", glbUrl);
       el.setAttribute("ios-src", usdzUrl);
       el.setAttribute("ar", "");
-      el.setAttribute("ar-modes", "scene-viewer quick-look");
+      el.setAttribute("ar-modes", arModes(navigator.userAgent));
       el.setAttribute("ar-scale", "fixed");
       el.setAttribute("ar-placement", "wall");
       el.setAttribute("camera-controls", "");
