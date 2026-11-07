@@ -98,6 +98,10 @@ export const it: Strings = {
     message: "Messaggio",
     messagePlaceholder: "Ciao, adoro quest’opera…",
     send: "Invia la richiesta",
+    roomShow: "Vedilo in una stanza",
+    roomHide: "Mostra il dipinto",
+    roomAlt: (title: string) => `${title} sopra un divano in soggiorno`,
+    roomTrue: "Dimensioni reali",
     wallTitle: "Provalo sulla tua parete",
     wallTouch:
       "Mostrato in dimensioni quasi reali. Tocca <strong>Guardalo sulla tua parete</strong>, poi punta il telefono dove lo appenderesti.",

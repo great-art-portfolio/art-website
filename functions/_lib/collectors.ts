@@ -20,8 +20,14 @@ export const CONFIRM_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 export type LinkKind = "confirm" | "goodbye";
 
+/** UTF-8 base64url, so an address with letters like ł or ü (valid, and
+ * past the form's check) gets a link instead of a crash. ASCII addresses
+ * encode exactly as before, so links already sent keep working. */
 function b64urlEncode(text: string): string {
-  return btoa(text)
+  let binary = "";
+  for (const b of new TextEncoder().encode(text))
+    binary += String.fromCharCode(b);
+  return btoa(binary)
     .replaceAll("+", "-")
     .replaceAll("/", "_")
     .replace(/=+$/, "");
@@ -30,7 +36,14 @@ function b64urlEncode(text: string): string {
 function b64urlDecode(text: string): string | null {
   try {
     const padded = text.replaceAll("-", "+").replaceAll("_", "/");
-    return atob(padded);
+    const binary = atob(padded);
+    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+    try {
+      return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    } catch {
+      // A link from before UTF-8 links, for an é-style address.
+      return binary;
+    }
   } catch {
     return null;
   }

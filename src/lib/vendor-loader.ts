@@ -35,7 +35,8 @@ export interface ArTooling {
 
 const pending = new Map<string, Promise<void>>();
 
-/** Injects a <script> once per URL. Concurrent callers share one load. */
+/** Injects a <script> once per URL. Concurrent callers share one load; a
+ * failed load is retried by the next caller. */
 export function loadScript(src: string, module: boolean): Promise<void> {
   let p = pending.get(src);
   if (p === undefined) {
@@ -45,7 +46,13 @@ export function loadScript(src: string, module: boolean): Promise<void> {
       if (module) el.type = "module";
       el.async = true;
       el.onload = () => resolve();
-      el.onerror = () => reject(new Error(`Couldn't load ${src}`));
+      el.onerror = () => {
+        // Forget the failure, so the next try loads it afresh instead of
+        // failing until the page is reloaded.
+        pending.delete(src);
+        el.remove();
+        reject(new Error(`Couldn't load ${src}`));
+      };
       document.head.appendChild(el);
     });
     pending.set(src, p);
@@ -108,7 +115,7 @@ function markGoogleOut(): void {
 /** Wires "View on your wall". On Android it opens Google's viewer (Scene
  * Viewer) first; if that closes at once or never opens, the same button
  * opens our wall viewer instead for the rest of the visit (`onFallback`
- * relabels it "Try again with fallback"). Our viewer is tried at once too,
+ * relabels it "Try again with fallback", on every page after that too). Our viewer is tried at once too,
  * but browsers want a fresh tap to start AR, so in practice the second tap
  * opens it. Real failures are said (`onFail`) and
  * logged. Call after loadModelViewer(). */
@@ -137,7 +144,13 @@ export function wireWallAr(
   let fellBack = false;
   const api = window.WallAr;
   if (android && api !== undefined) {
-    void api.supported().then((ok) => (ours = ok));
+    void api.supported().then((ok) => {
+      ours = ok;
+      // Google's viewer already bounced earlier in this visit, so this
+      // button opens ours: say so here too, not only on the page it
+      // bounced on.
+      if (ok && googleOut()) onFallback();
+    });
   }
   const startOurs = (afterBounce: boolean) => {
     if (api === undefined) return;

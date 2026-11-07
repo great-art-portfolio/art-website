@@ -48,6 +48,27 @@ async function recordInquiry(
   }
 }
 
+/** The same note from the same buyer about the same painting in the last
+ * 15 minutes, already sent or still sending: a saved note replayed twice
+ * (the page and the background sync both reconnecting). A failed one
+ * doesn't count, so its retry goes through. A database error answers no,
+ * so a note is never dropped for it. */
+async function isRepeat(
+  env: AppEnv,
+  note: { slug: string; buyerEmail: string; message: string },
+): Promise<boolean> {
+  try {
+    const row = await env.DB.prepare(
+      "SELECT id FROM inquiries WHERE slug = ? AND buyer_email = ? AND message = ? AND status IN ('received', 'sent') AND at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-15 minutes') LIMIT 1",
+    )
+      .bind(note.slug, note.buyerEmail, note.message)
+      .first<{ id: number }>();
+    return row !== null && row !== undefined;
+  } catch {
+    return false;
+  }
+}
+
 async function markInquiry(
   env: AppEnv,
   id: number | null,
@@ -131,6 +152,14 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   const paintingTitle = painting.title;
   const priceCents = painting.sold ? 0 : painting.priceCents;
   const locale = isLocale(body["locale"]) ? body["locale"] : "en";
+  if (
+    await isRepeat(context.env, {
+      slug: painting.slug,
+      buyerEmail,
+      message,
+    })
+  )
+    return json({ ok: true, repeat: true }, { status: 201 });
   const id = await recordInquiry(context.env, context.request, {
     slug: painting.slug,
     paintingTitle,

@@ -164,6 +164,21 @@ describe("painting translation files", () => {
     assert.deepEqual(parseTranslationFile(null), { source: "", langs: {} });
   });
 
+  it("refuses a partial translation, and asks again for one saved earlier", () => {
+    // Title only: no description, though the English has one.
+    const out = parseTranslation(
+      JSON.stringify({ fr: { title: "Lune des prairies" } }),
+      ["fr"],
+      english,
+    );
+    assert.deepEqual(out, {});
+    const file = {
+      source: sourceHash(english),
+      langs: { fr: { ...french, description: "" } },
+    };
+    assert.deepEqual(missingLocales(file, english, ["fr"]), ["fr"]);
+  });
+
   it("asks only for missing languages while the English is unchanged", () => {
     const file = { source: sourceHash(english), langs: { fr: french } };
     assert.deepEqual(missingLocales(file, english, ["fr", "ja"]), ["ja"]);

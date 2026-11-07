@@ -101,6 +101,10 @@ export const de: Strings = {
     message: "Nachricht",
     messagePlaceholder: "Hallo, dieses Bild gefällt mir sehr…",
     send: "Anfrage senden",
+    roomShow: "Im Raum ansehen",
+    roomHide: "Gemälde zeigen",
+    roomAlt: (title: string) => `${title} über einem Sofa im Wohnzimmer`,
+    roomTrue: "Echte Größe",
     wallTitle: "An Ihrer Wand ausprobieren",
     wallTouch:
       "Ungefähr in Originalgröße dargestellt. Tippen Sie auf <strong>An Ihrer Wand ansehen</strong> und richten Sie Ihr Handy dorthin, wo es hängen würde.",

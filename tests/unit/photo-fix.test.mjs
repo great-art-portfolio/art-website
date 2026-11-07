@@ -212,6 +212,21 @@ describe("outputSize", () => {
     assert.deepEqual(s, { width: 800, height: 800 });
   });
 
+  it("never reshapes the whole photo, as for a tone-only change", () => {
+    // A 4:3 photo, wall and all, with a 24 × 36 in painting typed.
+    const s = outputSize(WHOLE, 3200, 2400, 2000, {
+      widthIn: 24,
+      heightIn: 36,
+    });
+    assert.deepEqual(s, { width: 2000, height: 1500 });
+  });
+
+  it("keeps the crop's shape when the typed size is the wrong way round", () => {
+    // An 800 × 500 crop with 24 wide × 36 tall typed: tall vs wide.
+    const s = outputSize(q, 1000, 1000, 2000, { widthIn: 24, heightIn: 36 });
+    assert.deepEqual(s, { width: 800, height: 500 });
+  });
+
   it("never exceeds the upload limit", () => {
     const s = outputSize(WHOLE, 4000, 3000, 2000);
     assert.deepEqual(s, { width: 2000, height: 1500 });

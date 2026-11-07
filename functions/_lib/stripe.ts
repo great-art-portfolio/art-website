@@ -23,41 +23,79 @@ const SESSION_MINUTES = 30;
 /** Countries the buyer can ship to. She ships from Calgary. */
 const SHIP_TO = ["CA", "US"];
 
+const set = (v: string | undefined): boolean => (v ?? "") !== "";
+
+/** On only when a sale can be recorded and told: the webhook secret (or no
+ * sale is ever marked sold) and the sale email (or she never hears of it,
+ * and Stripe retries forever). */
 export function stripeEnabled(env: AppEnv): boolean {
-  return flag(env.ENABLE_STRIPE) && (env.STRIPE_SECRET_KEY ?? "") !== "";
+  return (
+    flag(env.ENABLE_STRIPE) &&
+    set(env.STRIPE_SECRET_KEY) &&
+    set(env.STRIPE_WEBHOOK_SECRET) &&
+    set(env.RESEND_API_KEY) &&
+    set(env.ARTIST_INBOX)
+  );
 }
+
+/** What switching card checkout on needs, for the 501 answer. */
+export const STRIPE_SETUP =
+  'Set ENABLE_STRIPE="true", STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET (plus RESEND_API_KEY and ARTIST_INBOX for the sale email) in Cloudflare, then redeploy.';
 
 export type Sellable =
   | { ok: true; item: CatalogItem }
   | { ok: false; status: number; error: string };
 
-/** Matches the page's request against the built catalog. The price and
- * title must agree with the build, so a stale or edited page can't set its
- * own price. */
+/** The painting as git has it now, which can be newer than the build:
+ * "missing" when its file is gone, null when git couldn't be read. */
+export type LivePainting =
+  | {
+      sold: boolean;
+      draft: boolean;
+      trash: boolean;
+      priceCents: number;
+    }
+  | "missing"
+  | null;
+
+const NOT_FOR_SALE: Sellable = {
+  ok: false,
+  status: 404,
+  error: "That painting isn't for sale.",
+};
+const JUST_SOLD: Sellable = {
+  ok: false,
+  status: 409,
+  error: "Sorry, this painting has just sold.",
+};
+const OUT_OF_DATE: Sellable = {
+  ok: false,
+  status: 409,
+  error: "This page is out of date. Reload it and try again.",
+};
+
+/** Matches the page's request against the built catalog, then against
+ * git when it's known (a sale, an edit or a deletion since the build). The
+ * price and title must agree, so a stale or edited page can't set its own
+ * price. */
 export function findSellable(
   catalog: CatalogItem[],
   body: CheckoutBody,
+  live: LivePainting = null,
 ): Sellable {
   const item = catalog.find((p) => p.slug === body.slug);
-  if (item === undefined)
-    return { ok: false, status: 404, error: "That painting isn't for sale." };
-  if (item.sold)
-    return {
-      ok: false,
-      status: 409,
-      error: "Sorry, this painting has just sold.",
-    };
+  if (item === undefined || live === "missing") return NOT_FOR_SALE;
+  if (item.sold || live?.sold === true) return JUST_SOLD;
+  if (live !== null && (live.draft || live.trash)) return NOT_FOR_SALE;
   if (item.title !== body.title || item.priceCents !== body.priceCents)
-    return {
-      ok: false,
-      status: 409,
-      error: "This page is out of date. Reload it and try again.",
-    };
+    return OUT_OF_DATE;
+  // Repriced in the studio since the build.
+  if (live !== null && live.priceCents !== item.priceCents) return OUT_OF_DATE;
   return { ok: true, item };
 }
 
-/** Form fields for POST /v1/checkout/sessions. Payment methods are left to
- * the dashboard, where cards, Apple Pay, and Google Pay are on by default. */
+/** Form fields for POST /v1/checkout/sessions. Cards only, which include
+ * Apple Pay and Google Pay (see below). */
 export function checkoutParams(
   item: CatalogItem,
   origin: string,
@@ -122,6 +160,9 @@ export async function createCheckoutSession(
   return data.url;
 }
 
+/** Pages of open checkouts read when a painting sells (100 each). */
+const MAX_LIST_PAGES = 20;
+
 /**
  * Closes every other open checkout for the same painting once it sells,
  * so a second buyer still on Stripe's page can't pay for it too. Never
@@ -135,20 +176,35 @@ export async function expireOtherSessions(
   if (slug === "") return 0;
   const auth = { Authorization: `Bearer ${env.STRIPE_SECRET_KEY ?? ""}` };
   try {
-    const res = await fetch(
-      "https://api.stripe.com/v1/checkout/sessions?status=open&limit=100",
-      { headers: auth },
-    );
-    if (!res.ok) throw new Error(`Stripe list ${res.status}`);
-    const data = (await res.json()) as {
-      data?: Array<{ id?: unknown; metadata?: Record<string, unknown> }>;
-    };
-    const others = (data.data ?? []).filter(
-      (s) =>
-        typeof s.id === "string" &&
-        s.id !== keep &&
-        s.metadata?.["painting_slug"] === slug,
-    );
+    // Every open checkout on the account, a page at a time: the painting's
+    // can sit past the first hundred.
+    type Listed = { id?: unknown; metadata?: Record<string, unknown> };
+    const others: Listed[] = [];
+    let after = "";
+    for (let page = 0; page < MAX_LIST_PAGES; page += 1) {
+      const res = await fetch(
+        "https://api.stripe.com/v1/checkout/sessions?status=open&limit=100" +
+          (after === "" ? "" : `&starting_after=${encodeURIComponent(after)}`),
+        { headers: auth },
+      );
+      if (!res.ok) throw new Error(`Stripe list ${res.status}`);
+      const data = (await res.json()) as {
+        data?: Listed[];
+        has_more?: unknown;
+      };
+      const rows = data.data ?? [];
+      others.push(
+        ...rows.filter(
+          (s) =>
+            typeof s.id === "string" &&
+            s.id !== keep &&
+            s.metadata?.["painting_slug"] === slug,
+        ),
+      );
+      const last = rows.at(-1)?.id;
+      if (data.has_more !== true || typeof last !== "string") break;
+      after = last;
+    }
     await Promise.all(
       others.map((s) =>
         fetch(

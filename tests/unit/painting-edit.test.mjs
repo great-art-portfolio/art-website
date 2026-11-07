@@ -42,6 +42,15 @@ describe("resolveDims", () => {
     });
   });
 
+  it("derives width from a measured height and the photo's shape", () => {
+    // 1600 × 2000 photo, 36 in tall → 28.8 in wide.
+    assert.deepEqual(resolveDims(1600, 2000, null, 36, null), {
+      w: 28.8,
+      h: 36,
+      d: 1.5,
+    });
+  });
+
   it("never divides by zero on a degenerate photo", () => {
     const dims = resolveDims(0, 0, null, null, null);
     assert.equal(Number.isFinite(dims.h), true);
@@ -360,6 +369,11 @@ describe("scheduled publishing", () => {
     assert.equal(isPublishDue("someday", TODAY), false);
   });
 
+  it("dates a scheduled painting the day it goes live", () => {
+    const md = `---\ntitle: "Slow Thaw"\ndateAdded: 2026-09-01\ndraft: true\npublishOn: "2026-09-15"\n---\n\nBody.\n`;
+    assert.match(publishDue(md, "2026-09-15"), /^dateAdded: 2026-09-15$/m);
+  });
+
   it("flips a due draft live and drops its date", () => {
     const md = `---\ntitle: "Slow Thaw"\ndraft: true\npublishOn: "2026-09-01"\nprice: 100.00\n---\n\nBody.\n`;
     const next = publishDue(md);
@@ -509,5 +523,54 @@ describe("patchPainting never writes a file the build rejects", () => {
   it("skips a size that rounds to zero", () => {
     const next = patchPainting(SAMPLE, { ...edits, widthIn: "0.04" });
     assert.doesNotMatch(next, /^widthIn: 0$/m);
+  });
+});
+
+describe("frontmatter edits stay in the frontmatter", () => {
+  const edits = {
+    title: "Night Reeds",
+    price: "140.00",
+    alt: "Moody teal abstract",
+    widthIn: "24",
+    heightIn: "24",
+    depthIn: "1",
+    draft: false,
+    sold: false,
+  };
+  it("keeps a pasted line separator from breaking the next save", () => {
+    const once = patchPainting(SAMPLE, {
+      ...edits,
+      title: "New Sep",
+      medium: "",
+      description: "Rain.",
+    });
+    const twice = patchPainting(once, {
+      ...edits,
+      title: "Second",
+      medium: "",
+      description: "Rain.",
+    });
+    assert.equal(parsePainting(once)?.title, "New Sep");
+    assert.equal(parsePainting(twice)?.title, "Second");
+    assert.equal(twice.match(/^title:/gm)?.length, 1);
+  });
+  it("adds a medium to the frontmatter, not to a description line", () => {
+    const md = SAMPLE.replace(/^medium:.*\n/m, "").replace(
+      /\n---\n[\s\S]*$/,
+      "\n---\n\nmedium: wax\nthen the rest.\n",
+    );
+    const next = patchPainting(md, {
+      ...edits,
+      medium: "Acrylic",
+      description: "medium: wax\nthen the rest.",
+    });
+    assert.equal(parsePainting(next)?.medium, "Acrylic");
+    assert.match(next, /\n---\n\nmedium: wax\nthen the rest\.\n$/);
+  });
+  it("sets the gallery order in the frontmatter, not in the description", () => {
+    const md = SAMPLE.replace(/\n---\n[\s\S]*$/, "\n---\n\norder: of things\n");
+    const next = setOrder(md, 3);
+    assert.match(next.split("\n---\n")[0] ?? "", /^order: 3$/m);
+    assert.match(next, /\n---\n\norder: of things\n$/);
   });
 });

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "art-website-prod",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev:prod"],
+      "port": 4331
+    }
+  ]
+}

@@ -94,6 +94,10 @@ export const zh: Strings = {
     message: "留言",
     messagePlaceholder: "你好，我很喜欢这件作品…",
     send: "发送咨询",
+    roomShow: "看看挂在房间里",
+    roomHide: "查看作品",
+    roomAlt: (title: string) => `客厅沙发上方的《${title}》`,
+    roomTrue: "实际尺寸",
     wallTitle: "挂到你的墙上看看",
     wallTouch:
       "按接近真实的尺寸显示。点按<strong>在你的墙上看</strong>，然后把手机对准你想挂画的位置。",

@@ -100,6 +100,10 @@ export const ja: Strings = {
     message: "メッセージ",
     messagePlaceholder: "こんにちは。この作品がとても気に入りました…",
     send: "問い合わせを送信",
+    roomShow: "お部屋で見る",
+    roomHide: "作品を表示",
+    roomAlt: (title: string) => `リビングのソファの上に掛けた「${title}」`,
+    roomTrue: "実寸",
     wallTitle: "お部屋の壁で試してみる",
     wallTouch:
       "ほぼ実物大で表示しています。「<strong>壁に飾ってみる</strong>」をタップし、飾りたい場所にスマートフォンを向けてください。",

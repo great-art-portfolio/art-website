@@ -107,9 +107,10 @@ async function gh(
 export async function fetchRawFile(
   config: GitHubConfig,
   path: string,
+  ref: string = config.branch,
 ): Promise<Response | null> {
   const res = await fetch(
-    `${apiBase}/repos/${config.repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(config.branch)}`,
+    `${apiBase}/repos/${config.repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(ref)}`,
     {
       headers: {
         Accept: "application/vnd.github.raw",
@@ -131,13 +132,29 @@ export async function fetchRawFile(
   return res;
 }
 
-/** Reads a text file from the repo. Null when missing. */
+/** Reads a text file from the repo, at the branch head or at `ref` (a
+ * commit sha). Null when missing. */
 export async function readTextFile(
   config: GitHubConfig,
   path: string,
+  ref?: string,
 ): Promise<string | null> {
-  const res = await fetchRawFile(config, path);
+  const res = await fetchRawFile(config, path, ref);
   return res === null ? null : await res.text();
+}
+
+/** The branch's current commit sha. */
+export async function headSha(config: GitHubConfig): Promise<string> {
+  const ref = (await gh(
+    config,
+    `/repos/${config.repo}/git/ref/heads/${encodeURIComponent(config.branch)}`,
+  )) as { object: { sha: string } };
+  return ref.object.sha;
+}
+
+/** GitHub refused a ref update because the branch moved meanwhile. */
+export function isRefRace(err: unknown): boolean {
+  return err instanceof Error && /^GitHub API 422/.test(err.message);
 }
 
 /** Lists filenames directly inside a repo directory. Empty when missing. */
@@ -163,14 +180,17 @@ export async function listDir(
  * `rebase` retries on top of a commit that landed meanwhile (GitHub
  * refuses a ref update that isn't a fast-forward). The studio wants that:
  * its background translation commits can race her saves, and they touch
- * different files. The sale webhook doesn't: there a refusal is how a
- * second buyer of the same painting is caught.
+ * different files.
+ *
+ * `parent` commits on exactly that commit, or not at all: the sale webhook
+ * reads the painting at a commit and builds on it, so if anything landed
+ * since, GitHub refuses the update (isRefRace) and the webhook reads again.
  */
 export async function commitFiles(
   config: GitHubConfig,
   message: string,
   files: RepoFile[],
-  opts: { rebase?: boolean } = {},
+  opts: { rebase?: boolean; parent?: string } = {},
 ): Promise<string> {
   const entries = await Promise.all(
     files.map(async (f) => {
@@ -184,13 +204,12 @@ export async function commitFiles(
       return { ...entry, sha: blob.sha };
     }),
   );
-  const tries = opts.rebase === true ? 3 : 1;
+  const tries = opts.rebase === true && opts.parent === undefined ? 3 : 1;
   for (let attempt = 1; ; attempt += 1) {
     try {
-      return await commitTree(config, message, entries);
+      return await commitTree(config, message, entries, opts.parent);
     } catch (err) {
-      const raced = err instanceof Error && /^GitHub API 422/.test(err.message);
-      if (!raced || attempt >= tries) throw err;
+      if (!isRefRace(err) || attempt >= tries) throw err;
     }
   }
 }
@@ -199,14 +218,9 @@ async function commitTree(
   config: GitHubConfig,
   message: string,
   entries: Array<Record<string, unknown>>,
+  parent?: string,
 ): Promise<string> {
-  const ref = (await gh(
-    config,
-    `/repos/${config.repo}/git/ref/heads/${encodeURIComponent(config.branch)}`,
-  )) as {
-    object: { sha: string };
-  };
-  const baseSha = ref.object.sha;
+  const baseSha = parent ?? (await headSha(config));
   const baseCommit = (await gh(
     config,
     `/repos/${config.repo}/git/commits/${baseSha}`,

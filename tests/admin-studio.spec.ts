@@ -2100,7 +2100,7 @@ test("qr codes page prints one card per published painting", async ({
   // Every published painting gets a card with its buyer page URL. Drafts
   // get none.
   for (const p of paintings) {
-    const card = page.locator(`.qr-card[id="${p.slug}"]`);
+    const card = page.locator(`.qr-card[id="qr-${p.slug}"]`);
     await expect(card).toBeVisible();
     await expect(card.locator(".qr-code svg")).toBeAttached();
     await expect(card.locator(".qr-url")).toHaveText(
@@ -2129,7 +2129,7 @@ test("collection rows link published paintings to their qr card", async ({
   expect(await qrLinks.count()).toBeGreaterThan(0);
   for (const p of paintings) {
     const link = page.locator(
-      `#edit-list .row-qr[href="/admin/qr-codes#${p.slug}"]`,
+      `#edit-list .row-qr[href="/admin/qr-codes#qr-${p.slug}"]`,
     );
     if ((await link.count()) === 0) continue;
     await expect(link.first()).toHaveText("QR code");

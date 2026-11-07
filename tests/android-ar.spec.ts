@@ -54,3 +54,22 @@ test("Android buyer is told when the wall view fails", async ({ page }) => {
     "The wall view didn't open. Please try again.",
   );
 });
+
+test("after Google's viewer bounced, later pages label the button for ours", async ({
+  page,
+}) => {
+  // An AR-capable phone, earlier in a visit where Google's viewer bounced.
+  await page.addInitScript(() => {
+    sessionStorage.setItem("wallAr.googleOut", "1");
+    Object.defineProperty(navigator, "xr", {
+      value: { isSessionSupported: () => Promise.resolve(true) },
+      configurable: true,
+    });
+  });
+  await page.goto("/paintings/night-reeds");
+  await page.locator("#ar-mount").scrollIntoViewIfNeeded();
+  await expect(page.locator("#ar-stage button.ar-button")).toHaveText(
+    "Try again with fallback",
+    { timeout: 20000 },
+  );
+});

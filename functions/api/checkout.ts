@@ -6,6 +6,8 @@ import {
   checkoutParams,
   createCheckoutSession,
   findSellable,
+  type LivePainting,
+  STRIPE_SETUP,
   stripeEnabled,
 } from "../_lib/stripe";
 import { parseCatalog, parseCheckoutBody } from "../_lib/validation";
@@ -20,11 +22,7 @@ import { logEvent } from "../_lib/log";
  */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   const { env, request } = context;
-  if (!stripeEnabled(env))
-    return notEnabled(
-      "Card checkout",
-      'Set ENABLE_STRIPE="true" and STRIPE_SECRET_KEY in Cloudflare, then redeploy.',
-    );
+  if (!stripeEnabled(env)) return notEnabled("Card checkout", STRIPE_SETUP);
   let raw: unknown;
   try {
     raw = await request.json();
@@ -51,51 +49,16 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       );
     }
     const catalog = parseCatalog(await catalogRes.json());
-    const sellable = findSellable(catalog, body);
-    if (!sellable.ok)
-      return json({ error: sellable.error }, { status: sellable.status });
+    const listed = findSellable(catalog, body);
+    if (!listed.ok)
+      return json({ error: listed.error }, { status: listed.status });
     // The catalog is as old as the last build. A sale commits sold: true
     // right away, so check git too and close the minutes before the
     // rebuild lands.
-    const config = gitConfig(env);
-    if (config !== null && PAINTING_FILE.test(sellable.item.file)) {
-      // A GitHub hiccup must not stop every sale: fall back to the
-      // catalog. A painting that sold in those minutes is caught by the
-      // webhook (already-sold email) and refunded by hand.
-      const md = await readTextFile(config, sellable.item.file).catch(
-        async (err: unknown) => {
-          await logEvent(env, {
-            level: "warn",
-            event: "checkout.git_unreadable",
-            message: "Couldn't read the painting from git; using the catalog",
-            err,
-            detail: { file: sellable.item.file },
-            request,
-          });
-          return null;
-        },
-      );
-      const live = md === null ? null : parsePainting(md);
-      if (live?.sold === true)
-        return json(
-          { error: "Sorry, this painting has just sold." },
-          { status: 409 },
-        );
-      // Taken down, or repriced, in the studio since the last build.
-      if (live !== null && (live.draft || live.trash))
-        return json(
-          { error: "That painting isn't for sale." },
-          { status: 404 },
-        );
-      if (
-        live !== null &&
-        Math.round(Number(live.price) * 100) !== sellable.item.priceCents
-      )
-        return json(
-          { error: "This page is out of date. Reload it and try again." },
-          { status: 409 },
-        );
-    }
+    const live = await livePainting(env, listed.item.file, request);
+    const sellable = findSellable(catalog, body, live);
+    if (!sellable.ok)
+      return json({ error: sellable.error }, { status: sellable.status });
     const url = await createCheckoutSession(
       env,
       checkoutParams(sellable.item, origin, {
@@ -114,3 +77,76 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     return serverError("Checkout isn't available right now.");
   }
 };
+
+/** How long a painting's git state is reused between checkouts. A flood
+ * of requests then costs one GitHub read per painting per window, not one
+ * each, so it can't use up the key the studio and the sale webhook share.
+ * A sale clears it (forgetLivePainting). */
+const LIVE_CACHE_S = 15;
+
+/** Null where there's no Cache API (local tests). */
+const liveCache = (): Promise<Cache | null> =>
+  typeof caches === "undefined"
+    ? Promise.resolve(null)
+    : caches.open("checkout-live").catch(() => null);
+
+const liveKey = (file: string): Request =>
+  new Request(`https://checkout-cache.invalid/${encodeURIComponent(file)}`);
+
+/** The painting as git has it now, through a short cache. A GitHub hiccup
+ * must not stop every sale, so it answers null (use the catalog); a sale
+ * in that gap is caught by the webhook's already-sold email. */
+async function livePainting(
+  env: AppEnv,
+  file: string,
+  request: Request,
+): Promise<LivePainting> {
+  const config = gitConfig(env);
+  if (config === null || !PAINTING_FILE.test(file)) return null;
+  const cache = await liveCache();
+  let md: string | null;
+  const hit = await cache?.match(liveKey(file));
+  if (hit !== undefined) {
+    md = hit.headers.get("x-missing") === "1" ? null : await hit.text();
+  } else {
+    try {
+      md = await readTextFile(config, file);
+    } catch (err) {
+      await logEvent(env, {
+        level: "warn",
+        event: "checkout.git_unreadable",
+        message: "Couldn't read the painting from git; using the catalog",
+        err,
+        detail: { file },
+        request,
+      });
+      return null;
+    }
+    await cache
+      ?.put(
+        liveKey(file),
+        new Response(md ?? "", {
+          headers: {
+            "Cache-Control": `max-age=${LIVE_CACHE_S}`,
+            "x-missing": md === null ? "1" : "0",
+          },
+        }),
+      )
+      .catch(() => undefined);
+  }
+  // Deleted in the studio since the build.
+  if (md === null) return "missing";
+  const p = parsePainting(md);
+  if (p === null) return null;
+  return {
+    sold: p.sold,
+    draft: p.draft,
+    trash: p.trash,
+    priceCents: Math.round(Number(p.price) * 100),
+  };
+}
+
+/** Drops the cached git state of a painting that just sold. */
+export async function forgetLivePainting(file: string): Promise<void> {
+  await (await liveCache())?.delete(liveKey(file)).catch(() => false);
+}

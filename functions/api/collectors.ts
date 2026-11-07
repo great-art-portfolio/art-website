@@ -365,7 +365,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
             return false;
           },
         ));
-      await syncContactRemoved(context.env, email).catch(
+      const removed = await syncContactRemoved(context.env, email).catch(
         async (err: unknown) => {
           await logEvent(context.env, {
             event: "collectors.remove_threw",
@@ -376,6 +376,12 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
           return false;
         },
       );
+      // Still on the list: say so, and send no goodbye, or they'd get the
+      // next new-painting email after being told they'd left.
+      if (!removed)
+        return serverError(
+          "Couldn't take you off the list just now. Try again in a minute.",
+        );
       if (member) {
         await sendSiteEmail(context.env, {
           to: [email],

@@ -6,7 +6,7 @@ import {
   localeInfo,
   type OtherLocale,
 } from "../../src/i18n/locales";
-import type { PaintingWords } from "../../src/i18n/painting-text";
+import { isComplete, type PaintingWords } from "../../src/i18n/painting-text";
 
 /** Her words in the other languages of the site: a painting's title,
  * description, alt text and medium, or the homepage note. Muse Spark
@@ -101,13 +101,17 @@ export function parseTranslation(
     const title = str(e["title"], 400);
     if (title === "") continue;
     // An empty English field stays empty, whatever came back.
-    out[code] = {
+    const words = {
       title,
       description:
         english.description === "" ? "" : str(e["description"], 4000),
       alt: english.alt === "" ? "" : str(e["alt"], 400),
       medium: english.medium === "" ? "" : str(e["medium"], 200),
     };
+    // A language missing any field the English has is left out, so it's
+    // asked for again rather than saved with a blank description.
+    if (!isComplete(words, english)) continue;
+    out[code] = words;
   }
   return out;
 }

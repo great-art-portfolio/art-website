@@ -25,6 +25,25 @@ check:inline → build:e2e → e2e`.
 `format` before committing; `format:check` and `lint` must be clean.
 Never commit with a red gate to "fix later".
 
+## Check Google's wall viewer first (since 2026-11-06)
+
+Android's "View on your wall" opens Google's Scene Viewer, which the Google
+app has closed on open since 17.66 (October 2026). While it does, the button
+turns into "Try again with fallback" and opens our WebXR viewer
+(`src/lib/wall-ar.ts`). The owner prefers Google's. At the start of any work
+here, check whether Google has fixed it, and tell the owner when it has:
+
+- Threads: google/model-viewer#5210 (a Google engineer said a fix "is going
+  live", no date), google-ar/arcore-android-sdk#1795 and #1797
+  (`gh issue view 5210 -R google/model-viewer --comments`).
+- On the owner's S24, when adb reaches it: note the Google app's
+  `versionName` (`dumpsys package com.google.android.googlequicksearchbox`),
+  then open Google's Astronaut sample through Scene Viewer and see whether
+  it stays open.
+
+Once it's fixed nothing needs changing: the bounce stops, so the relabel
+never shows. Keep our viewer as the fallback.
+
 ## Port 4331 serves a build, not src
 
 `pnpm dev:prod` is `astro build` + `wrangler pages dev dist` (her real
@@ -131,6 +150,18 @@ data read it from `/catalog.json` through `env.ASSETS`. Check with
   addresses](https://resend.com/docs/knowledge-base/what-email-addresses-to-use-for-testing),
   [E2E with
   Playwright](https://resend.com/docs/knowledge-base/end-to-end-testing-with-playwright).
+
+## What the studio already does (check before saying something is missing)
+
+`/admin` is her dashboard: her paintings as Available, Sold, Drafts
+(scheduled ones included) and Trash. Its other pages: `/admin/paintings/new` and
+`/admin/paintings/<slug>` (one painting's edit room: title, price, size,
+Sold box, photo, AR model), `/admin/qr-codes` (a printable cut-out card
+per published painting: title and a QR code to its page; no price),
+`/admin/banner`, `/admin/email` (her email list and sending), `/admin/metrics`, `/admin/guide` (her
+how-to, and the site's languages). Prices change one painting at a time
+in its edit room; there is no batch price edit. Before telling the owner
+a feature doesn't exist, `ls src/pages/admin` and grep for it.
 
 ## Logs and errors (for agents)
 

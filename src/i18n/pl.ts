@@ -108,6 +108,10 @@ export const pl: Strings = {
     message: "Wiadomość",
     messagePlaceholder: "Dzień dobry, ten obraz bardzo mi się podoba…",
     send: "Wyślij zapytanie",
+    roomShow: "Zobacz w pokoju",
+    roomHide: "Pokaż obraz",
+    roomAlt: (title: string) => `${title} nad sofą w salonie`,
+    roomTrue: "Rzeczywisty rozmiar",
     wallTitle: "Sprawdź, jak wygląda na ścianie",
     wallTouch:
       "Pokazany mniej więcej w rzeczywistym rozmiarze. Dotknij <strong>Zobacz na swojej ścianie</strong>, a potem skieruj telefon tam, gdzie miałby zawisnąć.",

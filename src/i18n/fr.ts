@@ -101,6 +101,10 @@ export const fr: Strings = {
     message: "Message",
     messagePlaceholder: "Bonjour, j’adore cette œuvre…",
     send: "Envoyer la demande",
+    roomShow: "Voir dans une pièce",
+    roomHide: "Voir le tableau",
+    roomAlt: (title: string) => `${title} au-dessus d’un canapé dans un salon`,
+    roomTrue: "Taille réelle",
     wallTitle: "Essayez-le sur votre mur",
     wallTouch:
       "Affiché à peu près en taille réelle. Touchez <strong>Voir sur votre mur</strong>, puis pointez votre téléphone là où il serait accroché.",

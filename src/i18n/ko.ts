@@ -96,6 +96,10 @@ export const ko: Strings = {
     message: "메시지",
     messagePlaceholder: "안녕하세요, 이 작품이 정말 마음에 들어요…",
     send: "문의 보내기",
+    roomShow: "방에서 보기",
+    roomHide: "작품 보기",
+    roomAlt: (title: string) => `거실 소파 위에 걸린 「${title}」`,
+    roomTrue: "실제 크기",
     wallTitle: "내 벽에 걸어 보기",
     wallTouch:
       "거의 실제 크기로 보여 드려요. <strong>내 벽에서 보기</strong>를 누른 뒤, 그림을 걸 곳에 휴대폰을 비춰 보세요.",

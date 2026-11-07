@@ -2,10 +2,11 @@
 /** One painting in buy, edit, or draft mode. All three share one layout so
  * the editor matches the buyer page. The inline script skips any part whose
  * elements are absent. */
-import { Picture } from "astro:assets";
+import { getImage, Picture } from "astro:assets";
 import type { ImageMetadata } from "astro";
 import { formatPriceCAD } from "../lib/money";
 import { paintingPageUrl, qrSvg } from "../lib/qr";
+import { roomLayout, type Box } from "../lib/room";
 import { PHOTO_WIDTHS, photoSizes } from "../lib/responsive-images";
 import { SHOW_PAGE_SHARE, SHOW_PRICES } from "../lib/site";
 import { t } from "../i18n";
@@ -74,6 +75,22 @@ const eyebrow =
     : data.draft
       ? "Draft · only you can see this"
       : s.painting.eyebrow;
+// The painting hung at true size in the living-room render. Buyer pages
+// only, for paintings still for sale that have a size.
+const room =
+  !studio && !data.sold && data.image !== undefined
+    ? roomLayout(
+        Number(data.widthIn),
+        Number(data.heightIn),
+        data.image.width / data.image.height,
+      )
+    : null;
+const roomArt =
+  room !== null && data.image !== undefined
+    ? await getImage({ src: data.image, width: 800, format: "webp" })
+    : null;
+const at = (b: Box) =>
+  `left:${b.left}%;top:${b.top}%;width:${b.width}%;height:${b.height}%`;
 ---
 
 <main
@@ -197,6 +214,33 @@ const eyebrow =
               />
             )}
             {data.sold && <span class="badge sold">{s.gallery.sold}</span>}
+            {room !== null && roomArt !== null && (
+              <div class="room-layer" id="room-view" aria-hidden="true">
+                <div class="room-stage" style={at(room.stage)}>
+                  <img
+                    class="room-bg"
+                    src="/rooms/living-room-1600.webp"
+                    srcset="/rooms/living-room-1000.webp 1000w, /rooms/living-room-1600.webp 1600w, /rooms/living-room-2000.webp 2000w"
+                    sizes="(min-width: 900px) 70vw, 150vw"
+                    width="2000"
+                    height="1333"
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <div class="room-art" style={at(room.art)}>
+                    <img
+                      src={roomArt.src}
+                      alt={s.painting.roomAlt(data.title)}
+                      loading="lazy"
+                      decoding="async"
+                    />
+                    <div class="room-light" style={at(room.light)} />
+                  </div>
+                </div>
+                <span class="room-true">{s.painting.roomTrue}</span>
+              </div>
+            )}
           </div>
           {studio && (
             <div class="tile-row">
@@ -611,7 +655,28 @@ const eyebrow =
           ) : (
             <p class="price-note">{s.painting.priceOnRequest}</p>
           )}
-          {data.meta !== "" && <p class="art-meta">{data.meta}</p>}
+          {data.meta !== "" && (
+            <p class="art-meta">
+              {data.meta}
+              {room !== null && roomArt !== null && " "}
+              {room !== null && roomArt !== null && (
+                <span class="room-cue">
+                  {"· "}
+                  <button
+                    type="button"
+                    class="room-toggle"
+                    id="room-toggle"
+                    aria-pressed="false"
+                    aria-controls="room-view"
+                    data-show={s.painting.roomShow}
+                    data-hide={s.painting.roomHide}
+                  >
+                    {s.painting.roomShow}
+                  </button>
+                </span>
+              )}
+            </p>
+          )}
           <div class="desc">
             <slot />
           </div>
@@ -691,10 +756,17 @@ const eyebrow =
             <div class="ar-skeleton" aria-hidden="true" />
           </div>
           <p class="ar-status" id="ar-status" role="status" />
-          <div class="ar-scan">
-            <span class="ar-qr" set:html={qrSvg(paintingPageUrl(data.slug))} />
-            <p class="hint" set:html={s.painting.wallScan} />
-          </div>
+          {/* A draft's preview has no public page for a code to open. The
+              code opens this page in the language it's shown in. */}
+          {!preview && (
+            <div class="ar-scan">
+              <span
+                class="ar-qr"
+                set:html={qrSvg(paintingPageUrl(data.slug, locale))}
+              />
+              <p class="hint" set:html={s.painting.wallScan} />
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -984,7 +1056,51 @@ const eyebrow =
     });
   }
 
+  /** "See it in a room" on the size line swaps the photo for the
+   * painting in the room render, and back. */
+  function initRoom() {
+    const toggle = document.getElementById("room-toggle");
+    const photo = document.getElementById("photo-wrap");
+    const room = document.getElementById("room-view");
+    if (toggle === null || photo === null || room === null) return;
+    if (toggle.dataset.wired === "1") return;
+    toggle.dataset.wired = "1";
+    // Hidden pictures never lazy-load, so fetch the room once the page has
+    // settled; a tap then fades in a room that's already there.
+    const pictures = Array.from(room.querySelectorAll("img"));
+    const preload = () => {
+      for (const img of pictures) img.loading = "eager";
+    };
+    // Without requestIdleCallback (older Safari), a plain delay.
+    if (typeof window.requestIdleCallback === "function")
+      window.requestIdleCallback(preload, { timeout: 3000 });
+    else setTimeout(preload, 1500);
+    const ready = () =>
+      Promise.race([
+        Promise.all(
+          pictures.map((img) => {
+            img.loading = "eager";
+            return img.decode().catch(() => undefined);
+          }),
+        ),
+        // A slow connection still gets the room, just not perfectly.
+        new Promise((resolve) => window.setTimeout(resolve, 1200)),
+      ]);
+    toggle.addEventListener("click", async () => {
+      const inRoom = !photo.classList.contains("in-room");
+      if (inRoom) await ready();
+      photo.classList.toggle("in-room", inRoom);
+      room.setAttribute("aria-hidden", String(!inRoom));
+      toggle.setAttribute("aria-pressed", String(inRoom));
+      toggle.textContent =
+        (inRoom ? toggle.dataset.hide : toggle.dataset.show) ?? "";
+      // On a phone the photo can be scrolled off; bring the swap into view.
+      photo.scrollIntoView({ block: "nearest" });
+    });
+  }
+
   function initDetail() {
+    initRoom();
     initAr();
     initAdmin();
     initPageShare();
@@ -1189,6 +1305,7 @@ const eyebrow =
     ) {
       wrap.dataset.wired = "1";
       const open = () => {
+        if (wrap.classList.contains("in-room")) return;
         full.src = photo.currentSrc === "" ? photo.src : photo.currentSrc;
         full.alt = photo.alt;
         // A modal dialog keeps keyboard focus inside it; Tab reaches the ✕.
@@ -1362,9 +1479,13 @@ const eyebrow =
        painting off, like a paper mat, not a drawn card. */
     border: 1px solid transparent;
     border-radius: var(--radius);
-    padding: clamp(0.7rem, 2vw, 1.1rem);
+    --mat: clamp(0.7rem, 2vw, 1.1rem);
+    padding: var(--mat);
     box-shadow: var(--shadow);
     cursor: zoom-in;
+  }
+  .frame.in-room {
+    cursor: default;
   }
   .frame img {
     width: 100%;
@@ -1586,6 +1707,94 @@ const eyebrow =
   #pv-desc:empty {
     display: none;
   }
+  /* The painting at true size in a rendered room. Every position is a
+     percentage from src/lib/room.ts, so it needs no script. */
+  /* The room fills the photo's place inside the mat, cropped to the
+     photo's shape, and fades in over it: nothing on the page moves. */
+  .room-layer {
+    position: absolute;
+    inset: var(--mat);
+    overflow: hidden;
+    border-radius: 0.25rem;
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      opacity 0.45s ease,
+      visibility 0s linear 0.45s;
+  }
+  .in-room .room-layer {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.45s ease;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .room-layer,
+    .in-room .room-layer {
+      transition: none;
+    }
+  }
+  .room-true {
+    position: absolute;
+    left: 0.6rem;
+    bottom: 0.6rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    background: rgb(30 26 22 / 0.55);
+    color: #f4efe6;
+    font-size: 0.75rem;
+    letter-spacing: 0.02em;
+  }
+  /* A quiet text button on the size line, where size is on the buyer's
+     mind. */
+  /* The dot wraps with the button, never alone at a line's end. */
+  .room-cue {
+    white-space: nowrap;
+  }
+  .room-toggle {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+    cursor: pointer;
+  }
+  .room-toggle:hover {
+    color: var(--ink);
+  }
+  .room-stage {
+    position: absolute;
+    /* cqw below are hundredths of the whole render's width. */
+    container-type: inline-size;
+  }
+  .room-bg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+  }
+  /* A 1.5 in canvas standing off the wall, lit from the window on the
+     right: its shadow falls left and down. */
+  .room-art {
+    position: absolute;
+    overflow: hidden;
+    box-shadow: -0.33cqw 0.45cqw 0.75cqw rgb(58 52 46 / 0.55);
+  }
+  .room-art img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+  }
+  /* The wall's light, multiplied over the painting. */
+  .room-light {
+    position: absolute;
+    background: url("/rooms/living-room-light.webp") 0 0 / 100% 100%;
+    mix-blend-mode: multiply;
+  }
   #ar-mount {
     margin-top: 1.25rem;
     padding-top: 1.25rem;
@@ -1705,9 +1914,11 @@ const eyebrow =
       margin: 0;
     }
   }
+  /* 7rem keeps a long title's code readable on a 1x screen, now that it
+     carries the standard four-module white margin. */
   .ar-qr {
     flex: none;
-    width: 5.5rem;
+    width: 7rem;
     line-height: 0;
   }
   .ar-qr :global(svg) {
