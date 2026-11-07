@@ -108,7 +108,7 @@ function markGoogleOut(): void {
 /** Wires "View on your wall". On Android it opens Google's viewer (Scene
  * Viewer) first; if that closes at once or never opens, the same button
  * opens our wall viewer instead for the rest of the visit (`onFallback`
- * relabels it "Try again with fallback"). Our viewer is tried at once too,
+ * relabels it "Try again with fallback", on every page after that too). Our viewer is tried at once too,
  * but browsers want a fresh tap to start AR, so in practice the second tap
  * opens it. Real failures are said (`onFail`) and
  * logged. Call after loadModelViewer(). */
@@ -137,7 +137,13 @@ export function wireWallAr(
   let fellBack = false;
   const api = window.WallAr;
   if (android && api !== undefined) {
-    void api.supported().then((ok) => (ours = ok));
+    void api.supported().then((ok) => {
+      ours = ok;
+      // Google's viewer already bounced earlier in this visit, so this
+      // button opens ours: say so here too, not only on the page it
+      // bounced on.
+      if (ok && googleOut()) onFallback();
+    });
   }
   const startOurs = (afterBounce: boolean) => {
     if (api === undefined) return;
