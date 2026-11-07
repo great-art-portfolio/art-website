@@ -151,6 +151,18 @@ data read it from `/catalog.json` through `env.ASSETS`. Check with
   [E2E with
   Playwright](https://resend.com/docs/knowledge-base/end-to-end-testing-with-playwright).
 
+## What the studio already does (check before saying something is missing)
+
+`/admin` is her dashboard: her paintings as Available, Sold, Drafts
+(scheduled ones included) and Trash. Its other pages: `/admin/paintings/new` and
+`/admin/paintings/<slug>` (one painting's edit room: title, price, size,
+Sold box, photo, AR model), `/admin/qr-codes` (a printable cut-out card
+per published painting: title and a QR code to its page; no price),
+`/admin/banner`, `/admin/email` (her email list and sending), `/admin/metrics`, `/admin/guide` (her
+how-to, and the site's languages). Prices change one painting at a time
+in its edit room; there is no batch price edit. Before telling the owner
+a feature doesn't exist, `ls src/pages/admin` and grep for it.
+
 ## Logs and errors (for agents)
 
 This site is built and kept by agents, so errors are logged for agents

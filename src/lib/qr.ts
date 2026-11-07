@@ -2,17 +2,21 @@
  * and the studio's small row icons drawn in the browser. One generator
  * serves both, so a row's icon is the same code its printed label carries. */
 import qrcode from "qrcode-generator";
+import type { Locale } from "../i18n/locales";
 import { SITE_URL } from "./site";
 
-/** Absolute production URL of a painting's buyer page. */
-export function paintingPageUrl(slug: string): string {
-  return `${SITE_URL}/paintings/${slug}`;
+/** Absolute production URL of a painting's buyer page, in a language:
+ * English at the root, others under /<code>/. */
+export function paintingPageUrl(slug: string, locale: Locale = "en"): string {
+  const prefix = locale === "en" ? "" : `/${locale}`;
+  return `${SITE_URL}${prefix}/paintings/${slug}`;
 }
 
 /** QR code SVG for a URL: black modules on a white square, with a quiet
- * zone of `margin` modules. Each run of dark modules in a row is one
+ * zone of `margin` modules (4 is the standard's, which every phone camera
+ * reads, even on a dark page). Each run of dark modules in a row is one
  * rectangle, which keeps the markup small. CSS sizes it. */
-export function qrSvg(url: string, margin = 2): string {
+export function qrSvg(url: string, margin = 4): string {
   const code = qrcode(0, "M");
   code.addData(url);
   code.make();
