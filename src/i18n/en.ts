@@ -104,6 +104,7 @@ export const en = {
     message: "Message",
     messagePlaceholder: "Hi, I love this piece…",
     send: "Send inquiry",
+    viewPainting: "Painting",
     roomTitle: "In a room",
     roomAlt: (title: string) => `${title} above a sofa in a living room`,
     roomNote: (inches: number) => `True size, above a ${inches}-inch sofa.`,

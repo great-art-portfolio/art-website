@@ -101,6 +101,7 @@ export const fr: Strings = {
     message: "Message",
     messagePlaceholder: "Bonjour, j’adore cette œuvre…",
     send: "Envoyer la demande",
+    viewPainting: "Tableau",
     roomTitle: "Dans une pièce",
     roomAlt: (title: string) => `${title} au-dessus d’un canapé dans un salon`,
     roomNote: (inches: number) =>

@@ -96,7 +96,8 @@ export const ko: Strings = {
     message: "메시지",
     messagePlaceholder: "안녕하세요, 이 작품이 정말 마음에 들어요…",
     send: "문의 보내기",
-    roomTitle: "방에 걸었을 때",
+    viewPainting: "작품",
+    roomTitle: "방에서",
     roomAlt: (title: string) => `거실 소파 위에 걸린 「${title}」`,
     roomNote: (inches: number) =>
       `실제 크기입니다. 소파 폭은 ${inches}인치입니다.`,

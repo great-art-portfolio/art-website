@@ -108,6 +108,7 @@ export const pl: Strings = {
     message: "Wiadomość",
     messagePlaceholder: "Dzień dobry, ten obraz bardzo mi się podoba…",
     send: "Wyślij zapytanie",
+    viewPainting: "Obraz",
     roomTitle: "W pokoju",
     roomAlt: (title: string) => `${title} nad sofą w salonie`,
     roomNote: (inches: number) =>

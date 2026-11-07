@@ -98,6 +98,7 @@ export const hi: Strings = {
     message: "संदेश",
     messagePlaceholder: "नमस्ते, मुझे यह कृति बहुत पसंद आई…",
     send: "पूछताछ भेजें",
+    viewPainting: "पेंटिंग",
     roomTitle: "एक कमरे में",
     roomAlt: (title: string) => `बैठक में सोफ़े के ऊपर ${title}`,
     roomNote: (inches: number) =>

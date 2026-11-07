@@ -99,6 +99,7 @@ export const nl: Strings = {
     message: "Bericht",
     messagePlaceholder: "Hallo, ik vind dit werk prachtig…",
     send: "Vraag versturen",
+    viewPainting: "Schilderij",
     roomTitle: "In een kamer",
     roomAlt: (title: string) => `${title} boven een bank in een woonkamer`,
     roomNote: (inches: number) =>
