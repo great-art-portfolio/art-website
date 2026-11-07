@@ -98,10 +98,10 @@ export const pa: Strings = {
     message: "ਸੁਨੇਹਾ",
     messagePlaceholder: "ਹੈਲੋ, ਮੈਨੂੰ ਇਹ ਕਿਰਤ ਬਹੁਤ ਪਸੰਦ ਆਈ…",
     send: "ਪੁੱਛਗਿੱਛ ਭੇਜੋ",
-    viewPainting: "ਪੇਂਟਿੰਗ",
-    roomTitle: "ਇੱਕ ਕਮਰੇ ਵਿੱਚ",
+    roomShow: "ਕਮਰੇ ਵਿੱਚ ਵੇਖੋ",
+    roomHide: "ਪੇਂਟਿੰਗ ਵੇਖੋ",
     roomAlt: (title: string) => `ਬੈਠਕ ਵਿੱਚ ਸੋਫ਼ੇ ਉੱਤੇ ${title}`,
-    roomNote: (inches: number) => `ਅਸਲ ਆਕਾਰ ਵਿੱਚ, ${inches} ਇੰਚ ਦੇ ਸੋਫ਼ੇ ਉੱਤੇ।`,
+    roomTrue: "ਅਸਲ ਆਕਾਰ",
     wallTitle: "ਆਪਣੀ ਕੰਧ 'ਤੇ ਅਜ਼ਮਾਓ",
     wallTouch:
       "ਲਗਭਗ ਅਸਲ ਆਕਾਰ ਵਿੱਚ ਦਿਖਾਈ ਗਈ ਹੈ। <strong>ਆਪਣੀ ਕੰਧ 'ਤੇ ਦੇਖੋ</strong> 'ਤੇ ਟੈਪ ਕਰੋ, ਫਿਰ ਫ਼ੋਨ ਉੱਥੇ ਕਰੋ ਜਿੱਥੇ ਇਹ ਟੰਗੀ ਜਾਵੇਗੀ।",

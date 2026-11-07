@@ -55,7 +55,7 @@ test("gallery cards serve responsive webp widths", async ({ page }) => {
 
 test("painting photo serves responsive webp widths", async ({ page }) => {
   await page.goto("/paintings/night-reeds");
-  const photo = page.locator("#photo-wrap img");
+  const photo = page.locator("#photo-wrap picture img");
   expect(widths(await photo.getAttribute("srcset"))).toEqual(PHOTO_WIDTHS);
   expect(await photo.getAttribute("sizes")).toBe(photoSizes());
   expect(await photo.getAttribute("fetchpriority")).toBe("high");

@@ -8,15 +8,15 @@ import { ROOM } from "./room-data";
  *
  * The view is cropped closer than the full render (still true scale) so
  * small paintings stay visible on a phone: about twice the sofa's width,
- * wider for a big painting. Every number is a percentage of the box it
- * sits in, so the page needs no script.
+ * wider for a big painting. The crop takes the photo's shape, so the room
+ * fills the photo's own frame and nothing on the page moves when they
+ * swap. Every number is a percentage of the box it sits in, so the page
+ * needs no script.
  */
 
 const INCH_M = 0.0254;
 /** Gap between the sofa back and the painting's bottom edge. */
 const ABOVE_SOFA_IN = 9;
-/** The crop is 3:2, like the render. */
-const ASPECT = 3 / 2;
 
 export interface Box {
   left: number;
@@ -41,8 +41,10 @@ export interface RoomLayout {
 export function roomLayout(
   widthIn: number,
   heightIn: number,
+  /** Width / height of the photo whose frame the room fills. */
+  aspect = ROOM.width / ROOM.height,
 ): RoomLayout | null {
-  if (!(widthIn > 0 && heightIn > 0)) return null;
+  if (!(widthIn > 0 && heightIn > 0 && aspect > 0)) return null;
   const ppm = ROOM.pxPerMeter;
   const w = widthIn * INCH_M * ppm;
   const h = heightIn * INCH_M * ppm;
@@ -53,8 +55,8 @@ export function roomLayout(
   // A crop about the sofa and its neighbours, or more for a big painting,
   // kept inside the render.
   let cw = Math.max(ROOM.sofaWidthM * ppm * 1.9, w * 2.6);
-  cw = Math.min(cw, ROOM.width, ROOM.height * ASPECT);
-  const ch = cw / ASPECT;
+  cw = Math.min(cw, ROOM.width, ROOM.height * aspect);
+  const ch = cw / aspect;
   const cx = ROOM.wallOriginX;
   const cy = (top + ROOM.wallOriginY) / 2 + ch * 0.06;
   const cl = clamp(cx - cw / 2, 0, ROOM.width - cw);
@@ -62,7 +64,7 @@ export function roomLayout(
 
   const pct = (v: number, of: number) => round((v / of) * 100);
   return {
-    aspect: ASPECT,
+    aspect,
     stage: {
       left: pct(-cl, cw),
       top: pct(-ct, ch),
