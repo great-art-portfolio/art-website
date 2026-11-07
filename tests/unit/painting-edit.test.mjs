@@ -42,6 +42,15 @@ describe("resolveDims", () => {
     });
   });
 
+  it("derives width from a measured height and the photo's shape", () => {
+    // 1600 × 2000 photo, 36 in tall → 28.8 in wide.
+    assert.deepEqual(resolveDims(1600, 2000, null, 36, null), {
+      w: 28.8,
+      h: 36,
+      d: 1.5,
+    });
+  });
+
   it("never divides by zero on a degenerate photo", () => {
     const dims = resolveDims(0, 0, null, null, null);
     assert.equal(Number.isFinite(dims.h), true);
@@ -358,6 +367,11 @@ describe("scheduled publishing", () => {
     assert.equal(isPublishDue("2026-09-10", TODAY), false);
     assert.equal(isPublishDue("", TODAY), false);
     assert.equal(isPublishDue("someday", TODAY), false);
+  });
+
+  it("dates a scheduled painting the day it goes live", () => {
+    const md = `---\ntitle: "Slow Thaw"\ndateAdded: 2026-09-01\ndraft: true\npublishOn: "2026-09-15"\n---\n\nBody.\n`;
+    assert.match(publishDue(md, "2026-09-15"), /^dateAdded: 2026-09-15$/m);
   });
 
   it("flips a due draft live and drops its date", () => {

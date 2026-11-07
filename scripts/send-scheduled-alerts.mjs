@@ -11,7 +11,8 @@ import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
 const SITE = process.env.SITE_URL ?? "https://barbart.ca";
-const WAIT_MS = 15 * 60 * 1000;
+// Pages can take a while to build; the alert is only sent once, so wait.
+const WAIT_MS = 45 * 60 * 1000;
 const POLL_MS = 30 * 1000;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -62,8 +63,21 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
     process.exit(1);
   }
   const live = await waitForPage(`${SITE}/paintings/${alerts.slug}`);
-  if (!live) console.log("The page isn't live yet; sending anyway.");
-  const r = await sendAlerts(SITE, token, alerts.slug);
+  if (!live) console.log("The page isn't live yet; trying anyway.");
+  // The site answers 404 until its catalog has the painting: keep asking
+  // until the wait runs out, since this run is the only one that sends it.
+  const until = Date.now() + (live ? 10 * 60 * 1000 : POLL_MS * 4);
+  let r;
+  for (;;) {
+    try {
+      r = await sendAlerts(SITE, token, alerts.slug);
+      break;
+    } catch (err) {
+      const notYet = String(err).includes("answered 404");
+      if (!notYet || Date.now() + POLL_MS > until) throw err;
+      await sleep(POLL_MS);
+    }
+  }
   // A list with people on it that got nothing is a failure, so the run goes
   // red; the cause is in the site's logs (`pnpm logs --event broadcast`).
   if (r.failed || (r.total > 0 && r.emailed === 0)) {

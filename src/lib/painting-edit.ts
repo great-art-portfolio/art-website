@@ -258,8 +258,11 @@ export function formatAlerts(choice: AlertChoice): string {
  * (read them first with parsePainting). Runs when the studio loads, and
  * nightly from scripts/publish-due.mjs; whichever publishes it sends the
  * alerts. */
-export function publishDue(md: string): string {
-  const next = hasKey(md, "draft") ? patchKey(md, "draft", "false") : md;
+export function publishDue(md: string, today: string = todayKey()): string {
+  let next = hasKey(md, "draft") ? patchKey(md, "draft", "false") : md;
+  // Dated the day it goes live, so the homepage features it as her newest
+  // painting rather than as of the day she drafted it.
+  if (hasKey(next, "dateAdded")) next = patchKey(next, "dateAdded", today);
   return dropKey(dropKey(next, "publishOn"), "alertOnPublish");
 }
 
@@ -403,7 +406,8 @@ export function buildMarkdown(input: {
   modelGlb: string;
   modelUsdz: string;
 }): string {
-  const today = new Date().toISOString().slice(0, 10);
+  // Her calendar day: in the evening UTC is already tomorrow.
+  const today = todayKey();
   const lines = [
     "---",
     `title: ${yamlQuote(input.title)}`,

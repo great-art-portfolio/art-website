@@ -977,7 +977,24 @@ async function purgeOldTrash(rows: LocalPainting[]): Promise<LocalPainting[]> {
  * is re-read first so a stale row can't publish something already live,
  * trashed, or rescheduled. If the commit fails, the drafts stay as they were.
  */
+/** A scheduled-publish pass under way: a second refresh (a restore tapped
+ * while the list loads) skips its own, so nothing publishes or emails
+ * twice. */
+let publishingDue = false;
+
 async function publishDueRows(rows: LocalPainting[]): Promise<LocalPainting[]> {
+  if (publishingDue) return rows;
+  publishingDue = true;
+  try {
+    return await publishDueRowsNow(rows);
+  } finally {
+    publishingDue = false;
+  }
+}
+
+async function publishDueRowsNow(
+  rows: LocalPainting[],
+): Promise<LocalPainting[]> {
   const today = todayKey();
   const due = rows.filter(
     (r) =>

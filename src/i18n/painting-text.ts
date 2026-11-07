@@ -72,15 +72,29 @@ export function formatTranslationFile(file: TranslationFile): string {
   return `${JSON.stringify(body, null, 2)}\n`;
 }
 
+/** Whether a translation has every field the English has. */
+export function isComplete(
+  words: PaintingWords,
+  english: PaintingWords,
+): boolean {
+  return (["title", "description", "alt", "medium"] as const).every(
+    (k) => english[k].trim() === "" || words[k].trim() !== "",
+  );
+}
+
 /** The languages still to translate: all of `wanted` when the English
- * changed, else only those missing. */
+ * changed, else those missing or missing a field (a partial answer saved
+ * before partials were refused). */
 export function missingLocales(
   file: TranslationFile,
   english: PaintingWords,
   wanted: readonly OtherLocale[],
 ): OtherLocale[] {
   if (file.source !== sourceHash(english)) return [...wanted];
-  return wanted.filter((code) => file.langs[code] === undefined);
+  return wanted.filter((code) => {
+    const words = file.langs[code];
+    return words === undefined || !isComplete(words, english);
+  });
 }
 
 /** "src/content/paintings/IMG_5667.md" → its translation file. */
