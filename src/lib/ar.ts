@@ -39,7 +39,9 @@ export function resolveDims(
   heightIn: number | null,
   depthIn: number | null,
 ): { w: number; h: number; d: number } {
-  const w = widthIn ?? 24;
+  // One side typed: the photo's shape gives the other. Neither: 24 in wide.
+  const w =
+    widthIn ?? (heightIn !== null ? (heightIn * imgW) / Math.max(1, imgH) : 24);
   const h = heightIn ?? (w * imgH) / Math.max(1, imgW);
   return { w, h, d: depthIn ?? 1.5 };
 }

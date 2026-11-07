@@ -125,12 +125,29 @@ let previewModels: { sig: string; glb: Blob; usdz: Blob } | null = null;
 let photoReplaced = false;
 /** A chosen photo still being read and prepared. */
 let photoLoading = false;
+/** Settles when the photo being prepared is ready (or failed). */
+let photoReady: Promise<void> = Promise.resolve();
 
-function readDims(): {
+/** A save tapped right after choosing a photo waits for it, rather than
+ * saving without it or asking her to tap again. */
+async function photoSettled(): Promise<void> {
+  if (!photoLoading) return;
+  setStatus("Getting the photo ready…");
+  await photoReady;
+}
+
+interface Dims {
   widthIn: number | null;
   heightIn: number | null;
   depthIn: number | null;
-} {
+}
+
+/** A painting file's stem ("src/content/paintings/x.md" → "x"). Kept here:
+ * lib/ar has one too, but importing it would pull three.js into the page. */
+const stemOf = (mdPath: string): string =>
+  mdPath.replace(/^.*\//, "").replace(/\.md$/, "");
+
+function readDims(): Dims {
   return {
     widthIn: numOrNull($("de-w").value),
     heightIn: numOrNull($("de-h").value),
@@ -445,7 +462,12 @@ async function photoToFix(
 ): Promise<HTMLImageElement | null> {
   if (loadedImage !== null) return loadedImage;
   let blob: Blob | null = null;
-  if (imagePath !== null) blob = await api.getPhoto(imagePath);
+  if (imagePath !== null) {
+    // The full-size photo or nothing: cropping the smaller web copy shown
+    // on screen would replace her original with it on save.
+    blob = await api.getPhoto(imagePath);
+    if (blob === null) return null;
+  }
   if (blob === null) {
     const img = document.querySelector<HTMLImageElement>("#photo-wrap img");
     const src =
@@ -519,11 +541,13 @@ async function autoBuildAr(): Promise<void> {
     const arImg = await loadImageFile(
       blobToFile(source, "ar-source.jpg", "image/jpeg"),
     );
+    // The signature is taken with the size it builds at: a size typed during
+    // the build makes the follow-up build's models current, not these.
+    const sig = modelSig();
     const { widthIn, heightIn, depthIn } = readDims();
     const dims = estimateDims(arImg, widthIn, heightIn, depthIn);
     const models = await buildArModels(arImg, dims.w, dims.h, dims.d);
     if (gen !== photoGen || preparedBlob !== source) return;
-    const sig = modelSig();
     previewModels =
       sig === null ? null : { sig, glb: models.glb, usdz: models.usdz };
     showArViewer(
@@ -539,8 +563,13 @@ async function autoBuildAr(): Promise<void> {
   }
 }
 
+/** The viewer's model URLs, freed when the next build replaces them. */
+let viewerUrls: string[] = [];
+
 /** Inline AR viewer for checking the wall preview before publishing. */
 function showArViewer(glbUrl: string, usdzUrl: string): void {
+  for (const url of viewerUrls) URL.revokeObjectURL(url);
+  viewerUrls = [glbUrl, usdzUrl];
   const stage = maybe("ar-stage");
   if (stage === null) return;
   void loadModelViewer()
@@ -933,9 +962,24 @@ function restoreAutosave(): void {
 
 /** Model blobs for the current photo and dimensions. Builds them only when
  * the preview doesn't already have matching ones. */
-async function modelBlobs(): Promise<{ glb: Blob; usdz: Blob } | null> {
+async function modelBlobs(
+  /** The size the saved file will carry, when it isn't the form's own
+   * (fields she didn't touch keep git's newer values). */
+  size: Dims | null = null,
+): Promise<{ glb: Blob; usdz: Blob } | null> {
+  const typed = readDims();
+  const same =
+    size === null ||
+    (size.widthIn === typed.widthIn &&
+      size.heightIn === typed.heightIn &&
+      size.depthIn === typed.depthIn);
   const want = modelSig();
-  if (want !== null && previewModels !== null && previewModels.sig === want) {
+  if (
+    same &&
+    want !== null &&
+    previewModels !== null &&
+    previewModels.sig === want
+  ) {
     return { glb: previewModels.glb, usdz: previewModels.usdz };
   }
   if (preparedBlob === null) return null;
@@ -946,12 +990,13 @@ async function modelBlobs(): Promise<{ glb: Blob; usdz: Blob } | null> {
     const arImg = await loadImageFile(
       blobToFile(source, "ar-source.jpg", "image/jpeg"),
     );
-    const { widthIn, heightIn, depthIn } = readDims();
+    const sig = same ? modelSig() : null;
+    const { widthIn, heightIn, depthIn } = same ? typed : size;
     const dims = estimateDims(arImg, widthIn, heightIn, depthIn);
     const models = await buildArModels(arImg, dims.w, dims.h, dims.d);
-    const sig = modelSig();
-    previewModels =
-      sig === null ? null : { sig, glb: models.glb, usdz: models.usdz };
+    if (same)
+      previewModels =
+        sig === null ? null : { sig, glb: models.glb, usdz: models.usdz };
     return { glb: models.glb, usdz: models.usdz };
   } catch (err) {
     console.error(err);
@@ -1006,6 +1051,7 @@ async function titleClash(
 
 /** Commits a new painting, as a draft or published, and returns to /admin. */
 async function saveNew(draft: boolean): Promise<void> {
+  await photoSettled();
   const fields = readFields();
   if (fields === null) return;
   if (preparedBlob === null) {
@@ -1095,12 +1141,17 @@ async function saveNew(draft: boolean): Promise<void> {
       ? ""
       : await publishAlerts(`src/content/paintings/${slug}.md`);
     const scheduled = draft && fields.publishOn !== "";
+    const noPreview =
+      models === null
+        ? " The wall preview couldn't be built — open the painting and save again to retry."
+        : "";
     goAdmin(
-      scheduled
+      (scheduled
         ? `Draft "${fields.title}" saved — goes live ${fields.publishOn}.${alertsLater(alertChoice())}`
         : draft
           ? `Draft "${fields.title}" saved — publish it from the studio when ready.`
-          : `Published "${fields.title}" (${formatPriceCAD(priceCents)}) — live in a few minutes.${alerts}`,
+          : `Published "${fields.title}" (${formatPriceCAD(priceCents)}) — live in a few minutes.${alerts}`) +
+        noPreview,
     );
   } catch (err) {
     setStatus(errorMessage(err), true);
@@ -1169,6 +1220,7 @@ async function saveEdit(
   base: { content: string; parsed: ParsedPainting } | null,
   draft: boolean,
 ): Promise<void> {
+  await photoSettled();
   const fields = readFields();
   if (fields === null) return;
   if ((await useOverlayMode()) || base === null) {
@@ -1185,10 +1237,6 @@ async function saveEdit(
     goAdmin(
       `Saved "${fields.title}" in this tab's practice list — publish it on the live site.`,
     );
-    return;
-  }
-  if (photoLoading) {
-    setStatus("The new photo is still loading. Save again in a moment.", true);
     return;
   }
   if (await titleClash(fields.title, slug)) return;
@@ -1226,15 +1274,23 @@ async function saveEdit(
     };
     if (photoReplaced && preparedBlob !== null) {
       // New photo: build its models and commit everything together.
-      const models = await modelBlobs();
+      const models = await modelBlobs({
+        widthIn: numOrNull(merged.widthIn),
+        heightIn: numOrNull(merged.heightIn),
+        depthIn: numOrNull(merged.depthIn),
+      });
+      // Named after the painting's file, which never changes, not its
+      // title: after a rename, a new painting with the old title would
+      // otherwise overwrite these.
+      const stem = stemOf(mdPath);
       const glbRef =
         base.parsed.modelGlb !== ""
           ? base.parsed.modelGlb
-          : `/models/${slug}.glb`;
+          : `/models/${stem}.glb`;
       const usdzRef =
         base.parsed.modelUsdz !== ""
           ? base.parsed.modelUsdz
-          : `/models/${slug}.usdz`;
+          : `/models/${stem}.usdz`;
       files.push(
         {
           path: mdPath,
@@ -1257,24 +1313,30 @@ async function saveEdit(
       }
     } else {
       // Same photo: dimension changes rebuild the models from the repo file.
-      const { rebuildForDimFix } = await import("../lib/vendor-loader").then(
-        (m) => m.loadArTooling(),
-      );
-      const fix = await rebuildForDimFix(
-        api.getPhoto,
-        mdPath,
-        base.parsed,
-        edits,
-        () =>
-          setStatus("Rebuilding wall preview… (true size, about 5 seconds)"),
-      );
-      files.push(
-        { path: mdPath, blob: patchPainting(base.content, fix.edits) },
-        ...fix.files,
-      );
-      // A failed wall-preview rebuild never costs her the edit: the words
-      // still save, and the note says what didn't update.
-      previewNote = fix.note;
+      // A failed wall-preview rebuild, or 3D tools that didn't load, never
+      // costs her the edit: the words still save, and the note says what
+      // didn't update.
+      const tools = await import("../lib/vendor-loader")
+        .then((m) => m.loadArTooling())
+        .catch(() => null);
+      if (tools === null) {
+        files.push({ path: mdPath, blob: patchPainting(base.content, edits) });
+        previewNote = "the 3D tools didn't load.";
+      } else {
+        const fix = await tools.rebuildForDimFix(
+          api.getPhoto,
+          mdPath,
+          base.parsed,
+          edits,
+          () =>
+            setStatus("Rebuilding wall preview… (true size, about 5 seconds)"),
+        );
+        files.push(
+          { path: mdPath, blob: patchPainting(base.content, fix.edits) },
+          ...fix.files,
+        );
+        previewNote = fix.note;
+      }
     }
     const translation = await finishTranslation(translating);
     if (translation !== null) files.push(translation);
@@ -1524,7 +1586,7 @@ function initStudio(): void {
     if (file === undefined) return;
     rotation = 0;
     photoLoading = true;
-    loadImageFile(file)
+    photoReady = loadImageFile(file)
       .then((img) => ingestPhoto(img))
       .catch((err: unknown) =>
         setStatus(`${errorMessage(err)}.${heicHint(file)}`, true),
@@ -1589,7 +1651,7 @@ function initStudio(): void {
     if (file === undefined) return;
     rotation = 0;
     photoLoading = true;
-    loadImageFile(file)
+    photoReady = loadImageFile(file)
       .then((img) => ingestPhoto(img))
       .catch((err: unknown) =>
         setStatus(`${errorMessage(err)}.${heicHint(file)}`, true),
@@ -1655,7 +1717,8 @@ function initStudio(): void {
           );
           return;
         }
-        if (photoReplaced || photoLoading) {
+        await photoSettled();
+        if (photoReplaced) {
           setStatus(
             "Save the new photo first, then publish or unpublish.",
             true,
