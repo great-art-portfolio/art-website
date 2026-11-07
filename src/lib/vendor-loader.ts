@@ -35,7 +35,8 @@ export interface ArTooling {
 
 const pending = new Map<string, Promise<void>>();
 
-/** Injects a <script> once per URL. Concurrent callers share one load. */
+/** Injects a <script> once per URL. Concurrent callers share one load; a
+ * failed load is retried by the next caller. */
 export function loadScript(src: string, module: boolean): Promise<void> {
   let p = pending.get(src);
   if (p === undefined) {
@@ -45,7 +46,13 @@ export function loadScript(src: string, module: boolean): Promise<void> {
       if (module) el.type = "module";
       el.async = true;
       el.onload = () => resolve();
-      el.onerror = () => reject(new Error(`Couldn't load ${src}`));
+      el.onerror = () => {
+        // Forget the failure, so the next try loads it afresh instead of
+        // failing until the page is reloaded.
+        pending.delete(src);
+        el.remove();
+        reject(new Error(`Couldn't load ${src}`));
+      };
       document.head.appendChild(el);
     });
     pending.set(src, p);

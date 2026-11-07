@@ -129,10 +129,22 @@ export function outputSize(
   const px = mapQuad(quad, (p) => ({ x: p.x * srcW, y: p.y * srcH }));
   const w = (dist(px[0], px[1]) + dist(px[3], px[2])) / 2;
   const h = (dist(px[0], px[3]) + dist(px[1], px[2])) / 2;
-  const aspect =
-    dims.widthIn !== null && dims.heightIn !== null
+  const measured = w / Math.max(h, 1);
+  const typed =
+    dims.widthIn !== null && dims.heightIn !== null && dims.heightIn > 0
       ? dims.widthIn / dims.heightIn
-      : w / Math.max(h, 1);
+      : null;
+  // Her typed size squares up a real crop (corners moved onto a canvas
+  // shot at an angle). It never reshapes the whole photo (only the tone
+  // changed: wall and all would be squashed), nor a crop whose own shape is
+  // far from it, as with width and height typed the wrong way round:
+  // perspective can't turn a wide canvas tall.
+  const aspect =
+    typed !== null &&
+    !isWhole(quad) &&
+    Math.max(typed / measured, measured / typed) <= 2
+      ? typed
+      : measured;
   const long = Math.min(maxSide, Math.max(w, h));
   return aspect >= 1
     ? {
