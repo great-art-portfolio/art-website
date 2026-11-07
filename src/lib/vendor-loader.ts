@@ -50,8 +50,35 @@ export function loadScript(src: string, module: boolean): Promise<void> {
   return p;
 }
 
+/** model-viewer's ar-modes for this browser. Android tries in-browser
+ * WebXR first: the Google app's Scene Viewer closes the moment it opens
+ * since its fall 2026 updates (arcore-android-sdk #1795, #1797), and
+ * WebXR is the only AR that still works there. Scene Viewer stays as the
+ * fallback for browsers without WebXR. Elsewhere webxr stays off, since
+ * touching navigator.xr costs the page its instant Back. */
+export function arModes(userAgent: string): string {
+  return /android/i.test(userAgent)
+    ? "webxr scene-viewer quick-look"
+    : "scene-viewer quick-look";
+}
+
+/** three.js draws AR through WebXR Layers whenever the browser lists
+ * createProjectionLayer, without checking the session enabled them. Kiwi
+ * (Chromium 137) lists it, then rejects the layer, so AR closed the moment
+ * it opened. Hiding it sends three down the classic XRWebGLLayer path,
+ * which every WebXR browser has; the viewer never asks for layers. */
+export function hideXrLayers(): void {
+  const binding: unknown = Reflect.get(window, "XRWebGLBinding");
+  if (typeof binding !== "function") return;
+  const proto: unknown = Reflect.get(binding, "prototype");
+  if (typeof proto === "object" && proto !== null) {
+    Reflect.deleteProperty(proto, "createProjectionLayer");
+  }
+}
+
 /** Loads the viewer, which registers <model-viewer>. Idempotent. */
 export function loadModelViewer(): Promise<void> {
+  hideXrLayers();
   return loadScript(MODEL_VIEWER_URL, true);
 }
 
