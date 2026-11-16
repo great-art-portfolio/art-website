@@ -126,7 +126,7 @@ data read it from `/catalog.json` through `env.ASSETS`. Check with
   the other language files have its exact shape (a missing line is a type
   error). Pages are views in `src/views/` rendered by `src/pages/*` (English)
   and `src/pages/[locale]/*`. Her painting and banner words are translated
-  by Muse when she saves (`/api/translate`, never on localhost unless
+  by DeepSeek when she saves (`/api/translate`, never on localhost unless
   `TRANSLATE_LOCAL=true`) into `src/content/translations/<md stem>.json`,
   keyed by a hash of the English; a stale or missing translation shows her
   English, and the dashboard catches it up. Inquiries and checkout always

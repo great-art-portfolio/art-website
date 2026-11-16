@@ -70,7 +70,7 @@ her Gmail), so her personal address stays private.
 
 English plus the languages she ticks (Oct 2026: twelve). Interface words
 are hand-written per language in `src/i18n/`; her painting and banner
-words are machine-translated by Muse when she saves and marked as
+words are machine-translated by DeepSeek when she saves and marked as
 translated on the page. A painting whose English changed shows English
 until it's re-translated, never a stale translation. The studio stays
 English.

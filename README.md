@@ -10,7 +10,7 @@ https://barbart.ca (Pages: https://art-website-cm4.pages.dev/)
 
 Astro 7 (static gallery — paintings are markdown + photos in git) +
 Cloudflare Pages Functions (inquiry and list emails, git publishing through
-a GitHub App, the writing helper and translations through Muse).
+a GitHub App, the writing helper and translations through DeepSeek).
 
 - Admin at `/admin`, protected by Cloudflare Access (email OTP). Saving
   publishes to git; the git-connected Pages project rebuilds (live in a few
@@ -90,8 +90,8 @@ secrets. `GITHUB_REPO` / `GITHUB_BRANCH` are vars in `wrangler.toml`. A
 
 Secrets (dashboard, never committed): `RESEND_API_KEY`, `ARTIST_INBOX`
 (where buyer notes and list replies land), `ADMIN_API_TOKEN`,
-`GITHUB_APP_ID` / `GITHUB_APP_KEY`, `MUSE_API_KEY` (writing helper and
-translations), `TURNSTILE_SECRET_KEY`, `ALERTS_TOKEN` (also a GitHub
+`GITHUB_APP_ID` / `GITHUB_APP_KEY`, `DEEPSEEK_API_KEY` (DeepSeek, for the
+writing helper and translations; set with `wrangler pages secret put`), `TURNSTILE_SECRET_KEY`, `ALERTS_TOKEN` (also a GitHub
 Actions secret, for the nightly scheduled-publish alerts), optional
 `PUSHOVER_*`, and later `STRIPE_*`, `SHIPPO_API_TOKEN` /
 `AYRSHARE_API_KEY` with their `ENABLE_*` flags. `ARTIST_SENDER` is a var
