@@ -1,6 +1,6 @@
+import { askDeepSeek, DeepSeekError } from "./deepseek";
 import type { AppEnv } from "./env";
 import { logEvent } from "./log";
-import { MUSE_MODEL, MUSE_URL } from "./suggest";
 import {
   cleanLocales,
   localeInfo,
@@ -9,8 +9,8 @@ import {
 import { isComplete, type PaintingWords } from "../../src/i18n/painting-text";
 
 /** Her words in the other languages of the site: a painting's title,
- * description, alt text and medium, or the homepage note. Muse Spark
- * translates; the studio calls this when she saves, and nothing it writes
+ * description, alt text and medium, or the homepage note. DeepSeek
+ * (./deepseek) translates; the studio calls this when she saves, and nothing it writes
  * replaces her English. Languages go four to a request, in parallel, so a
  * dozen take about as long as four, and one that fails doesn't sink the
  * rest. */
@@ -116,45 +116,25 @@ export function parseTranslation(
   return out;
 }
 
-async function askMuse(
+async function askGroup(
   env: AppEnv,
   input: TranslateInput,
   codes: OtherLocale[],
 ): Promise<Partial<Record<OtherLocale, PaintingWords>>> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  try {
-    const res = await fetch(MUSE_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.MUSE_API_KEY ?? ""}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: env.MUSE_MODEL ?? MUSE_MODEL,
-        reasoning_effort: "low",
-        messages: [
-          { role: "system", content: systemPrompt(input.kind) },
-          { role: "user", content: userPrompt(input, codes) },
-        ],
-      }),
-      signal: controller.signal,
-    });
-    if (!res.ok) throw new Error(`Muse answered ${res.status}`);
-    const data = (await res.json()) as {
-      choices?: Array<{ message?: { content?: unknown } }>;
-    };
-    const content = data.choices?.[0]?.message?.content;
-    return typeof content === "string"
-      ? parseTranslation(content, codes, input.words)
-      : {};
-  } finally {
-    clearTimeout(timer);
-  }
+  const content = await askDeepSeek(
+    env,
+    [
+      { role: "system", content: systemPrompt(input.kind) },
+      { role: "user", content: userPrompt(input, codes) },
+    ],
+    TIMEOUT_MS,
+  );
+  return content === null ? {} : parseTranslation(content, codes, input.words);
 }
 
 /** Translates into every asked language it can. Throws only when none
- * came back. */
+ * came back: DeepSeek's own failure (a used-up balance, a wrong key) when
+ * that is why, so the log says it. */
 export async function translateWords(
   env: AppEnv,
   input: TranslateInput,
@@ -162,14 +142,19 @@ export async function translateWords(
   const groups: OtherLocale[][] = [];
   for (let i = 0; i < input.locales.length; i += PER_REQUEST)
     groups.push(input.locales.slice(i, i + PER_REQUEST));
+  const failures: DeepSeekError[] = [];
   const results = await Promise.all(
     groups.map((codes) =>
-      askMuse(env, input, codes).catch(async (err: unknown) => {
+      askGroup(env, input, codes).catch(async (err: unknown) => {
+        if (err instanceof DeepSeekError) failures.push(err);
         await logEvent(env, {
           event: "translate.group_failed",
           message: "Translating into some languages failed",
           err,
-          detail: { locales: codes.join(",") },
+          detail: {
+            locales: codes.join(","),
+            ...(err instanceof DeepSeekError ? { status: err.status } : {}),
+          },
         });
         return {};
       }),
@@ -179,6 +164,6 @@ export async function translateWords(
     Record<OtherLocale, PaintingWords>
   >;
   if (Object.keys(out).length === 0)
-    throw new Error("Muse sent no usable translations");
+    throw failures[0] ?? new Error("DeepSeek sent no usable translations");
   return out;
 }

@@ -749,7 +749,7 @@ test("writing helper offers titles and a description she picks from", async ({
   await page.locator("#de-suggest-notes").fill("painted in winter");
   const go = page.locator("#de-suggest-go");
   await go.click();
-  // While Muse looks, the button says so and its bar slides.
+  // While the helper looks, the button says so and its bar slides.
   await expect(go).toHaveText("Looking at the painting…");
   await expect(go).toHaveAttribute("aria-busy", "true");
   await expect(go).toBeDisabled();

@@ -1,9 +1,11 @@
+import { DeepSeekError } from "../_lib/deepseek";
 import type { AppEnv } from "../_lib/env";
 import { badRequest, json, notEnabled, requireAdmin } from "../_lib/http";
 import {
   NO_VOICE,
   parseSuggestInput,
   suggestEnabled,
+  suggestFailure,
   suggestWords,
   voiceFrom,
   type Voice,
@@ -37,7 +39,10 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   const denied = await requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
   if (!suggestEnabled(context.env))
-    return notEnabled("The writing helper", "Set the MUSE_API_KEY secret.");
+    return notEnabled(
+      "The writing helper",
+      "Set the DEEPSEEK_API_KEY secret (DeepSeek).",
+    );
   let raw: unknown;
   try {
     raw = (await context.request.json()) as unknown;
@@ -54,11 +59,11 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       event: "suggest.threw",
       message: "The writing helper failed",
       err,
+      ...(err instanceof DeepSeekError
+        ? { detail: { status: err.status } }
+        : {}),
       request: context.request,
     });
-    return json(
-      { error: "The writing helper couldn't answer — try again in a minute." },
-      { status: 502 },
-    );
+    return json({ error: suggestFailure(err) }, { status: 502 });
   }
 };

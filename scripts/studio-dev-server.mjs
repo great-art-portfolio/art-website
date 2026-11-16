@@ -107,8 +107,8 @@ const server = createServer((req, res) => {
           const ctx = {
             request,
             env: {
-              MUSE_API_KEY: vars.MUSE_API_KEY,
-              MUSE_MODEL: vars.MUSE_MODEL,
+              DEEPSEEK_API_KEY: vars.DEEPSEEK_API_KEY,
+              DEEPSEEK_MODEL: vars.DEEPSEEK_MODEL,
             },
           };
           return request.method === "GET" ? suggestGet(ctx) : suggestPost(ctx);

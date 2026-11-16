@@ -18,7 +18,10 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   const denied = await requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
   if (!suggestEnabled(context.env))
-    return notEnabled("Translation", "Set the MUSE_API_KEY secret.");
+    return notEnabled(
+      "Translation",
+      "Set the DEEPSEEK_API_KEY secret (DeepSeek).",
+    );
   // Local copies (tests, review) never reach the translator unless asked
   // to: a practice save shouldn't spend real requests.
   if (isLocalRequest(context.request) && context.env.TRANSLATE_LOCAL !== "true")

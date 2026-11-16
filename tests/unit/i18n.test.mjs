@@ -253,7 +253,7 @@ describe("translate", () => {
       });
     };
     const out = await translateWords(
-      { MUSE_API_KEY: "k" },
+      { DEEPSEEK_API_KEY: "sk-test-fake" },
       {
         kind: "painting",
         words: { title: "Moon", description: "", alt: "", medium: "" },
@@ -273,7 +273,7 @@ describe("translate", () => {
     globalThis.fetch = async () => new Response("down", { status: 503 });
     await assert.rejects(
       translateWords(
-        { MUSE_API_KEY: "k" },
+        { DEEPSEEK_API_KEY: "sk-test-fake" },
         {
           kind: "banner",
           words: { title: "Open studio", description: "", alt: "", medium: "" },
@@ -281,6 +281,29 @@ describe("translate", () => {
         },
       ),
     );
+  });
+
+  it("asks DeepSeek with thinking off, and says when its balance is used up", async () => {
+    let sent;
+    globalThis.fetch = async (_url, init) => {
+      sent = JSON.parse(init.body);
+      return new Response("{}", { status: 402 });
+    };
+    await assert.rejects(
+      translateWords(
+        { DEEPSEEK_API_KEY: "sk-test-fake" },
+        {
+          kind: "banner",
+          words: { title: "Open studio", description: "", alt: "", medium: "" },
+          locales: ["fr"],
+        },
+      ),
+      /DeepSeek's balance is used up \(402\): top up at platform\.deepseek\.com/,
+    );
+    assert.equal(sent.model, "deepseek-flash");
+    assert.deepEqual(sent.thinking, { type: "disabled" });
+    assert.equal(sent.tools, undefined);
+    assert.equal(sent.reasoning_effort, undefined);
   });
 });
 
@@ -340,7 +363,7 @@ describe("POST /api/translate", () => {
         method: "POST",
         body: JSON.stringify({ words: { title: "X" }, locales: ["fr"] }),
       }),
-      env: { MUSE_API_KEY: "k" },
+      env: { DEEPSEEK_API_KEY: "sk-test-fake" },
     });
     assert.equal(res.status, 501);
   });

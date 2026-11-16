@@ -2,7 +2,6 @@ import { afterEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   MAX_IMAGE_CHARS,
-  MUSE_URL,
   parseSuggestInput,
   parseSuggestion,
   suggestWords,
@@ -10,9 +9,10 @@ import {
   userContent,
   voiceFrom,
 } from "../../functions/_lib/suggest.ts";
+import { DEEPSEEK_URL } from "../../functions/_lib/deepseek.ts";
 import { onRequestGet, onRequestPost } from "../../functions/api/suggest.ts";
 
-/** The writing helper, with fetch stubbed instead of calling Muse. */
+/** The writing helper, with fetch stubbed instead of calling DeepSeek. */
 
 const realFetch = globalThis.fetch;
 afterEach(() => {
@@ -20,6 +20,7 @@ afterEach(() => {
 });
 
 const IMAGE = "data:image/jpeg;base64,/9j/4AAQSkZJRg==";
+const KEY = "sk-test-fake";
 const ideas = {
   titles: ["Night Water", "Blue Hollow", "Quiet Buds"],
   description: "Deep blue curves hold pale shapes.",
@@ -127,32 +128,54 @@ describe("parseSuggestion", () => {
 });
 
 describe("suggestWords", () => {
-  it("asks Muse with the key, the photo, and high effort", async () => {
+  it("asks DeepSeek with the key and the photo, thinking off", async () => {
     let sent;
     globalThis.fetch = async (url, init) => {
-      assert.equal(String(url), MUSE_URL);
-      assert.equal(init?.headers?.Authorization, "Bearer k");
+      assert.equal(String(url), DEEPSEEK_URL);
+      assert.equal(init?.headers?.Authorization, `Bearer ${KEY}`);
       sent = JSON.parse(String(init?.body));
       return Response.json({
         choices: [{ message: { content: JSON.stringify(ideas) } }],
       });
     };
     const out = await suggestWords(
-      { MUSE_API_KEY: "k" },
+      { DEEPSEEK_API_KEY: KEY },
       parseSuggestInput({ image: IMAGE }),
     );
     assert.deepEqual(out, ideas);
-    assert.equal(sent.model, "muse-spark-1.3-contributor");
-    assert.equal(sent.reasoning_effort, "high");
+    assert.equal(sent.model, "deepseek-flash");
+    assert.deepEqual(sent.thinking, { type: "disabled" });
+    assert.equal(sent.tools, undefined);
+    assert.equal(sent.reasoning_effort, undefined);
     assert.equal(sent.messages[0].role, "system");
-    assert.equal(sent.messages[1].content[1].image_url.url, IMAGE);
+    assert.equal(sent.messages[1].role, "user");
+    assert.equal(sent.messages[1].content[0].type, "text");
+    assert.deepEqual(sent.messages[1].content[1], {
+      type: "image_url",
+      image_url: { url: IMAGE },
+    });
   });
 
-  it("throws on a failed answer", async () => {
+  it("throws on a failed answer, naming DeepSeek's reason", async () => {
     globalThis.fetch = async () => new Response("nope", { status: 429 });
     await assert.rejects(
-      suggestWords({ MUSE_API_KEY: "k" }, parseSuggestInput({ image: IMAGE })),
-      /429/,
+      suggestWords(
+        { DEEPSEEK_API_KEY: KEY },
+        parseSuggestInput({ image: IMAGE }),
+      ),
+      /DeepSeek is rate-limiting \(429\)/,
+    );
+  });
+
+  it("throws on an answer with no ideas in it", async () => {
+    globalThis.fetch = async () =>
+      Response.json({ choices: [{ message: { content: null } }] });
+    await assert.rejects(
+      suggestWords(
+        { DEEPSEEK_API_KEY: KEY },
+        parseSuggestInput({ image: IMAGE }),
+      ),
+      /DeepSeek sent no usable ideas/,
     );
   });
 });
@@ -165,27 +188,31 @@ describe("/api/suggest", () => {
         env,
       }).then((r) => r.json());
     assert.deepEqual(await get({}), { enabled: false });
-    assert.deepEqual(await get({ MUSE_API_KEY: "k" }), { enabled: true });
+    assert.deepEqual(await get({ DEEPSEEK_API_KEY: KEY }), { enabled: true });
   });
 
   it("stays closed to the public", async () => {
     const res = await onRequestPost({
       request: post({ image: IMAGE }, "https://barbart.ca/api/suggest"),
-      env: { MUSE_API_KEY: "k" },
+      env: { DEEPSEEK_API_KEY: KEY },
     });
     assert.equal(res.status, 401);
   });
 
   it("says how to turn it on without a key", async () => {
+    globalThis.fetch = async () => {
+      throw new Error("no call expected");
+    };
     const res = await onRequestPost({
       request: post({ image: IMAGE }),
       env: {},
     });
     assert.equal(res.status, 501);
+    assert.match((await res.json()).howToEnable, /DEEPSEEK_API_KEY.*DeepSeek/);
   });
 
   it("asks for a photo, and answers with the ideas", async () => {
-    const env = { MUSE_API_KEY: "k" };
+    const env = { DEEPSEEK_API_KEY: KEY };
     const bad = await onRequestPost({ request: post({ title: "x" }), env });
     assert.equal(bad.status, 400);
     globalThis.fetch = async () =>
@@ -196,14 +223,29 @@ describe("/api/suggest", () => {
     assert.deepEqual(await ok.json(), ideas);
   });
 
-  it("turns a Muse failure into plain words", async () => {
+  it("turns a DeepSeek failure into plain words", async () => {
     globalThis.fetch = async () => new Response("down", { status: 503 });
     const res = await onRequestPost({
       request: post({ image: IMAGE }),
-      env: { MUSE_API_KEY: "k" },
+      env: { DEEPSEEK_API_KEY: KEY },
     });
     assert.equal(res.status, 502);
     assert.match((await res.json()).error, /try again/);
+  });
+
+  it("says when the prepaid credit is used up or the key fails", async () => {
+    const answer = async (status) => {
+      globalThis.fetch = async () => new Response("no", { status });
+      const res = await onRequestPost({
+        request: post({ image: IMAGE }),
+        env: { DEEPSEEK_API_KEY: KEY },
+      });
+      assert.equal(res.status, 502);
+      return (await res.json()).error;
+    };
+    assert.match(await answer(402), /credit is used up/);
+    assert.match(await answer(401), /can't sign in/);
+    assert.match(await answer(429), /busy/);
   });
 });
 
@@ -249,7 +291,7 @@ describe("her voice", () => {
     const res = await onRequestPost({
       request: post({ image: IMAGE }),
       env: {
-        MUSE_API_KEY: "k",
+        DEEPSEEK_API_KEY: KEY,
         ASSETS: {
           fetch: async () =>
             Response.json({

@@ -1,12 +1,10 @@
+import { askDeepSeek, DeepSeekError, deepseekEnabled } from "./deepseek";
 import type { AppEnv } from "./env";
 
 /** Title and description ideas for a new painting, from its photo. The
- * studio sends a small JPEG and what she has typed so far; Muse Spark on
- * the Meta Model API (OpenAI-compatible chat completions, with image
- * input) looks at the photo and answers in JSON. She picks or ignores
- * the ideas, so nothing it writes goes live on its own. */
-export const MUSE_URL = "https://api.meta.ai/v1/chat/completions";
-export const MUSE_MODEL = "muse-spark-1.3-contributor";
+ * studio sends a small JPEG and what she has typed so far; DeepSeek
+ * (./deepseek) looks at the photo and answers in JSON. She picks or
+ * ignores the ideas, so nothing it writes goes live on its own. */
 const TIMEOUT_MS = 45_000;
 /** A 1024px JPEG is ~150 KB, ~200 KB as base64. Twice that is plenty. */
 export const MAX_IMAGE_CHARS = 700_000;
@@ -153,47 +151,39 @@ export function parseSuggestion(text: string): Suggestion | null {
   return { titles, description, alt: str(obj["alt"], 200) };
 }
 
+/** Translation shares the helper's key: one switch for both. */
 export function suggestEnabled(env: AppEnv): boolean {
-  return (env.MUSE_API_KEY ?? "") !== "";
+  return deepseekEnabled(env);
 }
 
-/** Asks Muse for ideas. Throws on a failed or unreadable answer. */
+/** Asks DeepSeek for ideas. Throws on a failed or unreadable answer. */
 export async function suggestWords(
   env: AppEnv,
   input: SuggestInput,
   voice: Voice = NO_VOICE,
 ): Promise<Suggestion> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  try {
-    const res = await fetch(MUSE_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.MUSE_API_KEY ?? ""}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: env.MUSE_MODEL ?? MUSE_MODEL,
-        // High reads the painting more closely (about 12 s against 6 s at
-        // low, checked 2026-10-27); she waits once per painting.
-        reasoning_effort: "high",
-        messages: [
-          { role: "system", content: systemPrompt(voice) },
-          { role: "user", content: userContent(input) },
-        ],
-      }),
-      signal: controller.signal,
-    });
-    if (!res.ok) throw new Error(`Muse answered ${res.status}`);
-    const data = (await res.json()) as {
-      choices?: Array<{ message?: { content?: unknown } }>;
-    };
-    const content = data.choices?.[0]?.message?.content;
-    const suggestion =
-      typeof content === "string" ? parseSuggestion(content) : null;
-    if (suggestion === null) throw new Error("Muse sent no usable ideas");
-    return suggestion;
-  } finally {
-    clearTimeout(timer);
+  const content = await askDeepSeek(
+    env,
+    [
+      { role: "system", content: systemPrompt(voice) },
+      { role: "user", content: userContent(input) },
+    ],
+    TIMEOUT_MS,
+  );
+  const suggestion = content === null ? null : parseSuggestion(content);
+  if (suggestion === null) throw new Error("DeepSeek sent no usable ideas");
+  return suggestion;
+}
+
+/** What she reads when the helper fails: plain words, no codes. */
+export function suggestFailure(err: unknown): string {
+  if (err instanceof DeepSeekError) {
+    if (err.status === 402)
+      return "The writing helper's prepaid credit is used up, so it can't answer until it's topped up.";
+    if (err.status === 401)
+      return "The writing helper can't sign in right now, so it can't answer until that's fixed.";
+    if (err.status === 429)
+      return "The writing helper is busy — try again in a minute.";
   }
+  return "The writing helper couldn't answer — try again in a minute.";
 }

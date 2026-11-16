@@ -51,13 +51,14 @@ export interface AppEnv {
   STRIPE_TAX?: string;
   ENABLE_SHIPPO?: string;
   SHIPPO_API_TOKEN?: string;
-  /** Meta Model API key for the studio's title and description helper
-   * (Muse Spark). Without it the helper's button stays hidden. */
-  MUSE_API_KEY?: string;
+  /** DeepSeek API key (platform.deepseek.com) for the studio's title and
+   * description helper and its translations. Without it the helper's
+   * button stays hidden and translation is off. */
+  DEEPSEEK_API_KEY?: string;
   /** "true" lets a local copy reach the translator (off for tests). */
   TRANSLATE_LOCAL?: string;
-  /** Overrides the helper's model, e.g. muse-spark-1.3. */
-  MUSE_MODEL?: string;
+  /** Overrides DeepSeek's model (default deepseek-flash). */
+  DEEPSEEK_MODEL?: string;
   ENABLE_SOCIAL_POST?: string;
   AYRSHARE_API_KEY?: string;
 }
