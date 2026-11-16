@@ -51,9 +51,12 @@ export interface AppEnv {
   STRIPE_TAX?: string;
   ENABLE_SHIPPO?: string;
   SHIPPO_API_TOKEN?: string;
-  /** DeepSeek API key (platform.deepseek.com) for the studio's title and
-   * description helper and its translations. Without it the helper's
-   * button stays hidden and translation is off. */
+  /** Gemini API key (Google AI Studio, free tier) for the studio's title
+   * and description helper, which looks at the photo with Gemini 4
+   * Hydrogen. Without it the helper's button stays hidden. */
+  GEMINI_API_KEY?: string;
+  /** DeepSeek API key (platform.deepseek.com) for translating her words.
+   * Without it translation is off. */
   DEEPSEEK_API_KEY?: string;
   /** "true" lets a local copy reach the translator (off for tests). */
   TRANSLATE_LOCAL?: string;

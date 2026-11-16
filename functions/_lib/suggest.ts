@@ -1,11 +1,11 @@
-import { askDeepSeek, DeepSeekError, deepseekEnabled } from "./deepseek";
 import type { AppEnv } from "./env";
+import { askGemini, GeminiError, geminiEnabled } from "./gemini";
 
 /** Title and description ideas for a new painting, from its photo. The
- * studio sends a small JPEG and what she has typed so far; DeepSeek
- * (./deepseek) looks at the photo and answers in JSON. She picks or
+ * studio sends a small JPEG and what she has typed so far; Gemini 4
+ * Hydrogen (./gemini) looks at the photo and answers in JSON. She picks or
  * ignores the ideas, so nothing it writes goes live on its own. */
-const TIMEOUT_MS = 45_000;
+const TIMEOUT_MS = 60_000;
 /** A 1024px JPEG is ~150 KB, ~200 KB as base64. Twice that is plenty. */
 export const MAX_IMAGE_CHARS = 700_000;
 
@@ -106,8 +106,8 @@ export function voiceFrom(
 /** The prompt with no gallery to learn from. */
 export const SYSTEM_PROMPT = systemPrompt(NO_VOICE);
 
-/** The user turn: what she already knows, then the photo. */
-export function userContent(input: SuggestInput): unknown[] {
+/** The user turn's words: what she already knows. */
+export function userText(input: SuggestInput): string {
   const facts = [
     input.title !== "" ? `Working title: ${input.title}` : "",
     input.medium !== "" ? `Medium: ${input.medium}` : "",
@@ -116,17 +116,30 @@ export function userContent(input: SuggestInput): unknown[] {
       : "",
     input.notes !== "" ? `Her notes: ${input.notes}` : "",
   ].filter((line) => line !== "");
-  return [
-    {
-      type: "text",
-      text:
-        facts.length > 0
-          ? `Suggest titles and a description for this painting.\n${facts.join("\n")}`
-          : "Suggest titles and a description for this painting.",
-    },
-    { type: "image_url", image_url: { url: input.image } },
-  ];
+  return facts.length > 0
+    ? `Suggest titles and a description for this painting.\n${facts.join("\n")}`
+    : "Suggest titles and a description for this painting.";
 }
+
+/** The user turn for Gemini: her words, then the photo inline (the data
+ * URL's base64, which parseSuggestInput checked). */
+export function userParts(input: SuggestInput): unknown[] {
+  const [head = "", data = ""] = input.image.split(",", 2);
+  const mimeType = head.slice("data:".length, head.indexOf(";"));
+  return [{ text: userText(input) }, { inlineData: { mimeType, data } }];
+}
+
+/** The answer's shape, the same JSON the prompt asks for. Three titles is
+ * the prompt's to say: array bounds would only grow Google's grammar. */
+export const SUGGESTION_SCHEMA = {
+  type: "object",
+  properties: {
+    titles: { type: "array", items: { type: "string" } },
+    description: { type: "string" },
+    alt: { type: "string" },
+  },
+  required: ["titles", "description", "alt"],
+};
 
 /** Reads the model's JSON, tolerating a code fence or stray words around
  * it. Null when it has no usable title or description. */
@@ -151,39 +164,43 @@ export function parseSuggestion(text: string): Suggestion | null {
   return { titles, description, alt: str(obj["alt"], 200) };
 }
 
-/** Translation shares the helper's key: one switch for both. */
+/** The helper is on when its Gemini key is set. */
 export function suggestEnabled(env: AppEnv): boolean {
-  return deepseekEnabled(env);
+  return geminiEnabled(env);
 }
 
-/** Asks DeepSeek for ideas. Throws on a failed or unreadable answer. */
+/** Asks Gemini for ideas. Throws on a failed or unreadable answer; a
+ * failure is hers to see, never covered by another model. */
 export async function suggestWords(
   env: AppEnv,
   input: SuggestInput,
   voice: Voice = NO_VOICE,
 ): Promise<Suggestion> {
-  const content = await askDeepSeek(
+  const content = await askGemini(
     env,
-    [
-      { role: "system", content: systemPrompt(voice) },
-      { role: "user", content: userContent(input) },
-    ],
+    {
+      system: systemPrompt(voice),
+      parts: userParts(input),
+      schema: SUGGESTION_SCHEMA,
+    },
     TIMEOUT_MS,
   );
   const suggestion = content === null ? null : parseSuggestion(content);
-  if (suggestion === null) throw new Error("DeepSeek sent no usable ideas");
+  if (suggestion === null) throw new Error("Gemini sent no usable ideas");
   return suggestion;
 }
 
 /** What she reads when the helper fails: plain words, no codes. */
 export function suggestFailure(err: unknown): string {
-  if (err instanceof DeepSeekError) {
-    if (err.status === 402)
-      return "The writing helper's prepaid credit is used up, so it can't answer until it's topped up.";
-    if (err.status === 401)
-      return "The writing helper can't sign in right now, so it can't answer until that's fixed.";
+  if (err instanceof GeminiError) {
     if (err.status === 429)
-      return "The writing helper is busy — try again in a minute.";
+      return "Google's free limit is used up for now — try again later.";
+    if (
+      err.status === 401 ||
+      err.status === 403 ||
+      err.reason === "API_KEY_INVALID"
+    )
+      return "The writing helper can't sign in right now, so it can't answer until that's fixed.";
   }
   return "The writing helper couldn't answer — try again in a minute.";
 }

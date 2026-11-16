@@ -107,8 +107,7 @@ const server = createServer((req, res) => {
           const ctx = {
             request,
             env: {
-              DEEPSEEK_API_KEY: vars.DEEPSEEK_API_KEY,
-              DEEPSEEK_MODEL: vars.DEEPSEEK_MODEL,
+              GEMINI_API_KEY: vars.GEMINI_API_KEY,
             },
           };
           return request.method === "GET" ? suggestGet(ctx) : suggestPost(ctx);

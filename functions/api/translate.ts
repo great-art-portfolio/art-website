@@ -1,3 +1,4 @@
+import { deepseekEnabled } from "../_lib/deepseek";
 import type { AppEnv } from "../_lib/env";
 import {
   badRequest,
@@ -6,7 +7,6 @@ import {
   notEnabled,
   requireAdmin,
 } from "../_lib/http";
-import { suggestEnabled } from "../_lib/suggest";
 import { parseTranslateInput, translateWords } from "../_lib/translate";
 import { logEvent } from "../_lib/log";
 
@@ -17,7 +17,7 @@ import { logEvent } from "../_lib/log";
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   const denied = await requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
-  if (!suggestEnabled(context.env))
+  if (!deepseekEnabled(context.env))
     return notEnabled(
       "Translation",
       "Set the DEEPSEEK_API_KEY secret (DeepSeek).",

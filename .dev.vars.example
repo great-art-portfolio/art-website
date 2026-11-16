@@ -32,7 +32,9 @@ ARTIST_SENDER=
 # The artist's inbox: buyer notes land here, broadcast replies return here.
 ARTIST_INBOX=
 
-# Title and description helper in the painting room, and translations
-# (DeepSeek API key, platform.deepseek.com; prepaid). Blank hides the
-# helper's button and turns translation off.
+# Title and description helper in the painting room (Gemini API key from
+# Google AI Studio, free tier; Gemini 4 Hydrogen). Blank hides its button.
+GEMINI_API_KEY=
+# Translations (DeepSeek API key, platform.deepseek.com; prepaid). Blank
+# turns translation off.
 DEEPSEEK_API_KEY=

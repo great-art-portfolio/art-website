@@ -4,15 +4,15 @@ import {
   MAX_IMAGE_CHARS,
   parseSuggestInput,
   parseSuggestion,
+  SUGGESTION_SCHEMA,
   suggestWords,
   systemPrompt,
-  userContent,
+  userParts,
   voiceFrom,
 } from "../../functions/_lib/suggest.ts";
-import { DEEPSEEK_URL } from "../../functions/_lib/deepseek.ts";
 import { onRequestGet, onRequestPost } from "../../functions/api/suggest.ts";
 
-/** The writing helper, with fetch stubbed instead of calling DeepSeek. */
+/** The writing helper, with fetch stubbed instead of calling Gemini. */
 
 const realFetch = globalThis.fetch;
 afterEach(() => {
@@ -20,7 +20,12 @@ afterEach(() => {
 });
 
 const IMAGE = "data:image/jpeg;base64,/9j/4AAQSkZJRg==";
-const KEY = "sk-test-fake";
+const KEY = "AQ.test-fake";
+const GEMINI =
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-4-hydrogen:generateContent";
+/** Gemini's answer around some text. */
+const answer = (text) =>
+  Response.json({ candidates: [{ content: { parts: [{ text }] } }] });
 const ideas = {
   titles: ["Night Water", "Blue Hollow", "Quiet Buds"],
   description: "Deep blue curves hold pale shapes.",
@@ -83,9 +88,9 @@ describe("parseSuggestInput", () => {
   });
 });
 
-describe("userContent", () => {
-  it("tells the model what she knows, then shows the photo", () => {
-    const [text, image] = userContent({
+describe("userParts", () => {
+  it("tells the model what she knows, then shows the photo inline", () => {
+    const [text, image] = userParts({
       image: IMAGE,
       title: "",
       medium: "Acrylic",
@@ -97,7 +102,9 @@ describe("userContent", () => {
     assert.match(text.text, /Size: 12 × 12 in/);
     assert.match(text.text, /Her notes: March light/);
     assert.doesNotMatch(text.text, /Working title/);
-    assert.deepEqual(image, { type: "image_url", image_url: { url: IMAGE } });
+    assert.deepEqual(image, {
+      inlineData: { mimeType: "image/jpeg", data: "/9j/4AAQSkZJRg==" },
+    });
   });
 });
 
@@ -128,55 +135,66 @@ describe("parseSuggestion", () => {
 });
 
 describe("suggestWords", () => {
-  it("asks DeepSeek with the key and the photo, thinking off", async () => {
+  it("asks Gemini 4 Hydrogen with the key and the photo inline, low thinking, JSON out", async () => {
     let sent;
     globalThis.fetch = async (url, init) => {
-      assert.equal(String(url), DEEPSEEK_URL);
-      assert.equal(init?.headers?.Authorization, `Bearer ${KEY}`);
+      assert.equal(String(url), GEMINI);
+      assert.equal(init?.headers?.["x-goog-api-key"], KEY);
       sent = JSON.parse(String(init?.body));
-      return Response.json({
-        choices: [{ message: { content: JSON.stringify(ideas) } }],
-      });
+      return answer(JSON.stringify(ideas));
     };
     const out = await suggestWords(
-      { DEEPSEEK_API_KEY: KEY },
-      parseSuggestInput({ image: IMAGE }),
+      { GEMINI_API_KEY: KEY },
+      parseSuggestInput({ image: IMAGE, notes: "Bow River" }),
     );
     assert.deepEqual(out, ideas);
-    assert.equal(sent.model, "deepseek-flash");
-    assert.deepEqual(sent.thinking, { type: "disabled" });
-    assert.equal(sent.tools, undefined);
-    assert.equal(sent.reasoning_effort, undefined);
-    assert.equal(sent.messages[0].role, "system");
-    assert.equal(sent.messages[1].role, "user");
-    assert.equal(sent.messages[1].content[0].type, "text");
-    assert.deepEqual(sent.messages[1].content[1], {
-      type: "image_url",
-      image_url: { url: IMAGE },
+    assert.match(sent.systemInstruction.parts[0].text, /Barbara Straka/);
+    assert.match(sent.systemInstruction.parts[0].text, /Reply with JSON only/);
+    assert.equal(sent.contents.length, 1);
+    assert.equal(sent.contents[0].role, "user");
+    assert.match(sent.contents[0].parts[0].text, /Her notes: Bow River/);
+    assert.deepEqual(sent.contents[0].parts[1], {
+      inlineData: { mimeType: "image/jpeg", data: "/9j/4AAQSkZJRg==" },
     });
+    assert.deepEqual(sent.generationConfig.thinkingConfig, {
+      thinkingLevel: "low",
+    });
+    assert.deepEqual(sent.generationConfig.responseFormat, {
+      text: { mimeType: "APPLICATION_JSON", schema: SUGGESTION_SCHEMA },
+    });
+    assert.equal(sent.tools, undefined);
+    assert.equal(sent.generationConfig.temperature, undefined);
   });
 
-  it("throws on a failed answer, naming DeepSeek's reason", async () => {
-    globalThis.fetch = async () => new Response("nope", { status: 429 });
-    await assert.rejects(
-      suggestWords(
-        { DEEPSEEK_API_KEY: KEY },
-        parseSuggestInput({ image: IMAGE }),
-      ),
-      /DeepSeek is rate-limiting \(429\)/,
-    );
-  });
-
-  it("throws on an answer with no ideas in it", async () => {
+  it("throws on a failed answer, naming Google's reason", async () => {
     globalThis.fetch = async () =>
-      Response.json({ choices: [{ message: { content: null } }] });
+      Response.json(
+        { error: { code: 429, status: "RESOURCE_EXHAUSTED" } },
+        { status: 429 },
+      );
     await assert.rejects(
       suggestWords(
-        { DEEPSEEK_API_KEY: KEY },
+        { GEMINI_API_KEY: KEY },
         parseSuggestInput({ image: IMAGE }),
       ),
-      /DeepSeek sent no usable ideas/,
+      /Google's free limit is used up \(429\)/,
     );
+  });
+
+  it("throws on an answer with no ideas in it, never asking another model", async () => {
+    const urls = [];
+    globalThis.fetch = async (url) => {
+      urls.push(String(url));
+      return Response.json({ candidates: [] });
+    };
+    await assert.rejects(
+      suggestWords(
+        { GEMINI_API_KEY: KEY, DEEPSEEK_API_KEY: "sk-test-fake" },
+        parseSuggestInput({ image: IMAGE }),
+      ),
+      /Gemini sent no usable ideas/,
+    );
+    assert.deepEqual(urls, [GEMINI]);
   });
 });
 
@@ -188,13 +206,17 @@ describe("/api/suggest", () => {
         env,
       }).then((r) => r.json());
     assert.deepEqual(await get({}), { enabled: false });
-    assert.deepEqual(await get({ DEEPSEEK_API_KEY: KEY }), { enabled: true });
+    // DeepSeek's key alone (translations) doesn't turn the helper on.
+    assert.deepEqual(await get({ DEEPSEEK_API_KEY: "sk-test-fake" }), {
+      enabled: false,
+    });
+    assert.deepEqual(await get({ GEMINI_API_KEY: KEY }), { enabled: true });
   });
 
   it("stays closed to the public", async () => {
     const res = await onRequestPost({
       request: post({ image: IMAGE }, "https://barbart.ca/api/suggest"),
-      env: { DEEPSEEK_API_KEY: KEY },
+      env: { GEMINI_API_KEY: KEY },
     });
     assert.equal(res.status, 401);
   });
@@ -208,44 +230,53 @@ describe("/api/suggest", () => {
       env: {},
     });
     assert.equal(res.status, 501);
-    assert.match((await res.json()).howToEnable, /DEEPSEEK_API_KEY.*DeepSeek/);
+    assert.match((await res.json()).howToEnable, /GEMINI_API_KEY.*Google/);
   });
 
   it("asks for a photo, and answers with the ideas", async () => {
-    const env = { DEEPSEEK_API_KEY: KEY };
+    const env = { GEMINI_API_KEY: KEY };
     const bad = await onRequestPost({ request: post({ title: "x" }), env });
     assert.equal(bad.status, 400);
-    globalThis.fetch = async () =>
-      Response.json({
-        choices: [{ message: { content: JSON.stringify(ideas) } }],
-      });
+    globalThis.fetch = async () => answer(JSON.stringify(ideas));
     const ok = await onRequestPost({ request: post({ image: IMAGE }), env });
     assert.deepEqual(await ok.json(), ideas);
   });
 
-  it("turns a DeepSeek failure into plain words", async () => {
+  it("turns a Gemini failure into plain words", async () => {
     globalThis.fetch = async () => new Response("down", { status: 503 });
     const res = await onRequestPost({
       request: post({ image: IMAGE }),
-      env: { DEEPSEEK_API_KEY: KEY },
+      env: { GEMINI_API_KEY: KEY },
     });
     assert.equal(res.status, 502);
     assert.match((await res.json()).error, /try again/);
   });
 
-  it("says when the prepaid credit is used up or the key fails", async () => {
-    const answer = async (status) => {
-      globalThis.fetch = async () => new Response("no", { status });
+  it("says when Google's free limit is used up or the key fails", async () => {
+    const failed = async (status, body = { error: { code: status } }) => {
+      globalThis.fetch = async () => Response.json(body, { status });
       const res = await onRequestPost({
         request: post({ image: IMAGE }),
-        env: { DEEPSEEK_API_KEY: KEY },
+        env: { GEMINI_API_KEY: KEY },
       });
       assert.equal(res.status, 502);
       return (await res.json()).error;
     };
-    assert.match(await answer(402), /credit is used up/);
-    assert.match(await answer(401), /can't sign in/);
-    assert.match(await answer(429), /busy/);
+    assert.equal(
+      await failed(429),
+      "Google's free limit is used up for now — try again later.",
+    );
+    assert.match(await failed(403), /can't sign in/);
+    assert.match(
+      await failed(400, {
+        error: {
+          code: 400,
+          status: "INVALID_ARGUMENT",
+          details: [{ reason: "API_KEY_INVALID" }],
+        },
+      }),
+      /can't sign in/,
+    );
   });
 });
 
@@ -283,15 +314,13 @@ describe("her voice", () => {
   it("reads the gallery from the build for every suggestion", async () => {
     let system = "";
     globalThis.fetch = async (_url, init) => {
-      system = JSON.parse(init.body).messages[0].content;
-      return Response.json({
-        choices: [{ message: { content: JSON.stringify(ideas) } }],
-      });
+      system = JSON.parse(init.body).systemInstruction.parts[0].text;
+      return answer(JSON.stringify(ideas));
     };
     const res = await onRequestPost({
       request: post({ image: IMAGE }),
       env: {
-        DEEPSEEK_API_KEY: KEY,
+        GEMINI_API_KEY: KEY,
         ASSETS: {
           fetch: async () =>
             Response.json({

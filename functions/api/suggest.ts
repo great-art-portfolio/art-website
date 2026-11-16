@@ -1,5 +1,5 @@
-import { DeepSeekError } from "../_lib/deepseek";
 import type { AppEnv } from "../_lib/env";
+import { GeminiError } from "../_lib/gemini";
 import { badRequest, json, notEnabled, requireAdmin } from "../_lib/http";
 import {
   NO_VOICE,
@@ -41,7 +41,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   if (!suggestEnabled(context.env))
     return notEnabled(
       "The writing helper",
-      "Set the DEEPSEEK_API_KEY secret (DeepSeek).",
+      "Set the GEMINI_API_KEY secret (Google AI Studio; keys key add gemini on z).",
     );
   let raw: unknown;
   try {
@@ -59,8 +59,8 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       event: "suggest.threw",
       message: "The writing helper failed",
       err,
-      ...(err instanceof DeepSeekError
-        ? { detail: { status: err.status } }
+      ...(err instanceof GeminiError
+        ? { detail: { status: err.status, reason: err.reason } }
         : {}),
       request: context.request,
     });
