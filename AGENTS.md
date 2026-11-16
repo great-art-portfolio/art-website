@@ -131,6 +131,12 @@ data read it from `/catalog.json` through `env.ASSETS`. Check with
   keyed by a hash of the English; a stale or missing translation shows her
   English, and the dashboard catches it up. Inquiries and checkout always
   carry her English title. The studio stays English.
+- The painting room's writing helper (`/api/suggest`) is Google's Gemini 4
+  Hydrogen (`functions/_lib/gemini.ts`: the photo inline, low thinking,
+  JSON by schema), on a free-tier `GEMINI_API_KEY`. A 429 is Google's free
+  limit: she reads "Google's free limit is used up for now — try again
+  later", and no other model answers instead. `pnpm compare:helpers` puts
+  its ideas beside DeepSeek's for three of her paintings on one sheet.
 - `/admin/*` is behind Cloudflare Access (email OTP) in production;
   `ADMIN_API_TOKEN` is local backup, remembered per browser.
 - Dev practice: on localhost without a token, studio saves go to a

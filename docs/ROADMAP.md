@@ -41,7 +41,7 @@
 
 ## Studio helpers
 
-- [x] Writing helper in the painting room (2026-10-25): the model looks at the photo and suggests three titles, a description, and alt text. Since 2026-11-16 it is DeepSeek (`deepseek-flash`); go-live: set the `DEEPSEEK_API_KEY` Pages secret; the button stays hidden until then.
+- [x] Writing helper in the painting room (2026-10-25): the model looks at the photo and suggests three titles, a description, and alt text. Since 2026-11-16 it is Google's Gemini 4 Hydrogen (`gemini-4-hydrogen`, low thinking, free tier: a used-up limit reads "Google's free limit is used up for now — try again later", with no other model behind it); go-live: the `GEMINI_API_KEY` Pages secret (`keys key add gemini` on z); the button stays hidden until then. `scripts/compare-helpers.mjs` puts its ideas beside DeepSeek's for three of her paintings.
 - [x] "Find a painting" search on the studio list past 12 paintings (2026-10-25).
 - [x] Crop & adjust in the painting room (2026-10-27): four corner handles (auto-placed by "Find edges") straighten the photo and cut away the wall, plus brightness, warmth and contrast. Her measured width × height sets the crop's shape so the wall preview stays true to size. Works on the saved photo in the edit room too (`lib/photo-fix.ts`, `components/PhotoFix.ts`).
 
