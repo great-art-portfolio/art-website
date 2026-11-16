@@ -13,6 +13,7 @@
     "build": "astro build",
     "build:e2e": "node scripts/build-e2e.mjs",
     "logs": "node scripts/logs.mjs",
+    "compare:helpers": "node --import ./tests/unit/register-loader.mjs scripts/compare-helpers.mjs",
     "preview": "astro preview",
     "astro": "astro",
     "check": "astro check",
