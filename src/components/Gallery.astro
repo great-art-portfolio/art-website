@@ -168,6 +168,7 @@ const slotClass = (i: number): string[] => {
               fetchpriority={
                 featured === undefined && i === 0 ? "high" : undefined
               }
+              style={`--ar: ${(painting.data.image.width / painting.data.image.height).toFixed(4)}`}
             />
             {isNewStatic(painting.data.dateAdded) && (
               <span
@@ -227,6 +228,7 @@ const slotClass = (i: number): string[] => {
               formats={["avif", "webp"]}
               fallbackFormat="webp"
               decoding="async"
+              style={`--ar: ${(painting.data.image.width / painting.data.image.height).toFixed(4)}`}
             />
             <span class="badge sold">{s.gallery.sold}</span>
           </span>
@@ -364,6 +366,7 @@ const slotClass = (i: number): string[] => {
      stops a tall one first; then the mat hugs it instead of leaving empty
      mat beside it. The caption takes the mat's width without widening it. */
   .card {
+    container-type: inline-size;
     display: grid;
     grid-template-columns: minmax(0, max-content);
     justify-content: center;
@@ -388,6 +391,7 @@ const slotClass = (i: number): string[] => {
   /* The newest painting, in the homepage's top section. */
   .feature {
     position: relative;
+    width: 100%;
     margin: 0;
   }
   .caption-head {
@@ -412,7 +416,8 @@ const slotClass = (i: number): string[] => {
        painting off, like a paper mat, not a drawn card. */
     border: 1px solid transparent;
     border-radius: var(--radius);
-    padding: clamp(0.6rem, 1.5vw, 0.9rem);
+    --mat-pad: clamp(0.6rem, 1.5vw, 0.9rem);
+    padding: var(--mat-pad);
     box-shadow: var(--shadow);
     transition:
       transform 0.35s ease,
@@ -423,40 +428,26 @@ const slotClass = (i: number): string[] => {
       transform: translateY(-4px);
     }
   }
-  /* The newest painting holds its size before the photo arrives, so the
-     page below doesn't jump when it loads. The width is the one the
-     browser would draw anyway: its sizes slot (featuredSizes), or less
-     when 80vh of height caps it. */
-  .feature {
-    --slot: 92vw;
-  }
-  @media (min-width: 60rem) {
-    .feature {
-      --slot: 44vw;
-    }
-  }
-  @media (min-width: 76rem) {
-    .feature {
-      --slot: 530px;
-    }
-  }
   /* AVIF first, WebP for older browsers: the <picture> wrapper stays out of
      layout so the img is still the mat's own child. */
   .mat :global(picture) {
     display: contents;
   }
-  .feature .mat img {
-    width: min(var(--slot), calc(80vh * var(--ar)));
-    aspect-ratio: var(--ar);
-  }
   .mat img {
-    /* Size the box to the photo rather than the column. With both max
-       sizes set it keeps the photo's aspect ratio, so there's no
-       letterboxing. Narrower photos are centered. */
-    width: auto;
+    /* Reserve the painting's exact box before lazy-loaded photos arrive so
+       cards never collapse to 0x0 (squishing captions vertical) or shift
+       layout on scroll. 100cqi is the card's slot width; 80svh keeps the
+       height cap steady as mobile toolbars show and hide. */
+    width: min(calc(100cqi - 2 * var(--mat-pad) - 2px), calc(80vh * var(--ar)));
+    width: min(
+      calc(100cqi - 2 * var(--mat-pad) - 2px),
+      calc(80svh * var(--ar))
+    );
     max-width: 100%;
     height: auto;
     max-height: 80vh;
+    max-height: 80svh;
+    aspect-ratio: var(--ar);
     margin: 0 auto;
     display: block;
     border-radius: 0.25rem;

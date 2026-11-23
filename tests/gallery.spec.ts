@@ -88,9 +88,18 @@ test("the mat hugs every photo shape at zoom", async ({ page }) => {
   const count = await imgs.count();
   expect(count).toBeGreaterThan(1);
   for (let i = 0; i < Math.min(count, 4); i++) {
-    const ratio = await imgs.nth(i).evaluate((el: HTMLImageElement) => {
+    const img = imgs.nth(i);
+    await img.scrollIntoViewIfNeeded();
+    await expect
+      .poll(() =>
+        img.evaluate(
+          (el: HTMLImageElement) => el.complete && el.naturalWidth > 0,
+        ),
+      )
+      .toBe(true);
+    const ratio = await img.evaluate((el: HTMLImageElement) => {
       const box = el.getBoundingClientRect();
-      if (box.height === 0) return null;
+      if (box.height === 0 || el.naturalHeight === 0) return null;
       return {
         box: box.width / box.height,
         natural: el.naturalWidth / el.naturalHeight,
@@ -778,4 +787,94 @@ test("fullscreen view keeps focus inside and closes from its ✕", async ({
   expect(behind).toBe(false);
   await page.locator("#lightbox-close").click();
   await expect(box).toBeHidden();
+});
+
+test("gallery cards hold their size and horizontal captions before lazy photos load", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  const page = await context.newPage();
+
+  await page.route(/\.(avif|webp)$/i, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    await route.continue();
+  });
+
+  await page.addInitScript(() => {
+    const win = window as Window & {
+      __clsEntries?: Array<{ value: number; hadRecentInput: boolean }>;
+    };
+    win.__clsEntries = [];
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        const ls = entry as PerformanceEntry & {
+          value?: number;
+          hadRecentInput?: boolean;
+        };
+        win.__clsEntries?.push({
+          value: ls.value ?? 0,
+          hadRecentInput: ls.hadRecentInput ?? false,
+        });
+      }
+    }).observe({ type: "layout-shift", buffered: true });
+  });
+
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.locator("#gallery-static").scrollIntoViewIfNeeded();
+
+  const beforeLoad = await page.evaluate(() => {
+    return [...document.querySelectorAll("#gallery-static .card")]
+      .slice(0, 2)
+      .map((card) => {
+        const img = card.querySelector("img");
+        const caption = card.querySelector(".caption");
+        const imgRect = img?.getBoundingClientRect();
+        const capRect = caption?.getBoundingClientRect();
+        return {
+          imgW: imgRect?.width ?? 0,
+          imgH: imgRect?.height ?? 0,
+          capW: capRect?.width ?? 0,
+        };
+      });
+  });
+
+  expect(beforeLoad.length).toBeGreaterThan(0);
+  for (const box of beforeLoad) {
+    expect(box.imgW).toBeGreaterThan(200);
+    expect(box.imgH).toBeGreaterThan(100);
+    expect(box.capW).toBeGreaterThan(200);
+  }
+
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() =>
+          [...document.querySelectorAll("#gallery-static .card img")]
+            .slice(0, 2)
+            .every(
+              (el) =>
+                el instanceof HTMLImageElement &&
+                el.complete &&
+                el.naturalWidth > 0,
+            ),
+        ),
+      { timeout: 10_000 },
+    )
+    .toBe(true);
+  await page.waitForTimeout(200);
+
+  const cls = await page.evaluate(() => {
+    const win = window as Window & {
+      __clsEntries?: Array<{ value: number; hadRecentInput: boolean }>;
+    };
+    return (win.__clsEntries ?? [])
+      .filter((e) => !e.hadRecentInput)
+      .reduce((sum, e) => sum + e.value, 0);
+  });
+  expect(cls).toBeLessThan(0.01);
+  await context.close();
 });

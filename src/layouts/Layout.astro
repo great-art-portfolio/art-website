@@ -962,11 +962,23 @@ const offers = Object.fromEntries(
       "Segoe UI",
       sans-serif;
     background: var(--paper);
-    background-image: var(--wash);
-    background-attachment: fixed;
     color: var(--ink);
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
+  }
+  /* Fixed top wash on a 100lvh layer instead of background-attachment: fixed
+     on body, which repaints and jumps when mobile toolbars hide and show. */
+  body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    height: 100lvh;
+    z-index: -2;
+    pointer-events: none;
+    background: var(--wash);
   }
   /* Type rule: Fraunces for the hero headline, section headings, and
      painting names; sans for everything read or bought (body, prices,
@@ -1011,8 +1023,11 @@ const offers = Object.fromEntries(
   }
   /* Public pages: the bar fills in with the scroll (--bar 0 to 1, set by
      the script), so it tracks the page instead of playing on a timer.
-     Without the script --bar stays 1: the plain always-on bar. */
+     Without the script --bar stays 1: the plain always-on bar. Keep the
+     blur constant on ::before and fade its opacity instead of recalculating
+     backdrop-filter radius on every mobile scroll frame. */
   .site-header[data-scroll-bar] {
+    isolation: isolate;
     background-color: color-mix(
       in srgb,
       var(--paper) calc(82% * var(--bar, 1)),
@@ -1023,14 +1038,26 @@ const offers = Object.fromEntries(
       var(--line) calc(100% * var(--bar, 1)),
       transparent
     );
-    backdrop-filter: blur(calc(12px * var(--bar, 1)));
-    -webkit-backdrop-filter: blur(calc(12px * var(--bar, 1)));
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .site-header[data-scroll-bar]::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: var(--bar, 1);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
   }
   .site-header[data-scroll-bar]:not([data-scrolled]) {
     background-color: transparent;
     border-bottom-color: transparent;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+  }
+  .site-header[data-scroll-bar]:not([data-scrolled])::before {
+    opacity: 0;
+    visibility: hidden;
   }
   .site-nav {
     max-width: 76rem;
@@ -1499,9 +1526,11 @@ const offers = Object.fromEntries(
 
   #background {
     position: fixed;
-    inset: 0;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
+    height: 100lvh;
     z-index: -1;
     object-fit: cover;
     opacity: 0.35;
