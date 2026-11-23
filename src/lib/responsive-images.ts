@@ -48,7 +48,8 @@ export function soldSizes(): string {
 }
 
 /** Painting detail photo: about 55vw beside the info column from 60rem;
- * stacked below that in a 38rem column, full width on phones. */
+ * stacked below that in a 38rem column, full width minus .detail and
+ * .frame padding (72px total) on phones. */
 export function photoSizes(): string {
-  return "(min-width: 76rem) 600px, (min-width: 60rem) 55vw, (min-width: 38rem) 600px, 92vw";
+  return "(min-width: 76rem) 600px, (min-width: 60rem) 55vw, (min-width: 38rem) 600px, calc(100vw - 72px)";
 }
