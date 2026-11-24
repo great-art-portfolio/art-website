@@ -441,14 +441,40 @@ test("public header becomes a bar only once the page scrolls", async ({
   await expect
     .poll(() => header.evaluate((el) => getComputedStyle(el).backgroundColor))
     .not.toBe("rgba(0, 0, 0, 0)");
+  await expect
+    .poll(() =>
+      header.evaluate((el) => getComputedStyle(el, "::before").backdropFilter),
+    )
+    .toMatch(/blur\(/);
+  await expect(header).toHaveCSS("isolation", "auto");
   // Back at the top it clears again.
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect(header).not.toHaveAttribute("data-scrolled");
   // Studio pages keep their always-on bar.
   await page.goto("/admin");
-  await expect(page.locator(".site-header")).not.toHaveAttribute(
-    "data-scroll-bar",
-  );
+  const adminHeader = page.locator(".site-header");
+  await expect(adminHeader).not.toHaveAttribute("data-scroll-bar");
+  await expect
+    .poll(() =>
+      adminHeader.evaluate((el) => getComputedStyle(el).backdropFilter),
+    )
+    .toMatch(/blur\(/);
+});
+
+test("print media hides the fixed wash and backdrop on QR sheets", async ({
+  page,
+}) => {
+  await page.goto("/admin/qr-codes");
+  await page.emulateMedia({ media: "print" });
+  const display = await page.evaluate(() => {
+    const bg = document.querySelector("#background");
+    return {
+      bodyBefore: getComputedStyle(document.body, "::before").display,
+      background: bg instanceof Element ? getComputedStyle(bg).display : "",
+    };
+  });
+  expect(display.bodyBefore).toBe("none");
+  expect(display.background).toBe("none");
 });
 
 test("the footer's Credits page carries every licence in full", async ({

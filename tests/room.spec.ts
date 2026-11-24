@@ -47,3 +47,60 @@ test("a painting hangs at true size in the room view", async ({ page }) => {
   await expect(room).toBeHidden();
   await expect(photo).not.toHaveClass(/in-room/);
 });
+
+test("landscape phone holds painting frame size before load and keeps room view unclipped", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 844, height: 390 },
+  });
+  const page = await context.newPage();
+  let release: (() => void) | undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/_astro/*.{avif,webp}", async (route) => {
+    await gate;
+    await route.continue();
+  });
+  try {
+    await page.goto("/paintings/night-reeds", {
+      waitUntil: "domcontentloaded",
+    });
+    const photo = page.locator("#photo-wrap");
+    await expect(photo).toBeVisible();
+    const before = await photo.boundingBox();
+    expect(before?.width ?? 0).toBeGreaterThan(200);
+    expect(before?.height ?? 0).toBeGreaterThan(200);
+    release?.();
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+    await expect
+      .poll(() =>
+        photo
+          .locator("picture img")
+          .evaluate(
+            (img) =>
+              img instanceof HTMLImageElement &&
+              img.complete &&
+              img.naturalWidth > 0,
+          ),
+      )
+      .toBe(true);
+    const after = await photo.boundingBox();
+    expect(
+      Math.abs((after?.width ?? 0) - (before?.width ?? 0)),
+    ).toBeLessThanOrEqual(1);
+    expect(
+      Math.abs((after?.height ?? 0) - (before?.height ?? 0)),
+    ).toBeLessThanOrEqual(1);
+    await page.locator("#room-toggle").click();
+    await expect(page.locator("#room-view")).toBeVisible();
+    const bgMaxHeight = await page
+      .locator(".room-bg")
+      .evaluate((el) => getComputedStyle(el).maxHeight);
+    expect(bgMaxHeight).toBe("none");
+  } finally {
+    release?.();
+    await context.close();
+  }
+});

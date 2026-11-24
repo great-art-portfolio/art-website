@@ -89,6 +89,12 @@ const roomArt =
   room !== null && data.image !== undefined
     ? await getImage({ src: data.image, width: 800, format: "webp" })
     : null;
+const roomArtWidth =
+  data.image !== undefined ? Math.min(800, data.image.width) : 800;
+const roomArtHeight =
+  data.image !== undefined
+    ? Math.round((roomArtWidth * data.image.height) / data.image.width)
+    : 800;
 const at = (b: Box) =>
   `left:${b.left}%;top:${b.top}%;width:${b.width}%;height:${b.height}%`;
 ---
@@ -232,10 +238,8 @@ const at = (b: Box) =>
                   <div class="room-art" style={at(room.art)}>
                     <img
                       src={roomArt.src}
-                      width={800}
-                      height={Math.round(
-                        (800 * data.image.height) / data.image.width,
-                      )}
+                      width={roomArtWidth}
+                      height={roomArtHeight}
                       alt={s.painting.roomAlt(data.title)}
                       loading="lazy"
                       decoding="async"
@@ -1492,7 +1496,7 @@ const at = (b: Box) =>
   .frame.in-room {
     cursor: default;
   }
-  .frame img {
+  .frame > :global(picture) > img {
     width: 100%;
     height: auto;
     display: block;
@@ -1503,16 +1507,28 @@ const at = (b: Box) =>
     display: contents;
   }
   /* Sideways on a phone, the whole painting fits the screen height, and
-     its mat hugs it. */
+     its mat hugs it. Reserve the exact box before the image arrives so the
+     frame never starts collapsed to 0x0. */
   @media (orientation: landscape) and (max-height: 32rem) {
+    .media-col > div {
+      container-type: inline-size;
+    }
     .frame {
       width: fit-content;
       max-width: 100%;
       margin-inline: auto;
     }
-    .frame img {
-      width: auto;
+    .frame > :global(picture) > img {
+      width: min(
+        calc(100cqi - 2 * var(--mat) - 2px),
+        calc((100vh - 6rem) * var(--ar))
+      );
+      width: min(
+        calc(100cqi - 2 * var(--mat) - 2px),
+        calc((100svh - 6rem) * var(--ar))
+      );
       max-width: 100%;
+      max-height: calc(100vh - 6rem);
       max-height: calc(100svh - 6rem);
       aspect-ratio: var(--ar);
     }

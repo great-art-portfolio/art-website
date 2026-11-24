@@ -980,6 +980,11 @@ const offers = Object.fromEntries(
     pointer-events: none;
     background: var(--wash);
   }
+  @media print {
+    body::before {
+      display: none;
+    }
+  }
   /* Type rule: Fraunces for the hero headline, section headings, and
      painting names; sans for everything read or bought (body, prices,
      labels). Global so page and component headings pick it up. */
@@ -1017,17 +1022,17 @@ const offers = Object.fromEntries(
     top: 0;
     z-index: 20;
     background: color-mix(in srgb, var(--paper) 82%, transparent);
-    backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--line);
   }
   /* Public pages: the bar fills in with the scroll (--bar 0 to 1, set by
      the script), so it tracks the page instead of playing on a timer.
      Without the script --bar stays 1: the plain always-on bar. Keep the
      blur constant on ::before and fade its opacity instead of recalculating
-     backdrop-filter radius on every mobile scroll frame. */
+     backdrop-filter radius on every mobile scroll frame. Put -webkit-
+     before backdrop-filter so LightningCSS preserves the unprefixed rule. */
   .site-header[data-scroll-bar] {
-    isolation: isolate;
     background-color: color-mix(
       in srgb,
       var(--paper) calc(82% * var(--bar, 1)),
@@ -1038,8 +1043,8 @@ const offers = Object.fromEntries(
       var(--line) calc(100% * var(--bar, 1)),
       transparent
     );
-    backdrop-filter: none;
     -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
   .site-header[data-scroll-bar]::before {
     content: "";
@@ -1048,8 +1053,8 @@ const offers = Object.fromEntries(
     z-index: -1;
     pointer-events: none;
     opacity: var(--bar, 1);
-    backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
   }
   .site-header[data-scroll-bar]:not([data-scrolled]) {
     background-color: transparent;

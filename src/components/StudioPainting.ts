@@ -438,6 +438,9 @@ function showPhoto(
     frameImg.removeAttribute("srcset");
     frameImg.removeAttribute("sizes");
     frameImg.src = url;
+    frameImg.width = width;
+    frameImg.height = height;
+    frameImg.style.setProperty("--ar", (width / height).toFixed(4));
   }
   const mb = bytes / 1048576;
   const size =
