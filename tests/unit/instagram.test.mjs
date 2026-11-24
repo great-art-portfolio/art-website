@@ -2,9 +2,9 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   INSTAGRAM_PATH,
-  instagramProfileUrl,
   normalizeInstagramHandle,
   parseInstagram,
+  readInstagram,
 } from "../../src/lib/instagram.ts";
 
 describe("parseInstagram", () => {
@@ -12,14 +12,23 @@ describe("parseInstagram", () => {
     assert.equal(INSTAGRAM_PATH, "src/content/instagram.txt");
   });
 
-  it("treats blank or @-only input as unset", () => {
-    for (const empty of ["", "   ", "\n", "@", "@@@", "  @  "]) {
+  it("treats blank, invisible-mark, or @-only input as unset", () => {
+    for (const empty of [
+      "",
+      "   ",
+      "\n",
+      "@",
+      "@@@",
+      "  @  ",
+      "\u200B",
+      "\u200E\uFEFF",
+    ]) {
       const res = parseInstagram(empty);
       assert.deepEqual(res, { ok: true, value: null }, JSON.stringify(empty));
     }
   });
 
-  it("normalizes typed handles while preserving letter case", () => {
+  it("normalizes typed handles while preserving letter case and stripping invisible marks", () => {
     assert.deepEqual(parseInstagram("barbarastraka"), {
       ok: true,
       value: {
@@ -34,6 +43,22 @@ describe("parseInstagram", () => {
         username: "Barbara.Straka_1",
         handle: "@Barbara.Straka_1",
         url: "https://www.instagram.com/Barbara.Straka_1/",
+      },
+    });
+    assert.deepEqual(parseInstagram("@barbarastraka\u200E"), {
+      ok: true,
+      value: {
+        username: "barbarastraka",
+        handle: "@barbarastraka",
+        url: "https://www.instagram.com/barbarastraka/",
+      },
+    });
+    assert.deepEqual(parseInstagram("\u200Bbarbarastraka"), {
+      ok: true,
+      value: {
+        username: "barbarastraka",
+        handle: "@barbarastraka",
+        url: "https://www.instagram.com/barbarastraka/",
       },
     });
     assert.deepEqual(parseInstagram("a"), {
@@ -88,7 +113,7 @@ describe("parseInstagram", () => {
     }
   });
 
-  it("rejects non-profile Instagram links, other domains, emails, and illegal usernames", () => {
+  it("rejects non-profile Instagram links, highlights, other domains, emails, and illegal usernames", () => {
     const bad = [
       "https://www.instagram.com/",
       "instagram.com",
@@ -99,6 +124,8 @@ describe("parseInstagram", () => {
       "https://www.instagram.com/explore/tags/painting/",
       "https://www.instagram.com/accounts/login/",
       "https://www.instagram.com/stories/",
+      "https://www.instagram.com/stories/highlights/17890/",
+      "https://www.instagram.com/highlights/",
       "https://facebook.com/barbarastraka",
       "www.tiktok.com/@barbarastraka",
       "example.com/barbarastraka",
@@ -120,22 +147,23 @@ describe("parseInstagram", () => {
   });
 });
 
-describe("normalizeInstagramHandle & instagramProfileUrl", () => {
+describe("normalizeInstagramHandle & readInstagram", () => {
   it("returns empty or null for blank and invalid values", () => {
     assert.equal(normalizeInstagramHandle(""), "");
     assert.equal(normalizeInstagramHandle("https://instagram.com/p/123/"), "");
-    assert.equal(instagramProfileUrl(""), null);
-    assert.equal(instagramProfileUrl("barbara@gmail.com"), null);
+    assert.equal(readInstagram(""), null);
+    assert.equal(readInstagram("barbara@gmail.com"), null);
   });
 
-  it("returns formatted handle and URL for valid input", () => {
+  it("returns formatted handle and parsed profile for valid input", () => {
     assert.equal(
       normalizeInstagramHandle("https://instagram.com/barbara_yyc/?hl=en"),
       "@barbara_yyc",
     );
-    assert.equal(
-      instagramProfileUrl("@barbara_yyc"),
-      "https://www.instagram.com/barbara_yyc/",
-    );
+    assert.deepEqual(readInstagram("@barbara_yyc"), {
+      username: "barbara_yyc",
+      handle: "@barbara_yyc",
+      url: "https://www.instagram.com/barbara_yyc/",
+    });
   });
 });

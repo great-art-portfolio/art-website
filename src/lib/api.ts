@@ -166,6 +166,8 @@ export const api = {
       return "";
     }
   },
+  /** Reads a gallery text file (painting .md, translation, languages.json, or
+   * instagram.txt), or null when unavailable. */
   async getPaintingFile(path: string): Promise<string | null> {
     try {
       const data = await request(
@@ -200,8 +202,9 @@ export const api = {
     return data.files;
   },
   /**
-   * Commits files to the repo: painting .md and photo, banner text, or AR
-   * models. Pages rebuilds on push, so changes go live a few minutes later.
+   * Commits files to the repo: painting .md and photo, banner text, Instagram
+   * handle, languages, translations, or AR models. Pages rebuilds on push, so
+   * changes go live a few minutes later.
    */
   async commitFiles(
     message: string,

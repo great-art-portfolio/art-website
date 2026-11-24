@@ -37,8 +37,9 @@ so the site keeps no personal information of its own: the email list is a
 Resend segment, and D1 only backs the local mock list in dev (its old push
 tables are unused). Views moved to Cloudflare Web
 Analytics (free, hosted, per-page); statuses moved to markdown
-(`sold: true`); the homepage banner is `src/content/announcement.txt`
-in git, editable from `/admin` (commits like a painting). One banner at a
+(`sold: true`); the homepage banner is `src/content/announcement.txt` and her
+optional Instagram handle is `src/content/instagram.txt`, both in git and
+editable from `/admin` (committing like a painting). One banner at a
 time, usually with an end date (1/3/7/14 days, default 7) — an optional
 `expires:` first line, hidden automatically past that date (at build, plus
 a tiny client-side check for expiry between deploys), so a forgotten
@@ -110,6 +111,11 @@ far from anything; her caption words never leave the studio either way.
 Automatic posting needs a business / creator IG account + approved
 Facebook app, so it stays behind `ENABLE_SOCIAL_POST` (Ayrshare) until
 she wants it.
+
+Her optional Instagram profile (`src/content/instagram.txt`, edited on
+`/admin/qr-codes`) appears on the printable/PDF 5×7" artist plaque, gets
+its own painted Instagram QR card, and links in the public site footer and
+painting JSON-LD `sameAs`, without adding embeds or trackers.
 
 ## Toolchain (Sep 2026)
 

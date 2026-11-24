@@ -19,6 +19,7 @@ import { parseTranslationFile, translationPath } from "../i18n/painting-text";
 import {
   INSTAGRAM_PATH,
   parseInstagram,
+  readInstagram,
   type ParsedInstagram,
 } from "../lib/instagram";
 import { keyWarning } from "../lib/key-expiry";
@@ -1668,7 +1669,6 @@ function init(): void {
     }
 
     const STUDIO_IG_KEY = "studio-instagram-v1";
-    const LEGACY_IG_KEY = "barbart:plaque-ig";
     const secPlaque = document.getElementById("sec-plaque");
     const igAdd = document.getElementById("plaque-ig-add");
     const igSaved = document.getElementById("plaque-ig-saved");
@@ -1691,8 +1691,7 @@ function init(): void {
 
     if (secPlaque !== null && secPlaque.dataset.wired !== "1") {
       secPlaque.dataset.wired = "1";
-      const parsedBaked = parseInstagram(secPlaque.dataset.instagram ?? "");
-      const bakedIg = parsedBaked.ok ? parsedBaked.value : null;
+      const bakedIg = readInstagram(secPlaque.dataset.instagram ?? "");
 
       let savedIg: ParsedInstagram | null = bakedIg;
       let previewIg: ParsedInstagram | null = bakedIg;
@@ -1711,29 +1710,19 @@ function init(): void {
         let raw: string | null;
         try {
           raw = window.localStorage.getItem(STUDIO_IG_KEY);
-          if (raw === null) {
-            const legacy = window.localStorage.getItem(LEGACY_IG_KEY);
-            if (legacy !== null) {
-              raw = legacy;
-              window.localStorage.removeItem(LEGACY_IG_KEY);
-              if (legacy !== "") {
-                window.localStorage.setItem(STUDIO_IG_KEY, legacy);
-              }
-            }
-          }
         } catch {
           return { hasOverride: false, value: null };
         }
         if (raw === null) return { hasOverride: false, value: null };
-        const parsed = parseInstagram(raw);
-        return parsed.ok
-          ? { hasOverride: true, value: parsed.value }
-          : { hasOverride: false, value: null };
+        if (raw === "") return { hasOverride: true, value: null };
+        const parsed = readInstagram(raw);
+        return parsed === null
+          ? { hasOverride: false, value: null }
+          : { hasOverride: true, value: parsed };
       };
 
       const writeLocalIg = (next: ParsedInstagram | null): void => {
         try {
-          window.localStorage.removeItem(LEGACY_IG_KEY);
           if (next === null && bakedIg === null) {
             window.localStorage.removeItem(STUDIO_IG_KEY);
           } else {
@@ -1747,7 +1736,6 @@ function init(): void {
       const clearLocalIg = (): void => {
         try {
           window.localStorage.removeItem(STUDIO_IG_KEY);
-          window.localStorage.removeItem(LEGACY_IG_KEY);
         } catch {
           // Ignore storage unavailability.
         }
@@ -1776,6 +1764,9 @@ function init(): void {
       const syncQrCard = (next: ParsedInstagram | null): void => {
         if (igCard === null) return;
         if (next === null) {
+          qrGen++;
+          renderedQrUrl = "";
+          if (igQr !== null) igQr.innerHTML = "";
           igCard.hidden = true;
           return;
         }
@@ -1789,11 +1780,15 @@ function init(): void {
           return;
         }
         const gen = ++qrGen;
-        void import("../lib/qr").then(({ paintedQrSvg }) => {
-          if (gen !== qrGen || !igQr.isConnected) return;
-          igQr.innerHTML = paintedQrSvg(next.url);
-          renderedQrUrl = next.url;
-        });
+        void import("../lib/qr")
+          .then(({ paintedQrSvg }) => {
+            if (gen !== qrGen || !igQr.isConnected) return;
+            igQr.innerHTML = paintedQrSvg(next.url);
+            renderedQrUrl = next.url;
+          })
+          .catch((err: unknown) => {
+            reportError("studio.ig_qr_failed", err);
+          });
       };
 
       const applyUi = (
@@ -1834,7 +1829,9 @@ function init(): void {
       void (async () => {
         if (await useOverlayMode()) return;
         const raw = await api.getPaintingFile(INSTAGRAM_PATH);
-        if (raw === null || dirty || editing) return;
+        if (raw === null) return;
+        clearLocalIg();
+        if (!secPlaque.isConnected || dirty || editing) return;
         const parsed = parseInstagram(raw);
         if (!parsed.ok) return;
         if ((parsed.value?.handle ?? "") !== (savedIg?.handle ?? "")) {
@@ -1875,6 +1872,22 @@ function init(): void {
         if (igCancel instanceof HTMLButtonElement) igCancel.disabled = busy;
       };
 
+      const applyLocalSave = (next: ParsedInstagram | null): boolean => {
+        writeLocalIg(next);
+        savedIg = next;
+        previewIg = next;
+        editing = false;
+        if (!secPlaque.isConnected) return false;
+        clearError();
+        applyUi(savedIg, previewIg, false);
+        setStatus(
+          next === null
+            ? "Instagram removed in this tab — open on the live site to publish."
+            : `Showing ${next.handle} on your plaque in this tab — publish on the live site.`,
+        );
+        return true;
+      };
+
       const persistInstagram = async (
         next: ParsedInstagram | null,
       ): Promise<boolean> => {
@@ -1882,18 +1895,7 @@ function init(): void {
         setBusy(true);
         try {
           if (await useOverlayMode()) {
-            writeLocalIg(next);
-            savedIg = next;
-            previewIg = next;
-            editing = false;
-            clearError();
-            applyUi(savedIg, previewIg, false);
-            setStatus(
-              next === null
-                ? "Instagram removed in this tab — open on the live site to publish."
-                : `Showing ${next.handle} on your plaque in this tab — publish on the live site.`,
-            );
-            return true;
+            return applyLocalSave(next);
           }
           setStatus(
             next === null
@@ -1915,6 +1917,7 @@ function init(): void {
           savedIg = next;
           previewIg = next;
           editing = false;
+          if (!secPlaque.isConnected) return false;
           clearError();
           applyUi(savedIg, previewIg, false);
           setStatus(
@@ -1925,20 +1928,11 @@ function init(): void {
           return true;
         } catch (err: unknown) {
           if (isLocalPreview() && getApiToken() === "") {
-            writeLocalIg(next);
-            savedIg = next;
-            previewIg = next;
-            editing = false;
-            clearError();
-            applyUi(savedIg, previewIg, false);
-            setStatus(
-              next === null
-                ? "Instagram removed in this tab — open on the live site to publish."
-                : `Showing ${next.handle} on your plaque in this tab — publish on the live site.`,
-            );
-            return true;
+            return applyLocalSave(next);
           }
-          setStatus(errorMessage(err), true);
+          if (secPlaque.isConnected) {
+            setStatus(errorMessage(err), true);
+          }
           reportError("studio.instagram_failed", err);
           return false;
         } finally {
@@ -1953,11 +1947,14 @@ function init(): void {
       if (igInput instanceof HTMLInputElement) {
         igInput.addEventListener("input", () => {
           clearError();
+          const trimmed = igInput.value.trim();
           const res = parseInstagram(igInput.value);
-          if (res.ok && res.value !== null) {
+          if (res.ok && !/^(?:https?|www\.?)$/i.test(trimmed)) {
             previewIg = res.value;
-            applyUi(savedIg, previewIg, editing);
+          } else {
+            previewIg = savedIg;
           }
+          applyUi(savedIg, previewIg, editing);
         });
       }
 
@@ -2040,6 +2037,13 @@ function init(): void {
               a.download = "barbara-straka-plaque-5x7.pdf";
               a.click();
               window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+            })
+            .catch((err: unknown) => {
+              setStatus(
+                "Couldn't prepare the PDF — try again, or use Print plaque.",
+                true,
+              );
+              reportError("studio.plaque_pdf_failed", err);
             })
             .finally(() => {
               pdfBtn.disabled = false;

@@ -2253,9 +2253,18 @@ test("qr codes page prints the artist plaque and downloads a 5x7 PDF with option
     )
     .toBe(true);
 
-  // Rejects non-profile URLs and emails with a clear inline error.
+  // Rejects partial prefixes without flashing a bogus @https preview, and
+  // clearing an unsaved draft clears the preview.
   await igAdd.click();
   await expect(igForm).toBeVisible();
+  await igInput.fill("https://");
+  await expect(igPreview).toBeHidden();
+  await igInput.fill("draftname");
+  await expect(igPreview).toHaveText("Instagram: @draftname");
+  await igInput.fill("");
+  await expect(igPreview).toBeHidden();
+
+  // Rejects non-profile URLs and emails with a clear inline error.
   await igInput.fill("https://www.instagram.com/p/C8x123/");
   await page.locator("#plaque-ig-save").click();
   await expect(igError).toBeVisible();

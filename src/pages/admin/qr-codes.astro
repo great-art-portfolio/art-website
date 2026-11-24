@@ -6,12 +6,20 @@ import Signature from "../../components/Signature.astro";
 import "../../components/studio.css";
 import plaqueQr from "../../assets/artist-plaque-qr.jpg";
 import instagramRaw from "../../content/instagram.txt?raw";
-import { parseInstagram } from "../../lib/instagram";
-import { compareGalleryOrder, isPublished, slugifyTitle } from "../../lib/site";
+import { readInstagram } from "../../lib/instagram";
+import {
+  ARTIST_NAME,
+  compareGalleryOrder,
+  isPublished,
+  slugifyTitle,
+} from "../../lib/site";
 import { paintedQrSvg, paintingPageUrl } from "../../lib/qr";
 
-const parsedIg = parseInstagram(instagramRaw);
-const bakedInstagram = parsedIg.ok ? parsedIg.value : null;
+const bakedInstagram = readInstagram(instagramRaw);
+const igOwner =
+  ARTIST_NAME === null
+    ? "the studio's"
+    : `${ARTIST_NAME.split(" ")[0] ?? ARTIST_NAME}'s`;
 
 // Printable codes for every painting with a buyer page, which excludes
 // drafts and trash. Available first, then sold, in gallery order.
@@ -222,7 +230,7 @@ const codes = cards.map((p) => {
             </a>
           </p>
           <p class="qr-scan">
-            Scan with your phone camera to open Barbara's Instagram.
+            Scan with your phone camera to open {igOwner} Instagram.
           </p>
           <button type="button" id="plaque-ig-print" class="qr-print-one">
             Print Instagram code
@@ -268,9 +276,7 @@ const codes = cards.map((p) => {
   /* Table/wall artist plaque: proportional 5x7 sheet scaled with cqi so
      screen preview and printed output share one exact layout. */
   #sec-plaque {
-    margin-bottom: 3rem;
-    padding-bottom: 2.5rem;
-    border-bottom: 1px solid var(--line);
+    margin-bottom: 3.5rem;
   }
   #sec-plaque > h2,
   #sec-plaque > p,
@@ -337,6 +343,12 @@ const codes = cards.map((p) => {
     border-color: var(--line);
     background: var(--paper);
     transform: none;
+  }
+  @media (pointer: coarse) {
+    .ig-quiet-btn {
+      min-height: 2.75rem;
+      padding-inline: 0.75rem;
+    }
   }
   .plaque-ig-form {
     max-width: 34rem;
@@ -471,6 +483,10 @@ const codes = cards.map((p) => {
     box-shadow:
       0 0.15cqi 0.4cqi rgb(35 32 27 / 0.09),
       0 1.7cqi 3.3cqi -1.45cqi rgb(35 32 27 / 0.34);
+  }
+  .plaque-card:has(.plaque-ig:not([hidden])) .plaque-qr {
+    width: 46.5cqi;
+    margin-bottom: 2cqi;
   }
   .plaque-qr img {
     width: 100%;
@@ -697,6 +713,7 @@ const codes = cards.map((p) => {
     #sec-qr .qr-card,
     .ig-qr-card {
       break-inside: avoid;
+      border-color: #e5dccb;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }

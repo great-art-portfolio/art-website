@@ -1,36 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import {
-  buildJpegPdf,
-  normalizeInstagramHandle,
-} from "../../src/lib/plaque-pdf.ts";
-
-describe("normalizeInstagramHandle", () => {
-  it("returns empty for blank input", () => {
-    assert.equal(normalizeInstagramHandle(""), "");
-    assert.equal(normalizeInstagramHandle("   @@@  "), "");
-  });
-
-  it("adds one leading @ and keeps valid handle characters", () => {
-    assert.equal(normalizeInstagramHandle("barbarastraka"), "@barbarastraka");
-    assert.equal(normalizeInstagramHandle("@barbarastraka"), "@barbarastraka");
-    assert.equal(
-      normalizeInstagramHandle("@@barbara.straka"),
-      "@barbara.straka",
-    );
-  });
-
-  it("extracts the handle from a pasted instagram.com URL", () => {
-    assert.equal(
-      normalizeInstagramHandle("https://www.instagram.com/barbara_art/?hl=en"),
-      "@barbara_art",
-    );
-    assert.equal(
-      normalizeInstagramHandle("instagram.com/straka.paintings/"),
-      "@straka.paintings",
-    );
-  });
-});
+import { buildJpegPdf } from "../../src/lib/plaque-pdf.ts";
 
 describe("buildJpegPdf", () => {
   it("wraps JPEG bytes in a valid single-page 5x7 in PDF with exact xref offsets", () => {

@@ -28,6 +28,7 @@ const RESERVED_PATHS = new Set([
   "accounts",
   "direct",
   "stories",
+  "highlights",
   "about",
   "legal",
   "developer",
@@ -41,12 +42,13 @@ const RESERVED_PATHS = new Set([
   "session",
 ]);
 
+const INVISIBLE_MARKS = /[\u200B-\u200F\u202A-\u202E\u2060\uFEFF]/g;
 const VALID_USERNAME = /^[A-Za-z0-9](?:[A-Za-z0-9._]{0,28}[A-Za-z0-9])?$/;
 
 /** Parses a typed handle or pasted instagram.com link. Returns null for
  * blank input, or an error string when the input cannot be a real profile. */
 export function parseInstagram(raw: string): InstagramParseResult {
-  const trimmed = raw.trim();
+  const trimmed = raw.replace(INVISIBLE_MARKS, "").trim();
   if (trimmed === "" || /^@+$/.test(trimmed)) {
     return { ok: true, value: null };
   }
@@ -69,8 +71,13 @@ export function parseInstagram(raw: string): InstagramParseResult {
       };
     }
     const lower = first.toLowerCase();
-    if (lower === "stories" && (segments[1] ?? "") !== "") {
-      candidate = (segments[1] ?? "").replace(/^@+/, "");
+    const second = (segments[1] ?? "").replace(/^@+/, "");
+    if (
+      lower === "stories" &&
+      second !== "" &&
+      !RESERVED_PATHS.has(second.toLowerCase())
+    ) {
+      candidate = second;
     } else if (RESERVED_PATHS.has(lower)) {
       return {
         ok: false,
@@ -149,8 +156,8 @@ export function normalizeInstagramHandle(raw: string): string {
   return res.ok && res.value !== null ? res.value.handle : "";
 }
 
-/** Canonical Instagram profile URL, or null when blank/invalid. */
-export function instagramProfileUrl(raw: string): string | null {
+/** Parsed Instagram profile when valid and present, otherwise null. */
+export function readInstagram(raw: string): ParsedInstagram | null {
   const res = parseInstagram(raw);
-  return res.ok && res.value !== null ? res.value.url : null;
+  return res.ok ? res.value : null;
 }

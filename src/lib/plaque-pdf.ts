@@ -4,8 +4,6 @@
  */
 import { normalizeInstagramHandle } from "./instagram";
 
-export { normalizeInstagramHandle };
-
 const PAPER = "#faf7f1";
 const WASH_TOP = "#f1e7d4";
 const CARD = "#fffdf8";

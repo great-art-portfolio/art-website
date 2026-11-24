@@ -22,7 +22,8 @@ const MAX_FILES = 100;
 const MAX_BINARIES = 12;
 const BASE64 = /^[A-Za-z0-9+/]*={0,2}$/;
 
-/** Admin: reads the banner text, or one painting file with ?path=. */
+/** Admin: reads the banner text, or one readable gallery file with ?path=
+ * (painting .md, translation .json, languages.json, or instagram.txt). */
 export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
   const denied = await requireAdmin(context.request, context.env);
   if (denied !== null) return denied;
@@ -46,9 +47,9 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
 };
 
 /**
- * Admin: commits a batch of files (painting .md and photo, banner text, AR
- * models) and deletes gallery files. Body:
- * { message, files: [{ path, contentBase64 }], delete: [path] }.
+ * Admin: commits a batch of files (painting .md and photo, banner text,
+ * Instagram handle, languages, translations, AR models) and deletes gallery
+ * files. Body: { message, files: [{ path, contentBase64 }], delete: [path] }.
  * Cloudflare Pages rebuilds on push, so changes are live about a minute
  * later.
  */
