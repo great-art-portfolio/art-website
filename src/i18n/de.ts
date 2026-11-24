@@ -152,16 +152,12 @@ export const de: Strings = {
     collectedTitle: "Was erfasst wird",
     collected: [
       [
-        "Seitenaufrufe:",
-        "anonyme Zähler pro Gemälde (keine Cookies, kein Fingerprinting).",
-      ],
-      [
         "Gesamtstatistik:",
         "Cloudflare Web Analytics, das keine Cookies setzt und keine einzelnen Personen verfolgt.",
       ],
       [
         "Anfragen:",
-        "Name, E-Mail-Adresse und Nachricht, die Sie in das Formular eines Gemäldes eingeben — direkt per E-Mail an die Künstlerin, damit sie antworten kann. Von Ihrer Anfrage wird nichts auf der Website gespeichert.",
+        "Name, E-Mail-Adresse und Nachricht, die Sie in das Formular eines Gemäldes eingeben — direkt per E-Mail an die Künstlerin, damit sie antworten kann, und kurzzeitig als Zustellsicherung in der Datenbank der Website gespeichert (nach 24 Stunden nach Zustellung gelöscht, oder nach höchstens 30 Tagen bei einem Zustellfehler, damit keine Nachricht verloren geht).",
       ],
       [
         "Käufe:",

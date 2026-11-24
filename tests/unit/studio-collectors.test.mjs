@@ -11,6 +11,7 @@ import {
 } from "../../scripts/studio-collectors.mjs";
 import {
   mockConfirm,
+  mockContacts,
   mockCount,
   mockSubscribe,
   mockUnsubscribe,
@@ -90,6 +91,17 @@ describe("collectorsDb", () => {
       DB: db2,
     };
     assert.equal(await mockConfirm(env2, "fan@example.com", sub.token), true);
+    assert.equal(await mockCount(env2), 1);
+    const listed = await mockContacts(env2);
+    assert.equal(listed.length, 1);
+    assert.equal(listed[0].email, "fan@example.com");
+    // Unrelated D1 queries (such as log inserts) do not touch email_collectors.
+    await db2
+      .prepare(
+        "INSERT INTO logs (level, source, event, message) VALUES (?, ?, ?, ?)",
+      )
+      .bind("info", "server", "test", "ok")
+      .run();
     assert.equal(await mockCount(env2), 1);
     await mockUnsubscribe(env2, "fan@example.com");
     assert.equal(await mockCount(env2), 0);

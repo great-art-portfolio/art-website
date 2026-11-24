@@ -14,7 +14,7 @@
 
 ## Sell more
 
-- [ ] Card checkout via Stripe: **built and passing in test mode (2026-10-07)**, off in production until live keys go in. Decided 2026-10-07 (cz decision `aea8f654`): card checkout incl. Apple/Google Pay, charged at purchase, e-transfer kept as the no-fee option. Owner added Stripe Tax (decision `dcf48aa0`).
+- [ ] Card checkout via Stripe: **built and passing in test mode (2026-10-07)**, off in production until live keys go in. Decided 2026-10-07 (cz decision `aea8f654`): card checkout incl. Apple/Google Pay, charged at purchase, e-transfer kept as the no-fee option. `STRIPE_TAX` stays off below the small-supplier threshold (owner, 2026-10-21; see DECISIONS).
   - How it works: the painting page's "Buy now · $140 CAD" POSTs `{ slug, title, priceCents }` to `/api/checkout`, which checks them against the built `/catalog.json` (and the live .md in git, for the minutes before a rebuild) and opens Stripe's hosted Checkout (CAD, ships to CA/US, phone collected, 30-minute link). `/api/stripe-webhook` verifies the signature, commits `sold: true` ("Sold online: <title>"), and emails her the buyer and shipping address. Success lands on `/thanks`. The buy box only shows when `/api/status` says `stripe: true`; e-transfer stays as a line under it.
   - Tested 2026-10-07 in the "Straka sandbox" test account: 4242 card paid $147.00 for "Night Reeds" ($140 + $7 GST), shipping address and painting metadata on the session. The webhook (sold commit + email) is covered by unit tests with stubbed GitHub/Resend; its live run with `stripe listen` still needs the CLI's webhook secret in `.dev.vars`.
   - Sandbox tax setup (test mode only): head office Calgary AB, one Canada GST registration so tax shows. Line items use `txcd_99999999` (general tangible goods), tax added on top (`exclusive`).
@@ -64,12 +64,12 @@ Tested 2026-10-25 with `pnpm seed:gallery 120`: the build stays fast (about 11 s
 ## Growth
 
 - [ ] One-click auto-posting (`ENABLE_SOCIAL_POST` + Ayrshare) if manual sharing gets tedious
-- [ ] Email list for collectors (free tier: Buttondown / Resend broadcast) + "new painting" alerts
-- [ ] Alerts for scheduled paintings: the nightly `Publish scheduled paintings` workflow (and the studio's own on-load check) publish due drafts silently — the room's "On publish, also tell" boxes only fire on a manual publish. Remember those choices in the frontmatter at scheduling time and send them when the painting goes live. The workflow has no admin token, so it would need its own way to call `/api/notify` (e.g. a repo secret).
-- [ ] Sitemap + richer JSON-LD for Google image search
+- [x] Email list for collectors (Resend segment) + "new painting" alerts
+- [x] Alerts for scheduled paintings: the hourly `Publish scheduled paintings` workflow sends `/api/notify` (authenticated with `ALERTS_TOKEN`) when a scheduled draft goes live.
+- [x] Sitemap + richer JSON-LD for Google image search (and studio Instagram `sameAs`)
 
 ## Tech hygiene
 
 - [ ] Revisit TypeScript 7 once `astro check` supports it
-- [ ] Rotate `ADMIN_API_TOKEN` + `GITHUB_TOKEN` yearly (least-privilege: Contents read+write on this repo only)
+- [ ] Rotate `ADMIN_API_TOKEN` yearly (GitHub App installation tokens auto-expire hourly, so `GITHUB_TOKEN` PAT is fallback-only)
 - [ ] Delete the `art-gallery-images` R2 bucket in the dashboard (unbound, unused)

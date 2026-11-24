@@ -152,16 +152,12 @@ export const en = {
     collectedTitle: "What is collected",
     collected: [
       [
-        "Page views:",
-        "anonymous counters per painting (no cookies, no fingerprinting).",
-      ],
-      [
         "Aggregate analytics:",
         "Cloudflare Web Analytics, which sets no cookies and tracks no individuals.",
       ],
       [
         "Inquiries:",
-        "the name, email, and message you type into a painting's form — emailed straight to the artist so she can reply. Nothing about your inquiry is stored on the site.",
+        "the name, email, and message you type into a painting's form — emailed straight to the artist so she can reply, and kept briefly in the site's database as a delivery backup (deleted after 24 hours once delivered, or up to 30 days if delivery fails so no message is lost).",
       ],
       [
         "Purchases:",

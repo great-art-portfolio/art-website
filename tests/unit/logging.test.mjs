@@ -230,8 +230,9 @@ describe("POST /api/log", () => {
     assert.equal(logs(db)[0].event, "client.sale.mark_failedDROP");
   });
 
-  it("refuses other sites and oversized bodies", async () => {
+  it("refuses other sites, headerless requests, and oversized bodies", async () => {
     const db = fakeDb();
+    assert.equal((await post(db, { event: "e" }, {})).status, 403);
     assert.equal(
       (await post(db, { event: "e" }, { "sec-fetch-site": "cross-site" }))
         .status,

@@ -155,16 +155,12 @@ export const pl: Strings = {
     collectedTitle: "Co zbieramy",
     collected: [
       [
-        "Wyświetlenia stron:",
-        "anonimowe liczniki dla każdego obrazu (bez ciasteczek, bez fingerprintingu).",
-      ],
-      [
         "Zbiorcze statystyki:",
         "Cloudflare Web Analytics, które nie zapisuje ciasteczek i nie śledzi pojedynczych osób.",
       ],
       [
         "Zapytania:",
-        "imię, adres e-mail i wiadomość wpisane w formularzu przy obrazie — wysyłane e-mailem prosto do artystki, żeby mogła odpowiedzieć. Nic z Twojego zapytania nie jest przechowywane na stronie.",
+        "imię, adres e-mail i wiadomość wpisane w formularzu przy obrazie — wysyłane e-mailem prosto do artystki, żeby mogła odpowiedzieć, oraz krótko przechowywane w bazie danych strony jako kopia zapasowa doręczenia (usuwane po 24 godzinach od dostarczenia lub po maksymalnie 30 dniach w razie błędu wysyłki, aby żadna wiadomość nie przepadła).",
       ],
       [
         "Zakupy:",

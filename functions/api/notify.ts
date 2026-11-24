@@ -86,7 +86,11 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   if (denied !== null) return denied;
   let body: Record<string, unknown>;
   try {
-    body = (await context.request.json()) as Record<string, unknown>;
+    const raw: unknown = await context.request.json();
+    body =
+      typeof raw === "object" && raw !== null && !Array.isArray(raw)
+        ? (raw as Record<string, unknown>)
+        : {};
   } catch {
     body = {};
   }

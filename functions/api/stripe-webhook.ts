@@ -189,8 +189,6 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       return serverError("Could not mark the painting sold");
     }
   }
-  await closeOthers();
-  closeAgainLater();
 
   const mail = saleEmail(event, { alreadySold, marked });
   const emailed = await sendSiteEmail(env, {
@@ -218,5 +216,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     });
     return serverError("Sale email not sent");
   }
+  await closeOthers();
+  closeAgainLater();
   return json(duplicate ? { ok: true, duplicate } : { ok: true, alreadySold });
 };

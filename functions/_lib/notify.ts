@@ -39,7 +39,9 @@ export function artistInbox(env: AppEnv): string {
  * identity, which can only deliver to the Resend account email.
  */
 export function artistSender(env: AppEnv): string {
-  return env.ARTIST_SENDER ?? "Gallery <onboarding@resend.dev>";
+  return env.ARTIST_SENDER !== undefined && env.ARTIST_SENDER.trim() !== ""
+    ? env.ARTIST_SENDER
+    : "Gallery <onboarding@resend.dev>";
 }
 
 /**
@@ -175,7 +177,10 @@ export async function sendSiteEmail(
     body: JSON.stringify({
       from: artistSender(env),
       to: mail.to,
-      reply_to: mail.replyTo ?? undefined,
+      reply_to:
+        mail.replyTo !== undefined && mail.replyTo.trim() !== ""
+          ? mail.replyTo
+          : undefined,
       headers: mail.headers ?? undefined,
       subject: mail.subject,
       text: mail.text,
@@ -301,8 +306,9 @@ export async function isConfirmedContact(
   env: AppEnv,
   email: string,
 ): Promise<boolean> {
+  const needle = email.trim().toLowerCase();
   return (await listSegmentContacts(env)).some(
-    (c) => c.email === email && !c.unsubscribed,
+    (c) => c.email.trim().toLowerCase() === needle && !c.unsubscribed,
   );
 }
 
@@ -618,7 +624,7 @@ export async function syncContactSubscribed(
         message: `Resend answered ${added.status} to a contact add`,
         detail: { answer: (await added.text().catch(() => "")).slice(0, 500) },
       });
-    return patched.ok || added.ok;
+    return patched.ok && added.ok;
   } catch (err) {
     await logEvent(env, {
       event: "list.contact_sync_threw",
@@ -682,8 +688,16 @@ export async function sendCollectorBroadcast(
     });
     return { sent: 0, total: 0, failed: true };
   }
+  if (total === 0) return { sent: 0, total: 0, failed: false };
   const inbox = artistInbox(env);
-  if (inbox === "" || total === 0) return { sent: 0, total, failed: false };
+  if (inbox === "") {
+    await logEvent(env, {
+      event: "broadcast.missing_inbox",
+      message: "Skipped collector broadcast because ARTIST_INBOX is not set",
+      detail: { total },
+    });
+    return { sent: 0, total, failed: true };
+  }
   const ok = await sendSegmentBroadcast(env, site, subject, body, opts).catch(
     () => false,
   );

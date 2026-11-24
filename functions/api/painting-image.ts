@@ -24,7 +24,7 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
   );
   if (!catalogRes.ok) return missing();
   const item = parseCatalog(await catalogRes.json()).find(
-    (p) => p.slug === slug,
+    (p) => p.slug === slug || p.aliases.includes(slug),
   );
   if (item === undefined || !item.image.startsWith("/")) return missing();
   const photo = await env.ASSETS.fetch(

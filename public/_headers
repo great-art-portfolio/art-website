@@ -27,7 +27,7 @@
 /email/*
   Referrer-Policy: no-referrer
 
-/*/email/*
+/:locale/email/*
   Referrer-Policy: no-referrer
 
 # Build output under /_astro has a content hash in every name, so a file

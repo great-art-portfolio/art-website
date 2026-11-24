@@ -13,6 +13,7 @@ import {
   segmentId,
   sendCollectorBroadcast,
   sendSegmentBroadcast,
+  sendSiteEmail,
   syncContactRemoved,
   syncContactSubscribed,
 } from "../../functions/_lib/notify.ts";
@@ -62,8 +63,12 @@ describe("artistSender", () => {
     );
   });
 
-  it("defaults to the onboarding identity", () => {
+  it("defaults to the onboarding identity when unset or blank", () => {
     assert.equal(artistSender({}), "Gallery <onboarding@resend.dev>");
+    assert.equal(
+      artistSender({ ARTIST_SENDER: "   " }),
+      "Gallery <onboarding@resend.dev>",
+    );
   });
 });
 
@@ -334,6 +339,30 @@ describe("sendCollectorBroadcast", () => {
     const result = await sendCollectorBroadcast(fullEnv, "https://barbart.ca");
     assert.deepEqual(result, { sent: 0, total: 0, failed: true });
   });
+
+  it("reports a missing inbox as a failure when subscribers exist", async () => {
+    stubFetch(() => segmentList(["a@example.com"]));
+    const result = await sendCollectorBroadcast(
+      { ...fullEnv, ARTIST_INBOX: "" },
+      "https://barbart.ca",
+    );
+    assert.deepEqual(result, { sent: 0, total: 1, failed: true });
+  });
+
+  it("omits blank reply_to from transactional email payloads", async () => {
+    stubFetch(() => okRes());
+    assert.equal(
+      await sendSiteEmail(fullEnv, {
+        to: ["buyer@example.com"],
+        replyTo: "   ",
+        subject: "Hi",
+        text: "Hello",
+      }),
+      true,
+    );
+    const body = JSON.parse(calls[0].init.body);
+    assert.equal(Object.hasOwn(body, "reply_to"), false);
+  });
 });
 
 describe("listSegmentContacts", () => {
@@ -407,7 +436,7 @@ describe("listSegmentContacts", () => {
 });
 
 describe("isConfirmedContact", () => {
-  it("is true only for subscribed addresses", async () => {
+  it("is true only for subscribed addresses, case-insensitively", async () => {
     stubFetch(() => ({
       ok: true,
       status: 200,
@@ -417,7 +446,7 @@ describe("isConfirmedContact", () => {
         data: [{ email: "a@example.com", unsubscribed: false }],
       }),
     }));
-    assert.equal(await isConfirmedContact(fullEnv, "a@example.com"), true);
+    assert.equal(await isConfirmedContact(fullEnv, "A@EXAMPLE.COM"), true);
     assert.equal(await isConfirmedContact(fullEnv, "b@example.com"), false);
   });
 });
@@ -452,8 +481,19 @@ describe("syncContactSubscribed", () => {
     );
   });
 
-  it("reports failure when Resend refuses every step", async () => {
+  it("reports failure when Resend refuses either update or segment add", async () => {
     stubFetch(() => failRes());
+    assert.equal(
+      await syncContactSubscribed(fullEnv, "fan@example.com"),
+      false,
+    );
+    stubFetch((url, init) =>
+      String(url).includes("/segments/")
+        ? failRes()
+        : init?.method === "PATCH"
+          ? okRes()
+          : failRes(),
+    );
     assert.equal(
       await syncContactSubscribed(fullEnv, "fan@example.com"),
       false,

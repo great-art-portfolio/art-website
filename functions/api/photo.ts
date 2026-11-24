@@ -33,6 +33,12 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
       headers: { "Content-Type": IMAGE_TYPE[ext] ?? "image/jpeg" },
     });
   } catch (err) {
-    return githubFailure(err);
+    return githubFailure(err, undefined, {
+      env: context.env,
+      request: context.request,
+      ...(typeof context.waitUntil === "function"
+        ? { waitUntil: context.waitUntil.bind(context) }
+        : {}),
+    });
   }
 };

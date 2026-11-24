@@ -84,9 +84,12 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       body = {};
       for (const [k, v] of form) body[k] = String(v);
     } else {
-      const raw = (await context.request.json()) as Record<string, unknown>;
+      const raw: unknown = await context.request.json();
+      if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+        return badRequest("Invalid request");
+      }
       body = {};
-      for (const [k, v] of Object.entries(raw))
+      for (const [k, v] of Object.entries(raw as Record<string, unknown>))
         body[k] = typeof v === "string" ? v : "";
     }
   } catch {
@@ -94,7 +97,7 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   }
   const site = context.env.SITE_URL ?? "https://barbart.ca";
   const params = new URL(context.request.url).searchParams;
-  const action = body["action"] ?? "";
+  const action = body["action"] || params.get("action") || "";
   // Their emails and pages come in the language they read the site in.
   // Only languages switched on: a page left open from before she turned
   // one off must not link to a page that's gone.

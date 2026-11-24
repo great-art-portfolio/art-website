@@ -455,6 +455,63 @@ describe("POST /api/stripe-webhook", () => {
     await webhook({ request: webhookRequest(paidEvent()), env });
     assert.deepEqual(calls.expired, ["cs_late"]);
   });
+  it("caps competing session expirations at 20 per webhook call", async () => {
+    const many = Array.from({ length: 25 }, (_, i) => ({
+      id: `cs_extra_${i}`,
+      metadata: { painting_slug: "night-reeds" },
+    }));
+    const calls = stubServices(md);
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = async (url, init) => {
+      if (
+        String(url).startsWith(
+          "https://api.stripe.com/v1/checkout/sessions?status=open",
+        )
+      ) {
+        return new Response(JSON.stringify({ data: many, has_more: false }));
+      }
+      return origFetch(url, init);
+    };
+    const runs = [];
+    const db = {
+      prepare: (sql) => ({
+        bind: (...v) => ({
+          run: async () => {
+            runs.push({ sql, v });
+            return { success: true };
+          },
+          first: async () => null,
+        }),
+      }),
+    };
+    const quiet = console.warn;
+    console.warn = () => {};
+    try {
+      const res = await webhook({
+        request: webhookRequest(paidEvent()),
+        env: { ...env, DB: db },
+      });
+      assert.equal(res.status, 200);
+      assert.equal(calls.expired.length, 20);
+      assert.ok(runs.some((r) => r.v.includes("sale.expire_capped")));
+    } finally {
+      console.warn = quiet;
+    }
+  });
+  it("emails the artist before closing competing checkouts on normal sales", async () => {
+    const calls = stubServices(md);
+    const order = [];
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = async (url, init) => {
+      if (String(url) === "https://api.resend.com/emails") order.push("email");
+      if (/\/expire$/.test(String(url))) order.push("expire");
+      return origFetch(url, init);
+    };
+    const res = await webhook({ request: webhookRequest(paidEvent()), env });
+    assert.equal(res.status, 200);
+    assert.deepEqual(order, ["email", "expire"]);
+    assert.deepEqual(calls.expired, ["cs_other"]);
+  });
   it("says it's unconfigured without a webhook secret", async () => {
     const calls = stubServices(md);
     const res = await webhook({
@@ -480,10 +537,15 @@ describe("POST /api/checkout", () => {
   const assets = {
     fetch: async () => new Response(JSON.stringify({ paintings: catalog })),
   };
-  const post = (body, extra = {}) =>
+  const post = (
+    body,
+    extra = {},
+    headers = { "sec-fetch-site": "same-origin" },
+  ) =>
     checkout({
       request: new Request("https://barbart.ca/api/checkout", {
         method: "POST",
+        headers,
         body: JSON.stringify(body),
       }),
       env: {
@@ -506,6 +568,20 @@ describe("POST /api/checkout", () => {
       env: { ASSETS: assets },
     });
     assert.equal(res.status, 501);
+  });
+  it("refuses cross-site or headerless checkout requests when active", async () => {
+    for (const headers of [
+      {},
+      { "sec-fetch-site": "cross-site" },
+      { origin: "https://evil.example" },
+    ]) {
+      const res = await post(
+        { slug: "night-reeds", title: "Night Reeds", priceCents: 14000 },
+        {},
+        headers,
+      );
+      assert.equal(res.status, 403);
+    }
   });
   it("sends the built price to Stripe and returns its page", async () => {
     let sent = null;

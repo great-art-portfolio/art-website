@@ -28,6 +28,7 @@ async function recordInquiry(
     locale: string;
   },
 ): Promise<number | "repeat" | null> {
+  if (env.DB?.prepare === undefined) return null;
   try {
     const res = await env.DB.prepare(
       "INSERT INTO inquiries (slug, painting_title, buyer_name, buyer_email, message, locale) " +
@@ -69,7 +70,7 @@ async function markInquiry(
   status: "sent" | "failed",
   error = "",
 ): Promise<void> {
-  if (id === null) return;
+  if (id === null || env.DB?.prepare === undefined) return;
   await env.DB.prepare(
     "UPDATE inquiries SET status = ?, error = ? WHERE id = ?",
   )
@@ -78,18 +79,41 @@ async function markInquiry(
     .catch(() => undefined);
 }
 
+/** Drops sent delivery backups after 24 hours and failed ones after 30 days.
+ * Runs best-effort via waitUntil so it never delays the buyer's response. */
+async function pruneInquiries(env: AppEnv): Promise<void> {
+  if (env.DB?.prepare === undefined) return;
+  await env.DB.prepare(
+    "DELETE FROM inquiries WHERE " +
+      "(status = 'sent' AND at < strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-1 day')) OR " +
+      "(status != 'sent' AND at < strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-30 days'))",
+  )
+    .run()
+    .catch(() => undefined);
+}
+
 /**
- * Public: a visitor asks about a painting. The note is saved to the D1
- * `inquiries` table, then emailed to the artist through Resend with the
- * buyer as reply-to, plus an optional Pushover alert. A row left at
- * "failed" never reached her.
+ * Public: a visitor asks about a painting. The note is temporarily saved in
+ * the D1 `inquiries` delivery backup (pruned after 24 hours once sent, or 30
+ * days if delivery fails), then emailed to the artist through Resend with the
+ * buyer as reply-to, plus an optional Pushover alert. A row left at "failed"
+ * never reached her.
  */
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   let body: Record<string, unknown>;
   try {
-    body = (await context.request.json()) as Record<string, unknown>;
+    const raw: unknown = await context.request.json();
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+      return badRequest("Invalid JSON");
+    }
+    body = raw as Record<string, unknown>;
   } catch {
     return badRequest("Invalid JSON");
+  }
+  if (typeof context.waitUntil === "function") {
+    context.waitUntil(pruneInquiries(context.env));
+  } else {
+    void pruneInquiries(context.env);
   }
   // Honeypot field. It's hidden from people, so only bots fill it.
   if (typeof body["website"] === "string" && body["website"] !== "") {

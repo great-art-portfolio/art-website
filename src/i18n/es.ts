@@ -147,16 +147,12 @@ export const es: Strings = {
     collectedTitle: "Qué se recopila",
     collected: [
       [
-        "Visitas:",
-        "contadores anónimos por pintura (sin cookies ni huellas digitales del navegador).",
-      ],
-      [
         "Estadísticas generales:",
         "Cloudflare Web Analytics, que no usa cookies ni sigue a personas.",
       ],
       [
         "Consultas:",
-        "el nombre, el correo y el mensaje que escribe en el formulario de una pintura — enviados por correo directamente a la artista para que pueda responderle. Nada de su consulta se guarda en el sitio.",
+        "el nombre, el correo y el mensaje que escribe en el formulario de una pintura — enviados por correo directamente a la artista para que pueda responderle y guardados brevemente en la base de datos del sitio como respaldo de envío (se eliminan a las 24 horas tras entregarse, o a los 30 días como máximo si falla el envío para que no se pierda ningún mensaje).",
       ],
       [
         "Compras:",

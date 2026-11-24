@@ -25,17 +25,20 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   let body: Record<string, unknown>;
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== "object" || parsed === null)
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed))
       return badRequest("Invalid JSON");
     body = parsed as Record<string, unknown>;
   } catch {
     return badRequest("Invalid JSON");
   }
-  const recent = await env.DB.prepare(
-    "SELECT COUNT(*) AS n FROM logs WHERE source = 'client' AND at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-10 minutes')",
-  )
-    .first<{ n: number }>()
-    .catch(() => null);
+  const recent =
+    env.DB?.prepare === undefined
+      ? null
+      : await env.DB.prepare(
+          "SELECT COUNT(*) AS n FROM logs WHERE source = 'client' AND at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-10 minutes')",
+        )
+          .first<{ n: number }>()
+          .catch(() => null);
   if ((recent?.n ?? 0) >= CLIENT_LOG_LIMIT)
     return new Response(null, { status: 204 });
   const event = text(body["event"], 60).replace(/[^a-z0-9_.]/gi, "") || "error";

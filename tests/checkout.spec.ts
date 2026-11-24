@@ -71,6 +71,7 @@ test("a refused checkout explains itself", async ({ page }) => {
 
 test("checkout rejects a price the build doesn't have", async ({ request }) => {
   const res = await request.post("/api/checkout", {
+    headers: { "sec-fetch-site": "same-origin" },
     data: { slug: "night-reeds", title: "Night Reeds", priceCents: 1 },
   });
   // 501 with Stripe off (CI), 409 with it on: never a Stripe page.

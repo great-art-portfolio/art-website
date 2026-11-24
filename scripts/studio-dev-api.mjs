@@ -16,15 +16,17 @@ const PAINTINGS_DIR = "src/content/paintings";
 
 /** Translation files, Instagram handle, and language setting read back like paintings. */
 const READABLE_FILE =
-  /^(src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9_.-]*\.md|src\/content\/translations\/[A-Za-z0-9][A-Za-z0-9_.-]*\.json|src\/content\/languages\.json|src\/content\/instagram\.txt)$/;
+  /^(src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9 _.-]*\.md|src\/content\/translations\/[A-Za-z0-9][A-Za-z0-9 _.-]*\.json|src\/content\/languages\.json|src\/content\/instagram\.txt)$/;
 
 /** Repo paths the studio may write or delete. Keep in sync with
- * functions/api/commit. */
+ * functions/_lib/gallery-paths.ts. */
 const GALLERY_PATH =
-  /^(src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9_.-]*|src\/content\/announcement\.txt|src\/content\/instagram\.txt|src\/content\/languages\.json|src\/content\/translations\/[A-Za-z0-9][A-Za-z0-9_.-]*\.json|public\/models\/[A-Za-z0-9][A-Za-z0-9_.-]*)$/;
+  /^(src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9 _.-]*\.(md|jpg|jpeg|png|webp|heic)|src\/content\/announcement\.txt|src\/content\/instagram\.txt|src\/content\/languages\.json|src\/content\/translations\/[A-Za-z0-9][A-Za-z0-9 _.-]*\.json|public\/models\/[A-Za-z0-9][A-Za-z0-9 _.-]*\.(glb|usdz))$/i;
 
 const PHOTO_FILE =
-  /^src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9_.-]*\.(jpg|jpeg|png|webp|heic)$/i;
+  /^src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9 _.-]*\.(jpg|jpeg|png|webp|heic)$/i;
+
+const MAX_FILES = 100;
 
 const IMAGE_TYPE = {
   jpg: "image/jpeg",
@@ -121,10 +123,10 @@ export function createStudioDevApi(root) {
     if (
       message === "" ||
       inputs.length + deletePaths.length === 0 ||
-      inputs.length + deletePaths.length > 12
+      inputs.length + deletePaths.length > MAX_FILES
     ) {
       return json(
-        { error: "A message and 1–12 files are required" },
+        { error: `A message and 1–${MAX_FILES} files are required` },
         { status: 400 },
       );
     }

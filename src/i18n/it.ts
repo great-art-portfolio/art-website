@@ -146,16 +146,12 @@ export const it: Strings = {
     collectedTitle: "Cosa viene raccolto",
     collected: [
       [
-        "Visualizzazioni:",
-        "contatori anonimi per ogni dipinto (niente cookie, niente fingerprinting).",
-      ],
-      [
         "Statistiche aggregate:",
         "Cloudflare Web Analytics, che non imposta cookie e non traccia le singole persone.",
       ],
       [
         "Richieste:",
-        "il nome, l’email e il messaggio che scrivi nel modulo di un dipinto — inviati via email direttamente all’artista, perché possa risponderti. Nulla della tua richiesta viene salvato sul sito.",
+        "il nome, l’email e il messaggio che scrivi nel modulo di un dipinto — inviati via email direttamente all’artista, perché possa risponderti, e conservati brevemente nel database del sito come copia di sicurezza per l’invio (cancellati dopo 24 ore dalla consegna, oppure entro 30 giorni in caso di errore di invio perché nessun messaggio vada perso).",
       ],
       [
         "Acquisti:",

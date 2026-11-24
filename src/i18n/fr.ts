@@ -150,16 +150,12 @@ export const fr: Strings = {
     collectedTitle: "Ce qui est recueilli",
     collected: [
       [
-        "Pages vues :",
-        "des compteurs anonymes par tableau (sans cookies ni empreinte numérique).",
-      ],
-      [
         "Statistiques globales :",
         "Cloudflare Web Analytics, qui ne dépose aucun cookie et ne suit personne individuellement.",
       ],
       [
         "Demandes :",
-        "le nom, l’adresse courriel et le message que vous saisissez dans le formulaire d’un tableau — envoyés par courriel directement à l’artiste pour qu’elle puisse vous répondre. Rien de votre demande n’est conservé sur le site.",
+        "le nom, l’adresse courriel et le message que vous saisissez dans le formulaire d’un tableau — envoyés par courriel directement à l’artiste pour qu’elle puisse vous répondre, et conservés brièvement dans la base de données du site comme copie de secours en cas d’échec d’envoi (supprimés au bout de 24 heures après remise, ou jusqu’à 30 jours si l’envoi échoue pour ne perdre aucun message).",
       ],
       [
         "Achats :",

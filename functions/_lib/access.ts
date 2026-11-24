@@ -21,20 +21,25 @@ export function resetAccessCache(): void {
   certsCache = null;
 }
 
-async function signingKeys(team: string, now: number): Promise<Jwk[]> {
+async function signingKeys(
+  team: string,
+  now: number,
+  force = false,
+): Promise<{ keys: Jwk[]; cached: boolean }> {
   const url = `https://${team}/cdn-cgi/access/certs`;
   if (
+    !force &&
     certsCache !== null &&
     certsCache.url === url &&
     now - certsCache.at < CERTS_TTL_MS
   )
-    return certsCache.keys;
+    return { keys: certsCache.keys, cached: true };
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Access certs answered ${res.status}`);
   const data = (await res.json()) as { keys?: Jwk[] };
   const keys = Array.isArray(data.keys) ? data.keys : [];
   certsCache = { url, at: now, keys };
-  return keys;
+  return { keys, cached: false };
 }
 
 function base64UrlBytes(part: string): Uint8Array<ArrayBuffer> {
@@ -86,9 +91,21 @@ export async function accessEmail(
   const parts = token.split(".");
   if (parts.length !== 3) return null;
   const [rawHeader = "", rawPayload = "", rawSig = ""] = parts;
+  if (
+    !/^[A-Za-z0-9_-]+$/.test(rawHeader) ||
+    !/^[A-Za-z0-9_-]+$/.test(rawPayload) ||
+    !/^[A-Za-z0-9_-]+$/.test(rawSig)
+  )
+    return null;
   const header = base64UrlJson(rawHeader);
   const payload = base64UrlJson(rawPayload);
-  if (header === null || payload === null || header["alg"] !== "RS256")
+  if (
+    header === null ||
+    payload === null ||
+    header["alg"] !== "RS256" ||
+    typeof header["kid"] !== "string" ||
+    header["kid"] === ""
+  )
     return null;
   const audiences = Array.isArray(payload["aud"])
     ? payload["aud"]
@@ -97,10 +114,15 @@ export async function accessEmail(
   if (payload["iss"] !== `https://${team}`) return null;
   const exp = payload["exp"];
   if (typeof exp !== "number" || exp * 1000 <= now) return null;
+  const nbf = payload["nbf"];
+  if (typeof nbf === "number" && nbf * 1000 > now + 60_000) return null;
   try {
-    const jwk = (await signingKeys(team, now)).find(
-      (k) => k.kid === header["kid"],
-    );
+    const initial = await signingKeys(team, now);
+    let jwk = initial.keys.find((k) => k.kid === header["kid"]);
+    if (jwk === undefined && initial.cached) {
+      const refreshed = await signingKeys(team, now, true);
+      jwk = refreshed.keys.find((k) => k.kid === header["kid"]);
+    }
     if (jwk === undefined) return null;
     const key = await crypto.subtle.importKey(
       "jwk",

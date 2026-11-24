@@ -27,6 +27,7 @@ async function main() {
   const { stdout } = await execGit("git", [
     "status",
     "--porcelain",
+    "-uall",
     "--",
     ...TRACKED_SCOPE,
   ]);
@@ -67,7 +68,7 @@ async function main() {
     }
   }
   if (restore.length > 0) {
-    await execGit("git", ["checkout", "--", ...restore]);
+    await execGit("git", ["checkout", "HEAD", "--", ...restore]);
     restored = restore.length;
   }
   console.log(

@@ -2,7 +2,13 @@ import { isLocale, type Locale } from "../../src/i18n/locales";
 import type { AppEnv } from "../_lib/env";
 import { gitConfig, readTextFile } from "../_lib/github";
 import { PAINTING_FILE } from "../_lib/gallery-paths";
-import { badRequest, json, notEnabled, serverError } from "../_lib/http";
+import {
+  badRequest,
+  fromOwnSite,
+  json,
+  notEnabled,
+  serverError,
+} from "../_lib/http";
 import {
   checkoutParams,
   createCheckoutSession,
@@ -28,6 +34,8 @@ import { logEvent } from "../_lib/log";
 export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   const { env, request } = context;
   if (!stripeEnabled(env)) return notEnabled("Card checkout", STRIPE_SETUP);
+  if (!fromOwnSite(request))
+    return json({ error: "Not allowed" }, { status: 403 });
   let raw: unknown;
   try {
     raw = await request.json();

@@ -22,7 +22,11 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
   if (denied !== null) return denied;
   let body: Record<string, unknown>;
   try {
-    body = (await context.request.json()) as Record<string, unknown>;
+    const raw: unknown = await context.request.json();
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+      return badRequest("Invalid JSON");
+    }
+    body = raw as Record<string, unknown>;
   } catch {
     return badRequest("Invalid JSON");
   }
@@ -59,6 +63,6 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
       err,
       request: context.request,
     });
-    return serverError(err instanceof Error ? err.message : undefined);
+    return serverError();
   }
 };

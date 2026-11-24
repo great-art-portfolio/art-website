@@ -1,7 +1,9 @@
 /** Shared Cloudflare Pages bindings for the gallery API. */
 
 export interface AppEnv {
-  /** D1 holds push state and the dev mock email list. Paintings live in git. */
+  /** D1 holds the short-lived `inquiries` delivery backup (pruned after 24h
+   * once sent, 30d if failed), the local dev mock email list, and operational
+   * `logs` read by `pnpm logs`. Paintings live in git. */
   DB: D1Database;
   /** The built site. Checkout reads /catalog.json through it. */
   ASSETS: Fetcher;

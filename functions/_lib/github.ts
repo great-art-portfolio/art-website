@@ -69,6 +69,7 @@ async function gh(
   config: GitHubConfig,
   path: string,
   init?: RequestInit,
+  opts: { allow404?: boolean } = {},
 ): Promise<unknown> {
   const res = await fetch(`${apiBase}${path}`, {
     ...init,
@@ -87,7 +88,7 @@ async function gh(
     : null;
   if (expires !== null && /^\d{4}-\d{2}-\d{2}/.test(expires))
     keyExpiry = expires.slice(0, 10);
-  if (res.status === 404) return null;
+  if (res.status === 404 && opts.allow404 === true) return null;
   if (!res.ok) {
     const text = await res.text();
     // 403 is also a rate limit, which passes on its own.
@@ -154,7 +155,14 @@ export async function headSha(config: GitHubConfig): Promise<string> {
 
 /** GitHub refused a ref update because the branch moved meanwhile. */
 export function isRefRace(err: unknown): boolean {
-  return err instanceof Error && /^GitHub API 422/.test(err.message);
+  if (!(err instanceof Error) || !/^GitHub API 422\b/.test(err.message))
+    return false;
+  return (
+    err.message.trimEnd().endsWith("refused") ||
+    /fast[- ]forward|reference already exists|update is not a fast forward|cannot lock ref|is at .* but expected/i.test(
+      err.message,
+    )
+  );
 }
 
 /** Lists filenames directly inside a repo directory. Empty when missing. */
@@ -166,6 +174,8 @@ export async function listDir(
     await gh(
       config,
       `/repos/${config.repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(config.branch)}`,
+      undefined,
+      { allow404: true },
     ),
   );
   return data.map((e) => e.name ?? "").filter((n) => n !== "");

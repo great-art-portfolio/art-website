@@ -48,5 +48,14 @@ export const onRequest: PagesFunction<AppEnv> = async (context) => {
     "frame-ancestors 'self'; object-src 'none'; base-uri 'self'",
   );
   out.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  if (!out.headers.has("Cache-Control")) {
+    out.headers.set("Cache-Control", "private, no-store");
+  }
+  if (
+    context.request !== undefined &&
+    new URL(context.request.url).protocol === "https:"
+  ) {
+    out.headers.set("Strict-Transport-Security", "max-age=31536000");
+  }
   return out;
 };

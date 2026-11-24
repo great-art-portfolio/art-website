@@ -1,5 +1,6 @@
 import { accessEmail } from "./access";
 import { GitHubKeyError, KEY_REFUSED } from "./github";
+import { logEvent } from "./log";
 import type { AppEnv } from "./env";
 
 export function json(data: unknown, init?: ResponseInit): Response {
@@ -41,15 +42,23 @@ export function isLocalRequest(request: Request): boolean {
 }
 
 /** True when a request came from this site's own pages. Browsers send
- * Sec-Fetch-Site (and Origin) on every request a page starts, so another
- * site's page can't pass. A request with neither header isn't from a web
- * page at all (the nightly job, curl), and its credentials are deliberate. */
+ * Sec-Fetch-Site (and Origin/Referer) on every request a page starts, so
+ * another site's page can't pass. Fails closed when all three are absent. */
 export function fromOwnSite(request: Request): boolean {
   const site = request.headers.get("sec-fetch-site");
   if (site !== null) return site === "same-origin" || site === "none";
+  const expectedOrigin = new URL(request.url).origin;
   const origin = request.headers.get("origin");
-  if (origin !== null) return origin === new URL(request.url).origin;
-  return true;
+  if (origin !== null) return origin === expectedOrigin;
+  const referer = request.headers.get("referer");
+  if (referer !== null) {
+    try {
+      return new URL(referer).origin === expectedOrigin;
+    } catch {
+      return false;
+    }
+  }
+  return false;
 }
 
 /** Same-length strings compared without an early exit, so response time
@@ -92,9 +101,29 @@ export async function requireAdmin(
 
 /** A failed GitHub call, in her words: a refused key says so (503, so the
  * studio shows it instead of blaming her connection), anything else is
- * the fallback 500. */
-export function githubFailure(err: unknown, fallback?: string): Response {
+ * the fallback 500. When `ctx` is supplied, also records the failure in D1
+ * so `pnpm logs` surfaces it. */
+export function githubFailure(
+  err: unknown,
+  fallback?: string,
+  ctx?: {
+    env: AppEnv;
+    request?: Request;
+    waitUntil?: (p: Promise<unknown>) => void;
+  },
+): Response {
   console.error(err);
+  if (ctx !== undefined) {
+    const logged = logEvent(ctx.env, {
+      level: err instanceof GitHubKeyError ? "warn" : "error",
+      event:
+        err instanceof GitHubKeyError ? "github.key_refused" : "github.failed",
+      message: "A GitHub call failed",
+      err,
+      ...(ctx.request === undefined ? {} : { request: ctx.request }),
+    }).catch(() => undefined);
+    ctx.waitUntil?.(logged);
+  }
   if (err instanceof GitHubKeyError)
     return json({ error: KEY_REFUSED, code: "github-key" }, { status: 503 });
   return serverError(fallback);

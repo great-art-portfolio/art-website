@@ -1,6 +1,11 @@
 import { afterEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { commitFiles } from "../../functions/_lib/github.ts";
+import {
+  commitFiles,
+  headSha,
+  isRefRace,
+  listDir,
+} from "../../functions/_lib/github.ts";
 
 /** A studio save that races another commit (the dashboard's background
  * translations) lands on top of it instead of failing. */
@@ -68,5 +73,49 @@ describe("commitFiles when another commit lands first", () => {
       ]),
       /422/,
     );
+  });
+
+  it("throws on missing refs/objects instead of returning null, while listDir returns [] on 404", async () => {
+    globalThis.fetch = async () =>
+      new Response('{"message":"Not Found"}', { status: 404 });
+    await assert.rejects(headSha(config), /GitHub API 404/);
+    assert.deepEqual(await listDir(config, "src/content/paintings"), []);
+  });
+
+  it("does not retry non-race 422 validation errors", async () => {
+    let patches = 0;
+    globalThis.fetch = async (url, init = {}) => {
+      const u = String(url);
+      const method = init.method ?? "GET";
+      if (u.includes("/git/ref/heads/"))
+        return Response.json({ object: { sha: "a" } });
+      if (method === "GET" && u.includes("/git/commits/"))
+        return Response.json({ tree: { sha: "tree-a" } });
+      if (u.endsWith("/git/trees")) return Response.json({ sha: "newtree" });
+      if (u.endsWith("/git/commits")) return Response.json({ sha: "c1" });
+      if (method === "PATCH") {
+        patches += 1;
+        return new Response('{"message":"Invalid reference"}', { status: 422 });
+      }
+      throw new Error(`unexpected ${method} ${u}`);
+    };
+    assert.equal(
+      isRefRace(new Error("GitHub API 422: Invalid reference")),
+      false,
+    );
+    assert.equal(
+      isRefRace(new Error("GitHub API 422: Update is not a fast forward")),
+      true,
+    );
+    await assert.rejects(
+      commitFiles(
+        config,
+        "Edit",
+        [{ path: "src/content/paintings/x.md", text: "hi" }],
+        { rebase: true },
+      ),
+      /422/,
+    );
+    assert.equal(patches, 1);
   });
 });

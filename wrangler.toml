@@ -8,7 +8,8 @@ compatibility_date = "2025-03-20"
 [vars]
 # Pages build Node (Astro 7.4 needs 22.22+); CI uses 24 too.
 NODE_VERSION = "24"
-# Git publishing from /admin. Secret: GITHUB_TOKEN (`wrangler pages secret put`).
+# Git publishing from /admin uses a GitHub App (`GITHUB_APP_ID` and
+# `GITHUB_APP_KEY` Pages secrets, with `GITHUB_TOKEN` PAT as fallback).
 GITHUB_REPO = "great-art-portfolio/art-website"
 GITHUB_BRANCH = "main"
 # RESEND_API_KEY= worker uses this to send emails

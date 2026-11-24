@@ -65,6 +65,7 @@ export function createCollectorsDb(cacheDir) {
       bind: (...args) => ({
         run: async () => {
           const text = String(sql);
+          if (!/\bemail_collectors\b/i.test(text)) return {};
           if (text.startsWith("INSERT")) {
             const [email, token, , created] = args;
             const prev = rows.get(email);
@@ -86,12 +87,26 @@ export function createCollectorsDb(cacheDir) {
         },
         first: async () => {
           const text = String(sql);
+          if (!/\bemail_collectors\b/i.test(text)) return null;
           if (text.includes("COUNT(*)"))
             return {
               total: [...rows.values()].filter((r) => r.confirmed_at).length,
             };
           const row = rows.get(args[0]);
           return row === undefined ? null : { ...row };
+        },
+        all: async () => {
+          const text = String(sql);
+          if (!/\bemail_collectors\b/i.test(text)) return { results: [] };
+          const results = [...rows.entries()]
+            .filter(([, r]) => r.confirmed_at !== null && r.confirmed_at !== "")
+            .sort((a, b) =>
+              String(b[1].confirmed_at).localeCompare(
+                String(a[1].confirmed_at),
+              ),
+            )
+            .map(([email, r]) => ({ email, confirmed_at: r.confirmed_at }));
+          return { results };
         },
       }),
     }),
@@ -117,8 +132,8 @@ export function collectorsEnv(root, db) {
   return {
     COLLECTORS_MOCK: "true",
     RESEND_API_KEY: vars["RESEND_API_KEY"] ?? "",
-    ARTIST_SENDER: vars["ARTIST_SENDER"] ?? "",
-    ARTIST_INBOX: vars["ARTIST_INBOX"] ?? "",
+    ARTIST_SENDER: vars["ARTIST_SENDER"] || undefined,
+    ARTIST_INBOX: vars["ARTIST_INBOX"] || undefined,
     SITE_URL: "https://barbart.ca",
     DB: db,
   };

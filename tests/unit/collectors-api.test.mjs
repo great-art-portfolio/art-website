@@ -244,6 +244,30 @@ describe("unsubscribe", () => {
     assert.match(goodbye.subject, /Removed/);
   });
 
+  it("accepts RFC 8058 one-click unsubscribe with action in the query string", async () => {
+    stubEmptyList();
+    const token = await issueLinkToken(env, "fan@example.com", "goodbye");
+    const res = await onRequestPost({
+      request: new Request(
+        `https://barbart.ca/api/collectors?action=unsubscribe&email=${encodeURIComponent("fan@example.com")}&token=${encodeURIComponent(token)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: "List-Unsubscribe=One-Click",
+        },
+      ),
+      env,
+    });
+    assert.equal(res.status, 200);
+    assert.ok(
+      calls.some(
+        (c) =>
+          c.url === "https://api.resend.com/contacts/fan%40example.com" &&
+          c.init.method === "DELETE",
+      ),
+    );
+  });
+
   it("removes by address from the modal button", async () => {
     stubEmptyList();
     const res = await onRequestPost(

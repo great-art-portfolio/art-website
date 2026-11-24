@@ -21,21 +21,24 @@ Git photos get the full build pipeline: browser Canvas prep on her phone
 (crop/rotate/downscale) + sharp responsive srcsets at build time. No
 Rust/WASM, no ffmpeg — there is no video in this pipeline.
 
-## Inquiries: email, no inbox
+## Inquiries: email, brief D1 delivery backup
 
-Buyer notes POST to `/api/inquiries` and go straight to the artist via
-Resend (free 100/day), reply-to set to the buyer — nothing is stored, so
-there is no inbox UI and nothing to delete. Spam: honeypot first,
-Cloudflare Turnstile when configured. Her address never appears on the
-site; Resend sends from the gallery address (requires a verified sending
+Buyer notes POST to `/api/inquiries`, get saved briefly in D1 `inquiries` as a
+delivery safety net, and go straight to the artist via Resend (free 100/day),
+reply-to set to the buyer — there is no studio inbox UI. Delivered rows are
+pruned after 24 hours, and undelivered rows are kept up to 30 days so a
+Resend outage never drops a buyer note (`pnpm logs --inquiries --failed`). Spam:
+honeypot first, Cloudflare Turnstile when configured. Her address never appears
+on the site; Resend sends from the gallery address (requires a verified sending
 domain) to her private inbox.
 
-## No database in production
+## Minimal database use in production
 
-Browser push and the Ping page were removed (Oct 2026, owner: email only),
-so the site keeps no personal information of its own: the email list is a
-Resend segment, and D1 only backs the local mock list in dev (its old push
-tables are unused). Views moved to Cloudflare Web
+Browser push and the Ping page were removed (Oct 2026, owner: email only). The
+email list lives in a Resend segment, while D1 (`art-gallery-db`) only keeps
+the short-lived `inquiries` delivery backup above, operational `logs` read by
+`pnpm logs` (90-day retention), and the local mock email list in dev (its old
+push tables were dropped). Views moved to Cloudflare Web
 Analytics (free, hosted, per-page); statuses moved to markdown
 (`sold: true`); the homepage banner is `src/content/announcement.txt` and her
 optional Instagram handle is `src/content/instagram.txt`, both in git and
@@ -83,8 +86,8 @@ and price, and `/api/checkout` checks them against `/catalog.json`, which
 the build writes from the paintings collection, so the browser never sets
 the price. A paid session's webhook commits `sold: true` like a studio
 save. Hosted Checkout, not Payment Links or Elements: one session per
-buyer, card data never on the site, Apple/Google Pay included. Stripe Tax
-is on (owner, 2026-10-07), tax added on top of the listed price. Decided 2026-10-07: card
+buyer, card data never on the site, Apple/Google Pay included. Wait until GST
+registration before switching `STRIPE_TAX` on (see below). Decided 2026-10-07: card
 checkout (Apple/Google Pay included) charges at purchase — card holds
 expire in ~5-7 days, too short to wait on shipping — and a paid order
 marks the painting sold. Interac e-transfer stays as the no-fee option
@@ -128,6 +131,6 @@ client scripts, shared logic in `src/lib/`. TypeScript 6.
 Canada has no EU-style cookie-banner law. PIPEDA + Alberta PIPA require
 meaningful consent for _personal information_ — the email list is
 double opt-in (the confirm link) and every email carries an unsubscribe
-link, which is what the commissioners actually look for. Everything
-else (aggregate stats, emailed inquiries) collects or keeps nothing, so
-no banner. The short `/privacy` page discloses the rest.
+link, which is what the commissioners actually look for. Everything else (aggregate stats, short-lived inquiry delivery backups) keeps
+no tracking cookies or profiles, so no banner. The short `/privacy` page
+discloses the rest.

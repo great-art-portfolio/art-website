@@ -149,6 +149,8 @@ describe("Access sign-in", () => {
       env,
     );
     assert.equal(oldBrowser?.status, 403);
+    const barePost = await requireAdmin(post({}), env);
+    assert.equal(barePost?.status, 403);
     // The studio's own pages pass.
     assert.equal(
       await requireAdmin(
@@ -207,6 +209,10 @@ describe("Access sign-in", () => {
       await sign(keys, { ...good(), iss: "https://evil.cloudflareaccess.com" }),
       await sign(keys, { ...good(), exp: Math.floor(Date.now() / 1000) - 10 }),
       await sign(keys, good(), "unknown-kid"),
+      await sign(keys, {
+        ...good(),
+        nbf: Math.floor(Date.now() / 1000) + 300,
+      }),
       (await sign(keys, good())).replace(/\.[^.]+$/, ".AAAA"),
       "not-a-jwt",
     ];
@@ -222,6 +228,34 @@ describe("Access sign-in", () => {
         ?.status,
       401,
     );
+  });
+
+  it("refreshes cached JWKS once when a token carries an unseen kid", async () => {
+    const jwk1 = await crypto.subtle.exportKey("jwk", keys.publicKey);
+    const jwk2 = await crypto.subtle.exportKey("jwk", other.publicKey);
+    let rotated = false;
+    certsCalls = 0;
+    globalThis.fetch = async (url) => {
+      assert.equal(String(url), `https://${TEAM}/cdn-cgi/access/certs`);
+      certsCalls += 1;
+      return Response.json({
+        keys: [rotated ? { ...jwk2, kid: "k2" } : { ...jwk1, kid: "k1" }],
+      });
+    };
+    const t1 = await sign(keys, good(), "k1");
+    assert.equal(
+      await accessEmail(live(`CF_Authorization=${t1}`), env),
+      "barbara@example.ca",
+    );
+    assert.equal(certsCalls, 1);
+
+    rotated = true;
+    const t2 = await sign(other, good(), "k2");
+    assert.equal(
+      await accessEmail(live(`CF_Authorization=${t2}`), env),
+      "barbara@example.ca",
+    );
+    assert.equal(certsCalls, 2);
   });
 
   it("ignores the cookie when Access isn't configured", async () => {

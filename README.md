@@ -15,8 +15,10 @@ translations through DeepSeek).
 
 - Admin at `/admin`, protected by Cloudflare Access (email OTP). Saving
   publishes to git; the git-connected Pages project rebuilds (live in a few
-  minutes). Buyer inquiries email via Resend, nothing stored. The email list
-  lives in a Resend segment. D1 only backs the local mock list in dev.
+  minutes). Buyer inquiries email via Resend and keep a short-lived D1
+  delivery backup (24h once sent, 30d if failed). The email list lives in a
+  Resend segment; D1 also stores operational logs (`pnpm logs`) and the local
+  mock list in dev.
 - The public site is built in English plus every language ticked on the
   studio's Guide page (`/fr`, `/ja`, …); see AGENTS.md "Languages".
 
@@ -40,7 +42,7 @@ files instead of committing; `pnpm studio:reset` brings them back.
 ## Scheduled paintings
 
 A "Publish on" date goes live that day (Calgary time) on its own: the
-`Publish scheduled paintings` workflow runs just after midnight, flips due
+`Publish scheduled paintings` workflow runs hourly at `:05` UTC, flips due
 drafts to published, and commits — Pages rebuilds from that push. The
 studio also publishes due drafts whenever it loads, so whichever runs first
 wins and the other finds nothing to do. Run it by hand from the Actions tab
@@ -61,7 +63,8 @@ pnpm dev:prod       # prod simulator: builds, then serves dist on :4331
 pnpm check          # astro check
 pnpm build
 pnpm check:inline   # no raw TS/imports in inline page scripts (see below)
-pnpm test:e2e       # Playwright smoke suite (needs dist built)
+pnpm build:e2e      # instrumented build required before test:e2e
+pnpm test:e2e       # Playwright smoke suite (needs build:e2e first)
 ```
 
 Page scripts (`.astro` `<script>` blocks) ship to the browser as classic
@@ -79,8 +82,7 @@ First-time Cloudflare provisioning:
 
 ```sh
 pnpm wrangler d1 create art-gallery-db   # paste id into wrangler.toml
-pnpm wrangler d1 execute art-gallery-db --file=./migrations/0001_init.sql
-pnpm wrangler d1 execute art-gallery-db --file=./migrations/0002_drop-unused-tables.sql
+pnpm db:migrate                         # applies migrations/0001..0008 on remote D1
 ```
 
 Git publishing (so `/admin` can save paintings + banner) uses a GitHub

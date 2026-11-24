@@ -42,7 +42,13 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
       announcement: (await readTextFile(config, BANNER_PATH)) ?? "",
     });
   } catch (err) {
-    return githubFailure(err);
+    return githubFailure(err, undefined, {
+      env: context.env,
+      request: context.request,
+      ...(typeof context.waitUntil === "function"
+        ? { waitUntil: context.waitUntil.bind(context) }
+        : {}),
+    });
   }
 };
 
@@ -102,13 +108,21 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     if (input.contentBase64.length > 24_000_000) {
       return badRequest(`${input.path} is too large (24MB base64 cap)`);
     }
-    if (!BASE64.test(input.contentBase64)) {
+    if (
+      input.contentBase64.length % 4 !== 0 ||
+      !BASE64.test(input.contentBase64)
+    ) {
       return badRequest(`${input.path} is not valid base64`);
     }
     if (TEXT_FILE.test(input.path)) {
       // Small text: decoded here and written inline, no upload needed.
-      const bin = atob(input.contentBase64);
-      const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+      let bytes: Uint8Array;
+      try {
+        const bin = atob(input.contentBase64);
+        bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+      } catch {
+        return badRequest(`${input.path} is not valid base64`);
+      }
       files.push({ path: input.path, text: new TextDecoder().decode(bytes) });
     } else {
       // Photos and models pass through as base64: decoding megabytes would
@@ -121,7 +135,13 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     const sha = await commitFiles(config, message, files, { rebase: true });
     return json({ ok: true, commit: sha }, { status: 201 });
   } catch (err) {
-    return githubFailure(err, "Publishing failed — the commit did not land.");
+    return githubFailure(err, "Publishing failed — the commit did not land.", {
+      env: context.env,
+      request: context.request,
+      ...(typeof context.waitUntil === "function"
+        ? { waitUntil: context.waitUntil.bind(context) }
+        : {}),
+    });
   }
 };
 
@@ -137,6 +157,12 @@ export const onRequestPut: PagesFunction<AppEnv> = async (context) => {
     // The studio warns her ahead of the key's last day.
     return json({ files, keyExpires: githubKeyExpiry() });
   } catch (err) {
-    return githubFailure(err);
+    return githubFailure(err, undefined, {
+      env: context.env,
+      request: context.request,
+      ...(typeof context.waitUntil === "function"
+        ? { waitUntil: context.waitUntil.bind(context) }
+        : {}),
+    });
   }
 };

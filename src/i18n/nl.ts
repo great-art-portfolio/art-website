@@ -148,16 +148,12 @@ export const nl: Strings = {
     collectedTitle: "Wat er wordt verzameld",
     collected: [
       [
-        "Paginaweergaven:",
-        "anonieme tellers per schilderij (geen cookies, geen fingerprinting).",
-      ],
-      [
         "Totaalstatistieken:",
         "Cloudflare Web Analytics, dat geen cookies plaatst en geen individuen volgt.",
       ],
       [
         "Vragen:",
-        "de naam, het e-mailadres en het bericht dat u in het formulier bij een schilderij typt — rechtstreeks naar de kunstenaar gemaild, zodat ze kan antwoorden. Niets van uw vraag wordt op de site bewaard.",
+        "de naam, het e-mailadres en het bericht dat u in het formulier bij een schilderij typt — rechtstreeks naar de kunstenaar gemaild, zodat ze kan antwoorden, en kort bewaard in de database van de site als verzendback-up (na 24 uur na bezorging verwijderd, of na maximaal 30 dagen bij een verzendfout zodat geen bericht verloren gaat).",
       ],
       [
         "Aankopen:",

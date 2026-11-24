@@ -6,12 +6,19 @@
 
 # Publishing (saves from /admin push to GitHub; without these, saves fail
 # with "not configured" and the studio names the live site instead).
+# Prefer GITHUB_APP_ID + GITHUB_APP_KEY (from `pnpm github:app`), or fall
+# back to a fine-grained GITHUB_TOKEN PAT.
+GITHUB_APP_ID=
+GITHUB_APP_KEY=
 GITHUB_TOKEN=
 GITHUB_REPO=
 GITHUB_BRANCH=main
 
-# Studio API key (must match the live secret to test saves with a token).
+# Studio auth & scheduled-publish alert token (optional in local dev).
 ADMIN_API_TOKEN=
+ACCESS_TEAM_DOMAIN=
+ACCESS_AUD=
+ALERTS_TOKEN=
 
 # Views (without these, Most-viewed reports "unconfigured").
 CF_ACCOUNT_ID=
@@ -19,6 +26,8 @@ CF_ANALYTICS_TOKEN=
 CF_ANALYTICS_SITE=
 
 # Mail (optional; blank keeps the buttons quiet).
+# Set COLLECTORS_MOCK=true in local dev to exercise the confirm flow via local D1.
+COLLECTORS_MOCK=
 # With a real key, subscribing a *@resend.dev test address (e.g.
 # delivered+join@resend.dev) also fires the true Resend confirm — check the
 # dashboard, then finish the loop with the local link. Any other address
@@ -32,9 +41,18 @@ ARTIST_SENDER=
 # The artist's inbox: buyer notes land here, broadcast replies return here.
 ARTIST_INBOX=
 
+# Optional Turnstile & Stripe Checkout (blank keeps them off in dev).
+TURNSTILE_SITE_KEY=
+TURNSTILE_SECRET_KEY=
+ENABLE_STRIPE=
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_TAX=
+
 # Title and description helper in the painting room (Gemini API key from
 # Google AI Studio, free tier; Gemini 4 Hydrogen). Blank hides its button.
 GEMINI_API_KEY=
 # Translations (DeepSeek API key, platform.deepseek.com; prepaid). Blank
-# turns translation off.
+# turns translation off. Set TRANSLATE_LOCAL=true to test translation locally.
 DEEPSEEK_API_KEY=
+TRANSLATE_LOCAL=

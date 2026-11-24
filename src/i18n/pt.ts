@@ -147,16 +147,12 @@ export const pt: Strings = {
     collectedTitle: "O que é coletado",
     collected: [
       [
-        "Visualizações:",
-        "contadores anônimos por pintura (sem cookies, sem impressão digital do navegador).",
-      ],
-      [
         "Estatísticas gerais:",
         "Cloudflare Web Analytics, que não usa cookies nem rastreia pessoas.",
       ],
       [
         "Perguntas:",
-        "o nome, o e-mail e a mensagem que você digita no formulário de uma pintura — enviados por e-mail direto para a artista, para que ela possa responder. Nada da sua pergunta fica guardado no site.",
+        "o nome, o e-mail e a mensagem que você digita no formulário de uma pintura — enviados por e-mail direto para a artista, para que ela possa responder, e mantidos brevemente no banco de dados do site como cópia de segurança de entrega (apagados 24 horas após o envio, ou em até 30 dias se houver falha na entrega para que nenhuma mensagem se perca).",
       ],
       [
         "Compras:",

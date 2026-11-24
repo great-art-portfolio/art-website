@@ -96,5 +96,10 @@ describe("POST /api/commit", () => {
       files: [{ path: "src/content/paintings/a.jpg", contentBase64: "%%%" }],
     });
     assert.equal(res.status, 400);
+    const badLen = await post({
+      message: "Bad len",
+      files: [{ path: "src/content/paintings/a.md", contentBase64: "abc" }],
+    });
+    assert.equal(badLen.status, 400);
   });
 });

@@ -169,6 +169,9 @@ export async function createCheckoutSession(
  * keeps a sale's Worker well inside its ~50 outbound requests, with room
  * for the git commit and the email. */
 const MAX_LIST_PAGES = 5;
+/** Cap competing sessions expired in one webhook invocation so Worker subrequest
+ * limits aren't exceeded even during an abnormal spike. */
+const MAX_EXPIRE = 20;
 
 /**
  * Closes every other open checkout for the same painting once it sells,
@@ -212,8 +215,17 @@ export async function expireOtherSessions(
       if (data.has_more !== true || typeof last !== "string") break;
       after = last;
     }
+    const target = others.slice(0, MAX_EXPIRE);
+    if (others.length > MAX_EXPIRE) {
+      await logEvent(env, {
+        level: "warn",
+        event: "sale.expire_capped",
+        message: `Capped checkout session expirations at ${MAX_EXPIRE} of ${others.length}`,
+        detail: { slug, total: others.length, capped: MAX_EXPIRE },
+      });
+    }
     await Promise.all(
-      others.map((s) =>
+      target.map((s) =>
         fetch(
           `https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(String(s.id))}/expire`,
           { method: "POST", headers: auth },
@@ -228,7 +240,7 @@ export async function expireOtherSessions(
         }),
       ),
     );
-    return others.length;
+    return target.length;
   } catch (err) {
     await logEvent(env, {
       level: "warn",
