@@ -403,6 +403,7 @@ async function run(
     ?.addEventListener("click", () => void session.end());
 
   let hitSource: XRHitTestSource | undefined;
+  let dropCurrentAnchor: (() => void) | undefined;
   try {
     await renderer.xr.setSession(session);
     const viewer = await session.requestReferenceSpace("viewer");
@@ -501,6 +502,7 @@ async function run(
       anchorPending = false;
       anchorMissing = 0;
     };
+    dropCurrentAnchor = dropAnchor;
     const hungMatrix = () =>
       new THREE.Matrix4().compose(
         hung.position,
@@ -911,7 +913,27 @@ async function run(
     throw new WallArError("AR stopped", true, err);
   } finally {
     renderer.setAnimationLoop(null);
-    hitSource?.cancel();
+    try {
+      dropCurrentAnchor?.();
+    } catch {
+      // Session already ended.
+    }
+    try {
+      hitSource?.cancel();
+    } catch {
+      // Session already ended.
+    }
+    scene.traverse((obj) => {
+      if (!(obj instanceof THREE.Mesh)) return;
+      obj.geometry.dispose();
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      for (const mat of mats) {
+        for (const val of Object.values(mat)) {
+          if (val instanceof THREE.Texture) val.dispose();
+        }
+        mat.dispose();
+      }
+    });
     renderer.dispose();
     overlay.root.remove();
   }

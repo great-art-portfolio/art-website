@@ -138,10 +138,10 @@ function loadSvgImage(svgEl: SVGElement): Promise<HTMLImageElement> {
     .serializeToString(clone)
     .replaceAll("currentColor", INK);
   const img = new Image();
-  img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(xml)}`;
   return new Promise((resolve, reject) => {
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error("Could not load plaque signature"));
+    img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(xml)}`;
   });
 }
 

@@ -114,26 +114,26 @@ const share =
 </Layout>
 
 <script>
-  // Hide studio notes past their end date so they don't linger until the
-  // next deploy. In dev the baked note and the preview can both be present.
-  const notes = document.querySelectorAll(".announce[data-expires]");
-  const now = new Date();
-  const today =
-    now.getFullYear() +
-    "-" +
-    String(now.getMonth() + 1).padStart(2, "0") +
-    "-" +
-    String(now.getDate()).padStart(2, "0");
-  for (const note of notes) {
-    const end = note.getAttribute("data-expires");
-    if (end !== null && end !== "" && today > end) note.remove();
-  }
-  // Dev-only banner preview. Without a publishing backend the studio
-  // stores the banner in this browser, and it renders here in the same
-  // card as the real note.
-  try {
-    const raw = window.localStorage.getItem("studio-banner-preview-v1");
-    if (raw !== null) {
+  function syncAnnouncement() {
+    // Hide studio notes past their end date so they don't linger until the
+    // next deploy. In dev the baked note and the preview can both be present.
+    const now = new Date();
+    const today =
+      now.getFullYear() +
+      "-" +
+      String(now.getMonth() + 1).padStart(2, "0") +
+      "-" +
+      String(now.getDate()).padStart(2, "0");
+    for (const note of document.querySelectorAll(".announce[data-expires]")) {
+      const end = note.getAttribute("data-expires");
+      if (end !== null && end !== "" && today > end) note.remove();
+    }
+    // Dev-only banner preview. Without a publishing backend the studio
+    // stores the banner in this browser, and it renders here in the same
+    // card as the real note.
+    try {
+      const raw = window.localStorage.getItem("studio-banner-preview-v1");
+      if (raw === null) return;
       const preview = JSON.parse(raw);
       const text =
         preview !== null && typeof preview === "object"
@@ -143,13 +143,6 @@ const share =
         preview !== null && typeof preview === "object"
           ? String(preview.expires ?? "")
           : "";
-      const now = new Date();
-      const today =
-        now.getFullYear() +
-        "-" +
-        String(now.getMonth() + 1).padStart(2, "0") +
-        "-" +
-        String(now.getDate()).padStart(2, "0");
       if (text.trim() !== "" && (expires === "" || today <= expires)) {
         let el = document.querySelector(".announce");
         if (el === null) {
@@ -173,10 +166,12 @@ const share =
           else el.removeAttribute("data-expires");
         }
       }
+    } catch {
+      // No stored preview, so the baked note stays.
     }
-  } catch {
-    // No stored preview, so the baked note stays.
   }
+  syncAnnouncement();
+  document.addEventListener("astro:page-load", syncAnnouncement);
 </script>
 
 <style>

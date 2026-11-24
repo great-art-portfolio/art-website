@@ -44,7 +44,7 @@ export function expiryForDuration(
   now: Date = new Date(),
 ): string | null {
   if (days === null) return null;
-  const end = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + days);
   return localToday(end);
 }
 

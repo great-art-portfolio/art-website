@@ -26,8 +26,16 @@ export function getTurnstileSiteKey(): Promise<string> {
   if (siteKeyPromise === null) {
     siteKeyPromise = fetch("/api/status")
       .then((res) => (res.ok ? res.json() : null))
-      .then((data: unknown) => extractSiteKey(data))
-      .catch(() => "");
+      .then((data: unknown) => {
+        const key = extractSiteKey(data);
+        // Never cache empty/transient failures so reconnecting can recover.
+        if (key === "") siteKeyPromise = null;
+        return key;
+      })
+      .catch(() => {
+        siteKeyPromise = null;
+        return "";
+      });
   }
   return siteKeyPromise;
 }
@@ -50,18 +58,24 @@ function loadTurnstileScript(): Promise<void> {
     script.async = true;
     script.defer = true;
     script.onload = () => resolve();
-    // Turnstile failed to load. The honeypot still protects the form.
-    script.onerror = () => resolve();
+    // Turnstile failed to load: remove the broken tag and forget the promise
+    // so a later try after reconnecting can load it.
+    script.onerror = () => {
+      script.remove();
+      scriptPromise = null;
+      resolve();
+    };
     document.head.appendChild(script);
   });
   return scriptPromise;
 }
 
-/** One rendered widget: its id, the unused token (if any), and sends
- * waiting for the next one. Tokens are single-use, so each send takes the
- * current token and resets the widget to mint another. */
+/** One rendered widget: its id, mount element, the unused token (if any), and
+ * sends waiting for the next one. Tokens are single-use, so each send takes
+ * the current token and resets the widget to mint another. */
 interface Widget {
   id: string;
+  mount: HTMLElement;
   token: string;
   waiters: Array<(token: string) => void>;
 }
@@ -99,6 +113,7 @@ export function ensureTurnstile(mountSelector: string): void {
       const stale = widgets.get(mountSelector);
       widgets.set(mountSelector, {
         id: "",
+        mount,
         token: "",
         waiters: [
           ...(stale?.waiters ?? []),
@@ -141,7 +156,24 @@ export async function takeTurnstileToken(
   if (typeof window === "undefined" || window.turnstile === undefined) {
     return "";
   }
-  const widget = widgets.get(mountSelector);
+  const existing = widgets.get(mountSelector);
+  // A previous page's widget is gone after View Transitions; drop it so
+  // background replay doesn't stall 15s waiting on a detached mount.
+  const widget =
+    existing !== undefined && existing.mount.isConnected === false
+      ? undefined
+      : existing;
+  if (existing !== undefined && widget === undefined) {
+    widgets.delete(mountSelector);
+  }
+  if (
+    widget === undefined &&
+    typeof document !== "undefined" &&
+    document.querySelector(mountSelector) === null &&
+    (early.get(mountSelector)?.length ?? 0) === 0
+  ) {
+    return "";
+  }
   let token: string;
   if (widget !== undefined && widget.token !== "") {
     token = widget.token;

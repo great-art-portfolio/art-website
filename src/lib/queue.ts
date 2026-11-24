@@ -133,8 +133,8 @@ export async function flushOutbox(
       }
       await drop(post.id);
     }
-    db.close();
   } finally {
+    db.close();
     flushing = false;
   }
 }

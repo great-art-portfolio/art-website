@@ -14,6 +14,7 @@ import {
   trendSentence,
   visitsLabel,
 } from "../lib/metrics-view";
+import { reportError } from "../lib/report";
 import { viewsLabel } from "../lib/views";
 
 /**
@@ -99,8 +100,8 @@ function renderChart(m: SiteMetrics): void {
       label.textContent = `${dayLabel(day.date)}: ${visitsLabel(day.visits)}`;
     };
     hit.addEventListener("pointerenter", show);
-    hit.addEventListener("pointerdown", () => {
-      svg.classList.add("picking");
+    hit.addEventListener("pointerdown", (e) => {
+      if (e.pointerType !== "mouse") svg.classList.add("picking");
       show();
     });
     nodes.push(bar, hit);
@@ -238,9 +239,10 @@ function render(
 }
 
 function init(): void {
+  const sec = document.getElementById("sec-views");
   const seedEl = document.getElementById("stats-seed");
-  const seed =
-    seedEl === null ? null : parseStatsSeed(seedEl.textContent ?? "");
+  if (sec === null || seedEl === null) return;
+  const seed = parseStatsSeed(seedEl.textContent ?? "");
   if (seed === null) {
     $("stats-note").textContent =
       "Couldn't read the painting list — reload the page and try again.";
@@ -254,6 +256,7 @@ function init(): void {
   api
     .paintingViews()
     .then(({ views, metrics, unconfigured }) => {
+      if (!seedEl.isConnected) return;
       if (metrics !== null) {
         renderSite(metrics);
         writeCache(views, metrics);
@@ -280,14 +283,27 @@ function init(): void {
           : "";
     })
     .catch((err: unknown) => {
-      // The day-long sign-in ran out. Other errors are covered by the
-      // unconfigured branch above.
+      if (!seedEl.isConnected) return;
       if (err instanceof ApiError && err.status === 401) {
         const note = $("stats-note");
         note.innerHTML =
           `Your sign-in has run out. ` +
           `<a href="/admin/metrics">Reload the page</a> to sign in again.`;
+        return;
       }
+      const totalEl = $("stats-total");
+      if (totalEl.hasAttribute("data-loading")) {
+        totalEl.textContent = "—";
+        totalEl.removeAttribute("data-loading");
+      }
+      if (isLocalPreview()) {
+        $("stats-note").textContent =
+          "Counts appear once buyers visit the live site.";
+        return;
+      }
+      reportError("studio.metrics_failed", err);
+      $("stats-note").textContent =
+        "Couldn't load views right now — reload to try again.";
     });
 }
 

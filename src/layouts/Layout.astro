@@ -471,13 +471,20 @@ const offers = Object.fromEntries(
       }
       // Install is opt-in. When the browser offers installation, a footer
       // button appears that opens the browser's install dialog.
+      function syncInstallButton() {
+        const ask = window.__deferredInstall;
+        const btnEl = document.getElementById("install-app");
+        const btn = btnEl instanceof HTMLButtonElement ? btnEl : null;
+        if (btn !== null && ask !== null && ask !== undefined) {
+          btn.hidden = false;
+        }
+      }
       window.addEventListener("beforeinstallprompt", (e) => {
         e.preventDefault();
         window.__deferredInstall = e;
-        const btnEl = document.getElementById("install-app");
-        const btn = btnEl instanceof HTMLButtonElement ? btnEl : null;
-        if (btn !== null) btn.hidden = false;
+        syncInstallButton();
       });
+      document.addEventListener("astro:page-load", syncInstallButton);
       document.addEventListener("click", (e) => {
         const tEl =
           e.target instanceof Element ? e.target.closest("#install-app") : null;
@@ -605,14 +612,27 @@ const offers = Object.fromEntries(
         document
           .getElementById("notify-dialog")
           ?.setAttribute("data-ready", "");
+        const leaveEl = document.getElementById("notify-email-leave");
+        const leave = leaveEl instanceof HTMLButtonElement ? leaveEl : null;
+        const submitEl = form.querySelector('button[type="submit"]');
+        const submitBtn =
+          submitEl instanceof HTMLButtonElement ? submitEl : null;
+        let busy = false;
+        const setBusy = (next = false) => {
+          busy = next;
+          if (submitBtn !== null) submitBtn.disabled = next;
+          if (leave !== null) leave.disabled = next;
+        };
         form.addEventListener("submit", (e) => {
           e.preventDefault();
+          if (busy) return;
           const email = input.value.trim();
           if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             notifySay(hint, notifyMsg("badEmail"));
             input.focus();
             return;
           }
+          setBusy(true);
           notifySay(hint, notifyMsg("joining"));
           notifyToken()
             .then((turnstileToken) =>
@@ -649,6 +669,7 @@ const offers = Object.fromEntries(
                       const go = document.createElement("a");
                       go.href = d.devConfirmUrl;
                       go.textContent = "open the confirm page";
+                      go.dataset.astroReload = "";
                       go.addEventListener("click", (e) => {
                         e.stopPropagation();
                       });
@@ -679,21 +700,24 @@ const offers = Object.fromEntries(
             })
             .catch(() => {
               notifySay(hint, notifyMsg("failed"));
+            })
+            .finally(() => {
+              setBusy(false);
             });
         });
         // Leaving by typed address needs the spam check too (an emailed
         // link carries its own proof instead). The reply is the same
         // whether or not the address was on the list.
-        const leaveEl = document.getElementById("notify-email-leave");
-        const leave = leaveEl instanceof HTMLButtonElement ? leaveEl : null;
         if (leave !== null) {
           leave.addEventListener("click", () => {
+            if (busy) return;
             const email = input.value.trim();
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
               notifySay(hint, notifyMsg("typeFirst"));
               input.focus();
               return;
             }
+            setBusy(true);
             notifySay(hint, notifyMsg("leaving"));
             notifyToken()
               .then((turnstileToken) =>
@@ -720,6 +744,9 @@ const offers = Object.fromEntries(
               })
               .catch(() => {
                 notifySay(hint, notifyMsg("failed"));
+              })
+              .finally(() => {
+                setBusy(false);
               });
           });
         }

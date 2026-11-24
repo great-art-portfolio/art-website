@@ -162,12 +162,19 @@ export const api = {
         headers: adminHeaders(),
       });
       return data.announcement;
-    } catch {
-      return "";
+    } catch (err) {
+      // Plain `astro dev` (404) or unconfigured GitHub publishing (400).
+      if (
+        err instanceof ApiError &&
+        (err.status === 404 || err.status === 400)
+      ) {
+        return "";
+      }
+      throw err;
     }
   },
   /** Reads a gallery text file (painting .md, translation, languages.json, or
-   * instagram.txt), or null when unavailable. */
+   * instagram.txt), or null when missing/unconfigured. */
   async getPaintingFile(path: string): Promise<string | null> {
     try {
       const data = await request(
@@ -176,8 +183,15 @@ export const api = {
         { headers: adminHeaders() },
       );
       return data.content;
-    } catch {
-      return null;
+    } catch (err) {
+      // Missing file (404) or unknown/unconfigured path (400).
+      if (
+        err instanceof ApiError &&
+        (err.status === 404 || err.status === 400)
+      ) {
+        return null;
+      }
+      throw err;
     }
   },
   /** Fetches a painting's photo from the repo for AR rebuilds. Null when
@@ -328,9 +342,12 @@ export const api = {
         unconfigured: data.unconfigured === true,
       };
     } catch (err) {
-      // A 401 means a bad token. Callers treat other errors as unconfigured.
-      if (err instanceof ApiError && err.status === 401) throw err;
-      return { views: [], metrics: null, unconfigured: true };
+      // Plain `astro dev` without Functions answers 404. Other failures throw
+      // so metrics never show an outage as "No views yet".
+      if (err instanceof ApiError && err.status === 404) {
+        return { views: [], metrics: null, unconfigured: true };
+      }
+      throw err;
     }
   },
   /** Emails the list about a painting she just published (its .md path):

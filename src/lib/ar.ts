@@ -4,7 +4,11 @@
 import * as THREE from "three";
 import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
 import { USDZExporter } from "three/addons/exporters/USDZExporter.js";
-import type { PaintingEdits, ParsedPainting } from "./painting-edit";
+import {
+  needsArRebuild,
+  type PaintingEdits,
+  type ParsedPainting,
+} from "./painting-edit";
 
 const IN_TO_M = 0.0254;
 // The preview is viewed from a distance, so detail beyond 1024px doesn't
@@ -194,20 +198,12 @@ export async function rebuildForDimFix(
   edits: PaintingEdits,
   onRebuildStart?: () => void,
 ): Promise<DimFixResult> {
-  const prev = {
-    w: numOrNull(before.widthIn),
-    h: numOrNull(before.heightIn),
-    d: numOrNull(before.depthIn),
-  };
-  // Blank fields keep the old value, as in patchPainting.
   const next = {
-    w: numOrNull(edits.widthIn) ?? prev.w,
-    h: numOrNull(edits.heightIn) ?? prev.h,
-    d: numOrNull(edits.depthIn) ?? prev.d,
+    w: numOrNull(edits.widthIn) ?? numOrNull(before.widthIn),
+    h: numOrNull(edits.heightIn) ?? numOrNull(before.heightIn),
+    d: numOrNull(edits.depthIn) ?? numOrNull(before.depthIn),
   };
-  const changed = next.w !== prev.w || next.h !== prev.h || next.d !== prev.d;
-  const missing = before.modelGlb === "" || before.modelUsdz === "";
-  if (!changed && !missing)
+  if (!needsArRebuild(before, edits))
     return { edits, files: [], rebuilt: false, note: null };
   try {
     if (onRebuildStart !== undefined) onRebuildStart();

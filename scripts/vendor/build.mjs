@@ -28,8 +28,16 @@ const require = createRequire(join(root, "package.json"));
 const outDir = join(root, "public", "js");
 mkdirSync(outDir, { recursive: true });
 
-// esbuild bundles both outputs as self-contained files.
-const esbuild = join(root, "node_modules", ".bin", "esbuild");
+// esbuild bundles both outputs as self-contained files. Under pnpm, esbuild is a
+// transitive dep and lives under node_modules/.pnpm/node_modules/.bin rather
+// than the root .bin link unless hoisted.
+const esbuild = [
+  join(root, "node_modules", ".bin", "esbuild"),
+  join(root, "node_modules", ".pnpm", "node_modules", ".bin", "esbuild"),
+].find(existsSync);
+if (!esbuild) {
+  throw new Error("esbuild binary not found in node_modules; run pnpm install");
+}
 
 // 3D viewer. Bundle the package's module build so `three` is inlined. The
 // prebuilt model-viewer-module.min.js imports bare "three", which browsers

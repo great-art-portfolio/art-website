@@ -104,6 +104,7 @@ describe("plain words", () => {
 
   it("reads days, visits and countries", () => {
     assert.equal(dayLabel("2026-10-21"), "Oct 21");
+    assert.equal(dayLabel("not-a-date"), "not-a-date");
     assert.equal(visitsLabel(0), "no visits");
     assert.equal(visitsLabel(50), "about 50 visits");
     assert.equal(countryName("CA"), "Canada");

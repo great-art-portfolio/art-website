@@ -27,8 +27,19 @@ export function deviceLabel(kind: "phone" | "computer" | "tablet"): string {
 
 /** "Oct 21" from "2026-10-21", read as a calendar day (no time zone shift). */
 export function dayLabel(date: string): string {
-  const [y, m, d] = date.split("-").map(Number);
-  if (y === undefined || m === undefined || d === undefined) return date;
+  const parts = date.split("-");
+  if (parts.length !== 3) return date;
+  const [y, m, d] = parts.map(Number);
+  if (
+    y === undefined ||
+    m === undefined ||
+    d === undefined ||
+    !Number.isFinite(y) ||
+    !Number.isFinite(m) ||
+    !Number.isFinite(d)
+  ) {
+    return date;
+  }
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en", {
     month: "short",
     day: "numeric",

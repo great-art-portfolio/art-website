@@ -36,29 +36,33 @@ const msgs = {
 </style>
 
 <script>
-  // Runs once per full page load, not on astro:page-load. The call is
-  // idempotent either way.
-  const say = document.getElementById("email-token-say");
-  const params = new URLSearchParams(window.location.search);
-  const email = params.get("email") || "";
-  const token = params.get("token") || "";
-  const el = say instanceof HTMLParagraphElement ? say : null;
-  // The page's words, in its language.
-  let msgs = { needsLink: "", ok: "", bad: "" };
-  try {
-    msgs = JSON.parse(document.getElementById("main")?.dataset.msgs ?? "");
-  } catch {
-    // Keeps the blanks; the heading still says where they are.
-  }
-  if (el !== null) {
+  function runConfirm() {
+    const say = document.getElementById("email-token-say");
+    const el = say instanceof HTMLParagraphElement ? say : null;
+    if (el === null || el.dataset.wired === "1") return;
+    el.dataset.wired = "1";
+    const params = new URLSearchParams(window.location.search);
+    const email = params.get("email") || "";
+    const token = params.get("token") || "";
+    // The page's words, in its language.
+    let msgs = { needsLink: "", ok: "", bad: "" };
+    try {
+      msgs = JSON.parse(document.getElementById("main")?.dataset.msgs ?? "");
+    } catch {
+      // Keeps the blanks; the heading still says where they are.
+    }
     if (token === "" || email === "") {
       el.textContent = msgs.needsLink;
     } else {
       void import("../lib/email-token").then(function (lib) {
         lib.settleToken("confirm", email, token).then(function (verdict) {
-          el.textContent = verdict === "ok" ? msgs.ok : msgs.bad;
+          if (el.isConnected) {
+            el.textContent = verdict === "ok" ? msgs.ok : msgs.bad;
+          }
         });
       });
     }
   }
+  runConfirm();
+  document.addEventListener("astro:page-load", runConfirm);
 </script>

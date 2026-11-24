@@ -167,10 +167,14 @@ export function wireWallAr(
   // Google's viewer can't report failure: when the Google app's viewer
   // crashes it hands straight back to the page, and when the browser
   // blocks it nothing happens at all. Either way, fall back to ours.
+  let watching = false;
   const watchGoogle = () => {
+    if (watching) return;
+    watching = true;
     sessionStarted = false;
     let hiddenAt = 0;
     const toOurs = (event: string, detail = {}) => {
+      if (viewer.isConnected === false) return;
       reportError(
         `ar.${event}`,
         new Error("Google's viewer didn't stay open"),
@@ -191,8 +195,11 @@ export function wireWallAr(
     // Acting at once keeps the tap's user activation, which our viewer
     // needs to start.
     let settled = false;
+    let timer = 0;
     const stop = () => {
       settled = true;
+      watching = false;
+      window.clearTimeout(timer);
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibility);
@@ -201,6 +208,10 @@ export function wireWallAr(
       if (hiddenAt === 0) hiddenAt = performance.now();
     };
     const onFocus = () => {
+      if (viewer.isConnected === false) {
+        stop();
+        return;
+      }
       if (hiddenAt === 0 || settled) return;
       const away = performance.now() - hiddenAt;
       stop();
@@ -213,8 +224,11 @@ export function wireWallAr(
     window.addEventListener("blur", onBlur);
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibility);
-    window.setTimeout(() => {
-      if (settled || hiddenAt !== 0) return;
+    timer = window.setTimeout(() => {
+      if (settled || hiddenAt !== 0) {
+        watching = false;
+        return;
+      }
       stop();
       if (!sessionStarted) toOurs("viewer_not_opened");
     }, 3000);

@@ -68,12 +68,14 @@ describe("expiry", () => {
     assert.equal(isExpired(null, "2030-01-01"), false);
   });
 
-  it("durations land on the right date", () => {
+  it("durations land on the right calendar date across DST", () => {
     const now = new Date(2026, 8, 5, 12, 0, 0); // Sep 5, local noon
     assert.equal(expiryForDuration(1, now), "2026-09-06");
     assert.equal(expiryForDuration(7, now), "2026-09-12");
     assert.equal(expiryForDuration(14, now), "2026-09-19");
     assert.equal(expiryForDuration(null, now), null);
+    const dstStart = new Date(2026, 2, 8, 0, 30, 0); // 2026-03-08 00:30 local
+    assert.equal(expiryForDuration(1, dstStart), "2026-03-09");
   });
 
   it("daysLeft counts whole days, negative when past", () => {

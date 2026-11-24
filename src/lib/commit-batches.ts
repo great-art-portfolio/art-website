@@ -4,7 +4,7 @@
  * reorder, emptying the trash) span several. Mirrors functions/api/commit. */
 export const MAX_FILES = 100;
 export const MAX_BINARIES = 12;
-const TEXT_FILE = /\.(md|txt)$/i;
+const TEXT_FILE = /\.(md|txt|json)$/i;
 
 export function commitBatches<T extends { path: string }>(
   files: readonly T[],

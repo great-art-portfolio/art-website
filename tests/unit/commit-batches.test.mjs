@@ -43,6 +43,13 @@ describe("commitBatches", () => {
     );
   });
 
+  it("treats json translation files as text rather than binary uploads", () => {
+    const jsons = Array.from({ length: MAX_BINARIES + 5 }, (_, i) => ({
+      path: `src/content/translations/${i}.json`,
+    }));
+    assert.deepEqual(commitBatches(jsons), [{ files: jsons, deletes: [] }]);
+  });
+
   it("sends nothing for nothing", () => {
     assert.deepEqual(commitBatches([]), []);
   });

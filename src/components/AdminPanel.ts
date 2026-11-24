@@ -64,7 +64,8 @@ let statusTimer = 0;
 function setStatus(msg: string, isError = false, durationMs = 6000): void {
   // Agents see every error she was shown (pnpm logs --event studio.shown).
   if (isError) reportError("studio.shown", new Error(msg), {}, "warn");
-  const el = $("admin-status");
+  const el = maybe("admin-status");
+  if (el === null) return;
   window.clearTimeout(statusTimer);
   el.classList.remove("toast-out");
   el.textContent = msg;
@@ -269,6 +270,7 @@ function rowsKey(rows: LocalPainting[]): string {
         r.price,
         r.sold,
         r.draft,
+        r.publishOn,
         r.trash,
         r.trashedAt,
         r.image,
@@ -454,8 +456,7 @@ function renderRows(rows: LocalPainting[]): void {
 }
 
 /** Drag-to-reorder within the Available and Sold groups. Delegated listeners
- * attach once; per-card flags are reapplied on every render. */
-let reorderWired = false;
+ * attach once per list element; per-card flags are reapplied on every render. */
 let dragSlug: string | null = null;
 /** Serializes reorder commits (see the drop handler). */
 let reorderQueue: Promise<void> = Promise.resolve();
@@ -530,8 +531,8 @@ function wireReorder(list: HTMLElement): void {
   )) {
     if (card instanceof HTMLElement) card.draggable = true;
   }
-  if (reorderWired) return;
-  reorderWired = true;
+  if (list.dataset.reorderWired === "1") return;
+  list.dataset.reorderWired = "1";
   list.addEventListener("dragstart", (e) => {
     // Hidden rows sit between the visible ones, so a drop while searching
     // would land somewhere she can't see. Reorder with the box cleared.
@@ -557,19 +558,21 @@ function wireReorder(list: HTMLElement): void {
   });
   list.addEventListener("dragover", (e) => {
     const card = reorderCard(e.target);
-    if (card === null || dragSlug === null || reorderSlug(card) === dragSlug) {
+    const dragged = draggedCard(list, dragSlug);
+    if (
+      card === null ||
+      dragSlug === null ||
+      dragged === null ||
+      dragged.closest(".group-rows") !== card.closest(".group-rows") ||
+      reorderSlug(card) === dragSlug
+    ) {
       return;
     }
     e.preventDefault();
     // CSS can't style the cursor mid-drag. "move" shows a move cursor
     // instead of the default arrow.
     if (e.dataTransfer !== null) e.dataTransfer.dropEffect = "move";
-    const { mark } = dropMark(
-      card,
-      draggedCard(list, dragSlug),
-      e.clientX,
-      e.clientY,
-    );
+    const { mark } = dropMark(card, dragged, e.clientX, e.clientY);
     for (const m of dropMarks) card.classList.toggle(m, m === mark);
   });
   list.addEventListener("dragleave", (e) => {
@@ -680,11 +683,11 @@ function hintPhoto(target: EventTarget | null): Element | null {
   return photo;
 }
 
-let hintWired = false;
+let hintScrollWired = false;
 
 function wireReorderHint(list: HTMLElement): void {
-  if (hintWired) return;
-  hintWired = true;
+  if (list.dataset.hintWired === "1") return;
+  list.dataset.hintWired = "1";
   list.addEventListener("mouseover", (e) => {
     const photo = hintPhoto(e.target);
     if (photo === null) return;
@@ -711,7 +714,10 @@ function wireReorderHint(list: HTMLElement): void {
   // navigation.
   list.addEventListener("dragstart", () => hideReorderHint());
   list.addEventListener("click", () => hideReorderHint());
-  window.addEventListener("scroll", () => hideReorderHint(), true);
+  if (!hintScrollWired) {
+    hintScrollWired = true;
+    window.addEventListener("scroll", () => hideReorderHint(), true);
+  }
 }
 
 /** Writes one group's DOM order back as 0..n `order:` frontmatter. */
@@ -1226,6 +1232,41 @@ function wireRowDelete(): void {
   });
 }
 
+async function showCollectionLoadError(
+  err: unknown,
+  list: HTMLElement,
+): Promise<void> {
+  const retry = maybe("collection-refresh");
+  if (!list.isConnected || retry === null) return;
+  // GitHub refused the site's key: say so, not "check the connection".
+  if (err instanceof ApiError && err.status === 503) {
+    const li = document.createElement("li");
+    li.textContent = err.message;
+    list.replaceChildren(li);
+    retry.hidden = false;
+    return;
+  }
+  if (err instanceof ApiError && err.status === 401) {
+    list.innerHTML =
+      '<li>Your sign-in has run out. <a href="/admin">Reload the page</a> to sign in again with the code from your email.</li>';
+    retry.hidden = false;
+    return;
+  }
+  // No publishing backend in local dev. Fall back to the list baked into
+  // the page plus practice edits.
+  if (isLocalPreview() && renderLocalCollection()) return;
+  if (await apiReachable()) {
+    // The API is up but the request failed. A bad token was handled above.
+    list.innerHTML =
+      "<li>Couldn't load the collection — check the connection, then tap Retry.</li>";
+    retry.hidden = false;
+    return;
+  }
+  list.innerHTML =
+    "<li>Couldn't reach the publishing service — open barbart.ca/admin on the live site, then tap Retry.</li>";
+  retry.hidden = false;
+}
+
 async function refreshCollection(): Promise<void> {
   const list = $("edit-list");
   let files: string[];
@@ -1236,39 +1277,11 @@ async function refreshCollection(): Promise<void> {
     note.textContent = keyWarning(publishingKeyExpiry(), todayKey());
     note.hidden = note.textContent === "";
   } catch (err) {
-    const retry = $("collection-refresh");
-    // GitHub refused the site's key: say so, not "check the connection".
-    if (err instanceof ApiError && err.status === 503) {
-      const li = document.createElement("li");
-      li.textContent = err.message;
-      list.replaceChildren(li);
-      retry.hidden = false;
-      return;
-    }
-    if (err instanceof ApiError && err.status === 401) {
-      list.innerHTML =
-        '<li>Your sign-in has run out. <a href="/admin">Reload the page</a> to sign in again with the code from your email.</li>';
-      retry.hidden = false;
-      return;
-    }
-    // No publishing backend in local dev. Fall back to the list baked into
-    // the page plus practice edits.
-    if (isLocalPreview() && renderLocalCollection()) return;
-    if (await apiReachable()) {
-      // The API is up but the request failed. A bad token was handled above.
-      list.innerHTML =
-        "<li>Couldn't load the collection — check the connection, then tap Retry.</li>";
-      retry.hidden = false;
-      return;
-    }
-    list.innerHTML =
-      "<li>Couldn't reach the publishing service — open barbart.ca/admin on the live site, then tap Retry.</li>";
-    retry.hidden = false;
+    await showCollectionLoadError(err, list);
     return;
   }
   if (files.length === 0) {
-    list.innerHTML =
-      '<li class="list-plain">Nothing here yet — tap Add painting above.</li>';
+    renderRows([]);
     return;
   }
   // Thumbnails come from the baked list, matched by repo file so renamed
@@ -1285,12 +1298,18 @@ async function refreshCollection(): Promise<void> {
     }
   }
   // Fetch all files in parallel. Sequential fetches took seconds per visit.
-  const contents = await Promise.all(
-    files.map(async (f) => ({
-      f,
-      content: await api.getPaintingFile(`src/content/paintings/${f}`),
-    })),
-  );
+  let contents: Array<{ f: string; content: string | null }>;
+  try {
+    contents = await Promise.all(
+      files.map(async (f) => ({
+        f,
+        content: await api.getPaintingFile(`src/content/paintings/${f}`),
+      })),
+    );
+  } catch (err) {
+    await showCollectionLoadError(err, list);
+    return;
+  }
   const rows: LocalPainting[] = [];
   for (const { f, content } of contents) {
     const mdPath = `src/content/paintings/${f}`;
@@ -1447,7 +1466,10 @@ async function catchUpTranslations(rows: LocalPainting[]): Promise<void> {
   try {
     // A few at a time, so leaving the page keeps what's done.
     let batch: TranslationFile[] = [];
+    let pendingKeys: string[] = [];
     const flush = async (): Promise<void> => {
+      const keys = pendingKeys;
+      pendingKeys = [];
       const fresh = await stillCurrent(batch);
       batch = [];
       if (fresh.length === 0) return;
@@ -1457,34 +1479,54 @@ async function catchUpTranslations(rows: LocalPainting[]): Promise<void> {
           : `Translate ${fresh.length} paintings for the other-language pages`,
         fresh.map(({ path, blob }) => ({ path, blob })),
       );
+      for (const key of keys) remember(key);
     };
     for (const r of todo) {
-      remember(r.mdPath);
+      let failed = false;
       const file = await translationFor("painting", r.mdPath, {
         title: r.title,
         description: r.description,
         alt: r.alt,
         medium: r.medium,
-      }).catch(() => null);
-      if (file !== null) batch.push(file);
+      }).catch(() => {
+        failed = true;
+        return null;
+      });
+      if (file !== null) {
+        batch.push(file);
+        pendingKeys.push(r.mdPath);
+      } else if (!failed) {
+        remember(r.mdPath);
+      }
       if (batch.length >= 3) await flush();
     }
     if (bannerTodo) {
-      remember("banner");
+      let failed = false;
       // Her note as it is now, not as the last build saw it.
-      const raw = await api.getBanner().catch(() => "");
+      const raw = await api.getBanner().catch(() => {
+        failed = true;
+        return "";
+      });
       const { parseAnnouncement } = await import("../lib/banner");
       const text = parseAnnouncement(raw).text;
       const file =
-        text === ""
+        failed || text === ""
           ? null
           : await translationFor("banner", "", {
               title: text,
               description: "",
               alt: "",
               medium: "",
-            }).catch(() => null);
-      if (file !== null) batch.push(file);
+            }).catch(() => {
+              failed = true;
+              return null;
+            });
+      if (file !== null) {
+        batch.push(file);
+        pendingKeys.push("banner");
+      } else if (!failed) {
+        remember("banner");
+      }
     }
     await flush();
   } catch (err: unknown) {
@@ -1511,8 +1553,12 @@ async function stillCurrent(
 ): Promise<TranslationFile[]> {
   const out: TranslationFile[] = [];
   for (const f of files) {
-    const raw = await api.getPaintingFile(f.path);
-    if (sourceOf(raw) === f.basis) out.push(f);
+    try {
+      const raw = await api.getPaintingFile(f.path);
+      if (sourceOf(raw) === f.basis) out.push(f);
+    } catch {
+      // Transient read error: skip overwriting so a later visit can verify.
+    }
   }
   return out;
 }
@@ -1549,6 +1595,8 @@ async function refreshRowViews(): Promise<void> {
   }
 }
 
+let netListenersWired = false;
+
 /** Shows which offline features this browser supports and whether it's
  * online. */
 async function refreshCapabilities(): Promise<void> {
@@ -1562,28 +1610,41 @@ async function refreshCapabilities(): Promise<void> {
   } catch {
     // No service worker, so offline mode is unavailable.
   }
-  const net = navigator.onLine ? "online" : "offline";
-  $("cap-sw").textContent = sw;
-  $("cap-sync").textContent = sync;
-  $("cap-net").textContent = net;
-  window.addEventListener("online", () => {
-    $("cap-net").textContent = "online";
-  });
-  window.addEventListener("offline", () => {
-    $("cap-net").textContent = "offline";
-  });
+  const capSw = maybe("cap-sw");
+  const capSync = maybe("cap-sync");
+  const capNet = maybe("cap-net");
+  if (capSw !== null) capSw.textContent = sw;
+  if (capSync !== null) capSync.textContent = sync;
+  if (capNet !== null)
+    capNet.textContent = navigator.onLine ? "online" : "offline";
+  if (!netListenersWired) {
+    netListenersWired = true;
+    window.addEventListener("online", () => {
+      const el = maybe("cap-net");
+      if (el !== null) el.textContent = "online";
+    });
+    window.addEventListener("offline", () => {
+      const el = maybe("cap-net");
+      if (el !== null) el.textContent = "offline";
+    });
+  }
 }
 
 async function refreshFlags(): Promise<void> {
   try {
     const s = await api.status();
-    $("flag-email").textContent = s.email ? "on" : "off";
-    $("flag-push").textContent = s.push ? "on" : "off";
-    $("flag-social").textContent = s.socialPost ? "on (auto)" : "off";
+    const flagEmail = maybe("flag-email");
+    const flagPush = maybe("flag-push");
+    const flagSocial = maybe("flag-social");
+    if (flagEmail !== null) flagEmail.textContent = s.email ? "on" : "off";
+    if (flagPush !== null) flagPush.textContent = s.push ? "on" : "off";
+    if (flagSocial !== null)
+      flagSocial.textContent = s.socialPost ? "on (auto)" : "off";
   } catch {
     // No API here, such as under astro dev. Say so instead of leaving "…".
     for (const id of ["flag-email", "flag-push", "flag-social"]) {
-      $(id).textContent = "unavailable in this preview";
+      const el = maybe(id);
+      if (el !== null) el.textContent = "unavailable in this preview";
     }
   }
 }
@@ -1843,16 +1904,20 @@ function init(): void {
 
       void (async () => {
         if (await useOverlayMode()) return;
-        const raw = await api.getPaintingFile(INSTAGRAM_PATH);
-        if (raw === null) return;
-        clearLocalIg();
-        if (!secPlaque.isConnected || dirty || editing) return;
-        const parsed = parseInstagram(raw);
-        if (!parsed.ok) return;
-        if ((parsed.value?.handle ?? "") !== (savedIg?.handle ?? "")) {
-          savedIg = parsed.value;
-          previewIg = parsed.value;
-          applyUi(savedIg, previewIg, false);
+        try {
+          const raw = await api.getPaintingFile(INSTAGRAM_PATH);
+          if (raw === null) return;
+          clearLocalIg();
+          if (!secPlaque.isConnected || dirty || editing) return;
+          const parsed = parseInstagram(raw);
+          if (!parsed.ok) return;
+          if ((parsed.value?.handle ?? "") !== (savedIg?.handle ?? "")) {
+            savedIg = parsed.value;
+            previewIg = parsed.value;
+            applyUi(savedIg, previewIg, false);
+          }
+        } catch (err: unknown) {
+          reportError("studio.instagram_load_failed", err);
         }
       })();
 
@@ -2053,7 +2118,7 @@ function init(): void {
               a.href = url;
               a.download = "barbara-straka-plaque-5x7.pdf";
               a.click();
-              window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+              window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
             })
             .catch((err: unknown) => {
               setStatus(
@@ -2101,6 +2166,30 @@ function init(): void {
   // Banner page. Saving and removing commit the announcement file, or
   // update the dev preview locally.
   if (onBanner) {
+    const secBanner = document.getElementById("sec-banner");
+    const saveBtnEl = document.getElementById("announce-save");
+    const saveBtn = saveBtnEl instanceof HTMLButtonElement ? saveBtnEl : null;
+    const clearBtnEl = document.getElementById("announce-clear");
+    const clearBtn =
+      clearBtnEl instanceof HTMLButtonElement ? clearBtnEl : null;
+    let bannerDirty = false;
+    let bannerSaving = false;
+    const setBannerBusy = (busy: boolean): void => {
+      if (saveBtn !== null) saveBtn.disabled = busy;
+      if (clearBtn !== null) clearBtn.disabled = busy;
+    };
+    const metaTextFor = (
+      text: string,
+      expires: string | null,
+      bannerMod: typeof import("../lib/banner"),
+    ): string => {
+      if (text === "") return "No banner showing right now.";
+      if (expires === null) return "Showing now, with no end date.";
+      const left = bannerMod.daysLeft(expires);
+      return left < 0
+        ? `Ended ${expires} — hidden on the site.`
+        : `Showing now, ends ${expires} (${left === 0 ? "last day" : `${left} days left`}).`;
+    };
     // The preview updates as she types. It fades with opacity only, so
     // reduced motion keeps it.
     let previewGen = 0;
@@ -2144,11 +2233,20 @@ function init(): void {
         });
       }
     };
-    $("f-announce").addEventListener("input", () => syncBannerPreview());
+    $("f-announce").addEventListener("input", () => {
+      bannerDirty = true;
+      syncBannerPreview();
+    });
+    $("f-duration").addEventListener("change", () => {
+      bannerDirty = true;
+    });
     api
       .getBanner()
-      .then((raw) => {
-        void import("../lib/banner").then((bannerMod) => {
+      .then((raw) =>
+        import("../lib/banner").then((bannerMod) => {
+          if ((secBanner !== null && !secBanner.isConnected) || bannerDirty) {
+            return;
+          }
           const banner = bannerMod.parseAnnouncement(raw);
           if (banner.text === "") {
             // No published banner, so load this browser's dev preview.
@@ -2174,25 +2272,22 @@ function init(): void {
           $("f-announce").value = banner.text;
           syncBannerPreview();
           const meta = $("announce-meta");
+          meta.textContent = metaTextFor(
+            banner.text,
+            banner.expires,
+            bannerMod,
+          );
+          fadeIn(meta);
           if (banner.text === "") {
-            meta.textContent = "No banner showing right now.";
-            fadeIn(meta);
             setBannerRemovable(false);
             return;
           }
           setBannerRemovable(true);
           if (banner.expires === null) {
-            meta.textContent = "Showing now, with no end date.";
-            fadeIn(meta);
             $("f-duration").value = "";
             return;
           }
           const left = bannerMod.daysLeft(banner.expires);
-          meta.textContent =
-            left < 0
-              ? `Ended ${banner.expires} — hidden on the site.`
-              : `Showing now, ends ${banner.expires} (${left === 0 ? "last day" : `${left} days left`}).`;
-          fadeIn(meta);
           // Preselect the lifetime closest to what's left, so saving
           // without touching the dropdown roughly keeps the end date.
           const select = $("f-duration");
@@ -2206,17 +2301,22 @@ function init(): void {
             }
           }
           select.value = best;
-        });
-      })
-      .catch(() => {
-        // Publishing isn't configured yet. The editor works once it is.
+        }),
+      )
+      .catch(async (err: unknown) => {
+        if (secBanner !== null && !secBanner.isConnected) return;
+        if (await useOverlayMode()) return;
+        const meta = maybe("announce-meta");
+        if (meta !== null) {
+          meta.textContent = errorMessage(err);
+          fadeIn(meta);
+        }
+        reportError("studio.banner_load_failed", err);
       });
 
-    // Remove saves an empty announcement through the same commit path.
-    // Update rejects empty text so clearing only happens through Remove.
+    // Remove saves an empty announcement through the same commit path, keeping
+    // the typed text intact until the save succeeds. Update rejects empty text.
     $("announce-clear").addEventListener("click", () => {
-      $("f-announce").value = "";
-      syncBannerPreview();
       saveBanner(true);
     });
 
@@ -2224,9 +2324,10 @@ function init(): void {
       saveBanner(false);
     });
 
-    function saveBanner(allowEmpty: boolean): void {
-      const text = $("f-announce").value.trim().slice(0, 280);
-      if (text === "" && !allowEmpty) {
+    function saveBanner(clearMode: boolean): void {
+      if (bannerSaving) return;
+      const text = clearMode ? "" : $("f-announce").value.trim().slice(0, 280);
+      if (text === "" && !clearMode) {
         // Short-lived hint.
         setStatus(
           "Write the announcement first — or Remove banner.",
@@ -2237,6 +2338,8 @@ function init(): void {
         return;
       }
       const durationRaw = $("f-duration").value;
+      bannerSaving = true;
+      setBannerBusy(true);
       setStatus("Publishing banner… (live in a few minutes)");
       void import("../lib/banner")
         .then((bannerMod) => {
@@ -2249,17 +2352,17 @@ function init(): void {
           );
           // The note goes up with its translations for the other-language
           // homepages; if the translator can't answer it goes up alone.
-          const said = bannerMod.parseAnnouncement(body).text;
+          const parsed = bannerMod.parseAnnouncement(body);
           const translating =
-            said === ""
+            parsed.text === ""
               ? Promise.resolve(null)
               : translationFor("banner", "", {
-                  title: said,
+                  title: parsed.text,
                   description: "",
                   alt: "",
                   medium: "",
                 }).catch(() => null);
-          translating
+          return translating
             .then((translation) =>
               api.commitFiles("Update homepage banner", [
                 { path: "src/content/announcement.txt", blob: body },
@@ -2268,26 +2371,46 @@ function init(): void {
             )
             .then(() => {
               clearBannerPreview();
-              setBannerRemovable(body !== "");
+              if (secBanner !== null && !secBanner.isConnected) return;
+              if (parsed.text === "") {
+                $("f-announce").value = "";
+                syncBannerPreview();
+              }
+              const meta = maybe("announce-meta");
+              if (meta !== null) {
+                meta.textContent = metaTextFor(
+                  parsed.text,
+                  parsed.expires,
+                  bannerMod,
+                );
+                fadeIn(meta);
+              }
+              setBannerRemovable(parsed.text !== "");
               setStatus(
-                body === ""
+                parsed.text === ""
                   ? "Banner cleared."
                   : "Banner updated on the homepage.",
               );
             })
-            .catch((err: unknown) => {
-              // Dev has no publishing backend, so keep the banner in this
-              // browser. With a stored token the commit path runs instead.
-              if (isLocalPreview() && getApiToken() === "") {
-                const parsed = bannerMod.parseAnnouncement(body);
+            .catch(async (err: unknown) => {
+              // Static local dev has no publishing backend, so keep the banner
+              // in this browser. With `dev:studio` or a token, surface errors.
+              if (await useOverlayMode()) {
                 if (parsed.text === "") clearBannerPreview();
                 else storeBannerPreview(parsed.text, parsed.expires);
-                const meta = $("announce-meta");
-                meta.textContent =
-                  parsed.text === ""
-                    ? "No banner showing right now."
-                    : "Preview kept in this browser — open the homepage to see it.";
-                fadeIn(meta);
+                if (secBanner !== null && !secBanner.isConnected) return;
+                if (parsed.text === "") {
+                  $("f-announce").value = "";
+                  syncBannerPreview();
+                }
+                const meta = maybe("announce-meta");
+                if (meta !== null) {
+                  meta.textContent =
+                    parsed.text === ""
+                      ? "No banner showing right now."
+                      : "Preview kept in this browser — open the homepage to see it.";
+                  fadeIn(meta);
+                }
                 setBannerRemovable(parsed.text !== "");
                 setStatus(
                   parsed.text === ""
@@ -2296,17 +2419,25 @@ function init(): void {
                 );
                 return;
               }
-              setStatus(errorMessage(err), true);
+              if (secBanner === null || secBanner.isConnected) {
+                setStatus(errorMessage(err), true);
+              }
               reportError("studio.banner_failed", err);
             });
         })
         .catch((err: unknown) => {
           // The banner code didn't load (a page open across a deploy).
-          setStatus(
-            "Couldn't publish the banner. Reload the page and try again.",
-            true,
-          );
+          if (secBanner === null || secBanner.isConnected) {
+            setStatus(
+              "Couldn't publish the banner. Reload the page and try again.",
+              true,
+            );
+          }
           reportError("studio.banner_load_failed", err);
+        })
+        .finally(() => {
+          bannerSaving = false;
+          setBannerBusy(false);
         });
     }
   }
@@ -2349,6 +2480,10 @@ function init(): void {
       // Session storage is unavailable, so skip the toast.
     }
 
+    // Clear stale module caches so ClientRouter swaps never leave pre-edit SSR
+    // rows or old practice state onscreen when returning to the dashboard.
+    lastRowsKey = null;
+    localRows = null;
     // Clear any tooltip left from the previous page.
     hideReorderHint();
     seedRowsKey();
@@ -2459,6 +2594,7 @@ function wireList(): void {
     return li;
   };
 
+  let emptySearchShown = false;
   const draw = (): void => {
     const q = search?.value ?? "";
     const matches = all.filter((c) => matchesSearch(c.email, q));
@@ -2472,8 +2608,13 @@ function wireList(): void {
       range.textContent = `${start + 1}–${start + slice.length} of ${matches.length}`;
     if (newer !== null) newer.disabled = page === 0;
     if (older !== null) older.disabled = page >= pages - 1;
-    if (q !== "" && matches.length === 0)
+    if (q !== "" && matches.length === 0) {
+      emptySearchShown = true;
       say(`Nobody on your list matches "${q}".`);
+    } else if (emptySearchShown) {
+      emptySearchShown = false;
+      status.textContent = "";
+    }
   };
   const turn = (by: number): void => {
     page += by;
@@ -2566,6 +2707,7 @@ function wireBroadcast(): void {
     status.textContent = "Sending…";
     fadeIn(status);
     void api.emailSubscriberCount().then((total) => {
+      if (!btn.isConnected) return;
       // Ask for confirmation unless the list is known to be empty. A failed
       // count load still asks.
       const question =
@@ -2575,13 +2717,14 @@ function wireBroadcast(): void {
             ? `This will email ${total} subscribers. Are you sure?`
             : null;
       if (question !== null && !window.confirm(question)) {
-        status.textContent = "";
+        if (status.isConnected) status.textContent = "";
         btn.disabled = false;
         return;
       }
       api
         .sendCollectorEmail(readEmailCopy())
         .then((r) => {
+          if (!status.isConnected || !btn.isConnected) return;
           if (r.failed) {
             status.textContent =
               "Couldn't send the email just now. Try again in a few minutes.";
@@ -2598,8 +2741,10 @@ function wireBroadcast(): void {
           btn.disabled = false;
         })
         .catch((err: unknown) => {
-          status.textContent = `Couldn't email: ${errorMessage(err)}`;
-          fadeIn(status);
+          if (status.isConnected) {
+            status.textContent = `Couldn't email: ${errorMessage(err)}`;
+            fadeIn(status);
+          }
           btn.disabled = false;
         });
     });
@@ -2633,6 +2778,7 @@ function wireEmailPreview(): void {
   )
     return;
   let timer: number | null = null;
+  let previewGen = 0;
   const paint = (
     preview: { subject: string; text: string; html: string } | null,
   ): void => {
@@ -2665,7 +2811,11 @@ function wireEmailPreview(): void {
     fadeIn(boxEl);
   };
   const refresh = (): void => {
-    void api.emailPreview(readEmailCopy()).then(paint);
+    const gen = ++previewGen;
+    void api.emailPreview(readEmailCopy()).then((preview) => {
+      if (gen !== previewGen || !boxEl.isConnected) return;
+      paint(preview);
+    });
   };
   refresh();
   for (const id of ["email-subject", "email-body"]) {

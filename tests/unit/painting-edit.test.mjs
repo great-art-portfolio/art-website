@@ -6,6 +6,7 @@ import {
   buildMarkdown,
   formatSlugHistory,
   isPublishDue,
+  needsArRebuild,
   normalizePublishOn,
   paintingFilePaths,
   parsePainting,
@@ -137,6 +138,16 @@ describe("patchPainting model refs", () => {
     assert.match(next, /modelGlb: "\/models\/x\.glb"/);
   });
 
+  it("drops stale model keys when cleared on a failed photo rebuild", () => {
+    const next = patchPainting(SAMPLE, {
+      ...edits,
+      modelGlb: "",
+      modelUsdz: "",
+    });
+    assert.doesNotMatch(next, /^modelGlb:/m);
+    assert.doesNotMatch(next, /^modelUsdz:/m);
+  });
+
   it("updates dimensions like before", () => {
     const next = patchPainting(SAMPLE, { ...edits, widthIn: "30" });
     assert.match(next, /^widthIn: 30$/m);
@@ -206,10 +217,45 @@ describe("buildMarkdown", () => {
     assert.equal(round.description, "Late snow.");
   });
 
-  it("omits medium when blank, publishes when not a draft", () => {
-    const md = buildMarkdown({ ...input, medium: "  ", draft: false });
+  it("omits medium when blank, publishes when not a draft, and keeps sold", () => {
+    const md = buildMarkdown({
+      ...input,
+      medium: "  ",
+      draft: false,
+      sold: true,
+    });
     assert.doesNotMatch(md, /^medium:/m);
     assert.match(md, /^draft: false$/m);
+    assert.match(md, /^sold: true$/m);
+  });
+});
+
+describe("needsArRebuild", () => {
+  const base = parsePainting(
+    '---\ntitle: "A"\nprice: 10.00\ndraft: false\nwidthIn: 24\nheightIn: 36\ndepthIn: 1.5\nmodelGlb: "/models/a.glb"\nmodelUsdz: "/models/a.usdz"\n---\n\nBody.\n',
+  );
+  it("skips rebuild when dimensions match and both models exist", () => {
+    assert.equal(
+      needsArRebuild(base, { widthIn: "24", heightIn: "36", depthIn: "1.5" }),
+      false,
+    );
+    assert.equal(
+      needsArRebuild(base, { widthIn: "", heightIn: "", depthIn: "" }),
+      false,
+    );
+  });
+  it("requests rebuild when dimensions change or a model ref is missing", () => {
+    assert.equal(
+      needsArRebuild(base, { widthIn: "20", heightIn: "36", depthIn: "1.5" }),
+      true,
+    );
+    assert.equal(
+      needsArRebuild(
+        { ...base, modelUsdz: "" },
+        { widthIn: "24", heightIn: "36", depthIn: "1.5" },
+      ),
+      true,
+    );
   });
 });
 

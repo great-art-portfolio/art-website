@@ -153,7 +153,7 @@ export function wireDrawer(details: HTMLDetailsElement): void {
   if (!(head instanceof HTMLElement) || head.tagName !== "SUMMARY") return;
   head.addEventListener("click", (ev) => {
     ev.preventDefault();
-    setDrawerOpen(details, !details.open);
+    setDrawerOpen(details, !drawerOpen(details));
   });
 }
 

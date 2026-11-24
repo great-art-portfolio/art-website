@@ -39,6 +39,7 @@ interface Session {
 
 let session: Session | null = null;
 let toneFrame = 0;
+let swapHookWired = false;
 
 function pixelsOf(
   img: HTMLImageElement,
@@ -139,6 +140,9 @@ function drawLoupe(at: Pt): void {
   if (ctx === null) return;
   const shown = src.getBoundingClientRect().width;
   if (shown === 0) return;
+  // Unhide first so the loupe has a non-zero layout width on initial press.
+  loupe.dataset.side = at.x < 0.5 ? "right" : "left";
+  loupe.hidden = false;
   // Source pixels covering the loupe's CSS width at LOUPE_ZOOM.
   const span =
     (loupe.getBoundingClientRect().width / LOUPE_ZOOM) * (src.width / shown);
@@ -167,8 +171,6 @@ function drawLoupe(at: Pt): void {
   ctx.moveTo(mid, mid - 18);
   ctx.lineTo(mid, mid + 18);
   ctx.stroke();
-  loupe.dataset.side = at.x < 0.5 ? "right" : "left";
-  loupe.hidden = false;
 }
 
 function finish(fix: PhotoFix | null): void {
@@ -183,6 +185,17 @@ function finish(fix: PhotoFix | null): void {
 
 /** Wires the dialog once per document (View Transitions swap it). */
 function wire(dialog: HTMLDialogElement): void {
+  if (!swapHookWired) {
+    swapHookWired = true;
+    document.addEventListener("astro:before-swap", () => {
+      cancelAnimationFrame(toneFrame);
+      if (session === null || session.done) return;
+      session.done = true;
+      const { resolve } = session;
+      session = null;
+      resolve(null);
+    });
+  }
   if (dialog.dataset.wired === "1") return;
   dialog.dataset.wired = "1";
   const stage = $("pf-stage");

@@ -359,11 +359,16 @@ export function patchPainting(md: string, edits: PaintingEdits): string {
   }
   if (edits.dateAdded !== undefined && hasKey(next, "dateAdded"))
     next = patchKey(next, "dateAdded", edits.dateAdded);
-  // AR model refs, present only after a rebuild.
-  if (edits.modelGlb !== undefined && edits.modelGlb !== "") {
+  // AR model refs, present only after a rebuild. "" drops stale refs when a
+  // replaced photo's rebuild fails so the file won't point to the old photo.
+  if (edits.modelGlb === "") {
+    next = dropKey(next, "modelGlb");
+  } else if (edits.modelGlb !== undefined) {
     next = patchKey(next, "modelGlb", yamlQuote(edits.modelGlb));
   }
-  if (edits.modelUsdz !== undefined && edits.modelUsdz !== "") {
+  if (edits.modelUsdz === "") {
+    next = dropKey(next, "modelUsdz");
+  } else if (edits.modelUsdz !== undefined) {
     next = patchKey(next, "modelUsdz", yamlQuote(edits.modelUsdz));
   }
   for (const [key, raw] of [
@@ -391,10 +396,31 @@ export function patchPainting(md: string, edits: PaintingEdits): string {
   return next;
 }
 
+/** True when dimensions changed or either AR model ref is missing. */
+export function needsArRebuild(
+  before: ParsedPainting,
+  edits: Pick<PaintingEdits, "widthIn" | "heightIn" | "depthIn">,
+): boolean {
+  const dim = (raw: string): number | null => {
+    const n = Math.round(Number(raw) * 10) / 10;
+    return raw.trim() !== "" && Number.isFinite(n) && n > 0 ? n : null;
+  };
+  const prevW = dim(before.widthIn);
+  const prevH = dim(before.heightIn);
+  const prevD = dim(before.depthIn);
+  const nextW = dim(edits.widthIn) ?? prevW;
+  const nextH = dim(edits.heightIn) ?? prevH;
+  const nextD = dim(edits.depthIn) ?? prevD;
+  const changed = nextW !== prevW || nextH !== prevH || nextD !== prevD;
+  const missing = before.modelGlb === "" || before.modelUsdz === "";
+  return changed || missing;
+}
+
 /** Builds the .md for a new painting, draft or published. */
 export function buildMarkdown(input: {
   title: string;
   price: number;
+  sold?: boolean;
   alt: string;
   description: string;
   imageFile: string;
@@ -418,7 +444,7 @@ export function buildMarkdown(input: {
     `dateAdded: ${today}`,
     `image: ${yamlQuote(input.imageFile)}`,
     `alt: ${yamlQuote(input.alt)}`,
-    "sold: false",
+    `sold: ${input.sold === true ? "true" : "false"}`,
     `draft: ${input.draft ? "true" : "false"}`,
     `price: ${input.price.toFixed(2)}`,
   ];

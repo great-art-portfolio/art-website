@@ -31,4 +31,22 @@ describe("getTurnstileSiteKey", () => {
       __resetTurnstileCache();
     }
   });
+
+  it("retries /api/status after a failed or empty fetch", async () => {
+    __resetTurnstileCache();
+    const original = globalThis.fetch;
+    let attempt = 0;
+    globalThis.fetch = async () => {
+      attempt += 1;
+      if (attempt === 1) throw new Error("offline");
+      return { ok: true, json: async () => ({ turnstileSiteKey: "pk-live" }) };
+    };
+    try {
+      assert.equal(await getTurnstileSiteKey(), "");
+      assert.equal(await getTurnstileSiteKey(), "pk-live");
+    } finally {
+      globalThis.fetch = original;
+      __resetTurnstileCache();
+    }
+  });
 });

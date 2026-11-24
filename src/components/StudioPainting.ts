@@ -20,6 +20,7 @@ import {
   appendSlugHistory,
   buildMarkdown,
   formatAlerts,
+  needsArRebuild,
   parseAlerts,
   normalizePublishOn,
   parsePainting,
@@ -44,7 +45,7 @@ import {
   SITE_LANGUAGES,
   translationFor,
 } from "../lib/translations";
-import { $, maybe, maybeButton, studioMode } from "../lib/dom";
+import { $, isLocalPreview, maybe, maybeButton, studioMode } from "../lib/dom";
 import { errorMessage } from "../lib/errors";
 import {
   practiceDelete,
@@ -78,11 +79,6 @@ function setStatus(msg: string, isError = false): void {
       gone.classList.remove("toast-in", "toast-out");
     }, 260);
   }, 6000);
-}
-
-function isLocalPreview(): boolean {
-  const host = window.location.hostname;
-  return host === "localhost" || host === "127.0.0.1";
 }
 
 /** Confirms before publishing. Every room and mode asks, which the date
@@ -121,6 +117,10 @@ let rotation: 0 | 90 | 180 | 270 = 0;
 /** Crop & adjust on the loaded photo, kept through rotations. */
 let fix: PhotoFix | null = null;
 let photoGen = 0;
+let roomGen = 0;
+let uploadGen = 0;
+let arBuildGen = 0;
+let viewerGen = 0;
 let previewModels: { sig: string; glb: Blob; usdz: Blob } | null = null;
 let photoReplaced = false;
 /** A chosen photo still being read and prepared. */
@@ -165,11 +165,17 @@ function modelSig(): string | null {
  * shows it and rebuilds the wall preview. */
 async function reprepare(): Promise<void> {
   if (loadedImage === null) return;
+  const runRoom = roomGen;
+  const img = loadedImage;
   const { widthIn, heightIn } = readDims();
-  const prepared = await prepareImage(loadedImage, rotation, fix, {
+  const prepared = await prepareImage(img, rotation, fix, {
     widthIn,
     heightIn,
   });
+  if (runRoom !== roomGen || loadedImage !== img) {
+    URL.revokeObjectURL(prepared.previewUrl);
+    return;
+  }
   if (lastPreviewUrl !== null) URL.revokeObjectURL(lastPreviewUrl);
   preparedBlob = prepared.blob;
   photoGen += 1;
@@ -384,13 +390,31 @@ function initShare(): void {
       sayShare("No photo to share yet.");
       return;
     }
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${slug === "" ? "painting" : slug}.jpg`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    sayShare("Photo saved — post it with the words above.", true);
+    const name = `${slug === "" ? "painting" : slug}.jpg`;
+    window
+      .fetch(url)
+      .then((res) => {
+        if (!res.ok) throw new Error(`photo ${res.status}`);
+        return res.blob();
+      })
+      .then((blob) => import("../lib/image").then(({ asJpeg }) => asJpeg(blob)))
+      .then((jpeg) => {
+        if (!section.isConnected) return;
+        const objectUrl = URL.createObjectURL(jpeg);
+        const a = document.createElement("a");
+        a.href = objectUrl;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 10_000);
+        sayShare("Photo saved — post it with the words above.", true);
+      })
+      .catch(() => {
+        if (section.isConnected) {
+          sayShare("Couldn't save the photo — try again.");
+        }
+      });
   });
   copy.addEventListener("click", () => {
     const byHand = () => {
@@ -531,6 +555,8 @@ async function autoBuildAr(): Promise<void> {
     return;
   const source = preparedBlob;
   const gen = photoGen;
+  const buildId = ++arBuildGen;
+  const runRoom = roomGen;
   const waiting = maybe("de-ar-waiting");
   const stage = maybe("ar-stage");
   if (stage === null) return;
@@ -538,19 +564,26 @@ async function autoBuildAr(): Promise<void> {
   stage.hidden = false;
   stage.innerHTML =
     '<p class="ar-waiting">Building the 3D preview — about 5 seconds…</p>';
+  const stale = (): boolean =>
+    buildId !== arBuildGen ||
+    runRoom !== roomGen ||
+    gen !== photoGen ||
+    preparedBlob !== source ||
+    !stage.isConnected;
   try {
     const { buildArModels, estimateDims } = await loadArTooling();
-    if (gen !== photoGen || preparedBlob !== source) return;
+    if (stale()) return;
     const arImg = await loadImageFile(
       blobToFile(source, "ar-source.jpg", "image/jpeg"),
     );
+    if (stale()) return;
     // The signature is taken with the size it builds at: a size typed during
     // the build makes the follow-up build's models current, not these.
     const sig = modelSig();
     const { widthIn, heightIn, depthIn } = readDims();
     const dims = estimateDims(arImg, widthIn, heightIn, depthIn);
     const models = await buildArModels(arImg, dims.w, dims.h, dims.d);
-    if (gen !== photoGen || preparedBlob !== source) return;
+    if (stale()) return;
     previewModels =
       sig === null ? null : { sig, glb: models.glb, usdz: models.usdz };
     showArViewer(
@@ -558,7 +591,7 @@ async function autoBuildAr(): Promise<void> {
       URL.createObjectURL(models.usdz),
     );
   } catch (err) {
-    if (gen !== photoGen || preparedBlob !== source) return;
+    if (stale()) return;
     previewModels = null;
     stage.innerHTML =
       '<p class="ar-waiting">The 3D preview didn\u2019t build — you can still save without it.</p>';
@@ -571,13 +604,27 @@ let viewerUrls: string[] = [];
 
 /** Inline AR viewer for checking the wall preview before publishing. */
 function showArViewer(glbUrl: string, usdzUrl: string): void {
-  for (const url of viewerUrls) URL.revokeObjectURL(url);
-  viewerUrls = [glbUrl, usdzUrl];
   const stage = maybe("ar-stage");
-  if (stage === null) return;
+  if (stage === null) {
+    URL.revokeObjectURL(glbUrl);
+    URL.revokeObjectURL(usdzUrl);
+    return;
+  }
+  const vGen = ++viewerGen;
+  const runRoom = roomGen;
   void loadModelViewer()
     .then(() => {
-      if (!document.contains(stage)) return;
+      if (
+        vGen !== viewerGen ||
+        runRoom !== roomGen ||
+        !document.contains(stage)
+      ) {
+        URL.revokeObjectURL(glbUrl);
+        URL.revokeObjectURL(usdzUrl);
+        return;
+      }
+      for (const url of viewerUrls) URL.revokeObjectURL(url);
+      viewerUrls = [glbUrl, usdzUrl];
       const title = $("de-title").value.trim();
       const alt = $("de-alt").value.trim();
       // Typed through HTMLElementTagNameMap in client-globals.d.ts.
@@ -621,6 +668,10 @@ function showArViewer(glbUrl: string, usdzUrl: string): void {
       );
     })
     .catch(() => {
+      URL.revokeObjectURL(glbUrl);
+      URL.revokeObjectURL(usdzUrl);
+      if (vGen !== viewerGen || runRoom !== roomGen || !stage.isConnected)
+        return;
       stage.innerHTML =
         '<p class="ar-waiting">The 3D preview didn\u2019t build — you can still save without it.</p>';
     });
@@ -642,21 +693,23 @@ let leaving = false;
 /** Shows a tap answered at once: the button reads "Saving…" with a slim
  * moving bar and ignores more taps until the work ends. */
 async function whileBusy(
-  id: "de-save" | "de-save-draft" | "de-publish",
+  id: "de-save" | "de-save-draft" | "de-publish" | "de-visibility",
   label: string,
   run: () => Promise<void>,
 ): Promise<void> {
   const btn = maybeButton(id);
   if (btn === null || btn.dataset.busy !== undefined) return;
-  const idle = btn.textContent;
+  const idle = btn.textContent ?? "";
   btn.dataset.busy = "";
+  btn.dataset.idleLabel = idle;
   btn.setAttribute("aria-busy", "true");
   btn.textContent = label;
   try {
     await run();
   } finally {
-    if (!leaving) {
+    if (!leaving || !btn.isConnected) {
       delete btn.dataset.busy;
+      delete btn.dataset.idleLabel;
       btn.removeAttribute("aria-busy");
       btn.textContent = idle;
     }
@@ -823,16 +876,19 @@ let autosaveTimer = 0;
 let arBuildTimer = 0;
 
 function scheduleArBuild(): void {
+  const runRoom = roomGen;
   window.clearTimeout(arBuildTimer);
   arBuildTimer = window.setTimeout(() => {
-    if (preparedBlob !== null) void autoBuildAr();
+    if (runRoom === roomGen && preparedBlob !== null) void autoBuildAr();
   }, 900);
 }
 
 /** Re-crops after she edits the size, which also rebuilds the models. */
 function scheduleRefix(): void {
+  const runRoom = roomGen;
   window.clearTimeout(arBuildTimer);
   arBuildTimer = window.setTimeout(() => {
+    if (runRoom !== roomGen) return;
     reprepare().catch((err: unknown) => setStatus(errorMessage(err), true));
   }, 900);
 }
@@ -959,6 +1015,7 @@ function restoreAutosave(): void {
   set("de-w", next["w"] ?? "");
   set("de-h", next["h"] ?? "");
   set("de-d", next["d"] ?? "");
+  set("de-sold", next["sold"] ?? false);
   set("de-publish-on", next["publishOn"] ?? "");
   refreshPreview();
 }
@@ -1107,6 +1164,7 @@ async function saveNew(draft: boolean): Promise<void> {
         blob: buildMarkdown({
           title: fields.title,
           price: fields.price,
+          sold: fields.sold,
           alt: fields.alt,
           description: fields.description,
           imageFile,
@@ -1172,17 +1230,22 @@ function renamedHistory(
   return appendSlugHistory(base.slugHistory, oldSlug);
 }
 
-/** Base file for the edit room: repo content, or practice values in dev. */
-async function loadEditBase(
-  mdPath: string,
-): Promise<{ content: string; parsed: ParsedPainting } | null> {
+type EditBaseResult =
+  | { ok: true; content: string; parsed: ParsedPainting }
+  | { ok: false; err: unknown };
+
+/** Base file for the edit room: repo content, or error details when
+ * unavailable. */
+async function loadEditBaseResult(mdPath: string): Promise<EditBaseResult> {
   try {
     const content = await api.getPaintingFile(mdPath);
-    if (content === null) return null;
+    if (content === null) return { ok: false, err: null };
     const parsed = parsePainting(content);
-    return parsed === null ? null : { content, parsed };
-  } catch {
-    return null;
+    return parsed === null
+      ? { ok: false, err: null }
+      : { ok: true, content, parsed };
+  } catch (err: unknown) {
+    return { ok: false, err };
   }
 }
 
@@ -1215,20 +1278,68 @@ function practiceFromInputs(slug: string, draft: boolean): PracticePainting {
   };
 }
 
+/** Patches .md and rebuilds AR models only when dimensions changed or missing. */
+async function buildEditedFiles(
+  mdPath: string,
+  base: { content: string; parsed: ParsedPainting },
+  edits: PaintingEdits,
+): Promise<{
+  files: Array<{ path: string; blob: Blob | string }>;
+  note: string | null;
+}> {
+  if (!needsArRebuild(base.parsed, edits)) {
+    return {
+      files: [{ path: mdPath, blob: patchPainting(base.content, edits) }],
+      note: null,
+    };
+  }
+  // Dimension changes rebuild the models from the repo file. A failed build,
+  // or 3D tools that didn't load, never costs her the edit: the words still
+  // save, and the note says what didn't update.
+  const tools = await import("../lib/vendor-loader")
+    .then((m) => m.loadArTooling())
+    .catch(() => null);
+  if (tools === null) {
+    return {
+      files: [{ path: mdPath, blob: patchPainting(base.content, edits) }],
+      note: "the 3D tools didn't load.",
+    };
+  }
+  const fix = await tools.rebuildForDimFix(
+    api.getPhoto,
+    mdPath,
+    base.parsed,
+    edits,
+    () => setStatus("Rebuilding wall preview… (true size, about 5 seconds)"),
+  );
+  return {
+    files: [
+      { path: mdPath, blob: patchPainting(base.content, fix.edits) },
+      ...fix.files,
+    ],
+    note: fix.note,
+  };
+}
+
 /** Saves the open painting. A new photo replaces the file in place, so
  * links keep working. */
 async function saveEdit(
   slug: string,
   mdPath: string,
-  base: { content: string; parsed: ParsedPainting } | null,
+  baseRes: EditBaseResult,
   draft: boolean,
 ): Promise<void> {
   await photoSettled();
   const fields = readFields();
   if (fields === null) return;
-  if ((await useOverlayMode()) || base === null) {
-    if (base === null && !(await useOverlayMode())) {
-      setStatus("Couldn't load this painting's file.", true);
+  if ((await useOverlayMode()) || !baseRes.ok) {
+    if (!baseRes.ok && !(await useOverlayMode())) {
+      setStatus(
+        baseRes.err !== null
+          ? errorMessage(baseRes.err)
+          : "Couldn't load this painting's file.",
+        true,
+      );
       return;
     }
     practiceUpsert({
@@ -1248,10 +1359,12 @@ async function saveEdit(
   try {
     // The latest copy in git, not the one from when the room opened: a sale
     // or another save may have landed since.
-    const latest = await loadEditBase(mdPath);
-    if (latest === null)
+    const latest = await loadEditBaseResult(mdPath);
+    if (!latest.ok) {
+      if (latest.err !== null) throw latest.err;
       throw new Error("Couldn't load the latest copy of this painting");
-    base = latest;
+    }
+    const base = { content: latest.content, parsed: latest.parsed };
     const merged = mergedFields(base.parsed, fields);
     // Save never publishes or unpublishes: git's flag stands.
     draft = base.parsed.draft;
@@ -1316,31 +1429,9 @@ async function saveEdit(
         );
       }
     } else {
-      // Same photo: dimension changes rebuild the models from the repo file.
-      // A failed wall-preview rebuild, or 3D tools that didn't load, never
-      // costs her the edit: the words still save, and the note says what
-      // didn't update.
-      const tools = await import("../lib/vendor-loader")
-        .then((m) => m.loadArTooling())
-        .catch(() => null);
-      if (tools === null) {
-        files.push({ path: mdPath, blob: patchPainting(base.content, edits) });
-        previewNote = "the 3D tools didn't load.";
-      } else {
-        const fix = await tools.rebuildForDimFix(
-          api.getPhoto,
-          mdPath,
-          base.parsed,
-          edits,
-          () =>
-            setStatus("Rebuilding wall preview… (true size, about 5 seconds)"),
-        );
-        files.push(
-          { path: mdPath, blob: patchPainting(base.content, fix.edits) },
-          ...fix.files,
-        );
-        previewNote = fix.note;
-      }
+      const rebuilt = await buildEditedFiles(mdPath, base, edits);
+      files.push(...rebuilt.files);
+      previewNote = rebuilt.note;
     }
     const translation = await finishTranslation(translating);
     if (translation !== null) files.push(translation);
@@ -1461,19 +1552,22 @@ async function suggestPhoto(): Promise<Blob | null> {
 /** Writing helper: title, description, and alt text ideas from the photo.
  * Shown only when the server has its key. Nothing is filled in until she
  * taps an idea, except alt text when that field is still empty. */
-function initSuggest(): void {
+function initSuggest(runRoom: number): void {
   const box = maybe("de-suggest");
   if (box === null) return;
   void api.suggestEnabled().then((on) => {
+    if (runRoom !== roomGen || !box.isConnected) return;
     box.hidden = !on;
   });
   const go = $("de-suggest-go");
   const say = (msg: string): void => {
-    $("de-suggest-status").textContent = msg;
+    const status = maybe("de-suggest-status");
+    if (status !== null) status.textContent = msg;
   };
   go.addEventListener("click", () => {
     void (async () => {
       const photo = await suggestPhoto().catch(() => null);
+      if (runRoom !== roomGen || !box.isConnected) return;
       if (photo === null) {
         say("Add a photo first — the helper works from the picture.");
         return;
@@ -1494,6 +1588,7 @@ function initSuggest(): void {
           heightIn,
           notes: $("de-suggest-notes").value.trim(),
         });
+        if (runRoom !== roomGen || !box.isConnected) return;
         const titles = $("de-suggest-titles");
         titles.replaceChildren(
           ...ideas.titles.map((title) => {
@@ -1519,12 +1614,14 @@ function initSuggest(): void {
             : "Here are some ideas. Tap again for different ones.",
         );
       } catch (err) {
-        say(errorMessage(err));
+        if (runRoom === roomGen && box.isConnected) say(errorMessage(err));
       } finally {
-        go.disabled = false;
-        delete go.dataset.busy;
-        go.removeAttribute("aria-busy");
-        go.textContent = idle;
+        if (runRoom === roomGen && go.isConnected) {
+          go.disabled = false;
+          delete go.dataset.busy;
+          go.removeAttribute("aria-busy");
+          go.textContent = idle;
+        }
       }
     })();
   });
@@ -1532,6 +1629,29 @@ function initSuggest(): void {
     fillField("de-desc", $("de-suggest-desc").textContent ?? "");
     say("Description added — change any words you like.");
   });
+}
+
+function choosePhotoFile(file: File, runRoom: number, main: HTMLElement): void {
+  const uGen = ++uploadGen;
+  rotation = 0;
+  photoLoading = true;
+  photoReady = loadImageFile(file)
+    .then((img) => {
+      if (uGen !== uploadGen || runRoom !== roomGen || !main.isConnected) {
+        return;
+      }
+      return ingestPhoto(img);
+    })
+    .catch((err: unknown) => {
+      if (uGen === uploadGen && runRoom === roomGen && main.isConnected) {
+        setStatus(`${errorMessage(err)}.${heicHint(file)}`, true);
+      }
+    })
+    .finally(() => {
+      if (uGen === uploadGen && runRoom === roomGen) {
+        photoLoading = false;
+      }
+    });
 }
 
 function initStudio(): void {
@@ -1544,7 +1664,18 @@ function initStudio(): void {
   const key = `${mode}|${main.dataset.slug ?? ""}|${main.dataset.mdPath ?? ""}`;
   if (main.dataset.studioWired === key) return;
   main.dataset.studioWired = key;
-  // Reset photo state, since View Transitions can revisit a room.
+  // Reset room state, since View Transitions can revisit or switch rooms.
+  const runRoom = ++roomGen;
+  uploadGen += 1;
+  arBuildGen += 1;
+  viewerGen += 1;
+  leaving = false;
+  photoLoading = false;
+  photoReady = Promise.resolve();
+  window.clearTimeout(autosaveTimer);
+  window.clearTimeout(arBuildTimer);
+  for (const url of viewerUrls) URL.revokeObjectURL(url);
+  viewerUrls = [];
   loadedImage = null;
   preparedBlob = null;
   photoGen += 1;
@@ -1559,7 +1690,7 @@ function initStudio(): void {
   refreshPreview();
   restoreAutosave();
   initShare();
-  initSuggest();
+  initSuggest(runRoom);
   for (const id of [
     "de-title",
     "de-price",
@@ -1588,16 +1719,7 @@ function initStudio(): void {
   draftInput?.addEventListener("change", () => {
     const file = draftInput.files?.[0];
     if (file === undefined) return;
-    rotation = 0;
-    photoLoading = true;
-    photoReady = loadImageFile(file)
-      .then((img) => ingestPhoto(img))
-      .catch((err: unknown) =>
-        setStatus(`${errorMessage(err)}.${heicHint(file)}`, true),
-      )
-      .finally(() => {
-        photoLoading = false;
-      });
+    choosePhotoFile(file, runRoom, main);
   });
   for (const deg of [90, 270] as const) {
     maybe(`de-rotate-${deg}`)?.addEventListener("click", () => {
@@ -1653,34 +1775,37 @@ function initStudio(): void {
   replaceFile?.addEventListener("change", () => {
     const file = replaceFile.files?.[0];
     if (file === undefined) return;
-    rotation = 0;
-    photoLoading = true;
-    photoReady = loadImageFile(file)
-      .then((img) => ingestPhoto(img))
-      .catch((err: unknown) =>
-        setStatus(`${errorMessage(err)}.${heicHint(file)}`, true),
-      )
-      .finally(() => {
-        photoLoading = false;
-      });
+    choosePhotoFile(file, runRoom, main);
   });
 
   // Wire the buttons now while the file loads. If it fails to load outside
   // dev practice, the buttons are disabled.
-  const basePromise = loadEditBase(mdPath);
+  const basePromise = loadEditBaseResult(mdPath);
   initPhotoFix(async () => {
-    const image = (await basePromise)?.parsed.image ?? "";
+    const res = await basePromise;
+    if (!res.ok) return null;
+    const image = res.parsed.image;
     return image === "" ? null : `src/content/paintings/${image}`;
   });
-  void basePromise.then((base) => {
+  void basePromise.then(async (baseRes) => {
+    if (runRoom !== roomGen || !main.isConnected) return;
     // A scheduled draft shows the alerts it will send on its day.
-    if (base !== null && draft) {
-      const saved = parseAlerts(base.parsed.alertOnPublish);
+    if (baseRes.ok && draft) {
+      const saved = parseAlerts(baseRes.parsed.alertOnPublish);
       const email = maybe("de-notify-email");
       if (email !== null) email.checked = saved.email;
     }
-    if (base === null && !isLocalPreview()) {
-      setStatus("Couldn't load this painting's file.", true);
+    if (!baseRes.ok && !(await useOverlayMode())) {
+      if (runRoom !== roomGen || !main.isConnected) return;
+      if (baseRes.err !== null) {
+        reportError("studio.edit_load_failed", baseRes.err);
+      }
+      setStatus(
+        baseRes.err !== null
+          ? errorMessage(baseRes.err)
+          : "Couldn't load this painting's file.",
+        true,
+      );
       // `as const` lets maybe() resolve each id to HTMLButtonElement.
       for (const id of ["de-save", "de-visibility", "de-del"] as const) {
         const b = maybe(id);
@@ -1693,60 +1818,84 @@ function initStudio(): void {
     "click",
     () =>
       void whileBusy("de-save", "Saving…", () =>
-        basePromise.then((base) => saveEdit(slug, mdPath, base, draft)),
+        basePromise.then((baseRes) => saveEdit(slug, mdPath, baseRes, draft)),
       ),
   );
   maybe("de-visibility")?.addEventListener(
     "click",
     () =>
-      void basePromise.then(async (base) => {
-        const fields = readFields();
-        if (fields === null) return;
-        // Publishing asks first, as in the new room. Unpublishing doesn't.
-        if (draft && !confirmPublish(fields.title)) return;
-        if ((await useOverlayMode()) || base === null) {
-          if (base === null && !(await useOverlayMode())) {
-            setStatus("Couldn't load this painting's file.", true);
-            return;
-          }
-          practiceUpsert({
-            ...practiceFromInputs(slug, !draft),
-            title: fields.title,
-          });
-          buzz();
-          goAdmin(
-            draft
-              ? `Published "${fields.title}" in this tab's practice list.`
-              : `Unpublished "${fields.title}" in this tab's practice list.`,
-          );
-          return;
-        }
-        await photoSettled();
-        if (photoReplaced) {
-          setStatus(
-            "Save the new photo first, then publish or unpublish.",
-            true,
-          );
-          return;
-        }
-        setStatus(draft ? "Publishing…" : "Unpublishing…");
-        loadEditBase(mdPath)
-          .then((latest) => {
-            if (latest === null)
-              throw new Error("Couldn't load the latest copy of this painting");
-            return patchFlipDraft(mdPath, latest, slug, !draft, fields);
-          })
-          .then(async () => {
-            buzz();
-            const alerts = draft ? await publishAlerts(mdPath) : "";
-            goAdmin(
-              draft
+      void whileBusy(
+        "de-visibility",
+        draft ? "Publishing…" : "Unpublishing…",
+        () =>
+          basePromise.then(async (baseRes) => {
+            const fields = readFields();
+            if (fields === null) return;
+            if ((await useOverlayMode()) || !baseRes.ok) {
+              if (!baseRes.ok && !(await useOverlayMode())) {
+                setStatus(
+                  baseRes.err !== null
+                    ? errorMessage(baseRes.err)
+                    : "Couldn't load this painting's file.",
+                  true,
+                );
+                return;
+              }
+              if (draft && !confirmPublish(fields.title)) return;
+              practiceUpsert({
+                ...practiceFromInputs(slug, !draft),
+                title: fields.title,
+              });
+              buzz();
+              goAdmin(
+                draft
+                  ? `Published "${fields.title}" in this tab's practice list.`
+                  : `Unpublished "${fields.title}" in this tab's practice list.`,
+              );
+              return;
+            }
+            if (await titleClash(fields.title, slug)) return;
+            // Publishing asks first, as in the new room. Unpublishing doesn't.
+            if (draft && !confirmPublish(fields.title)) return;
+            await photoSettled();
+            if (photoReplaced) {
+              setStatus(
+                "Save the new photo first, then publish or unpublish.",
+                true,
+              );
+              return;
+            }
+            setStatus(draft ? "Publishing…" : "Unpublishing…");
+            try {
+              const latest = await loadEditBaseResult(mdPath);
+              if (!latest.ok) {
+                if (latest.err !== null) throw latest.err;
+                throw new Error(
+                  "Couldn't load the latest copy of this painting",
+                );
+              }
+              const previewNote = await patchFlipDraft(
+                mdPath,
+                { content: latest.content, parsed: latest.parsed },
+                slug,
+                !draft,
+                fields,
+              );
+              buzz();
+              const alerts = draft ? await publishAlerts(mdPath) : "";
+              const baseMsg = draft
                 ? `Published "${fields.title}" — live in a few minutes.${alerts}`
-                : `Unpublished "${fields.title}" — off the site in a few minutes.`,
-            );
-          })
-          .catch((err: unknown) => setStatus(errorMessage(err), true));
-      }),
+                : `Unpublished "${fields.title}" — off the site in a few minutes.`;
+              goAdmin(
+                previewNote === null
+                  ? baseMsg
+                  : `${baseMsg} The wall preview wasn't updated: ${previewNote}`,
+              );
+            } catch (err: unknown) {
+              setStatus(errorMessage(err), true);
+            }
+          }),
+      ),
   );
   wireDelete(
     "de-del",
@@ -1761,11 +1910,14 @@ function initStudio(): void {
         return;
       }
       // The latest copy, so trash (and a later restore) keeps every save.
-      const base = await loadEditBase(mdPath);
-      if (base === null) throw new Error("Couldn't load this painting's file.");
-      const parsed = parsePainting(base.content) ?? base.parsed;
+      const baseRes = await loadEditBaseResult(mdPath);
+      if (!baseRes.ok) {
+        if (baseRes.err !== null) throw baseRes.err;
+        throw new Error("Couldn't load this painting's file.");
+      }
+      const parsed = parsePainting(baseRes.content) ?? baseRes.parsed;
       await api.commitFiles(`Move to trash: ${parsed.title}`, [
-        { path: mdPath, blob: setTrash(base.content, true, todayKey()) },
+        { path: mdPath, blob: setTrash(baseRes.content, true, todayKey()) },
       ]);
       buzz();
       goAdmin(
@@ -1775,15 +1927,23 @@ function initStudio(): void {
   );
 }
 
-/** Toggles the draft flag and saves the other fields as typed. */
+/** Toggles the draft flag and saves the other fields as typed, updating
+ * translations and dimension-matched AR models alongside. */
 async function patchFlipDraft(
   mdPath: string,
   base: { content: string; parsed: ParsedPainting },
   oldSlug: string,
   draft: boolean,
   fields: FieldSet,
-): Promise<void> {
+): Promise<string | null> {
   const merged = mergedFields(base.parsed, fields);
+  const translating = startTranslation(mdPath, {
+    ...fields,
+    title: merged.title,
+    description: merged.description,
+    alt: merged.alt,
+    medium: merged.medium,
+  });
   const edits: PaintingEdits = {
     ...merged,
     draft,
@@ -1798,10 +1958,27 @@ async function patchFlipDraft(
       merged.title,
     ),
   };
-  await api.commitFiles(`Edit painting: ${merged.title}`, [
-    { path: mdPath, blob: patchPainting(base.content, edits) },
-  ]);
+  const rebuilt = await buildEditedFiles(mdPath, base, edits);
+  const files = [...rebuilt.files];
+  const translation = await finishTranslation(translating);
+  if (translation !== null) files.push(translation);
+  await api.commitFiles(`Edit painting: ${merged.title}`, files);
+  return rebuilt.note;
 }
+
+window.addEventListener("pageshow", (e) => {
+  if (!e.persisted) return;
+  leaving = false;
+  for (const el of document.querySelectorAll<HTMLButtonElement>(
+    ".studio-toolbar button[data-busy]",
+  )) {
+    const idle = el.dataset.idleLabel;
+    delete el.dataset.busy;
+    delete el.dataset.idleLabel;
+    el.removeAttribute("aria-busy");
+    if (idle !== undefined && idle !== "") el.textContent = idle;
+  }
+});
 
 initStudio();
 document.addEventListener("astro:page-load", initStudio);

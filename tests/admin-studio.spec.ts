@@ -2749,3 +2749,44 @@ test("metrics show last visit's numbers at once, then refresh", async ({
   release();
   await expect(page.locator("#stats-total")).toHaveText("130");
 });
+
+test("navigating across studio pages keeps drag reorder working and leaves zero page errors", async ({
+  browser,
+}) => {
+  const authed = await browser.newContext();
+  await authed.addInitScript(() =>
+    sessionStorage.setItem("ADMIN_API_TOKEN", "test"),
+  );
+  const page = await authed.newPage();
+  const pageErrors: string[] = [];
+  page.on("pageerror", (err) => pageErrors.push(err.message));
+
+  let posted: { message: string } | null = null;
+  await mockCommitApi(page);
+  await page.route("**/api/commit*", async (route) => {
+    if (route.request().method() === "POST") {
+      posted = route.request().postDataJSON() as { message: string };
+      await route.fulfill({ json: { ok: true, commit: "test" }, status: 201 });
+    } else {
+      await route.fallback();
+    }
+  });
+
+  await page.goto("/admin");
+  await expect(
+    page.locator('#edit-list .list-group[data-group="available"] .row-card'),
+  ).not.toHaveCount(0);
+  await page.locator('.site-nav a.sec[href="/admin/metrics"]').click();
+  await expect(page.locator("#sec-views")).toBeVisible();
+  await page.locator('.site-nav a.sec[href="/admin/guide"]').click();
+  await expect(page.locator("#sec-info")).toBeVisible();
+  await page.locator('.site-nav a.sec[href="/admin"]').click();
+  await expect(page.locator("#edit-list")).toBeVisible();
+
+  await dragFirstOntoLast(page);
+  await expect
+    .poll(() => posted?.message ?? null, { timeout: 15_000 })
+    .toBe("Reorder gallery");
+  expect(pageErrors).toEqual([]);
+  await authed.close();
+});

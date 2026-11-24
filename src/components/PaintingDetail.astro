@@ -827,6 +827,20 @@ const at = (b: Box) =>
     return await takeTurnstileToken("#turnstile-mount");
   }
 
+  /** Tracks whether the last navigation input was keyboard Tab (once per session). */
+  let viaKeys = false;
+  let kbdFocusTrackWired = false;
+  function wireKbdFocusTracking() {
+    if (kbdFocusTrackWired) return;
+    kbdFocusTrackWired = true;
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Tab") viaKeys = true;
+    });
+    document.addEventListener("pointerdown", () => {
+      viaKeys = false;
+    });
+  }
+
   /** A line under the 3D preview for a few seconds: the wall view didn't
    * open, instead of the button doing nothing. */
   let arFailedTimer = 0;
@@ -907,12 +921,10 @@ const at = (b: Box) =>
             const inner = el.shadowRoot?.querySelector(".userInput");
             if (inner instanceof HTMLElement) inner.style.outline = "none";
           });
-          let viaKeys = false;
-          el.addEventListener("keydown", () => (viaKeys = true));
-          document.addEventListener("keydown", (e) => {
-            if (e.key === "Tab") viaKeys = true;
+          wireKbdFocusTracking();
+          el.addEventListener("keydown", () => {
+            viaKeys = true;
           });
-          document.addEventListener("pointerdown", () => (viaKeys = false));
           el.addEventListener("focusin", () => {
             if (viaKeys) el.setAttribute("data-kbd-focus", "");
           });
@@ -959,6 +971,8 @@ const at = (b: Box) =>
     // view, and a sign someone is here (a scroll, touch, key or pointer).
     // On a big screen the stage starts in view, and a page left open
     // untouched never downloads it.
+    let stopWake = () => {};
+    let stopIo = () => {};
     const someoneHere = new Promise((resolve) => {
       const events = [
         "scroll",
@@ -968,8 +982,11 @@ const at = (b: Box) =>
         "touchstart",
       ];
       const go = () => {
-        for (const e of events) window.removeEventListener(e, go);
+        stopWake();
         resolve(undefined);
+      };
+      stopWake = () => {
+        for (const e of events) window.removeEventListener(e, go);
       };
       for (const e of events)
         window.addEventListener(e, go, { passive: true, once: true });
@@ -985,9 +1002,20 @@ const at = (b: Box) =>
           resolve(undefined);
         }
       });
+      stopIo = () => io.disconnect();
       io.observe(mount);
     });
-    void Promise.all([inView, someoneHere]).then(build);
+    const cleanupArWait = () => {
+      stopWake();
+      stopIo();
+    };
+    document.addEventListener("astro:before-swap", cleanupArWait, {
+      once: true,
+    });
+    void Promise.all([inView, someoneHere]).then(() => {
+      document.removeEventListener("astro:before-swap", cleanupArWait);
+      if (document.contains(mount)) build();
+    });
   }
 
   // View Transitions don't re-run page scripts, so initDetail() runs
@@ -1040,26 +1068,46 @@ const at = (b: Box) =>
   function afterLightboxClose() {
     // The page can stay unfocusable for a while after fullscreen ends (a
     // slow machine takes many frames), so keep trying for about a second,
-    // and once more when the window gets focus back.
+    // and clear any pending focus restore once focused or leaving the page.
     const focusPhoto = () => {
       const photo = document.getElementById("photo-wrap");
       if (photo === null) return true;
       photo.focus();
       return document.activeElement === photo;
     };
+    let onWinFocus = () => {};
+    const clearWinFocus = () => window.removeEventListener("focus", onWinFocus);
+    onWinFocus = () => {
+      clearWinFocus();
+      if (document.contains(document.getElementById("photo-wrap")))
+        focusPhoto();
+    };
     const back = (tries = 60) => {
       requestAnimationFrame(() => {
-        if (!focusPhoto() && tries > 0) back(tries - 1);
+        if (focusPhoto()) clearWinFocus();
+        else if (tries > 0) back(tries - 1);
       });
     };
-    window.addEventListener("focus", () => void focusPhoto(), { once: true });
+    document.addEventListener("astro:before-swap", clearWinFocus, {
+      once: true,
+    });
     void fullscreenRequest.then(() => {
       if (document.fullscreenElement !== null) {
-        document.addEventListener("fullscreenchange", () => back(), {
-          once: true,
-        });
+        document.addEventListener(
+          "fullscreenchange",
+          () => {
+            if (!document.hasFocus()) {
+              window.addEventListener("focus", onWinFocus, { once: true });
+            }
+            back();
+          },
+          { once: true },
+        );
         document.exitFullscreen().catch(() => back());
       } else {
+        if (!document.hasFocus()) {
+          window.addEventListener("focus", onWinFocus, { once: true });
+        }
         back();
       }
     });
@@ -1074,6 +1122,8 @@ const at = (b: Box) =>
     if (toggle === null || photo === null || room === null) return;
     if (toggle.dataset.wired === "1") return;
     toggle.dataset.wired = "1";
+    photo.dataset.origTitle = photo.getAttribute("title") ?? "";
+    photo.dataset.origAriaLabel = photo.getAttribute("aria-label") ?? "";
     // Hidden pictures never lazy-load, so fetch the room once the page has
     // settled; a tap then fades in a room that's already there.
     const pictures = Array.from(room.querySelectorAll("img"));
@@ -1099,12 +1149,39 @@ const at = (b: Box) =>
       const inRoom = !photo.classList.contains("in-room");
       if (inRoom) await ready();
       photo.classList.toggle("in-room", inRoom);
+      if (inRoom) {
+        photo.removeAttribute("role");
+        photo.removeAttribute("tabindex");
+        photo.removeAttribute("title");
+        photo.removeAttribute("aria-label");
+      } else {
+        photo.setAttribute("role", "button");
+        photo.setAttribute("tabindex", "0");
+        if ((photo.dataset.origTitle ?? "") !== "") {
+          photo.setAttribute("title", photo.dataset.origTitle ?? "");
+        }
+        if ((photo.dataset.origAriaLabel ?? "") !== "") {
+          photo.setAttribute("aria-label", photo.dataset.origAriaLabel ?? "");
+        }
+      }
       room.setAttribute("aria-hidden", String(!inRoom));
       toggle.setAttribute("aria-pressed", String(inRoom));
       toggle.textContent =
         (inRoom ? toggle.dataset.hide : toggle.dataset.show) ?? "";
       // On a phone the photo can be scrolled off; bring the swap into view.
       photo.scrollIntoView({ block: "nearest" });
+    });
+  }
+
+  let buyPageshowWired = false;
+  function wireBuyPageshow() {
+    if (buyPageshowWired) return;
+    buyPageshowWired = true;
+    window.addEventListener("pageshow", () => {
+      const btnEl = document.getElementById("buy-now");
+      const status = document.getElementById("buy-status");
+      if (btnEl instanceof HTMLButtonElement) btnEl.disabled = false;
+      if (status !== null) say(status, "");
     });
   }
 
@@ -1126,12 +1203,19 @@ const at = (b: Box) =>
     const form = formEl instanceof HTMLFormElement ? formEl : null;
     if (form !== null && form.dataset.wired !== "1") {
       form.dataset.wired = "1";
+      let sending = false;
       form.addEventListener("submit", (e) => {
         e.preventDefault();
+        if (sending) return;
         const data = new FormData(form);
         if ((data.get("website") ?? "") !== "") return; // honeypot
         const status = document.getElementById("inquiry-status");
         if (status === null) return;
+        const submitEl = form.querySelector('button[type="submit"]');
+        const submitBtn =
+          submitEl instanceof HTMLButtonElement ? submitEl : null;
+        sending = true;
+        if (submitBtn !== null) submitBtn.disabled = true;
         say(status, pageMsg("sending"));
         const live = readPageData();
         void Promise.all([import("../lib/queue"), inquiryToken()])
@@ -1168,6 +1252,12 @@ const at = (b: Box) =>
             void import("../lib/report").then((m) =>
               m.reportError("inquiry.submit_failed", err),
             );
+          })
+          .finally(() => {
+            sending = false;
+            if (submitBtn !== null && submitBtn.isConnected) {
+              submitBtn.disabled = false;
+            }
           });
       });
     }
@@ -1203,7 +1293,7 @@ const at = (b: Box) =>
       void import("../lib/checkout").then(
         ({ checkoutAvailable, startCheckout }) =>
           checkoutAvailable().then((on) => {
-            if (!on) return;
+            if (!on || !document.contains(box)) return;
             box.hidden = false;
             const ask = document.getElementById("inquiry-reveal");
             if (ask !== null) {
@@ -1212,10 +1302,7 @@ const at = (b: Box) =>
             }
             // Back from Stripe restores the page from the cache with the
             // button still disabled.
-            window.addEventListener("pageshow", () => {
-              btn.disabled = false;
-              say(status, "");
-            });
+            wireBuyPageshow();
             btn.addEventListener("click", () => {
               const live = readPageData();
               btn.disabled = true;
