@@ -1897,11 +1897,6 @@ function init(): void {
         if (!secPlaque.isConnected) return false;
         clearError();
         applyUi(savedIg, previewIg, false);
-        setStatus(
-          next === null
-            ? "Instagram removed in this tab — open on the live site to publish."
-            : `Showing ${next.handle} on your plaque in this tab — publish on the live site.`,
-        );
         return true;
       };
 
@@ -1946,7 +1941,7 @@ function init(): void {
           );
           return true;
         } catch (err: unknown) {
-          if (isLocalPreview() && getApiToken() === "") {
+          if (await useOverlayMode()) {
             return applyLocalSave(next);
           }
           if (secPlaque.isConnected) {

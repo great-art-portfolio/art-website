@@ -897,6 +897,28 @@ const offers = Object.fromEntries(
       // 80px (--bar goes 0 to 1), so it moves as fast as the page does.
       // The header is replaced on every navigation, so look it up on each
       // call.
+      function applyHeaderHeight(header = document.body) {
+        const h = Math.ceil(header.getBoundingClientRect().height);
+        if (h > 0) {
+          document.documentElement.style.setProperty("--header-h", `${h}px`);
+        }
+      }
+      function syncHeaderHeight() {
+        const header = document.querySelector(".site-header");
+        if (!(header instanceof HTMLElement)) return;
+        applyHeaderHeight(header);
+        if (
+          header.dataset.heightWired !== "1" &&
+          typeof ResizeObserver !== "undefined"
+        ) {
+          header.dataset.heightWired = "1";
+          const ro = new ResizeObserver(() => {
+            if (header.isConnected) applyHeaderHeight(header);
+            else ro.disconnect();
+          });
+          ro.observe(header);
+        }
+      }
       function syncScrollBar() {
         const header = document.querySelector(".site-header[data-scroll-bar]");
         if (!(header instanceof HTMLElement)) return;
@@ -913,11 +935,15 @@ const offers = Object.fromEntries(
           syncScrollBar();
         });
       }
+      syncHeaderHeight();
       syncScrollBar();
       if (window.__scrollBarWired !== true) {
         window.__scrollBarWired = true;
         window.addEventListener("scroll", queueScrollBar, { passive: true });
-        document.addEventListener("astro:page-load", syncScrollBar);
+        document.addEventListener("astro:page-load", () => {
+          syncHeaderHeight();
+          syncScrollBar();
+        });
       }
     </script>
   </body>
@@ -1219,8 +1245,12 @@ const offers = Object.fromEntries(
     position: fixed;
     left: 50%;
     transform: translateX(-50%);
-    top: max(5rem, env(safe-area-inset-top, 1rem));
+    top: max(
+      calc(var(--header-h, 4.5rem) + 0.75rem),
+      env(safe-area-inset-top, 1rem)
+    );
     width: min(36rem, calc(100% - 2rem));
+    box-sizing: border-box;
     z-index: 40;
     margin: 0;
     padding: 0.8rem 1.1rem;
@@ -1327,12 +1357,16 @@ const offers = Object.fromEntries(
     transform: translateX(-50%);
     margin: 0;
     padding: 0.4rem 0.9rem;
-    border-radius: 999px;
+    border-radius: 1rem;
     border: 1px solid var(--line);
     background: var(--ink);
     color: var(--paper);
     font-size: 0.85rem;
-    white-space: nowrap;
+    width: max-content;
+    max-width: calc(100% - 2rem);
+    box-sizing: border-box;
+    white-space: normal;
+    text-align: center;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.2s ease;
@@ -1496,6 +1530,17 @@ const offers = Object.fromEntries(
     outline: 2px solid var(--accent);
     outline-offset: 1px;
   }
+  @media (pointer: coarse) {
+    .nav-links a:not(.nav-cta) {
+      min-height: 2.75rem;
+      display: inline-flex;
+      align-items: center;
+    }
+    .notify-close-row button {
+      width: 2.75rem;
+      height: 2.75rem;
+    }
+  }
   @media (max-width: 38rem) {
     /* .keep links, such as the studio home link, stay visible. */
     .nav-links a:not(.nav-cta):not(.keep) {
@@ -1627,6 +1672,7 @@ const offers = Object.fromEntries(
     gap: 0.25rem 0.5rem;
     padding: 0.35rem 0.5rem;
     border-radius: 999px;
+    border: 1px solid var(--line);
     background: var(--card, var(--bg));
     box-shadow: 0 8px 28px rgb(0 0 0 / 0.16);
     font-size: 0.95rem;
@@ -1717,6 +1763,7 @@ const offers = Object.fromEntries(
       --primary-hover: #fbf6ee;
       /* White on the lighter dark-mode accent is 3:1; dark ink is 6:1. */
       --accent-ink: #171512;
+      --danger: #e07b6b;
       --card: #211c16;
       --wash: radial-gradient(
         120% 60% at 50% -10%,

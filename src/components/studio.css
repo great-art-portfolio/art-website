@@ -11,6 +11,12 @@
 .admin > section {
   margin-block: 1.5rem;
 }
+.admin > section:first-of-type {
+  margin-top: 0;
+}
+.admin > section:last-of-type {
+  margin-bottom: 0;
+}
 /* Text sections are capped at 40rem for 50–70 characters per line, while
    the collection grid uses the full width. The column is centered, since
    left-aligned looks off-center on wide screens. */
@@ -125,6 +131,18 @@ label:hover select:not(:hover) {
 .admin input[type="checkbox"]:focus:not(:focus-visible) {
   outline: none;
 }
+@media (forced-colors: active) {
+  .admin input[type="checkbox"] {
+    appearance: auto;
+    -webkit-appearance: auto;
+    width: auto;
+    height: auto;
+    display: inline-block;
+  }
+  .admin input[type="checkbox"]::before {
+    content: none;
+  }
+}
 /* Selects get a pointer cursor and a drawn chevron, inset from the edge
    and muted in both color schemes. */
 select {
@@ -140,7 +158,7 @@ select {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%23a89e8e' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   }
 }
-button:focus-visible {
+.admin button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -163,7 +181,7 @@ select:focus {
   flex: 1 1 8rem;
   margin-block: 0;
 }
-button {
+.admin button {
   font: inherit;
   font-size: 0.92rem;
   font-weight: 600;
@@ -183,19 +201,23 @@ button {
     color 0.25s ease,
     transform 0.2s ease;
 }
-button:hover {
+.admin button:hover {
   border-color: var(--ink);
-  transform: translateY(-1px);
 }
-button:active {
+@media (hover: hover) {
+  .admin button:hover {
+    transform: translateY(-1px);
+  }
+}
+.admin button:active {
   transform: none;
 }
-button.primary {
+.admin button.primary {
   background: var(--primary);
   color: var(--primary-ink);
   border-color: var(--primary);
 }
-button.primary:hover {
+.admin button.primary:hover {
   background: var(--primary-hover);
   border-color: var(--primary-hover);
   color: var(--primary-ink);
@@ -264,7 +286,7 @@ button.primary:hover {
 /* Reduced motion removes the lifts. Color and opacity transitions still
    run. */
 @media (prefers-reduced-motion: reduce) {
-  button:hover {
+  .admin button:hover {
     transform: none;
   }
   .admin summary::before {

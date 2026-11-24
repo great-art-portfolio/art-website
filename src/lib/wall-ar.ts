@@ -192,10 +192,12 @@ function buildOverlay(words: WallArWords): Overlay {
   Object.assign(text.style, {
     margin: "0",
     padding: ".6rem 1.1rem",
-    borderRadius: "999px",
+    borderRadius: "1rem",
     background: "rgba(0,0,0,.55)",
     fontSize: "1rem",
-    whiteSpace: "nowrap",
+    maxWidth: "calc(100vw - 2rem)",
+    whiteSpace: "normal",
+    textAlign: "center",
   });
   note.appendChild(phone);
   note.appendChild(text);

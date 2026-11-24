@@ -239,9 +239,7 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
     max-width: 24rem;
     margin: 0 0 1.5rem;
   }
-  .collection-search[hidden],
-  :global(#edit-list .row-card[hidden]),
-  :global(#edit-list [data-group][hidden]) {
+  .collection-search[hidden] {
     display: none;
   }
   .collection-search input {
@@ -673,5 +671,10 @@ const trashLabel = trashCount === 1 ? "1 trashed" : `${trashCount} trashed`;
       width: 3rem;
       height: 3rem;
     }
+  }
+  :global(#edit-list .trash-fold li.row-card[hidden]),
+  :global(#edit-list .row-card[hidden]),
+  :global(#edit-list [data-group][hidden]) {
+    display: none;
   }
 </style>

@@ -2292,6 +2292,7 @@ test("qr codes page prints the artist plaque and downloads a 5x7 PDF with option
   await expect(igPreview).toHaveText("Instagram: @Barbara.Straka");
   await expect(igCard).toBeVisible();
   await expect(igCard.locator("#plaque-ig-qr svg")).toBeAttached();
+  await expect(page.locator("#admin-status")).toBeEmpty();
 
   // Persists across reload in local preview storage.
   await page.reload();

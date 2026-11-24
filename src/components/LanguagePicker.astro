@@ -100,6 +100,11 @@ const current = versions.find((v) => v.code === locale) ?? versions[0];
   .lang-pick[open] .chev {
     transform: rotate(180deg);
   }
+  @media (prefers-reduced-motion: reduce) {
+    .chev {
+      transition: none;
+    }
+  }
   ul {
     list-style: none;
     margin: 0;

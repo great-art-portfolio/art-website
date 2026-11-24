@@ -1478,7 +1478,7 @@ const at = (b: Box) =>
     }
     .info {
       position: sticky;
-      top: 5.5rem;
+      top: calc(var(--header-h, 4.5rem) + 1rem);
     }
   }
   .frame {
@@ -1786,6 +1786,18 @@ const at = (b: Box) =>
   .room-toggle:hover {
     color: var(--ink);
   }
+  .room-toggle:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+  @media (pointer: coarse) {
+    .room-toggle {
+      min-height: 2.75rem;
+      display: inline-flex;
+      align-items: center;
+    }
+  }
   .room-stage {
     position: absolute;
     /* cqw below are hundredths of the whole render's width. */
@@ -1958,13 +1970,10 @@ const at = (b: Box) =>
   .ar-waiting[hidden] {
     display: none;
   }
-  /* Reduced motion stops the skeleton and reveal slide. The lightbox fade
-     still runs. Button lifts are handled next to their hover rule below. */
+  /* Reduced motion stops the skeleton. The lightbox fade still runs. Button
+     lifts and the form reveal slide are handled right after their rules below. */
   @media (prefers-reduced-motion: reduce) {
     .ar-skeleton {
-      animation: none;
-    }
-    #inquiry-form.revealed {
       animation: none;
     }
   }
@@ -2043,6 +2052,11 @@ const at = (b: Box) =>
   /* Fade in when "Interested?" reveals the form. */
   #inquiry-form.revealed {
     animation: form-in 0.3s ease;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #inquiry-form.revealed {
+      animation: none;
+    }
   }
   @keyframes form-in {
     from {
@@ -2529,7 +2543,10 @@ const at = (b: Box) =>
     position: fixed;
     left: 50%;
     transform: translateX(-50%);
-    top: max(5rem, env(safe-area-inset-top, 1rem));
+    top: max(
+      calc(var(--header-h, 4.5rem) + 0.75rem),
+      env(safe-area-inset-top, 1rem)
+    );
     z-index: 40;
     width: min(36rem, calc(100% - 2rem));
     box-sizing: border-box;
@@ -2555,14 +2572,17 @@ const at = (b: Box) =>
     position: fixed;
     left: 50%;
     transform: translateX(-50%);
-    top: max(5rem, env(safe-area-inset-top, 1rem));
+    top: max(
+      calc(var(--header-h, 4.5rem) + 0.75rem),
+      env(safe-area-inset-top, 1rem)
+    );
     z-index: 40;
     width: min(36rem, calc(100% - 2rem));
     box-sizing: border-box;
     margin: 0;
     padding: 0.8rem 1.1rem;
     border-radius: var(--radius);
-    border: 1px solid rgb(140 29 24 / 0.4);
+    border: 1px solid var(--danger);
     background: var(--card);
     box-shadow: var(--shadow);
     font-size: 0.95rem;

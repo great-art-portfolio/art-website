@@ -183,6 +183,16 @@ const defaults = broadcastDefaults(SITE_URL);
     padding: 0.3rem 0.8rem;
     font-size: 0.85rem;
   }
+  @media (pointer: coarse) {
+    #list-people :global(.who),
+    #list-people :global(.list-remove) {
+      min-height: 2.75rem;
+    }
+    #list-people :global(.who) {
+      display: inline-flex;
+      align-items: center;
+    }
+  }
   /* On a phone the address and its date stack, with Remove beside them. */
   @media (max-width: 40rem) {
     #list-people {
