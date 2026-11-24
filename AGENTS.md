@@ -55,9 +55,10 @@ tests and review use 4331.)
 ## Studio dev loop (writable content without prod)
 
 `pnpm dev:studio` runs astro dev on :4332 plus a localhost content API
-The content API on :4333 (`scripts/studio-dev-server.mjs`) mirrors the Pages
-Functions, backed by the working tree: banner, Instagram handle, painting,
-photo, and model writes land as uncommitted files. The email list runs the REAL collectors handler with
+on :4333 (`scripts/studio-dev-server.mjs`), which the dev-only Vite proxy
+answers `/api/*` from. Same contract as the Pages Functions, backed by the
+working tree: banner, Instagram handle, painting, photo, and model writes
+land as uncommitted files. The email list runs the REAL collectors handler with
 a file-backed mock table: the loop completes locally, and `*@resend.dev`
 addresses additionally ride the true API when `.dev.vars` holds a key.
 Never test publish flows in prod.
@@ -160,12 +161,12 @@ data read it from `/catalog.json` through `env.ASSETS`. Check with
 
 `/admin` is her dashboard: her paintings as Available, Sold, Drafts
 (scheduled ones included) and Trash. Its other pages: `/admin/paintings/new` and
-(`/admin/paintings/new` and `/admin/paintings/<slug>` — title, price, size,
-Sold box, photo, AR model), `/admin/qr-codes` (the 5×7" artist plaque for
-print or client-side PDF, optional Instagram handle persisted in
-`src/content/instagram.txt` for the plaque, its own painted Instagram QR
-card, public footer, and painting JSON-LD `sameAs`, plus painted-acrylic SVG QR
-cards via `paintedQrSvg`, also used on desktop `.ar-qr`), `/admin/banner`,
+`/admin/paintings/<slug>` (one painting's edit room: title, price, size, Sold
+box, photo, AR model), `/admin/qr-codes` (the 5×7" artist plaque for print or
+client-side PDF, optional Instagram handle persisted in
+`src/content/instagram.txt` for the plaque, its own painted Instagram QR card,
+public footer, and painting JSON-LD `sameAs`, plus painted-acrylic SVG QR cards
+via `paintedQrSvg`, also used on desktop `.ar-qr`), `/admin/banner`,
 `/admin/email` (her email list and sending), `/admin/metrics`, `/admin/guide` (her
 how-to, and the site's languages). Prices change one painting at a time
 in its edit room; there is no batch price edit. Before telling the owner

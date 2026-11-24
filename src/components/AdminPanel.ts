@@ -1697,6 +1697,8 @@ function init(): void {
       let previewIg: ParsedInstagram | null = bakedIg;
       let editing = false;
       let dirty = false;
+      let saving = false;
+      let qrTimer = 0;
       let renderedQrUrl =
         bakedIg !== null && igQr?.querySelector("svg") !== null
           ? bakedIg.url
@@ -1761,7 +1763,12 @@ function init(): void {
         }
       };
 
-      const syncQrCard = (next: ParsedInstagram | null): void => {
+      const syncQrCard = (
+        next: ParsedInstagram | null,
+        debounce = false,
+      ): void => {
+        window.clearTimeout(qrTimer);
+        qrTimer = 0;
         if (igCard === null) return;
         if (next === null) {
           qrGen++;
@@ -1779,22 +1786,30 @@ function init(): void {
         if (next.url === renderedQrUrl && igQr.querySelector("svg") !== null) {
           return;
         }
-        const gen = ++qrGen;
-        void import("../lib/qr")
-          .then(({ paintedQrSvg }) => {
-            if (gen !== qrGen || !igQr.isConnected) return;
-            igQr.innerHTML = paintedQrSvg(next.url);
-            renderedQrUrl = next.url;
-          })
-          .catch((err: unknown) => {
-            reportError("studio.ig_qr_failed", err);
-          });
+        const renderNow = (): void => {
+          const gen = ++qrGen;
+          void import("../lib/qr")
+            .then(({ paintedQrSvg }) => {
+              if (gen !== qrGen || !igQr.isConnected) return;
+              igQr.innerHTML = paintedQrSvg(next.url);
+              renderedQrUrl = next.url;
+            })
+            .catch((err: unknown) => {
+              reportError("studio.ig_qr_failed", err);
+            });
+        };
+        if (debounce) {
+          qrTimer = window.setTimeout(renderNow, 150);
+        } else {
+          renderNow();
+        }
       };
 
       const applyUi = (
         saved: ParsedInstagram | null,
         preview: ParsedInstagram | null,
         isEditing: boolean,
+        debounceQr = false,
       ): void => {
         if (igAdd !== null) igAdd.hidden = saved !== null || isEditing;
         if (igSaved !== null) igSaved.hidden = saved === null || isEditing;
@@ -1814,7 +1829,7 @@ function init(): void {
             igPreviewLink.textContent = preview?.handle ?? "";
           }
         }
-        syncQrCard(preview);
+        syncQrCard(preview, debounceQr);
       };
 
       if (isLocalPreview() && getApiToken() === "") {
@@ -1842,6 +1857,7 @@ function init(): void {
       })();
 
       const openEditor = (): void => {
+        if (saving) return;
         editing = true;
         clearError();
         if (igInput instanceof HTMLInputElement) {
@@ -1855,6 +1871,7 @@ function init(): void {
       };
 
       const cancelEditor = (): void => {
+        if (saving) return;
         editing = false;
         previewIg = savedIg;
         clearError();
@@ -1891,6 +1908,8 @@ function init(): void {
       const persistInstagram = async (
         next: ParsedInstagram | null,
       ): Promise<boolean> => {
+        if (saving) return false;
+        saving = true;
         dirty = true;
         setBusy(true);
         try {
@@ -1936,6 +1955,7 @@ function init(): void {
           reportError("studio.instagram_failed", err);
           return false;
         } finally {
+          saving = false;
           setBusy(false);
         }
       };
@@ -1954,7 +1974,7 @@ function init(): void {
           } else {
             previewIg = savedIg;
           }
-          applyUi(savedIg, previewIg, editing);
+          applyUi(savedIg, previewIg, editing, true);
         });
       }
 
@@ -1967,6 +1987,7 @@ function init(): void {
         });
         igForm.addEventListener("submit", (e) => {
           e.preventDefault();
+          if (saving) return;
           const raw = igInput instanceof HTMLInputElement ? igInput.value : "";
           const res = parseInstagram(raw);
           if (!res.ok) {
@@ -1999,6 +2020,7 @@ function init(): void {
       }
 
       igRemove?.addEventListener("click", () => {
+        if (saving) return;
         void persistInstagram(null).then((ok) => {
           if (ok && igAdd instanceof HTMLElement) igAdd.focus();
         });

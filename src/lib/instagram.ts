@@ -43,7 +43,7 @@ const RESERVED_PATHS = new Set([
 ]);
 
 const INVISIBLE_MARKS = /[\u200B-\u200F\u202A-\u202E\u2060\uFEFF]/g;
-const VALID_USERNAME = /^[A-Za-z0-9](?:[A-Za-z0-9._]{0,28}[A-Za-z0-9])?$/;
+const VALID_USERNAME = /^[A-Za-z0-9_](?:[A-Za-z0-9._]{0,28}[A-Za-z0-9_])?$/;
 
 /** Parses a typed handle or pasted instagram.com link. Returns null for
  * blank input, or an error string when the input cannot be a real profile. */

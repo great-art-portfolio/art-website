@@ -164,6 +164,9 @@ export async function renderPlaquePdf({
   if (!qrImg.complete || qrImg.naturalWidth === 0) {
     await qrImg.decode().catch(() => undefined);
   }
+  if (qrImg.naturalWidth === 0) {
+    throw new Error("Plaque QR image could not be loaded");
+  }
 
   const canvas = document.createElement("canvas");
   canvas.width = W;

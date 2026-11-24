@@ -69,6 +69,21 @@ describe("parseInstagram", () => {
         url: "https://www.instagram.com/a/",
       },
     });
+    for (const u of [
+      "_barbarastraka",
+      "barbarastraka_",
+      "_barbara_art_",
+      "_",
+    ]) {
+      assert.deepEqual(parseInstagram(u), {
+        ok: true,
+        value: {
+          username: u,
+          handle: `@${u}`,
+          url: `https://www.instagram.com/${u}/`,
+        },
+      });
+    }
     const thirty = "a".repeat(28) + "9z";
     assert.deepEqual(parseInstagram(thirty), {
       ok: true,
@@ -138,6 +153,7 @@ describe("parseInstagram", () => {
       ".barbara",
       "barbara.",
       "barbara..straka",
+      ".",
     ];
     for (const raw of bad) {
       const res = parseInstagram(raw);
