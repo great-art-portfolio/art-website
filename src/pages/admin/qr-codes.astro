@@ -1,7 +1,10 @@
 ---
+import { Image } from "astro:assets";
 import { getCollection } from "astro:content";
 import Layout from "../../layouts/Layout.astro";
+import Signature from "../../components/Signature.astro";
 import "../../components/studio.css";
+import plaqueQr from "../../assets/artist-plaque-qr.jpg";
 import { compareGalleryOrder, isPublished, slugifyTitle } from "../../lib/site";
 import { paintingPageUrl, qrSvg } from "../../lib/qr";
 
@@ -27,8 +30,89 @@ const codes = cards.map((p) => {
 
 <Layout title="Admin - QR codes" wordmark="admin" noindex>
   <main class="admin" id="main">
+    <section id="sec-plaque">
+      <h2>Artist plaque</h2>
+      <p>
+        One 5&times;7&Prime; sign for your table or wall at an art show &mdash;
+        introduces your work and opens barbart.ca.
+      </p>
+      <div class="plaque-actions">
+        <button type="button" id="plaque-print" class="primary">
+          Print plaque
+        </button>
+        <button type="button" id="plaque-pdf">
+          Download 5&times;7&Prime; PDF
+        </button>
+        <button
+          type="button"
+          id="plaque-ig-toggle"
+          aria-expanded="false"
+          aria-controls="plaque-ig-row"
+        >
+          Add Instagram
+        </button>
+      </div>
+      <div id="plaque-ig-row" class="plaque-ig-row" hidden>
+        <label for="plaque-ig-input">
+          Instagram handle
+          <input
+            id="plaque-ig-input"
+            type="text"
+            placeholder="@barbarastraka"
+            autocomplete="off"
+            spellcheck="false"
+            maxlength="60"
+          />
+        </label>
+        <button type="button" id="plaque-ig-clear">
+          Remove
+        </button>
+      </div>
+      <article class="plaque-sheet" aria-label="Artist plaque preview">
+        <div class="plaque-paper">
+          <div class="plaque-card">
+            <div class="plaque-sig">
+              <Signature />
+            </div>
+            <p class="plaque-eyebrow">
+              Calgary, Alberta &middot; Original Paintings
+            </p>
+            <div class="plaque-rule" aria-hidden="true" />
+            <div class="plaque-bio">
+              <p>
+                Nature and abstract originals from her Calgary studio.
+                <br />
+                Prairie light, quiet water, and colour studies
+                <br />
+                sitting somewhere between landscape and feeling.
+              </p>
+              <p>
+                Every piece is painted by hand.
+                <br />
+                Scan below for larger originals, prints, and studio updates.
+              </p>
+            </div>
+            <div class="plaque-qr">
+              <Image
+                src={plaqueQr}
+                alt="Painted QR code for barbart.ca"
+                width={1024}
+                height={1024}
+                quality={95}
+              />
+            </div>
+            <p class="plaque-url">barbart.ca</p>
+            <p class="plaque-ig" id="plaque-ig" hidden />
+            <p class="plaque-sub">
+              Larger originals &middot; Prints &middot; New-work alerts
+            </p>
+          </div>
+        </div>
+      </article>
+    </section>
+
     <section id="sec-qr">
-      <h2>QR codes</h2>
+      <h2>Painting QR codes</h2>
       <p>
         Print this page and cut out a code to stand beside its painting — a
         phone camera opens that painting's page on the site.
@@ -61,14 +145,163 @@ const codes = cards.map((p) => {
 <script src="../../components/AdminPanel.ts"></script>
 
 <style>
-  /* Cards with a code, title, and URL. The intro keeps the 40rem text
-     width and the grid uses the full width: three across on desktop, two
-     on tablets, one on phones. Print uses two across so cards stay large
-     and don't split across pages. */
+  /* Table/wall artist plaque: proportional 5x7 sheet scaled with cqi so
+     screen preview and printed output share one exact layout. */
+  #sec-plaque {
+    margin-bottom: 3rem;
+    padding-bottom: 2.5rem;
+    border-bottom: 1px solid var(--line);
+  }
+  #sec-plaque > h2,
+  #sec-plaque > p,
   #sec-qr > h2,
   #sec-qr > p {
     max-width: 40rem;
   }
+  .plaque-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 1.5rem;
+  }
+  .plaque-ig-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: end;
+    max-width: 28rem;
+    margin: 0 0 1.75rem;
+  }
+  .plaque-ig-row[hidden] {
+    display: none;
+  }
+  .plaque-ig-row label {
+    flex: 1 1 13rem;
+    margin-block: 0;
+  }
+  /* container-type: inline-size lives on .plaque-sheet while cqi lengths
+     live on .plaque-paper and its descendants so every cqi unit measures
+     the plaque itself rather than the viewport. */
+  .plaque-sheet {
+    container-type: inline-size;
+    width: min(100%, 24rem);
+    aspect-ratio: 5 / 7;
+    padding: 0;
+    border-radius: 0.75rem;
+    border: 1px solid var(--line);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  /* Fixed warm paper palette so the preview always reflects paper stock,
+     even when the studio is open in dark mode. */
+  .plaque-paper {
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 5.6cqi;
+    background:
+      radial-gradient(120% 55% at 50% 0%, #f1e7d4 0%, transparent 62%), #faf7f1;
+    color: #23201b;
+    display: flex;
+    flex-direction: column;
+  }
+  .plaque-card {
+    flex: 1;
+    min-height: 0;
+    background: #fffdf8;
+    border: 1px solid #e5dccb;
+    border-radius: 1.73cqi;
+    padding: 6.4cqi 7cqi 5.7cqi;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    box-shadow: 0 1.6cqi 4.6cqi -2.2cqi rgb(60 42 20 / 0.22);
+  }
+  .plaque-sig {
+    margin-bottom: 1.6cqi;
+    color: #23201b;
+  }
+  .plaque-sig :global(svg) {
+    width: 45.3cqi;
+    max-width: none;
+    height: auto;
+  }
+  .plaque-eyebrow {
+    margin: 0 0 2.6cqi;
+    font-size: 1.8cqi;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #a44a24;
+  }
+  .plaque-rule {
+    width: 9.3cqi;
+    height: 1px;
+    background: #e5dccb;
+    margin: 0 auto 2.9cqi;
+  }
+  .plaque-bio {
+    max-width: 72cqi;
+    margin: 0 0 3.2cqi;
+    font-size: 2.4cqi;
+    line-height: 1.54;
+    color: #23201b;
+  }
+  .plaque-bio p {
+    margin: 0 0 1.7cqi;
+  }
+  .plaque-bio p:last-child {
+    margin-bottom: 0;
+    font-size: 2.2cqi;
+    line-height: 1.5;
+    color: #756a5c;
+  }
+  .plaque-qr {
+    width: 48cqi;
+    aspect-ratio: 1;
+    margin: 0.8cqi 0 2.5cqi;
+    border-radius: 0.93cqi;
+    border: 1px solid rgb(229 220 203 / 0.9);
+    overflow: hidden;
+    box-shadow:
+      0 0.15cqi 0.4cqi rgb(35 32 27 / 0.09),
+      0 1.7cqi 3.3cqi -1.45cqi rgb(35 32 27 / 0.34);
+  }
+  .plaque-qr img {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .plaque-url {
+    margin: 0 0 0.9cqi;
+    font-family: var(--serif);
+    font-size: 4.53cqi;
+    font-weight: 550;
+    letter-spacing: -0.01em;
+    color: #23201b;
+  }
+  .plaque-ig {
+    margin: 0 0 1.2cqi;
+    font-size: 2.25cqi;
+    font-weight: 600;
+    color: #a44a24;
+  }
+  .plaque-ig[hidden] {
+    display: none;
+  }
+  .plaque-sub {
+    margin: auto 0 0;
+    font-size: 1.87cqi;
+    letter-spacing: 0.04em;
+    color: #756a5c;
+  }
+
+  /* Cards with a code, title, and URL. The intro keeps the 40rem text
+     width and the grid uses the full width: three across on desktop, two
+     on tablets, one on phones. Print uses two across so cards stay large
+     and don't split across pages. */
   #sec-qr .qr-grid {
     list-style: none;
     margin: 2rem 0 0;
@@ -128,15 +361,57 @@ const codes = cards.map((p) => {
     font-size: 0.85rem;
   }
   @media print {
-    /* Print only the codes, in black on white regardless of theme. */
+    /* Print only the chosen piece (plaque or painting codes), in clean
+       color on paper regardless of theme. */
+    :global(.site-header),
     :global(.site-nav),
     :global(#admin-status),
     :global(#background),
     :global(.site-footer),
+    #sec-plaque > h2,
+    #sec-plaque > p,
+    .plaque-actions,
+    .plaque-ig-row,
     #sec-qr > h2,
     #sec-qr > p,
     #qr-print,
     #sec-qr .qr-print-one {
+      display: none;
+    }
+    :global(.admin) {
+      max-width: none;
+      padding: 0;
+    }
+    #sec-plaque {
+      margin: 0;
+      padding: 0;
+      border: 0;
+    }
+    .plaque-sheet {
+      width: min(100%, 5in);
+      height: auto;
+      aspect-ratio: 5 / 7;
+      margin: 0 auto;
+      border-radius: 0;
+      border: 0;
+      box-shadow: none;
+      break-inside: avoid;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    /* Negative-spread shadows render as solid grey boxes in Chromium PDFs,
+       so swap them for a crisp border in print. */
+    .plaque-card,
+    .plaque-qr {
+      box-shadow: none;
+    }
+    .plaque-qr {
+      border-color: #ddd2bd;
+    }
+    :global(#main.printing-plaque) #sec-qr {
+      display: none;
+    }
+    :global(#main.printing-codes) #sec-plaque {
       display: none;
     }
     #sec-qr .qr-grid {

@@ -17,6 +17,7 @@ import { sendPublishAlerts } from "../lib/alerts";
 import { translationFor, type TranslationFile } from "../lib/translations";
 import { parseTranslationFile, translationPath } from "../i18n/painting-text";
 import { keyWarning } from "../lib/key-expiry";
+import { normalizeInstagramHandle, renderPlaquePdf } from "../lib/plaque-pdf";
 import {
   SEARCH_FROM,
   matchesSearch,
@@ -1639,12 +1640,130 @@ function init(): void {
   wireBroadcast();
   wireList();
   wireEmailPreview();
-  // QR codes page. The print CSS lives with the page.
+  // QR codes & artist plaque page. The print CSS lives with the page.
   if (onQr) {
+    const main = document.getElementById("main");
+    const printWith = (
+      classes: { el: Element | null; name: string }[],
+    ): void => {
+      for (const { el, name } of classes) el?.classList.add(name);
+      const done = (): void => {
+        for (const { el, name } of classes) el?.classList.remove(name);
+        window.removeEventListener("afterprint", done);
+      };
+      window.addEventListener("afterprint", done);
+      window.print();
+    };
+    const plaqueBtn = document.getElementById("plaque-print");
+    if (plaqueBtn !== null && plaqueBtn.dataset.wired !== "1") {
+      plaqueBtn.dataset.wired = "1";
+      plaqueBtn.addEventListener("click", () => {
+        printWith([{ el: main, name: "printing-plaque" }]);
+      });
+    }
+
+    const IG_STORAGE_KEY = "barbart:plaque-ig";
+    const igToggle = document.getElementById("plaque-ig-toggle");
+    const igRow = document.getElementById("plaque-ig-row");
+    const igInput = document.getElementById("plaque-ig-input");
+    const igClear = document.getElementById("plaque-ig-clear");
+    const igPreview = document.getElementById("plaque-ig");
+    let currentInstagram = "";
+    const syncInstagram = (raw: string, save: boolean): void => {
+      const handle = normalizeInstagramHandle(raw);
+      currentInstagram = handle;
+      if (igPreview !== null) {
+        igPreview.textContent = handle === "" ? "" : `Instagram: ${handle}`;
+        igPreview.hidden = handle === "";
+      }
+      if (igToggle !== null) {
+        igToggle.textContent =
+          handle === "" ? "Add Instagram" : "Edit Instagram";
+      }
+      if (save) {
+        try {
+          if (handle === "") localStorage.removeItem(IG_STORAGE_KEY);
+          else localStorage.setItem(IG_STORAGE_KEY, handle);
+        } catch {
+          // Ignore storage unavailability in strict private sessions.
+        }
+      }
+    };
+    if (igToggle !== null && igToggle.dataset.wired !== "1") {
+      igToggle.dataset.wired = "1";
+      let saved: string;
+      try {
+        saved = localStorage.getItem(IG_STORAGE_KEY) ?? "";
+      } catch {
+        saved = "";
+      }
+      if (saved !== "") {
+        if (igInput instanceof HTMLInputElement) igInput.value = saved;
+        syncInstagram(saved, false);
+      }
+      igToggle.addEventListener("click", () => {
+        if (igRow === null) return;
+        const open = igRow.hidden;
+        igRow.hidden = !open;
+        igToggle.setAttribute("aria-expanded", String(open));
+        if (open && igInput instanceof HTMLInputElement) igInput.focus();
+      });
+      if (igInput instanceof HTMLInputElement) {
+        igInput.addEventListener("input", () => {
+          syncInstagram(igInput.value, true);
+        });
+      }
+      igClear?.addEventListener("click", () => {
+        if (igInput instanceof HTMLInputElement) igInput.value = "";
+        syncInstagram("", true);
+        if (igRow !== null) igRow.hidden = true;
+        igToggle.setAttribute("aria-expanded", "false");
+        igToggle.focus();
+      });
+    }
+
+    const pdfBtn = document.getElementById("plaque-pdf");
+    if (pdfBtn instanceof HTMLButtonElement && pdfBtn.dataset.wired !== "1") {
+      pdfBtn.dataset.wired = "1";
+      pdfBtn.addEventListener("click", () => {
+        if (pdfBtn.disabled) return;
+        const svgEl = document.querySelector(".plaque-sig svg");
+        const qrImg = document.querySelector(".plaque-qr img");
+        if (
+          !(svgEl instanceof SVGElement) ||
+          !(qrImg instanceof HTMLImageElement)
+        )
+          return;
+        const label = pdfBtn.textContent ?? "Download 5\u00D77\u2033 PDF";
+        pdfBtn.disabled = true;
+        pdfBtn.textContent = "Preparing PDF\u2026";
+        void renderPlaquePdf({
+          svgEl,
+          qrImg,
+          instagram: currentInstagram,
+        })
+          .then((pdfBytes) => {
+            const url = URL.createObjectURL(
+              new Blob([pdfBytes], { type: "application/pdf" }),
+            );
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "barbara-straka-plaque-5x7.pdf";
+            a.click();
+            window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+          })
+          .finally(() => {
+            pdfBtn.disabled = false;
+            pdfBtn.textContent = label;
+          });
+      });
+    }
     const printBtn = document.getElementById("qr-print");
     if (printBtn !== null && printBtn.dataset.wired !== "1") {
       printBtn.dataset.wired = "1";
-      printBtn.addEventListener("click", () => window.print());
+      printBtn.addEventListener("click", () => {
+        printWith([{ el: main, name: "printing-codes" }]);
+      });
     }
     // Per-card buttons print just their card.
     for (const el of document.querySelectorAll(".qr-print-one")) {
@@ -1655,15 +1774,11 @@ function init(): void {
         const sec = document.getElementById("sec-qr");
         const card = el.closest(".qr-card");
         if (sec === null || card === null) return;
-        sec.classList.add("printing-one");
-        card.classList.add("print-this");
-        const done = (): void => {
-          sec.classList.remove("printing-one");
-          card.classList.remove("print-this");
-          window.removeEventListener("afterprint", done);
-        };
-        window.addEventListener("afterprint", done);
-        window.print();
+        printWith([
+          { el: main, name: "printing-codes" },
+          { el: sec, name: "printing-one" },
+          { el: card, name: "print-this" },
+        ]);
       });
     }
   }

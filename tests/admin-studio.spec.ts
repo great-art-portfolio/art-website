@@ -2207,6 +2207,88 @@ test("qr cards print one code at a time", async ({ page }) => {
   await expect(page.locator(".qr-card.print-this")).toHaveCount(0);
 });
 
+test("qr codes page prints the artist plaque and downloads a 5x7 PDF with optional Instagram", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const w = window as unknown as { __prints?: number };
+    w.__prints = 0;
+    window.print = () => {
+      w.__prints = (w.__prints ?? 0) + 1;
+    };
+  });
+  await page.goto("/admin/qr-codes");
+  const secPlaque = page.locator("#sec-plaque");
+  const sheet = secPlaque.locator(".plaque-sheet");
+  const igToggle = page.locator("#plaque-ig-toggle");
+  const igRow = page.locator("#plaque-ig-row");
+  const igPreview = page.locator("#plaque-ig");
+  await expect(secPlaque).toBeVisible();
+  await expect(sheet).toBeVisible();
+  await expect(sheet).toContainText(
+    "Nature and abstract originals from her Calgary studio.",
+  );
+  await expect(sheet.locator(".plaque-url")).toHaveText("barbart.ca");
+  await expect(igPreview).toBeHidden();
+  await expect(igToggle).toHaveText("Add Instagram");
+  await expect
+    .poll(() =>
+      sheet
+        .locator(".plaque-qr img")
+        .evaluate(
+          (img) =>
+            img instanceof HTMLImageElement &&
+            img.complete &&
+            img.naturalWidth > 0,
+        ),
+    )
+    .toBe(true);
+
+  // Add Instagram handle and verify live preview + PDF export.
+  await igToggle.click();
+  await expect(igRow).toBeVisible();
+  await page.locator("#plaque-ig-input").fill("barbarastraka");
+  await expect(igPreview).toBeVisible();
+  await expect(igPreview).toHaveText("Instagram: @barbarastraka");
+  await expect(igToggle).toHaveText("Edit Instagram");
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.locator("#plaque-pdf").click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("barbara-straka-plaque-5x7.pdf");
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(Buffer.from(chunk as Uint8Array));
+  }
+  const pdfText = Buffer.concat(chunks).toString("latin1");
+  expect(pdfText.startsWith("%PDF-1.4\n")).toBe(true);
+  expect(pdfText).toContain("/MediaBox [0 0 360 504]");
+
+  await page.locator("#plaque-print").click();
+  await expect(page.locator("#main")).toHaveClass(/printing-plaque/);
+  await page.emulateMedia({ media: "print" });
+  await expect(sheet).toBeVisible();
+  await expect(igPreview).toBeVisible();
+  await expect(igRow).toBeHidden();
+  await expect(page.locator("#sec-qr")).toBeHidden();
+  await page.evaluate(() => window.dispatchEvent(new Event("afterprint")));
+  await expect(page.locator("#main")).not.toHaveClass(/printing-plaque/);
+
+  await page.emulateMedia({ media: "screen" });
+  await page.locator("#plaque-ig-clear").click();
+  await expect(igPreview).toBeHidden();
+  await expect(igRow).toBeHidden();
+  await expect(igToggle).toHaveText("Add Instagram");
+
+  await page.locator("#qr-print").click();
+  await expect(page.locator("#main")).toHaveClass(/printing-codes/);
+  await page.emulateMedia({ media: "print" });
+  await expect(secPlaque).toBeHidden();
+  await page.evaluate(() => window.dispatchEvent(new Event("afterprint")));
+  await expect(page.locator("#main")).not.toHaveClass(/printing-codes/);
+});
+
 test("the old marketing page is gone", async ({ page }) => {
   // Marketing was split into Ping and Email, so the old URL is empty.
   await page.goto("/admin/marketing");
