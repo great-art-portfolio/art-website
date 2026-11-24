@@ -1,7 +1,7 @@
 /* Gallery service worker: offline shell, cached artwork, and outbox replay.
  * Bump the cache version whenever behavior changes.
  */
-const VERSION = "gallery-v4";
+const VERSION = "gallery-v5";
 const STATIC_CACHE = `${VERSION}-static`;
 const PAGE_CACHE = `${VERSION}-pages`;
 const CODE_CACHE = `${VERSION}-code`;
@@ -125,6 +125,9 @@ function openOutbox() {
   });
 }
 
+/** Notes older than this are dropped unsent; match src/lib/queue.ts. */
+const OUTBOX_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
 async function replayOutbox() {
   let db;
   try {
@@ -140,7 +143,14 @@ async function replayOutbox() {
       req.onerror = () => reject(req.error);
     });
     for (const post of posts) {
-      if (typeof post?.path === "string" && post.path.startsWith("/api/")) {
+      const stale =
+        typeof post?.ts === "number" &&
+        Date.now() - post.ts > OUTBOX_MAX_AGE_MS;
+      if (
+        !stale &&
+        typeof post?.path === "string" &&
+        post.path.startsWith("/api/")
+      ) {
         try {
           const res = await fetch(post.path, {
             method: "POST",

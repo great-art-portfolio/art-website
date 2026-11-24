@@ -79,8 +79,12 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
     process.exit(1);
   }
   let hadFailure = false;
+  const deployDeadline = Date.now() + WAIT_MS;
   for (const slug of slugs) {
-    const live = await waitForPage(`${SITE}/paintings/${slug}`);
+    const live = await waitForPage(
+      `${SITE}/paintings/${slug}`,
+      Math.max(0, deployDeadline - Date.now()),
+    );
     if (!live) console.log(`${slug}: page isn't live yet; trying anyway.`);
     // The site answers 404 until its catalog has the painting: keep asking
     // until the wait runs out, since this run is the only one that sends it.

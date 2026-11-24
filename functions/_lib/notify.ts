@@ -539,7 +539,7 @@ export async function sendSegmentBroadcast(
     html,
   } = opts.mail ?? segmentBroadcastEmail(site, subject, body);
   try {
-    const res = await fetch("https://api.resend.com/broadcasts", {
+    const res = await fetchPaced("https://api.resend.com/broadcasts", {
       method: "POST",
       headers: resendHeaders(env),
       body: JSON.stringify({

@@ -181,7 +181,7 @@ describe("public/sw.js", () => {
       await responsePromise;
       await Promise.all(waits);
     }
-    const codeEntries = stores.get("gallery-v4-code");
+    const codeEntries = stores.get("gallery-v5-code");
     assert.ok(codeEntries);
     assert.equal(codeEntries.size, 60);
     assert.equal(
@@ -194,12 +194,18 @@ describe("public/sw.js", () => {
     );
   });
 
-  it("closes IndexedDB and drops non-/api/ outbox entries on replay", async () => {
+  it("closes IndexedDB and drops non-/api/ or stale outbox entries on replay", async () => {
     const fetched = [];
     const { listeners, dbClosed, outboxRows } = loadSw({
       outboxRows: [
         { id: 1, path: "https://evil.example/steal", body: "{}" },
-        { id: 2, path: "/api/inquiries", body: "{}" },
+        {
+          id: 2,
+          path: "/api/inquiries",
+          body: "{}",
+          ts: Date.now() - 31 * 24 * 60 * 60 * 1000,
+        },
+        { id: 3, path: "/api/inquiries", body: "{}", ts: Date.now() },
       ],
       fetchImpl: async (path) => {
         fetched.push(path);
@@ -218,7 +224,7 @@ describe("public/sw.js", () => {
     assert.deepEqual(fetched, ["/api/inquiries"]);
     assert.deepEqual(
       outboxRows.map((r) => r.id),
-      [2],
+      [3],
     );
     assert.equal(dbClosed(), 1);
   });

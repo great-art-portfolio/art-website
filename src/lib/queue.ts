@@ -35,13 +35,16 @@ async function enqueue(path: string, body: string): Promise<void> {
     body,
     ts: Date.now(),
   };
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE, "readwrite");
-    tx.objectStore(STORE).add(post);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-  db.close();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE, "readwrite");
+      tx.objectStore(STORE).add(post);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } finally {
+    db.close();
+  }
   // Ask the service worker to replay soon.
   try {
     const reg = (await navigator.serviceWorker

@@ -290,6 +290,26 @@ describe("sendSegmentBroadcast", () => {
       false,
     );
   });
+
+  it("retries once after a 429 rate-limit response and succeeds", async () => {
+    let attempt = 0;
+    stubFetch(() => {
+      attempt += 1;
+      return attempt === 1
+        ? {
+            ok: false,
+            status: 429,
+            headers: new Headers({ "retry-after": "0.01" }),
+            text: async () => "rate limited",
+          }
+        : okRes();
+    });
+    assert.equal(
+      await sendSegmentBroadcast(fullEnv, "https://barbart.ca"),
+      true,
+    );
+    assert.equal(attempt, 2);
+  });
 });
 
 describe("sendCollectorBroadcast", () => {
