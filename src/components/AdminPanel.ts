@@ -386,7 +386,7 @@ function renderRows(rows: LocalPainting[]): void {
   lastRowsKey = key;
   if (rows.length === 0) {
     list.innerHTML =
-      '<li class="list-plain">Nothing here yet — tap Add painting above.</li>';
+      '<p class="list-plain">Nothing here yet — tap Add painting above.</p>';
     applySearch(list);
     return;
   }
@@ -407,12 +407,12 @@ function renderRows(rows: LocalPainting[]): void {
   const available = [...groups.available].sort(compareGalleryOrder);
   const sold = [...groups.sold].sort(compareGalleryOrder);
   let html =
-    `<li class="list-group" data-group="available">` +
+    `<div class="list-group" data-group="available">` +
     `<ul class="group-rows">` +
     (available.length === 0
       ? `<li class="list-plain">Nothing available right now.</li>`
       : available.map(rowHtml).join("")) +
-    `</ul></li>`;
+    `</ul></div>`;
   if (drafts.length > 0) {
     html +=
       `<details class="drafts-fold" data-group="drafts" open>` +
@@ -1240,15 +1240,16 @@ async function showCollectionLoadError(
   if (!list.isConnected || retry === null) return;
   // GitHub refused the site's key: say so, not "check the connection".
   if (err instanceof ApiError && err.status === 503) {
-    const li = document.createElement("li");
-    li.textContent = err.message;
-    list.replaceChildren(li);
+    const note = document.createElement("p");
+    note.className = "list-plain";
+    note.textContent = err.message;
+    list.replaceChildren(note);
     retry.hidden = false;
     return;
   }
   if (err instanceof ApiError && err.status === 401) {
     list.innerHTML =
-      '<li>Your sign-in has run out. <a href="/admin">Reload the page</a> to sign in again with the code from your email.</li>';
+      '<p class="list-plain">Your sign-in has run out. <a href="/admin">Reload the page</a> to sign in again with the code from your email.</p>';
     retry.hidden = false;
     return;
   }
@@ -1258,12 +1259,12 @@ async function showCollectionLoadError(
   if (await apiReachable()) {
     // The API is up but the request failed. A bad token was handled above.
     list.innerHTML =
-      "<li>Couldn't load the collection — check the connection, then tap Retry.</li>";
+      '<p class="list-plain">Couldn\'t load the collection — check the connection, then tap Retry.</p>';
     retry.hidden = false;
     return;
   }
   list.innerHTML =
-    "<li>Couldn't reach the publishing service — open barbart.ca/admin on the live site, then tap Retry.</li>";
+    '<p class="list-plain">Couldn\'t reach the publishing service — open barbart.ca/admin on the live site, then tap Retry.</p>';
   retry.hidden = false;
 }
 

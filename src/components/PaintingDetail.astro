@@ -1305,12 +1305,16 @@ const at = (b: Box) =>
             wireBuyPageshow();
             btn.addEventListener("click", () => {
               const live = readPageData();
+              const locale =
+                document.getElementById("main")?.dataset.locale ?? "";
               btn.disabled = true;
               say(status, pageMsg("openingCheckout"));
               void startCheckout({
                 slug: live.slug,
                 title: live.title,
                 priceCents: live.priceCents,
+                locale,
+                fallbackError: pageMsg("checkoutUnavailable"),
               }).then((result) => {
                 if ("url" in result) {
                   window.location.assign(result.url);

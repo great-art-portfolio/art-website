@@ -23,7 +23,23 @@ test("robots points at the sitemap and keeps the studio out", async ({
   expect(res.status()).toBe(200);
   const txt = await res.text();
   expect(txt).toContain("Sitemap: https://barbart.ca/sitemap.xml");
+  expect(txt).toContain("Disallow: /admin\n");
   expect(txt).toContain("Disallow: /admin/");
+});
+
+test("studio pages ask crawlers not to index them and home shares featured alt", async ({
+  page,
+}) => {
+  await page.goto("/admin");
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+    "content",
+    "noindex",
+  );
+  await page.goto("/");
+  const homeAlt = await page
+    .locator('meta[property="og:image:alt"]')
+    .getAttribute("content");
+  expect((homeAlt ?? "").trim().length).toBeGreaterThan(0);
 });
 
 test("buyer pages share the painting, not the site icon", async ({ page }) => {

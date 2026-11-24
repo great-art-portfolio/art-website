@@ -1,3 +1,4 @@
+import { localePath, type Locale } from "../../src/i18n/locales";
 import { formatPriceCAD } from "../../src/lib/money";
 import { flag, type AppEnv } from "./env";
 import { logEvent } from "./log";
@@ -99,8 +100,9 @@ export function findSellable(
 export function checkoutParams(
   item: CatalogItem,
   origin: string,
-  opts: { tax: boolean; nowSec: number },
+  opts: { tax: boolean; nowSec: number; locale?: Locale },
 ): URLSearchParams {
+  const loc: Locale = opts.locale ?? "en";
   const p = new URLSearchParams();
   p.set("mode", "payment");
   p.set("line_items[0][quantity]", "1");
@@ -135,9 +137,12 @@ export function checkoutParams(
   p.set("expires_at", String(opts.nowSec + SESSION_MINUTES * 60 + 60));
   p.set(
     "success_url",
-    `${origin}/thanks?painting=${encodeURIComponent(item.slug)}`,
+    `${origin}${localePath(loc, "/thanks")}?painting=${encodeURIComponent(item.slug)}`,
   );
-  p.set("cancel_url", `${origin}/paintings/${encodeURIComponent(item.slug)}`);
+  p.set(
+    "cancel_url",
+    `${origin}${localePath(loc, `/paintings/${encodeURIComponent(item.slug)}`)}`,
+  );
   return p;
 }
 

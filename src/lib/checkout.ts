@@ -25,12 +25,24 @@ export async function startCheckout(painting: {
   slug: string;
   title: string;
   priceCents: number;
+  locale?: string;
+  fallbackError?: string;
 }): Promise<CheckoutStart> {
+  const payload = {
+    slug: painting.slug,
+    title: painting.title,
+    priceCents: painting.priceCents,
+    ...(painting.locale !== undefined &&
+    painting.locale !== "" &&
+    painting.locale !== "en"
+      ? { locale: painting.locale }
+      : {}),
+  };
   try {
     const res = await fetch("/api/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(painting),
+      body: JSON.stringify(payload),
     });
     const data = (await res.json()) as unknown;
     if (typeof data === "object" && data !== null) {
@@ -42,5 +54,10 @@ export async function startCheckout(painting: {
   } catch {
     // Offline or a network hiccup: same message as a server error.
   }
-  return { error: "Checkout isn't available right now. Please try again." };
+  return {
+    error:
+      painting.fallbackError !== undefined && painting.fallbackError !== ""
+        ? painting.fallbackError
+        : "Checkout isn't available right now. Please try again.",
+  };
 }

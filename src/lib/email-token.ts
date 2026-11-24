@@ -7,12 +7,20 @@ export async function settleToken(
   action: "confirm" | "unsubscribe",
   email: string,
   token: string,
+  locale?: string,
 ): Promise<"ok" | "invalid"> {
   try {
     const res = await fetch("/api/collectors", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, email, token }),
+      body: JSON.stringify({
+        action,
+        email,
+        token,
+        ...(locale !== undefined && locale !== "" && locale !== "en"
+          ? { locale }
+          : {}),
+      }),
     });
     return res.ok ? "ok" : "invalid";
   } catch {

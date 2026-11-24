@@ -16,7 +16,12 @@ const msgs = {
 ---
 
 <Layout title={s.goodbyeTitle} noindex locale={locale}>
-  <main class="email-page" id="main" data-msgs={JSON.stringify(msgs)}>
+  <main
+    class="email-page"
+    id="main"
+    data-locale={locale}
+    data-msgs={JSON.stringify(msgs)}
+  >
     <h1>{s.heading}</h1>
     <p id="email-token-say" role="status">
       {s.working}
@@ -54,10 +59,13 @@ const msgs = {
     if (token === "" || email === "") {
       el.textContent = msgs.needsLink;
     } else {
+      const locale = document.getElementById("main")?.dataset.locale || "en";
       void import("../lib/email-token").then(function (lib) {
-        lib.settleToken("unsubscribe", email, token).then(function (verdict) {
-          el.textContent = verdict === "ok" ? msgs.ok : msgs.bad;
-        });
+        lib
+          .settleToken("unsubscribe", email, token, locale)
+          .then(function (verdict) {
+            el.textContent = verdict === "ok" ? msgs.ok : msgs.bad;
+          });
       });
     }
   }

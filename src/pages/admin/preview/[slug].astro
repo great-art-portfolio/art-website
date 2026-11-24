@@ -64,14 +64,14 @@ const data: PaintingDetailData = {
   wordmark="admin"
   noindex
 >
-  <div class="preview-banner">
+  <aside class="preview-banner" aria-label="Preview notice">
     <p>
       {isDraft
         ? "Preview — buyers can't see this page yet."
         : "Preview — this is what buyers see."}
       <a href={`/admin/paintings/${slug}`}>Back to editing</a>
     </p>
-  </div>
+  </aside>
   <PaintingDetail
     mode="buy"
     preview

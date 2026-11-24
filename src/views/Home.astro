@@ -41,7 +41,12 @@ const share =
     : await getImage({ src: featured.data.image, ...SHARE_IMAGE });
 ---
 
-<Layout image={share?.src} locale={locale} alternates="/">
+<Layout
+  image={share?.src}
+  imageAlt={featured?.data.alt}
+  locale={locale}
+  alternates="/"
+>
   <main id="main">
     <section class="hero" data-sign={sign}>
       <div class="hero-main">

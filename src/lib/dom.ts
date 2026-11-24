@@ -6,7 +6,7 @@ export interface ElementMap {
   "admin-status": HTMLElement;
   "collection-dev": HTMLElement;
   "collection-refresh": HTMLButtonElement;
-  "edit-list": HTMLUListElement;
+  "edit-list": HTMLElement;
   "collection-search": HTMLInputElement;
   "key-note": HTMLElement;
   "collection-search-wrap": HTMLElement;

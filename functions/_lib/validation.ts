@@ -149,6 +149,7 @@ const checkoutBodySchema = z.object({
   slug: z.string().max(200),
   title: z.string().max(200),
   priceCents: z.number(),
+  locale: z.string().max(16).optional(),
 });
 
 export type CheckoutBody = z.infer<typeof checkoutBodySchema>;

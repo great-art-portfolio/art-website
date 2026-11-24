@@ -13,6 +13,22 @@
   # Nothing here uses the camera API, microphone, location or payments in
   # the page (Stripe checkout is its own site).
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+  Referrer-Policy: strict-origin-when-cross-origin
+
+# Studio pages stay out of search results even if a public crawler hits one.
+/admin
+  X-Robots-Tag: noindex
+
+/admin/*
+  X-Robots-Tag: noindex
+
+# Confirm and unsubscribe links carry single-use tokens in the URL query;
+# never forward those query strings to other origins.
+/email/*
+  Referrer-Policy: no-referrer
+
+/*/email/*
+  Referrer-Policy: no-referrer
 
 # Build output under /_astro has a content hash in every name, so a file
 # never changes: browsers keep it a year instead of rechecking every 4 hours.

@@ -1,3 +1,4 @@
+import { isLocale, type Locale } from "../../src/i18n/locales";
 import type { AppEnv } from "../_lib/env";
 import { gitConfig, readTextFile } from "../_lib/github";
 import { PAINTING_FILE } from "../_lib/gallery-paths";
@@ -10,7 +11,11 @@ import {
   STRIPE_SETUP,
   stripeEnabled,
 } from "../_lib/stripe";
-import { parseCatalog, parseCheckoutBody } from "../_lib/validation";
+import {
+  parseCatalog,
+  parseCatalogLanguages,
+  parseCheckoutBody,
+} from "../_lib/validation";
 import { parsePainting } from "../../src/lib/painting-edit";
 import { logEvent } from "../_lib/log";
 
@@ -48,7 +53,9 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
         "Checkout isn't available right now. Try again in a minute.",
       );
     }
-    const catalog = parseCatalog(await catalogRes.json());
+    const catalogJson = (await catalogRes.json()) as unknown;
+    const catalog = parseCatalog(catalogJson);
+    const langs = parseCatalogLanguages(catalogJson);
     const listed = findSellable(catalog, body);
     if (!listed.ok)
       return json({ error: listed.error }, { status: listed.status });
@@ -59,11 +66,17 @@ export const onRequestPost: PagesFunction<AppEnv> = async (context) => {
     const sellable = findSellable(catalog, body, live);
     if (!sellable.ok)
       return json({ error: sellable.error }, { status: sellable.status });
+    const locale: Locale =
+      isLocale(body.locale) &&
+      (body.locale === "en" || langs.includes(body.locale))
+        ? body.locale
+        : "en";
     const url = await createCheckoutSession(
       env,
       checkoutParams(sellable.item, origin, {
         tax: env.STRIPE_TAX === "true",
         nowSec: Math.floor(Date.now() / 1000),
+        locale,
       }),
     );
     return json({ url });

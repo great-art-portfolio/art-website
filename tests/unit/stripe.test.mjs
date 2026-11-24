@@ -107,6 +107,21 @@ describe("checkoutParams", () => {
       "txcd_99999999",
     );
   });
+  it("localizes Stripe return and cancel URLs for non-English buyers", () => {
+    const p = checkoutParams(item, "https://barbart.ca", {
+      tax: false,
+      nowSec: 1000,
+      locale: "fr",
+    });
+    assert.equal(
+      p.get("success_url"),
+      "https://barbart.ca/fr/thanks?painting=night-reeds",
+    );
+    assert.equal(
+      p.get("cancel_url"),
+      "https://barbart.ca/fr/paintings/night-reeds",
+    );
+  });
 });
 
 function sign(payload, secret, t) {

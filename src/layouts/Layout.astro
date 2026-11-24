@@ -44,7 +44,7 @@ interface Props {
   /** Pages that shouldn't name a canonical URL at all (the 404). */
   noCanonical?: boolean;
   /** What the share image shows, for screen readers in link previews. */
-  imageAlt?: string;
+  imageAlt?: string | undefined;
   /** "product" on painting pages, with their price. */
   product?: { price: number; sold: boolean };
   /** Background wash for studio pages. Other pages use "warm". */
@@ -67,7 +67,7 @@ const {
   imageAlt,
   product,
   wordmark = "signature",
-  noindex = false,
+  noindex = wordmark === "admin",
   noCanonical = false,
   canonical: canonicalOverride,
   backdrop = "warm",
@@ -106,17 +106,6 @@ function adminSection(path: string): string | null {
   return null;
 }
 const currentSection = adminSection(selfPath);
-const sectionLabel = (id: string): string =>
-  (
-    ({
-      collection: "Collection",
-      banner: "Banner",
-      email: "Email",
-      metrics: "Metrics",
-      qr: "QR codes",
-      guide: "Guide",
-    }) as Record<string, string>
-  )[id] ?? "Studio";
 const here = (path: string): string => localePath(locale, path);
 // Public pages get the language picker at the foot of the page.
 const showPicker =
@@ -341,13 +330,6 @@ const offers = Object.fromEntries(
         <p id="admin-status" role="status" data-tone="ok" />
       )
     }
-    {
-      /* Studio section pages show their name in the nav; screen readers
-         get it as the page's heading too. Painting rooms have their own. */
-      wordmark === "admin" && currentSection !== null && (
-        <h1 class="sr-only">{sectionLabel(currentSection)}</h1>
-      )
-    }
 
     <img
       id="background"
@@ -396,6 +378,7 @@ const offers = Object.fromEntries(
       <aside
         id="lang-offer"
         hidden
+        aria-label={s.layout.language}
         data-locale={locale}
         data-offers={JSON.stringify(offers)}
       >
