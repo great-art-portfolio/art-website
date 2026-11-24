@@ -26,6 +26,8 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
   const to = new Date();
   const from = new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
   const before = new Date(from.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15_000);
   try {
     const res = await fetch("https://api.cloudflare.com/client/v4/graphql", {
       method: "POST",
@@ -44,6 +46,7 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
           before: before.toISOString(),
         },
       }),
+      signal: controller.signal,
     });
     if (!res.ok) throw new Error(`Cloudflare API ${res.status}`);
     const data = (await res.json()) as {
@@ -78,5 +81,7 @@ export const onRequestGet: PagesFunction<AppEnv> = async (context) => {
       request: context.request,
     });
     return serverError("Analytics lookup failed.");
+  } finally {
+    clearTimeout(timer);
   }
 };

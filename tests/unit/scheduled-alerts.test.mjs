@@ -8,6 +8,7 @@ import {
 } from "../../src/lib/painting-edit.ts";
 import { onRequestPost as notifyPost } from "../../functions/api/notify.ts";
 import {
+  alertSlugs,
   sendAlerts,
   waitForPage,
 } from "../../scripts/send-scheduled-alerts.mjs";
@@ -105,6 +106,19 @@ describe("the workflow's alerts key", () => {
 });
 
 describe("send-scheduled-alerts", () => {
+  it("normalizes single and multi-painting alert slug lists", () => {
+    assert.deepEqual(
+      alertSlugs({
+        email: true,
+        slug: "one",
+        slugs: ["one", "two", "one", ""],
+      }),
+      ["one", "two"],
+    );
+    assert.deepEqual(alertSlugs({ email: true, slug: "legacy" }), ["legacy"]);
+    assert.deepEqual(alertSlugs({ email: false, slug: "", slugs: [] }), []);
+  });
+
   it("waits for the page, then gives up after its window", async () => {
     let calls = 0;
     globalThis.fetch = async () => {

@@ -1,13 +1,14 @@
 /* Gallery service worker: offline shell, cached artwork, and outbox replay.
  * Bump the cache version whenever behavior changes.
  */
-const VERSION = "gallery-v3";
+const VERSION = "gallery-v4";
 const STATIC_CACHE = `${VERSION}-static`;
 const PAGE_CACHE = `${VERSION}-pages`;
 const CODE_CACHE = `${VERSION}-code`;
 const IMAGE_CACHE = `${VERSION}-images`;
 const PRECACHE = ["/", "/offline", "/manifest.webmanifest", "/favicon.png"];
 const IMAGE_LIMIT = 60;
+const CODE_LIMIT = 60;
 const PAGE_LIMIT = 40;
 // Stylesheets, scripts and fonts: few, and an offline page needs them, so
 // they never compete with artwork for room.
@@ -51,11 +52,13 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Don't cache the studio or the API. Both need fresh responses.
+  // Don't cache the studio, API, tokenized URLs, or email action pages.
   if (
     url.pathname === "/admin" ||
     url.pathname.startsWith("/admin/") ||
-    url.pathname.startsWith("/api/")
+    url.pathname.startsWith("/api/") ||
+    /(^|\/[a-z]{2})\/email\//.test(url.pathname) ||
+    url.searchParams.has("token")
   )
     return;
 
@@ -76,7 +79,10 @@ self.addEventListener("fetch", (event) => {
                 .open(code ? CODE_CACHE : IMAGE_CACHE)
                 .then((cache) => cache.put(request, copy))
                 .then(() =>
-                  code ? undefined : trim(IMAGE_CACHE, IMAGE_LIMIT),
+                  trim(
+                    code ? CODE_CACHE : IMAGE_CACHE,
+                    code ? CODE_LIMIT : IMAGE_LIMIT,
+                  ),
                 ),
             );
             return res;
@@ -126,39 +132,44 @@ async function replayOutbox() {
   } catch {
     return;
   }
-  const posts = await new Promise((resolve, reject) => {
-    const tx = db.transaction("posts", "readonly");
-    const req = tx.objectStore("posts").getAll();
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-  for (const post of posts) {
-    try {
-      const res = await fetch(post.path, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: post.body,
-      });
-      if (res.status === 403) {
-        // Failed spam check: the saved token expired. Keep the note; the
-        // next painting page visit resends it with a fresh token.
-        continue;
-      } else if (!res.ok && res.status >= 400 && res.status < 500) {
-        // Rejected by the server. Drop it so it isn't retried.
-      } else if (!res.ok) {
-        break;
-      }
-    } catch {
-      break; // Still offline.
-    }
-    await new Promise((resolve, reject) => {
-      const tx = db.transaction("posts", "readwrite");
-      tx.objectStore("posts").delete(post.id);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
+  try {
+    const posts = await new Promise((resolve, reject) => {
+      const tx = db.transaction("posts", "readonly");
+      const req = tx.objectStore("posts").getAll();
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
     });
+    for (const post of posts) {
+      if (typeof post?.path === "string" && post.path.startsWith("/api/")) {
+        try {
+          const res = await fetch(post.path, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: post.body,
+          });
+          if (res.status === 403) {
+            // Failed spam check: the saved token expired. Keep the note; the
+            // next painting page visit resends it with a fresh token.
+            continue;
+          } else if (!res.ok && res.status >= 400 && res.status < 500) {
+            // Rejected by the server. Drop it so it isn't retried.
+          } else if (!res.ok) {
+            break;
+          }
+        } catch {
+          break; // Still offline.
+        }
+      }
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction("posts", "readwrite");
+        tx.objectStore("posts").delete(post.id);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+  } finally {
+    db.close();
   }
-  db.close();
 }
 
 self.addEventListener("sync", (event) => {

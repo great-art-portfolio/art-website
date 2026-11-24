@@ -25,9 +25,11 @@
 # Confirm and unsubscribe links carry single-use tokens in the URL query;
 # never forward those query strings to other origins.
 /email/*
+  ! Referrer-Policy
   Referrer-Policy: no-referrer
 
 /:locale/email/*
+  ! Referrer-Policy
   Referrer-Policy: no-referrer
 
 # Build output under /_astro has a content hash in every name, so a file

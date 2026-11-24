@@ -42,7 +42,7 @@ describe("nightly publish", () => {
       }
       const { titles, alerts } = await publishDueFiles(dir, "2026-10-03");
       assert.deepEqual(titles, ["Due", "Overdue"]);
-      assert.deepEqual(alerts, { email: false, slug: "" });
+      assert.deepEqual(alerts, { email: false, slug: "", slugs: [] });
       for (const name of ["due.md", "overdue.md"]) {
         const text = await readFile(join(dir, name), "utf8");
         assert.match(text, /^draft: false$/m);
@@ -84,12 +84,44 @@ describe("scheduled alerts", () => {
       );
       const { alerts } = await publishDueFiles(dir, "2026-10-03");
       // b.md's "push" (browser alerts, since removed) is ignored.
-      assert.deepEqual(alerts, { email: true, slug: "night-reeds" });
+      assert.deepEqual(alerts, {
+        email: true,
+        slug: "night-reeds",
+        slugs: ["night-reeds"],
+      });
       const text = await readFile(join(dir, "a.md"), "utf8");
       assert.doesNotMatch(text, /^alertOnPublish:/m);
       // Published already, so a rerun sends nothing.
       const again = await publishDueFiles(dir, "2026-10-03");
-      assert.deepEqual(again.alerts, { email: false, slug: "" });
+      assert.deepEqual(again.alerts, { email: false, slug: "", slugs: [] });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps every due painting that ticked email alerts on the same day", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "publish-due-multi-"));
+    try {
+      await writeFile(
+        join(dir, "01.md"),
+        md(
+          "Morning Mist",
+          'draft: true\npublishOn: "2026-10-03"\nalertOnPublish: "email"\n',
+        ),
+      );
+      await writeFile(
+        join(dir, "02.md"),
+        md(
+          "Quiet Divide",
+          'draft: true\npublishOn: "2026-10-03"\nalertOnPublish: "email"\n',
+        ),
+      );
+      const { alerts } = await publishDueFiles(dir, "2026-10-03");
+      assert.deepEqual(alerts, {
+        email: true,
+        slug: "morning-mist",
+        slugs: ["morning-mist", "quiet-divide"],
+      });
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

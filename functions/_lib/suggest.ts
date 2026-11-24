@@ -33,7 +33,8 @@ const inches = (v: unknown): number | null =>
 
 /** Validates the request body. Null when it isn't usable. */
 export function parseSuggestInput(raw: unknown): SuggestInput | null {
-  if (typeof raw !== "object" || raw === null) return null;
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw))
+    return null;
   const body = raw as Record<string, unknown>;
   const image = typeof body["image"] === "string" ? body["image"] : "";
   if (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(image))

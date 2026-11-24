@@ -49,9 +49,25 @@ export async function sendAlerts(site, token, slug = "") {
   };
 }
 
+/** Normalizes the scheduled alert slugs from publish-due (`slugs` preferred,
+ * falling back to legacy single `slug`). */
+export function alertSlugs(alerts) {
+  if (Array.isArray(alerts?.slugs)) {
+    const seen = [];
+    for (const s of alerts.slugs) {
+      if (typeof s === "string" && s !== "" && !seen.includes(s)) seen.push(s);
+    }
+    if (seen.length > 0) return seen;
+  }
+  return typeof alerts?.slug === "string" && alerts.slug !== ""
+    ? [alerts.slug]
+    : [];
+}
+
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   const alerts = JSON.parse(await readFile(process.argv[2] ?? "", "utf8"));
-  if (!alerts.email) {
+  const slugs = alertSlugs(alerts);
+  if (!alerts.email || slugs.length === 0) {
     console.log("No alerts were ticked.");
     process.exit(0);
   }
@@ -62,29 +78,42 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
     );
     process.exit(1);
   }
-  const live = await waitForPage(`${SITE}/paintings/${alerts.slug}`);
-  if (!live) console.log("The page isn't live yet; trying anyway.");
-  // The site answers 404 until its catalog has the painting: keep asking
-  // until the wait runs out, since this run is the only one that sends it.
-  const until = Date.now() + (live ? 10 * 60 * 1000 : POLL_MS * 4);
-  let r;
-  for (;;) {
+  let hadFailure = false;
+  for (const slug of slugs) {
+    const live = await waitForPage(`${SITE}/paintings/${slug}`);
+    if (!live) console.log(`${slug}: page isn't live yet; trying anyway.`);
+    // The site answers 404 until its catalog has the painting: keep asking
+    // until the wait runs out, since this run is the only one that sends it.
+    const until = Date.now() + (live ? 10 * 60 * 1000 : POLL_MS * 4);
+    let r;
     try {
-      r = await sendAlerts(SITE, token, alerts.slug);
-      break;
+      for (;;) {
+        try {
+          r = await sendAlerts(SITE, token, slug);
+          break;
+        } catch (err) {
+          const notYet = String(err).includes("answered 404");
+          if (!notYet || Date.now() + POLL_MS > until) throw err;
+          await sleep(POLL_MS);
+        }
+      }
+      // A list with people on it that got nothing is a failure, so the run goes
+      // red; the cause is in the site's logs (`pnpm logs --event broadcast`).
+      if (r.failed || (r.total > 0 && r.emailed === 0)) {
+        console.error(
+          `Publish email for ${slug} to ${r.total} didn't go out. See \`pnpm logs --event broadcast\`.`,
+        );
+        hadFailure = true;
+      } else {
+        console.log(`Publish email for ${slug} sent to ${r.emailed}.`);
+      }
     } catch (err) {
-      const notYet = String(err).includes("answered 404");
-      if (!notYet || Date.now() + POLL_MS > until) throw err;
-      await sleep(POLL_MS);
+      console.error(
+        `Publish email for ${slug} failed:`,
+        err instanceof Error ? err.message : err,
+      );
+      hadFailure = true;
     }
   }
-  // A list with people on it that got nothing is a failure, so the run goes
-  // red; the cause is in the site's logs (`pnpm logs --event broadcast`).
-  if (r.failed || (r.total > 0 && r.emailed === 0)) {
-    console.error(
-      `The publish email to ${r.total} didn't go out. See \`pnpm logs --event broadcast\`.`,
-    );
-    process.exit(1);
-  }
-  console.log(`Publish email sent to ${r.emailed}.`);
+  if (hadFailure) process.exit(1);
 }

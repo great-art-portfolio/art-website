@@ -28,7 +28,8 @@ const str = (v: unknown, max: number): string =>
   typeof v === "string" ? v.trim().slice(0, max) : "";
 
 export function parseTranslateInput(raw: unknown): TranslateInput | null {
-  if (typeof raw !== "object" || raw === null) return null;
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw))
+    return null;
   const body = raw as Record<string, unknown>;
   const kind = body["kind"] === "banner" ? "banner" : "painting";
   const w =

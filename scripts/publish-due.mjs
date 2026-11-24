@@ -34,10 +34,10 @@ export function dueContent(md, today) {
 }
 
 /** Publishes every due painting in `dir`. Returns the titles published
- * and, merged across them, the alerts to send once they're live. */
+ * and the alerts to send once they're live. */
 export async function publishDueFiles(dir, today) {
   const titles = [];
-  const alerts = { email: false, slug: "" };
+  const alerts = { email: false, slug: "", slugs: [] };
   for (const name of (await readdir(dir)).sort()) {
     if (!name.endsWith(".md")) continue;
     const path = join(dir, name);
@@ -47,8 +47,10 @@ export async function publishDueFiles(dir, today) {
     titles.push(due.title);
     if (due.alerts.email) {
       alerts.email = true;
-      // The page the alert step waits for before sending.
-      if (alerts.slug === "") alerts.slug = slugifyTitle(due.title);
+      const slug = slugifyTitle(due.title);
+      // The pages the alert step waits for before sending.
+      if (alerts.slug === "") alerts.slug = slug;
+      if (slug !== "" && !alerts.slugs.includes(slug)) alerts.slugs.push(slug);
     }
   }
   return { titles, alerts };
