@@ -1,7 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import jsQR from "jsqr";
-import { paintingPageUrl, qrSvg } from "../../src/lib/qr.ts";
+import sharp from "sharp";
+import { paintedQrSvg, paintingPageUrl, qrSvg } from "../../src/lib/qr.ts";
 
 /** Reads a code the way a phone camera would: draws qrSvg's rectangles
  * to pixels at `px` square, on a `bg` grey surround, and decodes them. */
@@ -88,5 +89,52 @@ describe("qrSvg", () => {
   it("renders deterministically for the same URL", () => {
     const url = paintingPageUrl("night-reeds");
     assert.equal(qrSvg(url), qrSvg(url));
+  });
+});
+
+async function scanRasterSvg(svg, px, bg = "#ffffff") {
+  const pad = 20;
+  const { data, info } = await sharp(Buffer.from(svg))
+    .resize(px, px, { kernel: sharp.kernel.lanczos3 })
+    .extend({ top: pad, bottom: pad, left: pad, right: pad, background: bg })
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  return (
+    jsQR(new Uint8ClampedArray(data), info.width, info.height, {
+      inversionAttempts: "dontInvert",
+    })?.data ?? null
+  );
+}
+
+describe("paintedQrSvg", () => {
+  it("renders deterministically with zero id attributes and Barbara palette colors", () => {
+    const url = paintingPageUrl("night-reeds");
+    const svg = paintedQrSvg(url);
+    assert.ok(svg.startsWith("<svg"));
+    assert.ok(svg.includes("</svg>"));
+    assert.equal(/\sid=/i.test(svg), false);
+    assert.ok(svg.includes("#f5f0e5"));
+    assert.ok(svg.includes("#171d23"));
+    assert.equal(svg, paintedQrSvg(url));
+  });
+
+  it("scans cleanly when rasterized for print cards and desktop dark AR boxes", async () => {
+    for (const url of [
+      paintingPageUrl("night-reeds"),
+      paintingPageUrl("endurance-under-pressure", "ja"),
+      paintingPageUrl(
+        "a-very-long-painting-title-about-the-prairie-in-winter-light",
+      ),
+      "https://www.instagram.com/barbara.straka.fine.art.yyc/",
+    ]) {
+      const svg = paintedQrSvg(url);
+      assert.equal(await scanRasterSvg(svg, 240, "#ffffff"), url, "240px");
+      assert.equal(
+        await scanRasterSvg(svg, 112, "#171512"),
+        url,
+        "112px dark page",
+      );
+    }
   });
 });

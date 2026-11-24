@@ -5,7 +5,7 @@
 import { getImage, Picture } from "astro:assets";
 import type { ImageMetadata } from "astro";
 import { formatPriceCAD } from "../lib/money";
-import { paintingPageUrl, qrSvg } from "../lib/qr";
+import { paintedQrSvg, paintingPageUrl } from "../lib/qr";
 import { roomLayout, type Box } from "../lib/room";
 import { PHOTO_WIDTHS, photoSizes } from "../lib/responsive-images";
 import { SHOW_PAGE_SHARE, SHOW_PRICES } from "../lib/site";
@@ -771,7 +771,7 @@ const at = (b: Box) =>
             <div class="ar-scan">
               <span
                 class="ar-qr"
-                set:html={qrSvg(paintingPageUrl(data.slug, locale))}
+                set:html={paintedQrSvg(paintingPageUrl(data.slug, locale))}
               />
               <p class="hint" set:html={s.painting.wallScan} />
             </div>
@@ -1948,6 +1948,8 @@ const at = (b: Box) =>
     width: 100%;
     height: auto;
     border-radius: 0.35rem;
+    border: 1px solid var(--line);
+    box-sizing: border-box;
   }
   #ar-stage[hidden] {
     display: none;
