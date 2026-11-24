@@ -11,6 +11,7 @@ const execGit = promisify(execFile);
 
 const TRACKED_SCOPE = [
   "src/content/announcement.txt",
+  "src/content/instagram.txt",
   "src/content/languages.json",
   "src/content/paintings",
   "src/content/translations",

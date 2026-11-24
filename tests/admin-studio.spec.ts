@@ -2220,17 +2220,26 @@ test("qr codes page prints the artist plaque and downloads a 5x7 PDF with option
   await page.goto("/admin/qr-codes");
   const secPlaque = page.locator("#sec-plaque");
   const sheet = secPlaque.locator(".plaque-sheet");
-  const igToggle = page.locator("#plaque-ig-toggle");
-  const igRow = page.locator("#plaque-ig-row");
+  const igAdd = page.locator("#plaque-ig-add");
+  const igSaved = page.locator("#plaque-ig-saved");
+  const igLink = page.locator("#plaque-ig-link");
+  const igForm = page.locator("#plaque-ig-form");
+  const igInput = page.locator("#plaque-ig-input");
+  const igError = page.locator("#plaque-ig-error");
   const igPreview = page.locator("#plaque-ig");
+  const igCard = page.locator("#plaque-ig-card");
+
   await expect(secPlaque).toBeVisible();
   await expect(sheet).toBeVisible();
   await expect(sheet).toContainText(
     "Nature and abstract originals from her Calgary studio.",
   );
   await expect(sheet.locator(".plaque-url")).toHaveText("barbart.ca");
+  await expect(igAdd).toBeVisible();
+  await expect(igSaved).toBeHidden();
+  await expect(igForm).toBeHidden();
   await expect(igPreview).toBeHidden();
-  await expect(igToggle).toHaveText("Add Instagram");
+  await expect(igCard).toBeHidden();
   await expect
     .poll(() =>
       sheet
@@ -2244,14 +2253,46 @@ test("qr codes page prints the artist plaque and downloads a 5x7 PDF with option
     )
     .toBe(true);
 
-  // Add Instagram handle and verify live preview + PDF export.
-  await igToggle.click();
-  await expect(igRow).toBeVisible();
-  await page.locator("#plaque-ig-input").fill("barbarastraka");
-  await expect(igPreview).toBeVisible();
-  await expect(igPreview).toHaveText("Instagram: @barbarastraka");
-  await expect(igToggle).toHaveText("Edit Instagram");
+  // Rejects non-profile URLs and emails with a clear inline error.
+  await igAdd.click();
+  await expect(igForm).toBeVisible();
+  await igInput.fill("https://www.instagram.com/p/C8x123/");
+  await page.locator("#plaque-ig-save").click();
+  await expect(igError).toBeVisible();
+  await expect(igInput).toHaveAttribute("aria-invalid", "true");
+  await igInput.fill("barbara@gmail.com");
+  await page.locator("#plaque-ig-save").click();
+  await expect(igError).toBeVisible();
 
+  // Saving a valid Instagram profile link hides Add Instagram, shows the
+  // clickable account link, updates the plaque preview, and renders a
+  // painted Instagram QR card.
+  await igInput.fill("https://www.instagram.com/Barbara.Straka/?igsh=abc");
+  await page.locator("#plaque-ig-save").click();
+  await expect(igForm).toBeHidden();
+  await expect(igAdd).toBeHidden();
+  await expect(igSaved).toBeVisible();
+  await expect(igLink).toContainText("@Barbara.Straka");
+  await expect(igLink).toHaveAttribute(
+    "href",
+    "https://www.instagram.com/Barbara.Straka/",
+  );
+  await expect(igLink).toHaveAttribute("target", "_blank");
+  await expect(igLink).toHaveAttribute("rel", "noopener noreferrer");
+  await expect(igPreview).toBeVisible();
+  await expect(igPreview).toHaveText("Instagram: @Barbara.Straka");
+  await expect(igCard).toBeVisible();
+  await expect(igCard.locator("#plaque-ig-qr svg")).toBeAttached();
+
+  // Persists across reload in local preview storage.
+  await page.reload();
+  await expect(igAdd).toBeHidden();
+  await expect(igSaved).toBeVisible();
+  await expect(igLink).toContainText("@Barbara.Straka");
+  await expect(igPreview).toHaveText("Instagram: @Barbara.Straka");
+  await expect(igCard.locator("#plaque-ig-qr svg")).toBeAttached();
+
+  // Downloaded 5x7 PDF carries the saved Instagram handle.
   const downloadPromise = page.waitForEvent("download");
   await page.locator("#plaque-pdf").click();
   const download = await downloadPromise;
@@ -2265,21 +2306,46 @@ test("qr codes page prints the artist plaque and downloads a 5x7 PDF with option
   expect(pdfText.startsWith("%PDF-1.4\n")).toBe(true);
   expect(pdfText).toContain("/MediaBox [0 0 360 504]");
 
+  // Print plaque isolates only the 5x7 plaque sheet.
   await page.locator("#plaque-print").click();
   await expect(page.locator("#main")).toHaveClass(/printing-plaque/);
   await page.emulateMedia({ media: "print" });
   await expect(sheet).toBeVisible();
   await expect(igPreview).toBeVisible();
-  await expect(igRow).toBeHidden();
+  await expect(igCard).toBeHidden();
+  await expect(igSaved).toBeHidden();
   await expect(page.locator("#sec-qr")).toBeHidden();
   await page.evaluate(() => window.dispatchEvent(new Event("afterprint")));
   await expect(page.locator("#main")).not.toHaveClass(/printing-plaque/);
 
+  // Print Instagram code isolates only the painted Instagram QR card.
   await page.emulateMedia({ media: "screen" });
-  await page.locator("#plaque-ig-clear").click();
+  await page.locator("#plaque-ig-print").click();
+  await expect(page.locator("#main")).toHaveClass(/printing-ig/);
+  await page.emulateMedia({ media: "print" });
+  await expect(igCard).toBeVisible();
+  await expect(sheet).toBeHidden();
+  await expect(page.locator("#sec-qr")).toBeHidden();
+  await page.evaluate(() => window.dispatchEvent(new Event("afterprint")));
+  await expect(page.locator("#main")).not.toHaveClass(/printing-ig/);
+
+  // Edit + Escape cancels cleanly without overwriting the saved account.
+  await page.emulateMedia({ media: "screen" });
+  await page.locator("#plaque-ig-edit").click();
+  await expect(igForm).toBeVisible();
+  await expect(igInput).toHaveValue("@Barbara.Straka");
+  await igInput.fill("@someoneelse");
+  await igInput.press("Escape");
+  await expect(igForm).toBeHidden();
+  await expect(igSaved).toBeVisible();
+  await expect(igPreview).toHaveText("Instagram: @Barbara.Straka");
+
+  // Remove clears everything and brings back Add Instagram.
+  await page.locator("#plaque-ig-remove").click();
   await expect(igPreview).toBeHidden();
-  await expect(igRow).toBeHidden();
-  await expect(igToggle).toHaveText("Add Instagram");
+  await expect(igCard).toBeHidden();
+  await expect(igSaved).toBeHidden();
+  await expect(igAdd).toBeVisible();
 
   await page.locator("#qr-print").click();
   await expect(page.locator("#main")).toHaveClass(/printing-codes/);
@@ -2287,6 +2353,78 @@ test("qr codes page prints the artist plaque and downloads a 5x7 PDF with option
   await expect(secPlaque).toBeHidden();
   await page.evaluate(() => window.dispatchEvent(new Event("afterprint")));
   await expect(page.locator("#main")).not.toHaveClass(/printing-codes/);
+});
+
+test("qr codes page commits Instagram to repo when publishing is enabled", async ({
+  page,
+}) => {
+  let repoInstagram = "";
+  const commits: Array<{
+    message: string;
+    files: Array<{ path: string; contentBase64: string }>;
+  }> = [];
+  await page.addInitScript(() => {
+    window.sessionStorage.setItem("ADMIN_API_TOKEN", "test");
+  });
+  await page.route("**/api/commit*", async (route) => {
+    const req = route.request();
+    const url = new URL(req.url());
+    if (
+      req.method() === "GET" &&
+      url.searchParams.get("path") === "src/content/instagram.txt"
+    ) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ content: repoInstagram }),
+      });
+    }
+    if (req.method() === "POST") {
+      const body = req.postDataJSON() as {
+        message: string;
+        files: Array<{ path: string; contentBase64: string }>;
+      };
+      commits.push(body);
+      const igFile = body.files.find(
+        (f) => f.path === "src/content/instagram.txt",
+      );
+      if (igFile !== undefined) {
+        repoInstagram = Buffer.from(igFile.contentBase64, "base64").toString(
+          "utf8",
+        );
+      }
+      return route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, commit: "abc123" }),
+      });
+    }
+    return route.continue();
+  });
+
+  await page.goto("/admin/qr-codes");
+  await page.locator("#plaque-ig-add").click();
+  await page.locator("#plaque-ig-input").fill("@barbarastraka");
+  await page.locator("#plaque-ig-save").click();
+
+  await expect(page.locator("#plaque-ig-saved")).toBeVisible();
+  await expect(page.locator("#plaque-ig-add")).toBeHidden();
+  expect(commits).toHaveLength(1);
+  expect(commits[0]?.message).toBe("Update Instagram handle");
+  expect(commits[0]?.files[0]?.path).toBe("src/content/instagram.txt");
+  expect(repoInstagram).toBe("@barbarastraka\n");
+
+  // Reloading fetches the latest saved Instagram handle before rebuild finishes.
+  await page.reload();
+  await expect(page.locator("#plaque-ig-link")).toContainText("@barbarastraka");
+  await expect(page.locator("#plaque-ig-card")).toBeVisible();
+  await expect(page.locator("#plaque-ig-add")).toBeHidden();
+
+  await page.locator("#plaque-ig-remove").click();
+  await expect(page.locator("#plaque-ig-add")).toBeVisible();
+  expect(commits).toHaveLength(2);
+  expect(commits[1]?.message).toBe("Remove Instagram handle");
+  expect(repoInstagram).toBe("");
 });
 
 test("the old marketing page is gone", async ({ page }) => {

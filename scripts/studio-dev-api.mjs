@@ -14,14 +14,14 @@ import { dirname, resolve, sep } from "node:path";
 export const BANNER_PATH = "src/content/announcement.txt";
 const PAINTINGS_DIR = "src/content/paintings";
 
-/** Translation files and the language setting read back like paintings. */
+/** Translation files, Instagram handle, and language setting read back like paintings. */
 const READABLE_FILE =
-  /^(src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9_.-]*\.md|src\/content\/translations\/[A-Za-z0-9][A-Za-z0-9_.-]*\.json|src\/content\/languages\.json)$/;
+  /^(src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9_.-]*\.md|src\/content\/translations\/[A-Za-z0-9][A-Za-z0-9_.-]*\.json|src\/content\/languages\.json|src\/content\/instagram\.txt)$/;
 
 /** Repo paths the studio may write or delete. Keep in sync with
  * functions/api/commit. */
 const GALLERY_PATH =
-  /^(src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9_.-]*|src\/content\/announcement\.txt|src\/content\/languages\.json|src\/content\/translations\/[A-Za-z0-9][A-Za-z0-9_.-]*\.json|public\/models\/[A-Za-z0-9][A-Za-z0-9_.-]*)$/;
+  /^(src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9_.-]*|src\/content\/announcement\.txt|src\/content\/instagram\.txt|src\/content\/languages\.json|src\/content\/translations\/[A-Za-z0-9][A-Za-z0-9_.-]*\.json|public\/models\/[A-Za-z0-9][A-Za-z0-9_.-]*)$/;
 
 const PHOTO_FILE =
   /^src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9_.-]*\.(jpg|jpeg|png|webp|heic)$/i;

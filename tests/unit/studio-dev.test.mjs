@@ -180,4 +180,47 @@ describe("studio dev api", () => {
     res = await api.handleCommit(post({ message: "x", files: [] }));
     assert.equal(res.status, 400);
   });
+
+  it("writes, reads back, and clears the Instagram handle file", async () => {
+    let res = await api.handleCommit(
+      post({
+        message: "Update Instagram handle",
+        files: [
+          {
+            path: "src/content/instagram.txt",
+            contentBase64: b64("@barbarastraka\n"),
+          },
+        ],
+      }),
+    );
+    assert.equal(res.status, 201);
+
+    res = await api.handleCommit(
+      new Request(
+        "http://127.0.0.1/api/commit?path=src%2Fcontent%2Finstagram.txt",
+      ),
+    );
+    assert.equal(res.status, 200);
+    assert.equal((await res.json()).content, "@barbarastraka\n");
+
+    res = await api.handleCommit(
+      post({
+        message: "Remove Instagram handle",
+        files: [
+          {
+            path: "src/content/instagram.txt",
+            contentBase64: b64(""),
+          },
+        ],
+      }),
+    );
+    assert.equal(res.status, 201);
+    res = await api.handleCommit(
+      new Request(
+        "http://127.0.0.1/api/commit?path=src%2Fcontent%2Finstagram.txt",
+      ),
+    );
+    assert.equal(res.status, 200);
+    assert.equal((await res.json()).content, "");
+  });
 });

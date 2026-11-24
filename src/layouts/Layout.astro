@@ -26,6 +26,8 @@ import {
   SITE_URL,
   siteTitle,
 } from "../lib/site";
+import instagramRaw from "../content/instagram.txt?raw";
+import { parseInstagram } from "../lib/instagram";
 import { SITE_LOCALES, t } from "../i18n";
 import { localeInfo, localePath, type Locale } from "../i18n/locales";
 
@@ -90,6 +92,8 @@ const selfPath = Astro.url.pathname.replace(/(\/index)?\.html$|\/$/, "") || "/";
 const canonical = canonicalOverride ?? selfPath;
 const year = new Date().getFullYear();
 const artistLabel = ARTIST_NAME ?? "The Studio";
+const parsedInstagram = parseInstagram(instagramRaw);
+const instagram = parsedInstagram.ok ? parsedInstagram.value : null;
 // Maps a studio path to its header nav section. Painting rooms return null,
 // so no section is marked current.
 function adminSection(path: string): string | null {
@@ -368,8 +372,16 @@ const offers = Object.fromEntries(
         </button>
       </p>
       <p class="footer-sub">
-        © {year} {artistLabel} ·{" "}
-        <a href={here("/credits")}>{s.layout.credits}</a>
+        © {year} {artistLabel}
+        {wordmark === "signature" && instagram !== null && (
+          <>
+            {" · "}
+            <a href={instagram.url} target="_blank" rel="noopener noreferrer">
+              Instagram ({instagram.handle})
+            </a>
+          </>
+        )}{" "}
+        · <a href={here("/credits")}>{s.layout.credits}</a>
       </p>
       {showPicker && (
         <div class="footer-lang">

@@ -2,6 +2,9 @@
  * Client-side 5x7 in (300 DPI) PDF builder for the studio artist plaque.
  * Keeps the downloaded PDF in sync with the optional Instagram handle.
  */
+import { normalizeInstagramHandle } from "./instagram";
+
+export { normalizeInstagramHandle };
 
 const PAPER = "#faf7f1";
 const WASH_TOP = "#f1e7d4";
@@ -13,21 +16,6 @@ const QR_BORDER = "#ddd2bd";
 const ACCENT = "#a44a24";
 const SANS = 'system-ui, -apple-system, "Segoe UI", sans-serif';
 const SERIF = '"Fraunces Variable", Georgia, serif';
-
-/** Clean a pasted URL or handle down to "@handle", or "" when blank. */
-export function normalizeInstagramHandle(raw: string): string {
-  let s = raw.trim();
-  if (s === "") return "";
-  s = s.replace(
-    /^(?:https?:\/\/)?(?:www\.)?(?:instagram\.com|instagr\.am)\//i,
-    "",
-  );
-  s = s.split(/[/?#]/)[0] ?? "";
-  s = s.replace(/^@+/, "").trim();
-  const cleaned = s.replace(/[^A-Za-z0-9._]/g, "");
-  if (cleaned !== "") return `@${cleaned}`;
-  return s === "" ? "" : `@${s}`;
-}
 
 /** Wrap a raw baseline JPEG byte stream in a single-page PDF 1.4 wrapper. */
 export function buildJpegPdf(
@@ -271,8 +259,18 @@ export async function renderPlaquePdf({
 
   if (hasIg) {
     ctx.fillStyle = ACCENT;
-    ctx.font = `600 34px ${SANS}`;
-    ctx.fillText(`Instagram: ${handle}`, cx, 1628);
+    let fontSize = 34;
+    ctx.font = `600 ${fontSize}px ${SANS}`;
+    const igLine = `Instagram: ${handle}`;
+    if (ctx.measureText(igLine).width > 1100) {
+      fontSize = 28;
+      ctx.font = `600 ${fontSize}px ${SANS}`;
+    }
+    if (ctx.measureText(igLine).width > 1100) {
+      fontSize = 25;
+      ctx.font = `600 ${fontSize}px ${SANS}`;
+    }
+    ctx.fillText(igLine, cx, 1628, 1120);
   }
 
   ctx.fillStyle = MUTED;

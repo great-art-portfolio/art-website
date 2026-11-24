@@ -2,6 +2,8 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   GALLERY_PATH,
+  INSTAGRAM_FILE,
+  isReadableFile,
   PAINTING_FILE,
   PHOTO_FILE,
 } from "../../functions/_lib/gallery-paths.ts";
@@ -20,6 +22,8 @@ describe("gallery path guards", () => {
       true,
     );
     assert.equal(GALLERY_PATH.test("src/content/announcement.txt"), true);
+    assert.equal(GALLERY_PATH.test(INSTAGRAM_FILE), true);
+    assert.equal(isReadableFile(INSTAGRAM_FILE), true);
   });
 
   it("still refuses escapes and wrong folders", () => {

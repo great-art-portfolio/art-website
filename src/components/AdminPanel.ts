@@ -16,8 +16,13 @@ import {
 import { sendPublishAlerts } from "../lib/alerts";
 import { translationFor, type TranslationFile } from "../lib/translations";
 import { parseTranslationFile, translationPath } from "../i18n/painting-text";
+import {
+  INSTAGRAM_PATH,
+  parseInstagram,
+  type ParsedInstagram,
+} from "../lib/instagram";
 import { keyWarning } from "../lib/key-expiry";
-import { normalizeInstagramHandle, renderPlaquePdf } from "../lib/plaque-pdf";
+import { renderPlaquePdf } from "../lib/plaque-pdf";
 import {
   SEARCH_FROM,
   matchesSearch,
@@ -1662,102 +1667,388 @@ function init(): void {
       });
     }
 
-    const IG_STORAGE_KEY = "barbart:plaque-ig";
-    const igToggle = document.getElementById("plaque-ig-toggle");
-    const igRow = document.getElementById("plaque-ig-row");
+    const STUDIO_IG_KEY = "studio-instagram-v1";
+    const LEGACY_IG_KEY = "barbart:plaque-ig";
+    const secPlaque = document.getElementById("sec-plaque");
+    const igAdd = document.getElementById("plaque-ig-add");
+    const igSaved = document.getElementById("plaque-ig-saved");
+    const igLink = document.getElementById("plaque-ig-link");
+    const igLinkText = document.getElementById("plaque-ig-link-text");
+    const igEdit = document.getElementById("plaque-ig-edit");
+    const igRemove = document.getElementById("plaque-ig-remove");
+    const igForm = document.getElementById("plaque-ig-form");
     const igInput = document.getElementById("plaque-ig-input");
-    const igClear = document.getElementById("plaque-ig-clear");
+    const igSave = document.getElementById("plaque-ig-save");
+    const igCancel = document.getElementById("plaque-ig-cancel");
+    const igError = document.getElementById("plaque-ig-error");
     const igPreview = document.getElementById("plaque-ig");
-    let currentInstagram = "";
-    const syncInstagram = (raw: string, save: boolean): void => {
-      const handle = normalizeInstagramHandle(raw);
-      currentInstagram = handle;
-      if (igPreview !== null) {
-        igPreview.textContent = handle === "" ? "" : `Instagram: ${handle}`;
-        igPreview.hidden = handle === "";
-      }
-      if (igToggle !== null) {
-        igToggle.textContent =
-          handle === "" ? "Add Instagram" : "Edit Instagram";
-      }
-      if (save) {
+    const igPreviewLink = document.getElementById("plaque-ig-preview-link");
+    const igCard = document.getElementById("plaque-ig-card");
+    const igQr = document.getElementById("plaque-ig-qr");
+    const igCardLink = document.getElementById("plaque-ig-card-link");
+    const igPrintBtn = document.getElementById("plaque-ig-print");
+    const pdfBtn = document.getElementById("plaque-pdf");
+
+    if (secPlaque !== null && secPlaque.dataset.wired !== "1") {
+      secPlaque.dataset.wired = "1";
+      const parsedBaked = parseInstagram(secPlaque.dataset.instagram ?? "");
+      const bakedIg = parsedBaked.ok ? parsedBaked.value : null;
+
+      let savedIg: ParsedInstagram | null = bakedIg;
+      let previewIg: ParsedInstagram | null = bakedIg;
+      let editing = false;
+      let dirty = false;
+      let renderedQrUrl =
+        bakedIg !== null && igQr?.querySelector("svg") !== null
+          ? bakedIg.url
+          : "";
+      let qrGen = 0;
+
+      const readLocalIg = (): {
+        hasOverride: boolean;
+        value: ParsedInstagram | null;
+      } => {
+        let raw: string | null;
         try {
-          if (handle === "") localStorage.removeItem(IG_STORAGE_KEY);
-          else localStorage.setItem(IG_STORAGE_KEY, handle);
+          raw = window.localStorage.getItem(STUDIO_IG_KEY);
+          if (raw === null) {
+            const legacy = window.localStorage.getItem(LEGACY_IG_KEY);
+            if (legacy !== null) {
+              raw = legacy;
+              window.localStorage.removeItem(LEGACY_IG_KEY);
+              if (legacy !== "") {
+                window.localStorage.setItem(STUDIO_IG_KEY, legacy);
+              }
+            }
+          }
         } catch {
-          // Ignore storage unavailability in strict private sessions.
+          return { hasOverride: false, value: null };
+        }
+        if (raw === null) return { hasOverride: false, value: null };
+        const parsed = parseInstagram(raw);
+        return parsed.ok
+          ? { hasOverride: true, value: parsed.value }
+          : { hasOverride: false, value: null };
+      };
+
+      const writeLocalIg = (next: ParsedInstagram | null): void => {
+        try {
+          window.localStorage.removeItem(LEGACY_IG_KEY);
+          if (next === null && bakedIg === null) {
+            window.localStorage.removeItem(STUDIO_IG_KEY);
+          } else {
+            window.localStorage.setItem(STUDIO_IG_KEY, next?.handle ?? "");
+          }
+        } catch {
+          // Storage blocked in private browsing; state remains for this visit.
+        }
+      };
+
+      const clearLocalIg = (): void => {
+        try {
+          window.localStorage.removeItem(STUDIO_IG_KEY);
+          window.localStorage.removeItem(LEGACY_IG_KEY);
+        } catch {
+          // Ignore storage unavailability.
+        }
+      };
+
+      const clearError = (): void => {
+        if (igError !== null) {
+          igError.textContent = "";
+          igError.hidden = true;
+        }
+        if (igInput instanceof HTMLInputElement) {
+          igInput.removeAttribute("aria-invalid");
+        }
+      };
+
+      const showError = (msg: string): void => {
+        if (igError !== null) {
+          igError.textContent = msg;
+          igError.hidden = false;
+        }
+        if (igInput instanceof HTMLInputElement) {
+          igInput.setAttribute("aria-invalid", "true");
+        }
+      };
+
+      const syncQrCard = (next: ParsedInstagram | null): void => {
+        if (igCard === null) return;
+        if (next === null) {
+          igCard.hidden = true;
+          return;
+        }
+        if (igCardLink instanceof HTMLAnchorElement) {
+          igCardLink.href = next.url;
+          igCardLink.textContent = next.handle;
+        }
+        igCard.hidden = false;
+        if (igQr === null) return;
+        if (next.url === renderedQrUrl && igQr.querySelector("svg") !== null) {
+          return;
+        }
+        const gen = ++qrGen;
+        void import("../lib/qr").then(({ paintedQrSvg }) => {
+          if (gen !== qrGen || !igQr.isConnected) return;
+          igQr.innerHTML = paintedQrSvg(next.url);
+          renderedQrUrl = next.url;
+        });
+      };
+
+      const applyUi = (
+        saved: ParsedInstagram | null,
+        preview: ParsedInstagram | null,
+        isEditing: boolean,
+      ): void => {
+        if (igAdd !== null) igAdd.hidden = saved !== null || isEditing;
+        if (igSaved !== null) igSaved.hidden = saved === null || isEditing;
+        if (igForm !== null) igForm.hidden = !isEditing;
+        if (saved !== null) {
+          if (igLink instanceof HTMLAnchorElement) igLink.href = saved.url;
+          if (igLinkText !== null) igLinkText.textContent = saved.handle;
+        }
+        if (igPreview !== null) {
+          igPreview.hidden = preview === null;
+          igPreview.classList.toggle(
+            "plaque-ig--long",
+            (preview?.handle.length ?? 0) > 22,
+          );
+          if (igPreviewLink instanceof HTMLAnchorElement) {
+            igPreviewLink.href = preview?.url ?? "https://www.instagram.com/";
+            igPreviewLink.textContent = preview?.handle ?? "";
+          }
+        }
+        syncQrCard(preview);
+      };
+
+      if (isLocalPreview() && getApiToken() === "") {
+        const localOverride = readLocalIg();
+        if (localOverride.hasOverride) {
+          savedIg = localOverride.value;
+          previewIg = localOverride.value;
         }
       }
-    };
-    if (igToggle !== null && igToggle.dataset.wired !== "1") {
-      igToggle.dataset.wired = "1";
-      let saved: string;
-      try {
-        saved = localStorage.getItem(IG_STORAGE_KEY) ?? "";
-      } catch {
-        saved = "";
-      }
-      if (saved !== "") {
-        if (igInput instanceof HTMLInputElement) igInput.value = saved;
-        syncInstagram(saved, false);
-      }
-      igToggle.addEventListener("click", () => {
-        if (igRow === null) return;
-        const open = igRow.hidden;
-        igRow.hidden = !open;
-        igToggle.setAttribute("aria-expanded", String(open));
-        if (open && igInput instanceof HTMLInputElement) igInput.focus();
-      });
+      applyUi(savedIg, previewIg, false);
+
+      void (async () => {
+        if (await useOverlayMode()) return;
+        const raw = await api.getPaintingFile(INSTAGRAM_PATH);
+        if (raw === null || dirty || editing) return;
+        const parsed = parseInstagram(raw);
+        if (!parsed.ok) return;
+        if ((parsed.value?.handle ?? "") !== (savedIg?.handle ?? "")) {
+          savedIg = parsed.value;
+          previewIg = parsed.value;
+          applyUi(savedIg, previewIg, false);
+        }
+      })();
+
+      const openEditor = (): void => {
+        editing = true;
+        clearError();
+        if (igInput instanceof HTMLInputElement) {
+          igInput.value = savedIg?.handle ?? "";
+        }
+        applyUi(savedIg, previewIg, true);
+        if (igInput instanceof HTMLInputElement) {
+          igInput.focus();
+          igInput.select();
+        }
+      };
+
+      const cancelEditor = (): void => {
+        editing = false;
+        previewIg = savedIg;
+        clearError();
+        applyUi(savedIg, previewIg, false);
+        if (savedIg !== null && igEdit instanceof HTMLElement) {
+          igEdit.focus();
+        } else if (igAdd instanceof HTMLElement) {
+          igAdd.focus();
+        }
+      };
+
+      const setBusy = (busy: boolean): void => {
+        if (igSave instanceof HTMLButtonElement) igSave.disabled = busy;
+        if (igRemove instanceof HTMLButtonElement) igRemove.disabled = busy;
+        if (igCancel instanceof HTMLButtonElement) igCancel.disabled = busy;
+      };
+
+      const persistInstagram = async (
+        next: ParsedInstagram | null,
+      ): Promise<boolean> => {
+        dirty = true;
+        setBusy(true);
+        try {
+          if (await useOverlayMode()) {
+            writeLocalIg(next);
+            savedIg = next;
+            previewIg = next;
+            editing = false;
+            clearError();
+            applyUi(savedIg, previewIg, false);
+            setStatus(
+              next === null
+                ? "Instagram removed in this tab — open on the live site to publish."
+                : `Showing ${next.handle} on your plaque in this tab — publish on the live site.`,
+            );
+            return true;
+          }
+          setStatus(
+            next === null
+              ? "Removing Instagram… (live in a few minutes)"
+              : `Saving ${next.handle}… (live in a few minutes)`,
+          );
+          await api.commitFiles(
+            next === null
+              ? "Remove Instagram handle"
+              : "Update Instagram handle",
+            [
+              {
+                path: INSTAGRAM_PATH,
+                blob: next === null ? "" : `${next.handle}\n`,
+              },
+            ],
+          );
+          clearLocalIg();
+          savedIg = next;
+          previewIg = next;
+          editing = false;
+          clearError();
+          applyUi(savedIg, previewIg, false);
+          setStatus(
+            next === null
+              ? "Instagram removed — your website updates in a few minutes."
+              : `Saved ${next.handle} — plaque ready now, website updates in a few minutes.`,
+          );
+          return true;
+        } catch (err: unknown) {
+          if (isLocalPreview() && getApiToken() === "") {
+            writeLocalIg(next);
+            savedIg = next;
+            previewIg = next;
+            editing = false;
+            clearError();
+            applyUi(savedIg, previewIg, false);
+            setStatus(
+              next === null
+                ? "Instagram removed in this tab — open on the live site to publish."
+                : `Showing ${next.handle} on your plaque in this tab — publish on the live site.`,
+            );
+            return true;
+          }
+          setStatus(errorMessage(err), true);
+          reportError("studio.instagram_failed", err);
+          return false;
+        } finally {
+          setBusy(false);
+        }
+      };
+
+      igAdd?.addEventListener("click", () => openEditor());
+      igEdit?.addEventListener("click", () => openEditor());
+      igCancel?.addEventListener("click", () => cancelEditor());
+
       if (igInput instanceof HTMLInputElement) {
         igInput.addEventListener("input", () => {
-          syncInstagram(igInput.value, true);
+          clearError();
+          const res = parseInstagram(igInput.value);
+          if (res.ok && res.value !== null) {
+            previewIg = res.value;
+            applyUi(savedIg, previewIg, editing);
+          }
         });
       }
-      igClear?.addEventListener("click", () => {
-        if (igInput instanceof HTMLInputElement) igInput.value = "";
-        syncInstagram("", true);
-        if (igRow !== null) igRow.hidden = true;
-        igToggle.setAttribute("aria-expanded", "false");
-        igToggle.focus();
+
+      if (igForm instanceof HTMLFormElement) {
+        igForm.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") {
+            e.preventDefault();
+            cancelEditor();
+          }
+        });
+        igForm.addEventListener("submit", (e) => {
+          e.preventDefault();
+          const raw = igInput instanceof HTMLInputElement ? igInput.value : "";
+          const res = parseInstagram(raw);
+          if (!res.ok) {
+            showError(res.error);
+            if (igInput instanceof HTMLInputElement) igInput.focus();
+            return;
+          }
+          if (res.value === null && savedIg === null) {
+            showError("Type your @username or paste your Instagram link.");
+            if (igInput instanceof HTMLInputElement) igInput.focus();
+            return;
+          }
+          if (res.value?.handle === savedIg?.handle) {
+            editing = false;
+            previewIg = savedIg;
+            clearError();
+            applyUi(savedIg, previewIg, false);
+            if (igEdit instanceof HTMLElement) igEdit.focus();
+            return;
+          }
+          void persistInstagram(res.value).then((ok) => {
+            if (!ok) return;
+            if (savedIg !== null && igEdit instanceof HTMLElement) {
+              igEdit.focus();
+            } else if (igAdd instanceof HTMLElement) {
+              igAdd.focus();
+            }
+          });
+        });
+      }
+
+      igRemove?.addEventListener("click", () => {
+        void persistInstagram(null).then((ok) => {
+          if (ok && igAdd instanceof HTMLElement) igAdd.focus();
+        });
       });
+
+      if (igPrintBtn !== null) {
+        igPrintBtn.addEventListener("click", () => {
+          printWith([{ el: main, name: "printing-ig" }]);
+        });
+      }
+
+      if (pdfBtn instanceof HTMLButtonElement) {
+        pdfBtn.addEventListener("click", () => {
+          if (pdfBtn.disabled) return;
+          const svgEl = document.querySelector(".plaque-sig svg");
+          const qrImg = document.querySelector(".plaque-qr img");
+          if (
+            !(svgEl instanceof SVGElement) ||
+            !(qrImg instanceof HTMLImageElement)
+          )
+            return;
+          const label = pdfBtn.textContent ?? "Download 5\u00D77\u2033 PDF";
+          pdfBtn.disabled = true;
+          pdfBtn.textContent = "Preparing PDF\u2026";
+          void renderPlaquePdf({
+            svgEl,
+            qrImg,
+            instagram: previewIg?.handle ?? "",
+          })
+            .then((pdfBytes) => {
+              const url = URL.createObjectURL(
+                new Blob([pdfBytes], { type: "application/pdf" }),
+              );
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = "barbara-straka-plaque-5x7.pdf";
+              a.click();
+              window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+            })
+            .finally(() => {
+              pdfBtn.disabled = false;
+              pdfBtn.textContent = label;
+            });
+        });
+      }
     }
 
-    const pdfBtn = document.getElementById("plaque-pdf");
-    if (pdfBtn instanceof HTMLButtonElement && pdfBtn.dataset.wired !== "1") {
-      pdfBtn.dataset.wired = "1";
-      pdfBtn.addEventListener("click", () => {
-        if (pdfBtn.disabled) return;
-        const svgEl = document.querySelector(".plaque-sig svg");
-        const qrImg = document.querySelector(".plaque-qr img");
-        if (
-          !(svgEl instanceof SVGElement) ||
-          !(qrImg instanceof HTMLImageElement)
-        )
-          return;
-        const label = pdfBtn.textContent ?? "Download 5\u00D77\u2033 PDF";
-        pdfBtn.disabled = true;
-        pdfBtn.textContent = "Preparing PDF\u2026";
-        void renderPlaquePdf({
-          svgEl,
-          qrImg,
-          instagram: currentInstagram,
-        })
-          .then((pdfBytes) => {
-            const url = URL.createObjectURL(
-              new Blob([pdfBytes], { type: "application/pdf" }),
-            );
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "barbara-straka-plaque-5x7.pdf";
-            a.click();
-            window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-          })
-          .finally(() => {
-            pdfBtn.disabled = false;
-            pdfBtn.textContent = label;
-          });
-      });
-    }
     const printBtn = document.getElementById("qr-print");
     if (printBtn !== null && printBtn.dataset.wired !== "1") {
       printBtn.dataset.wired = "1";
@@ -1766,7 +2057,7 @@ function init(): void {
       });
     }
     // Per-card buttons print just their card.
-    for (const el of document.querySelectorAll(".qr-print-one")) {
+    for (const el of document.querySelectorAll("#sec-qr .qr-print-one")) {
       if (!(el instanceof HTMLButtonElement) || el.dataset.wired === "1")
         continue;
       el.dataset.wired = "1";

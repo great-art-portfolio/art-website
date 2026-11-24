@@ -5,8 +5,13 @@ import Layout from "../../layouts/Layout.astro";
 import Signature from "../../components/Signature.astro";
 import "../../components/studio.css";
 import plaqueQr from "../../assets/artist-plaque-qr.jpg";
+import instagramRaw from "../../content/instagram.txt?raw";
+import { parseInstagram } from "../../lib/instagram";
 import { compareGalleryOrder, isPublished, slugifyTitle } from "../../lib/site";
-import { paintingPageUrl, qrSvg } from "../../lib/qr";
+import { paintedQrSvg, paintingPageUrl } from "../../lib/qr";
+
+const parsedIg = parseInstagram(instagramRaw);
+const bakedInstagram = parsedIg.ok ? parsedIg.value : null;
 
 // Printable codes for every painting with a buyer page, which excludes
 // drafts and trash. Available first, then sold, in gallery order.
@@ -24,13 +29,19 @@ for (const p of byOrder.filter((p) => p.data.sold)) cards.push(p);
 const codes = cards.map((p) => {
   const slug = slugifyTitle(p.data.title);
   const url = paintingPageUrl(slug);
-  return { slug, title: p.data.title, sold: p.data.sold, url, svg: qrSvg(url) };
+  return {
+    slug,
+    title: p.data.title,
+    sold: p.data.sold,
+    url,
+    svg: paintedQrSvg(url),
+  };
 });
 ---
 
 <Layout title="Admin - QR codes" wordmark="admin" noindex>
   <main class="admin" id="main">
-    <section id="sec-plaque">
+    <section id="sec-plaque" data-instagram={bakedInstagram?.handle ?? ""}>
       <h2>Artist plaque</h2>
       <p>
         One 5&times;7&Prime; sign for your table or wall at an art show &mdash;
@@ -45,70 +56,179 @@ const codes = cards.map((p) => {
         </button>
         <button
           type="button"
-          id="plaque-ig-toggle"
-          aria-expanded="false"
-          aria-controls="plaque-ig-row"
+          id="plaque-ig-add"
+          hidden={bakedInstagram !== null}
         >
           Add Instagram
         </button>
       </div>
-      <div id="plaque-ig-row" class="plaque-ig-row" hidden>
-        <label for="plaque-ig-input">
-          Instagram handle
-          <input
-            id="plaque-ig-input"
-            type="text"
-            placeholder="@barbarastraka"
-            autocomplete="off"
-            spellcheck="false"
-            maxlength="60"
-          />
-        </label>
-        <button type="button" id="plaque-ig-clear">
-          Remove
-        </button>
+      <div
+        id="plaque-ig-saved"
+        class="plaque-ig-saved"
+        hidden={bakedInstagram === null}
+      >
+        <svg
+          class="ig-glyph"
+          viewBox="0 0 24 24"
+          width="16"
+          height="16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.9"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <rect x="3" y="3" width="18" height="18" rx="5" />
+          <circle cx="12" cy="12" r="4" />
+          <circle cx="17.3" cy="6.7" r="1" fill="currentColor" stroke="none" />
+        </svg>
+        <span class="ig-saved-label">Instagram:</span>
+        <a
+          id="plaque-ig-link"
+          href={bakedInstagram?.url ?? "https://www.instagram.com/"}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <span id="plaque-ig-link-text">{bakedInstagram?.handle ?? ""}</span>
+          <span aria-hidden="true"> &#8599;</span>
+          <span class="sr-only"> (opens in a new tab)</span>
+        </a>
+        <div class="ig-saved-btns">
+          <button type="button" id="plaque-ig-edit" class="ig-quiet-btn">
+            Edit
+          </button>
+          <button type="button" id="plaque-ig-remove" class="ig-quiet-btn">
+            Remove
+          </button>
+        </div>
       </div>
-      <article class="plaque-sheet" aria-label="Artist plaque preview">
-        <div class="plaque-paper">
-          <div class="plaque-card">
-            <div class="plaque-sig">
-              <Signature />
-            </div>
-            <p class="plaque-eyebrow">
-              Calgary, Alberta &middot; Original Paintings
-            </p>
-            <div class="plaque-rule" aria-hidden="true" />
-            <div class="plaque-bio">
-              <p>
-                Nature and abstract originals from her Calgary studio.
-                <br />
-                Prairie light, quiet water, and colour studies
-                <br />
-                sitting somewhere between landscape and feeling.
-              </p>
-              <p>
-                Every piece is painted by hand.
-                <br />
-                Scan below for larger originals, prints, and studio updates.
-              </p>
-            </div>
-            <div class="plaque-qr">
-              <Image
-                src={plaqueQr}
-                alt="Painted QR code for barbart.ca"
-                width={1024}
-                height={1024}
-                quality={95}
-              />
-            </div>
-            <p class="plaque-url">barbart.ca</p>
-            <p class="plaque-ig" id="plaque-ig" hidden />
-            <p class="plaque-sub">
-              Larger originals &middot; Prints &middot; New-work alerts
-            </p>
+      <form id="plaque-ig-form" class="plaque-ig-form" hidden novalidate>
+        <div class="plaque-ig-fields">
+          <label for="plaque-ig-input">
+            Instagram handle
+            <input
+              id="plaque-ig-input"
+              type="text"
+              inputmode="text"
+              autocapitalize="none"
+              autocorrect="off"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="@barbarastraka or instagram.com/..."
+              maxlength="200"
+              aria-describedby="plaque-ig-hint plaque-ig-error"
+            />
+          </label>
+          <div class="plaque-ig-form-btns">
+            <button type="submit" id="plaque-ig-save" class="primary">
+              Save
+            </button>
+            <button type="button" id="plaque-ig-cancel">
+              Cancel
+            </button>
           </div>
         </div>
-      </article>
+        <p id="plaque-ig-error" class="plaque-ig-error" role="alert" hidden />
+        <p id="plaque-ig-hint" class="hint">
+          Paste your @username or Instagram profile link. Shows on your plaque,
+          gets a painted QR card, and links in your website footer.
+        </p>
+      </form>
+      <div class="plaque-previews">
+        <article class="plaque-sheet" aria-label="Artist plaque preview">
+          <div class="plaque-paper">
+            <div class="plaque-card">
+              <div class="plaque-sig">
+                <Signature />
+              </div>
+              <p class="plaque-eyebrow">
+                Calgary, Alberta &middot; Original Paintings
+              </p>
+              <div class="plaque-rule" aria-hidden="true" />
+              <div class="plaque-bio">
+                <p>
+                  Nature and abstract originals from her Calgary studio.
+                  <br />
+                  Prairie light, quiet water, and colour studies
+                  <br />
+                  sitting somewhere between landscape and feeling.
+                </p>
+                <p>
+                  Every piece is painted by hand.
+                  <br />
+                  Scan below for larger originals, prints, and studio updates.
+                </p>
+              </div>
+              <div class="plaque-qr">
+                <Image
+                  src={plaqueQr}
+                  alt="Painted QR code for barbart.ca"
+                  width={1024}
+                  height={1024}
+                  quality={95}
+                />
+              </div>
+              <p class="plaque-url">barbart.ca</p>
+              <p
+                class:list={[
+                  "plaque-ig",
+                  {
+                    "plaque-ig--long":
+                      (bakedInstagram?.handle.length ?? 0) > 22,
+                  },
+                ]}
+                id="plaque-ig"
+                hidden={bakedInstagram === null}
+              >
+                Instagram:{" "}
+                <a
+                  id="plaque-ig-preview-link"
+                  href={bakedInstagram?.url ?? "https://www.instagram.com/"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {bakedInstagram?.handle ?? ""}
+                </a>
+              </p>
+              <p class="plaque-sub">
+                Larger originals &middot; Prints &middot; New-work alerts
+              </p>
+            </div>
+          </div>
+        </article>
+        <aside
+          id="plaque-ig-card"
+          class="ig-qr-card"
+          aria-label="Instagram QR code"
+          hidden={bakedInstagram === null}
+        >
+          <div
+            class="qr-code"
+            id="plaque-ig-qr"
+            set:html={
+              bakedInstagram !== null ? paintedQrSvg(bakedInstagram.url) : ""
+            }
+          />
+          <p class="qr-title">Follow on Instagram</p>
+          <p class="ig-card-handle">
+            <a
+              id="plaque-ig-card-link"
+              href={bakedInstagram?.url ?? "https://www.instagram.com/"}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {bakedInstagram?.handle ?? ""}
+            </a>
+          </p>
+          <p class="qr-scan">
+            Scan with your phone camera to open Barbara's Instagram.
+          </p>
+          <button type="button" id="plaque-ig-print" class="qr-print-one">
+            Print Instagram code
+          </button>
+        </aside>
+      </div>
     </section>
 
     <section id="sec-qr">
@@ -163,28 +283,111 @@ const codes = cards.map((p) => {
     flex-wrap: wrap;
     gap: 0.75rem;
     align-items: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.25rem;
   }
-  .plaque-ig-row {
+  #plaque-ig-add[hidden] {
+    display: none;
+  }
+  .plaque-ig-saved {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.7rem;
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 0 1.4rem;
+    padding: 0.45rem 0.75rem 0.45rem 0.85rem;
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+    background: var(--card);
+    font-size: 0.92rem;
+  }
+  .plaque-ig-saved[hidden] {
+    display: none;
+  }
+  .ig-glyph {
+    color: var(--accent);
+    flex: none;
+  }
+  .ig-saved-label {
+    color: var(--muted);
+  }
+  .plaque-ig-saved a {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  .ig-saved-btns {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-left: 0.15rem;
+  }
+  .ig-quiet-btn {
+    min-height: 2.25rem;
+    padding: 0.25rem 0.65rem;
+    border: 1px solid transparent;
+    border-radius: 0.5rem;
+    background: transparent;
+    color: var(--muted);
+    font-size: 0.84rem;
+    font-weight: 600;
+  }
+  .ig-quiet-btn:hover {
+    color: var(--ink);
+    border-color: var(--line);
+    background: var(--paper);
+    transform: none;
+  }
+  .plaque-ig-form {
+    max-width: 34rem;
+    margin: 0 0 1.6rem;
+    padding: 0.95rem 1.05rem;
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+    background: var(--card);
+  }
+  .plaque-ig-form[hidden] {
+    display: none;
+  }
+  .plaque-ig-fields {
     display: flex;
     flex-wrap: wrap;
     gap: 0.75rem;
     align-items: end;
-    max-width: 28rem;
-    margin: 0 0 1.75rem;
   }
-  .plaque-ig-row[hidden] {
+  .plaque-ig-fields label {
+    flex: 1 1 14rem;
+    margin-block: 0;
+  }
+  .plaque-ig-form-btns {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .plaque-ig-error {
+    margin: 0.55rem 0 0;
+    color: var(--danger);
+    font-size: 0.88rem;
+    font-weight: 600;
+  }
+  .plaque-ig-error[hidden] {
     display: none;
   }
-  .plaque-ig-row label {
-    flex: 1 1 13rem;
-    margin-block: 0;
+  #plaque-ig-hint {
+    margin: 0.55rem 0 0;
+  }
+  .plaque-previews {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.75rem 2.25rem;
+    align-items: flex-start;
   }
   /* container-type: inline-size lives on .plaque-sheet while cqi lengths
      live on .plaque-paper and its descendants so every cqi unit measures
      the plaque itself rather than the viewport. */
   .plaque-sheet {
     container-type: inline-size;
+    flex: 0 0 auto;
     width: min(100%, 24rem);
     aspect-ratio: 5 / 7;
     padding: 0;
@@ -283,9 +486,21 @@ const codes = cards.map((p) => {
     color: #23201b;
   }
   .plaque-ig {
+    max-width: 80cqi;
     margin: 0 0 1.2cqi;
     font-size: 2.25cqi;
     font-weight: 600;
+    color: #a44a24;
+    overflow-wrap: anywhere;
+  }
+  .plaque-ig--long {
+    font-size: 1.9cqi;
+  }
+  /* Fixed terracotta on warm paper stock, overriding dark-mode --accent. */
+  .plaque-ig a,
+  .plaque-ig a:visited,
+  .ig-card-handle a,
+  .ig-card-handle a:visited {
     color: #a44a24;
   }
   .plaque-ig[hidden] {
@@ -296,6 +511,41 @@ const codes = cards.map((p) => {
     font-size: 1.87cqi;
     letter-spacing: 0.04em;
     color: #756a5c;
+  }
+  .ig-qr-card {
+    flex: 0 1 19rem;
+    width: min(100%, 19rem);
+    min-width: 0;
+    box-sizing: border-box;
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
+    background: #fffdf8;
+    color: #23201b;
+    padding: 1.25rem 1.25rem 1rem;
+    text-align: center;
+  }
+  .ig-qr-card[hidden] {
+    display: none;
+  }
+  .ig-qr-card .qr-title {
+    margin: 0.9rem 0 0.2rem;
+    font-family: var(--serif);
+    font-size: 1.15rem;
+  }
+  .ig-card-handle {
+    margin: 0 0 0.35rem;
+    font-size: 0.92rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  .ig-qr-card .qr-scan {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.35;
+  }
+  .ig-qr-card .qr-print-one {
+    margin-top: 0.8rem;
+    font-size: 0.85rem;
   }
 
   /* Cards with a code, title, and URL. The intro keeps the 40rem text
@@ -325,17 +575,21 @@ const codes = cards.map((p) => {
     box-sizing: border-box;
     border: 1px solid var(--line);
     border-radius: 0.5rem;
-    background: #fff;
-    color: #111;
+    background: #fffdf8;
+    color: #23201b;
     padding: 1.25rem 1.25rem 1rem;
     text-align: center;
   }
   /* The SVG comes from set:html and lacks Astro's scope attribute, so the
      selector is global. */
+  :global(#sec-plaque .qr-code svg),
   :global(#sec-qr .qr-code svg) {
     width: 100%;
     height: auto;
     display: block;
+    border-radius: 0.35rem;
+    border: 1px solid #e5dccb;
+    box-sizing: border-box;
   }
   #sec-qr .qr-title {
     margin: 0.9rem 0 0.2rem;
@@ -361,8 +615,8 @@ const codes = cards.map((p) => {
     font-size: 0.85rem;
   }
   @media print {
-    /* Print only the chosen piece (plaque or painting codes), in clean
-       color on paper regardless of theme. */
+    /* Print only the chosen piece (plaque, Instagram card, or painting
+       codes), in clean color on paper regardless of theme. */
     :global(.site-header),
     :global(.site-nav),
     :global(#admin-status),
@@ -371,7 +625,10 @@ const codes = cards.map((p) => {
     #sec-plaque > h2,
     #sec-plaque > p,
     .plaque-actions,
-    .plaque-ig-row,
+    .plaque-ig-saved,
+    .plaque-ig-form,
+    #plaque-ig-add,
+    #plaque-ig-print,
     #sec-qr > h2,
     #sec-qr > p,
     #qr-print,
@@ -387,6 +644,9 @@ const codes = cards.map((p) => {
       padding: 0;
       border: 0;
     }
+    .plaque-previews {
+      display: block;
+    }
     .plaque-sheet {
       width: min(100%, 5in);
       height: auto;
@@ -399,6 +659,10 @@ const codes = cards.map((p) => {
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
+    .plaque-ig a,
+    .ig-card-handle a {
+      text-decoration: none;
+    }
     /* Negative-spread shadows render as solid grey boxes in Chromium PDFs,
        so swap them for a crisp border in print. */
     .plaque-card,
@@ -408,8 +672,20 @@ const codes = cards.map((p) => {
     .plaque-qr {
       border-color: #ddd2bd;
     }
-    :global(#main.printing-plaque) #sec-qr {
+    :global(#main.printing-plaque) #sec-qr,
+    :global(#main.printing-plaque) #plaque-ig-card {
       display: none;
+    }
+    :global(#main.printing-ig) .plaque-sheet,
+    :global(#main.printing-ig) #sec-qr {
+      display: none;
+    }
+    :global(#main.printing-ig) .ig-qr-card {
+      width: min(100%, 3.2in);
+      margin: 0 auto;
+      break-inside: avoid;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
     :global(#main.printing-codes) #sec-plaque {
       display: none;
@@ -418,8 +694,11 @@ const codes = cards.map((p) => {
       grid-template-columns: repeat(2, 1fr);
       gap: 1.5rem;
     }
-    #sec-qr .qr-card {
+    #sec-qr .qr-card,
+    .ig-qr-card {
       break-inside: avoid;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
     /* Paper is white: a dark theme mustn't print light-on-white text. */
     :global(html),

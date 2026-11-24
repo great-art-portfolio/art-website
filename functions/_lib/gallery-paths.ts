@@ -16,21 +16,25 @@ export const TRANSLATION_FILE =
 /** The languages she has switched on. */
 export const LANGUAGES_FILE = "src/content/languages.json";
 
+/** Her Instagram handle, or empty when hidden. */
+export const INSTAGRAM_FILE = "src/content/instagram.txt";
+
 /** Files the studio may read back (?path=). */
 export function isReadableFile(path: string): boolean {
   return (
     PAINTING_FILE.test(path) ||
     TRANSLATION_FILE.test(path) ||
-    path === LANGUAGES_FILE
+    path === LANGUAGES_FILE ||
+    path === INSTAGRAM_FILE
   );
 }
 
 /** Paths the admin endpoint may write or delete: painting files and
- * photos, the banner, languages and translations, and wall-preview models.
- * Only those file types, so nothing written can become a page or script
- * on the site. */
+ * photos, the banner, Instagram handle, languages and translations, and
+ * wall-preview models. Only those file types, so nothing written can become
+ * a page or script on the site. */
 export const GALLERY_PATH =
-  /^(src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9 _.-]*\.(md|jpg|jpeg|png|webp|heic)|src\/content\/announcement\.txt|src\/content\/languages\.json|src\/content\/translations\/[A-Za-z0-9][A-Za-z0-9 _.-]*\.json|public\/models\/[A-Za-z0-9][A-Za-z0-9 _.-]*\.(glb|usdz))$/i;
+  /^(src\/content\/paintings\/[A-Za-z0-9][A-Za-z0-9 _.-]*\.(md|jpg|jpeg|png|webp|heic)|src\/content\/announcement\.txt|src\/content\/instagram\.txt|src\/content\/languages\.json|src\/content\/translations\/[A-Za-z0-9][A-Za-z0-9 _.-]*\.json|public\/models\/[A-Za-z0-9][A-Za-z0-9 _.-]*\.(glb|usdz))$/i;
 
 /** Painting photo bytes for AR rebuilds. */
 export const PHOTO_FILE =

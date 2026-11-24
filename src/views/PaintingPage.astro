@@ -6,6 +6,8 @@ import PaintingDetail, {
   type PaintingDetailData,
 } from "../components/PaintingDetail.astro";
 import { sizeFor } from "../lib/dims";
+import instagramRaw from "../content/instagram.txt?raw";
+import { parseInstagram } from "../lib/instagram";
 import { modelGlbOrEmpty } from "../lib/model-files";
 import { SHARE_IMAGE } from "../lib/share-image";
 import {
@@ -88,6 +90,8 @@ const inches = (v: number | undefined) =>
   v === undefined
     ? undefined
     : { "@type": "QuantitativeValue", value: v, unitCode: "INH" };
+const parsedInstagram = parseInstagram(instagramRaw);
+const instagram = parsedInstagram.ok ? parsedInstagram.value : null;
 const paintingJsonLd = {
   "@context": "https://schema.org",
   "@type": ["Product", "VisualArtwork"],
@@ -108,7 +112,11 @@ const paintingJsonLd = {
     ? {}
     : {
         brand: { "@type": "Brand", name: ARTIST_NAME },
-        creator: { "@type": "Person", name: ARTIST_NAME },
+        creator: {
+          "@type": "Person",
+          name: ARTIST_NAME,
+          ...(instagram === null ? {} : { sameAs: [instagram.url] }),
+        },
       }),
   offers: {
     "@type": "Offer",
